@@ -17,13 +17,14 @@
     "079",
     "080",
     "081",
-    "082"
+    "082",
+    "083"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 082 analysis findings closure; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 083 agent tooling contract hardening; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -249,6 +250,21 @@
         "notes": "Validator passed after task 082 analysis findings closure."
       },
       "dogfooding_implication": "No dogfood run exists yet; pre-bootstrap ambiguity is resolved before the first Zig scaffold task.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "083",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for missing explicit task orders, bare follow-up task references, queue schema order requirement, report semantic validation wording, and durable latest-stable Zig evidence wording.",
+      "implementation_summary": "Inserted and completed task 083 before project bootstrap, made queue order explicit and schema-required for every task, canonicalized follow-up task refs, added validator guardrails, documented report semantic validation ownership, strengthened task 005 latest-stable Zig evidence requirements, and updated task 000 to follow task 083.",
+      "files_changed": ["task metadata", "queue schema and explicit order keys", "follow-up task references", "report and Zig contract docs", "task 005/006 requirements", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for explicit task orders, canonical follow-up refs, report semantic validation wording, and durable Zig release evidence wording."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks for task-control files and schemas", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 083 agent tooling contract hardening."
+      },
+      "dogfooding_implication": "No runtime behavior exists yet; this removes pre-bootstrap tooling ambiguity before dogfoodable behavior exists.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -487,6 +503,21 @@
       "event": "analysis_findings_closure_completed",
       "task": "082",
       "notes": "Completed task 082 before project bootstrap. Added validator guardrails and aligned doctest fence docs, task gate headings, task 000 task-control scope, and latest-stable Zig policy wording."
+    },
+    {
+      "event": "agent_tooling_contract_hardening_inserted",
+      "task": "083",
+      "notes": "Inserted task 083 at execution order 000.0.14 before project bootstrap to harden explicit queue ordering, canonical follow-up refs, report semantic validation ownership, and latest-stable Zig evidence capture."
+    },
+    {
+      "event": "agent_tooling_contract_hardening_started",
+      "task": "083",
+      "notes": "Activated task 083 after reading the task file and required agent contracts."
+    },
+    {
+      "event": "agent_tooling_contract_hardening_completed",
+      "task": "083",
+      "notes": "Completed task 083 before project bootstrap. Queue order is explicit and schema-required, follow-up refs are canonical, report semantic validation ownership is documented, task 005 requires durable latest-stable Zig evidence, and validator guardrails preserve those contracts."
     }
   ]
 }

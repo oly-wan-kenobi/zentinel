@@ -1,6 +1,6 @@
 # zentinel Task Queue
 
-This queue is the human-readable source of truth for sequential AI-agent work. The machine-readable source is `tasks/queue.json`. Execute tasks by the `Order` column. Task IDs are stable file identifiers; an inserted prerequisite may use a higher task ID with an earlier decimal order key such as `059.1`. Only one task may be active at a time.
+This queue is the human-readable source of truth for sequential AI-agent work. The machine-readable source is `tasks/queue.json`. Execute tasks by the `Order` column. Every machine-readable task entry has an explicit `order` key. Task IDs are stable file identifiers; an inserted prerequisite may use a higher task ID with an earlier decimal order key such as `059.1`. Only one task may be active at a time.
 
 ## Rules
 
@@ -36,6 +36,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.11 | `tasks/080-doctest-survivor-example-identity-guard.md` | complete | 0 |
 | 000.0.12 | `tasks/081-task-local-validator-requirements.md` | complete | 0 |
 | 000.0.13 | `tasks/082-analysis-findings-closure.md` | complete | 0 |
+| 000.0.14 | `tasks/083-agent-tooling-contract-hardening.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
