@@ -51,6 +51,8 @@ The exact latest stable value belongs in implementation constants and release no
 
 When task `005` is implemented, the agent must verify the official latest stable Zig release from the Zig project release source, then run `zig version` in the implementation environment and confirm the local toolchain matches that release. The task status or release metadata must record durable verification evidence: official release source consulted, official latest stable version, local `zig version`, and match or mismatch result. The compiled-in value must be stored in one version-policy module and recorded in release notes or an equivalent release metadata file when such a file exists. A local `zig version` result alone is not enough to choose the supported version. Agents must not infer the supported version from chat history, stale examples, or unrelated documentation.
 
+If network access or the official release source is unavailable while task `005` is active, the agent must mark the task blocked and insert a prerequisite task instead of guessing the latest stable Zig version. The prerequisite must restore a durable official-source verification path or provide an approved offline mirror/source contract before task `005` resumes.
+
 ## Config Contract
 
 Config accepts:

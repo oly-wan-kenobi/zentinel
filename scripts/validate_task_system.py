@@ -1730,6 +1730,8 @@ def validate_agent_tooling_contract_hardening_contracts(errors: list[str]) -> No
             "official latest stable version",
             "local `zig version`",
             "match or mismatch result",
+            "If network access or the official release source is unavailable",
+            "insert a prerequisite task instead of guessing",
         ],
         "tasks/005-version-policy.md": [
             "durable verification evidence",
@@ -1737,6 +1739,8 @@ def validate_agent_tooling_contract_hardening_contracts(errors: list[str]) -> No
             "official latest stable version",
             "local `zig version`",
             "match or mismatch result",
+            "If network access or the official release source is unavailable",
+            "insert a prerequisite task instead of guessing",
         ],
     }
     for rel, phrases in required_phrases.items():

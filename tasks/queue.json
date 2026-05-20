@@ -721,6 +721,37 @@
       ]
     },
     {
+      "id": "089",
+      "order": "000.0.19",
+      "title": "Zig Version Verification Blocker Policy",
+      "file": "tasks/089-zig-version-verification-blocker-policy.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "088"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/089-zig-version-verification-blocker-policy.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/005-version-policy.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -728,7 +759,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "088"
+        "089"
       ],
       "allowed_files": [
         "build.zig",

@@ -22,13 +22,14 @@
     "084",
     "086",
     "087",
-    "088"
+    "088",
+    "089"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 088 AI input report option clarity; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 089 Zig version verification blocker policy; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -330,6 +331,21 @@
       },
       "dogfooding_implication": "Future AI and doctest dogfood scripts distinguish report input paths from run report format selection.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "089",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because docs/ZIG_VERSION_POLICY.md and task 005 did not define the unavailable official-source blocker path.",
+      "implementation_summary": "Clarified that task 005 must block and insert a prerequisite task instead of guessing when network access or the official Zig release source is unavailable, and added validator guardrails.",
+      "files_changed": ["task metadata", "task 000 guard", "Zig version policy", "task 005 requirements", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for the Zig latest-stable official-source unavailable blocker path."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 089 Zig version verification blocker policy."
+      },
+      "dogfooding_implication": "Future dogfood and CI must use source-verified Zig version policy instead of guessed local toolchain state.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -627,6 +643,16 @@
       "event": "ai_input_report_option_clarity_completed",
       "task": "088",
       "notes": "Completed task 088 before project bootstrap. Advisory AI commands now use --input-report <path> while mutation runs keep --report for output format selection."
+    },
+    {
+      "event": "zig_version_verification_blocker_policy_started",
+      "task": "089",
+      "notes": "Inserted task 089 at execution order 000.0.19 before project bootstrap to make unavailable official Zig release verification an explicit blocker path."
+    },
+    {
+      "event": "zig_version_verification_blocker_policy_completed",
+      "task": "089",
+      "notes": "Completed task 089 before project bootstrap. Task 005 and docs/ZIG_VERSION_POLICY.md now require a prerequisite blocker task instead of guessing when official latest-stable Zig verification is unavailable."
     }
   ]
 }
