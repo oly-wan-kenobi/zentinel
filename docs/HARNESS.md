@@ -82,7 +82,7 @@ The harness produces evidence for agents and CI. It is not an AI evaluation loop
 - *Status.* documented.
 - *Enforcement.* Runner tests.
 
-**H-203.** Mutant command evidence records original command text, parsed argv, cwd, environment policy, shell flag, mode, exit code, timeout status, stdout/stderr excerpts, and summary.
+**H-203.** Mutant command evidence records original command text, parsed argv, cwd, environment policy, shell flag, exit code, timeout status, stdout/stderr excerpts, and summary. The execution mode is recorded on the enclosing mutation result.
 - *Rationale.* Reports must support debugging without full logs.
 - *Status.* documented.
 - *Enforcement.* Report schema and runner tests.

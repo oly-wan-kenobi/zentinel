@@ -21,7 +21,7 @@ Phase labels describe feature areas. The sequential task queue is the authoritat
 
 Deliver:
 
-- repository structure under `src`, `test`, `examples`, `scripts`, `tools`, `docs`, and `tasks`
+- repository structure under tracked implementation, test, script, docs, and task-system paths; `examples/` and `tools/` are added only when a later task owns concrete contents
 - `zig build test` wired to project tests
 - CLI shell with `help`, `version`, `init`, `init --force`, config-aware init options, and `check`
 - config loader and validator
@@ -211,7 +211,7 @@ The pipeline becomes stricter in stages:
 | Stage | Required behavior |
 | --- | --- |
 | Pipeline contracts documented | Tasks include allowed files, forbidden files, TDD instructions, verification expectations, and handoff requirements. |
-| Handoff artifacts introduced | After task `041`, each role emits structured Markdown and JSON-compatible artifacts under `artifacts/pipeline/<task-id>/`; before task `041`, equivalent handoff fields live in task status or completion summaries. |
+| Handoff artifacts introduced | After task `041`, each role emits canonical JSON handoff artifacts under `artifacts/pipeline/<task-id>/`, with optional Markdown companion summaries; before task `041`, equivalent handoff fields live in task status or completion summaries. |
 | Context packets introduced | Stateless subagents receive bounded packets containing task specs, relevant docs, prior artifacts, constraints, and verification expectations. |
 | Verification pipeline automated | Unit, property, doctest, mutation, dogfood, snapshot, performance, and task-system checks run in deterministic order. |
 | Mutation gate enforced | Mutation-testable tasks cannot complete until mutation results are classified and survivors are triaged. |

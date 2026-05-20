@@ -124,7 +124,7 @@
         "scripts/validate_task_system.py"
       ],
       "deferred_to": null,
-      "notes": "The validator enforces at most one active or implemented task."
+      "notes": "The validator enforces at most one active, implemented, or verified pending-completion task."
     },
     {
       "number": "I-018",
