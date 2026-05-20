@@ -7,13 +7,14 @@
     "069",
     "070",
     "071",
-    "072"
+    "072",
+    "073"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 072 prebootstrap sequencing and contract cleanup: direct previous non-superseded dependency guardrail is enforced, task 064 depends on task 062, task 000 names task 072 as its prerequisite, and roadmap/harness/invariant wording is aligned. Python validator compilation, JSON syntax checks, and git diff --check passed."
+    "notes": "Validator passed after completing task 073 agent protocol readiness order: startup instructions read the selected task file and required docs before marking the task active, and the structural guardrail enforces that ordering. Python validator compilation passed."
   },
   "history": [
     {
@@ -150,6 +151,16 @@
       "event": "prebootstrap_sequencing_and_contract_cleanup_completed",
       "task": "072",
       "notes": "Completed task 072 before project bootstrap. Added a validator guardrail requiring each non-superseded task to directly depend on its immediate execution-order predecessor, fixed task 064 to depend on task 062, synced task 000's guard with task 072, and aligned harness, roadmap, and invariant gap wording."
+    },
+    {
+      "event": "agent_protocol_readiness_order_started",
+      "task": "073",
+      "notes": "Inserted task 073 at execution order 000.0.4 before project bootstrap to align autonomous startup instructions around reading the selected task and required docs before marking it active."
+    },
+    {
+      "event": "agent_protocol_readiness_order_completed",
+      "task": "073",
+      "notes": "Completed task 073 before project bootstrap. Added a validator guardrail for read-before-activate startup wording and aligned docs/AUTONOMOUS_AGENT_PROTOCOL.md, docs/AGENT_GUIDE.md, and tasks/QUEUE.md."
     }
   ]
 }

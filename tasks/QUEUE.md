@@ -5,8 +5,8 @@ This queue is the human-readable source of truth for sequential AI-agent work. T
 ## Rules
 
 - Start with the first dependency-ready `queued` task in execution order.
+- Read the selected task file and required docs before marking the task `active`.
 - Mark the task `active` in `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` before editing implementation files.
-- Read the task file and all referenced docs.
 - Write failing tests before implementation.
 - Modify only files allowed by the task. Task Queue Manager lifecycle edits to task-control files and row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are the only pre-pipeline exceptions. After task `041` is complete, task-scoped pipeline artifacts under `artifacts/pipeline/<active-task-id>/**` are also allowed for audit evidence only.
 - Update `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` after completion or blockage.
@@ -26,6 +26,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.1 | `tasks/070-agent-blocker-contract-closure.md` | complete | 0 |
 | 000.0.2 | `tasks/071-agent-contract-finalization.md` | complete | 0 |
 | 000.0.3 | `tasks/072-prebootstrap-sequencing-and-contract-cleanup.md` | complete | 0 |
+| 000.0.4 | `tasks/073-agent-protocol-readiness-order.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |

@@ -200,6 +200,36 @@
       ]
     },
     {
+      "id": "073",
+      "order": "000.0.4",
+      "title": "Agent Protocol Readiness Order",
+      "file": "tasks/073-agent-protocol-readiness-order.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "072"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/073-agent-protocol-readiness-order.md",
+        "tasks/000-project-bootstrap.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/AGENT_GUIDE.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -207,7 +237,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "072"
+        "073"
       ],
       "allowed_files": [
         "build.zig",

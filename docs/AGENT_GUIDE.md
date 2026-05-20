@@ -32,8 +32,8 @@ An agent starts work by:
 
 - selecting the first dependency-ready queued task by execution order in `tasks/QUEUE.md`
 - confirming it is also the first dependency-ready queued task in `tasks/queue.json`
+- reading the selected task file and required docs from `AGENTS.md`
 - marking it active in `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`
-- reading all docs referenced by the task
 
 An agent completes work by:
 

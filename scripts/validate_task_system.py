@@ -600,6 +600,36 @@ def validate_task_order_contracts(errors: list[str]) -> None:
     require("next unused three-digit ID" in queue_text, errors, "tasks/QUEUE.md must document stable IDs for prerequisite insertion")
 
 
+def validate_protocol_startup_order(errors: list[str]) -> None:
+    """Guard the read-before-active startup contract for autonomous agents."""
+    expected_phrases = {
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Read the selected task file and required docs from `AGENTS.md` before marking it active.",
+            "Mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "reading the selected task file and required docs from `AGENTS.md`",
+            "marking it active in `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`",
+        ],
+        "tasks/QUEUE.md": [
+            "Read the selected task file and required docs before marking the task `active`.",
+            "Mark the task `active` in `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` before editing implementation files.",
+        ],
+    }
+
+    for rel, phrases in expected_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing startup-order contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain startup-order phrase '{phrase}'")
+        first = text.find(phrases[0])
+        second = text.find(phrases[1])
+        require(first != -1 and second != -1 and first < second, errors, f"{rel} must read task docs before marking a task active")
+
+
 def validate_agent_execution_contracts(errors: list[str]) -> None:
     required_phrases = {
         ".agents/workflows/task-plan.md": ["first dependency-ready queued task by execution order"],
@@ -1457,6 +1487,7 @@ def main() -> int:
     validate_agent_layer(errors)
     validate_pipeline_contracts(errors)
     validate_task_order_contracts(errors)
+    validate_protocol_startup_order(errors)
     validate_agent_execution_contracts(errors)
     validate_cli_contracts(errors)
     validate_doctest_identity_contracts(errors)
