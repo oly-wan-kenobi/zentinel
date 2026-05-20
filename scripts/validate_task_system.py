@@ -1487,6 +1487,36 @@ def validate_task_lifecycle_contracts(errors: list[str]) -> None:
         require(state in text, errors, f"docs/TASK_LIFECYCLE.md must classify {state} as an artifact stage")
 
 
+def validate_agent_contract_cutover_closure_contracts(errors: list[str]) -> None:
+    """Guard pre-bootstrap cutovers so agents do not block on unavailable gates."""
+    required_phrases = {
+        "docs/TASK_LIFECYCLE.md": [
+            "Before task `041`, the synchronized task-control files are the active-task lock.",
+            "Before task `041`, required artifacts mean task-control status entries and the completion summary.",
+            "Before task `043`, mutation-gate evidence may be recorded as `pre-gate unavailable` when mutation tooling cannot exist yet.",
+        ],
+        "docs/PROPERTY_TEST_POLICY.md": [
+            "Before task `044` refines this policy and task `062` implements generated property infrastructure",
+            "deterministic property-style tests",
+            "Generated property-test infrastructure is mandatory only after task `062` is complete",
+        ],
+        ".agents/README.md": [
+            "`tasks/status.json` records the narrower machine-checkable `completion_evidence` subset",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "`tasks/status.json` records the narrower machine-checkable `completion_evidence` subset",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing agent cutover contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain agent cutover contract phrase '{phrase}'")
+
+
 def unescaped_pipe_count(line: str) -> int:
     count = 0
     escaped = False
@@ -1824,6 +1854,7 @@ def main() -> int:
     validate_preimplementation_blocker_contracts(tasks, errors)
     validate_agent_contract_finalization_contracts(status, errors)
     validate_task_lifecycle_contracts(errors)
+    validate_agent_contract_cutover_closure_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)

@@ -18,13 +18,14 @@
     "080",
     "081",
     "082",
-    "083"
+    "083",
+    "084"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 083 agent tooling contract hardening; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 084 agent contract cutover closure; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -265,6 +266,21 @@
         "notes": "Validator passed after task 083 agent tooling contract hardening."
       },
       "dogfooding_implication": "No runtime behavior exists yet; this removes pre-bootstrap tooling ambiguity before dogfoodable behavior exists.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "084",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new guardrails requiring pre-041 lifecycle cutovers, pre-044/pre-062 property-test staging, and pre-artifact completion_evidence subset wording.",
+      "implementation_summary": "Inserted and completed task 084 before project bootstrap, clarified task lifecycle cutovers for active locks, required artifacts, verifier evidence, and mutation-gate availability, staged property-test requirements before generated property infrastructure, and aligned pre-artifact handoff docs with the narrower tasks/status.json completion_evidence subset.",
+      "files_changed": ["task metadata", "task lifecycle and property-test policy docs", "pre-artifact handoff docs", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for lifecycle cutovers, staged property-test evidence, and pre-artifact completion evidence wording."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 084 agent contract cutover closure."
+      },
+      "dogfooding_implication": "No runtime behavior exists yet; this prevents pre-bootstrap agents from blocking on unavailable pipeline, property, or mutation infrastructure while preserving future gates.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -518,6 +534,21 @@
       "event": "agent_tooling_contract_hardening_completed",
       "task": "083",
       "notes": "Completed task 083 before project bootstrap. Queue order is explicit and schema-required, follow-up refs are canonical, report semantic validation ownership is documented, task 005 requires durable latest-stable Zig evidence, and validator guardrails preserve those contracts."
+    },
+    {
+      "event": "agent_contract_cutover_closure_inserted",
+      "task": "084",
+      "notes": "Inserted task 084 at execution order 000.0.15 before project bootstrap to resolve pre-bootstrap lifecycle, property-test, and pre-artifact handoff cutover findings."
+    },
+    {
+      "event": "agent_contract_cutover_closure_started",
+      "task": "084",
+      "notes": "Activated task 084 after reading the task file and required agent contracts."
+    },
+    {
+      "event": "agent_contract_cutover_closure_completed",
+      "task": "084",
+      "notes": "Completed task 084 before project bootstrap. Lifecycle cutovers, property-test staging, and pre-artifact completion evidence wording now prevent agents from blocking on unavailable gates before tasks 041, 043, 044, and 062."
     }
   ]
 }

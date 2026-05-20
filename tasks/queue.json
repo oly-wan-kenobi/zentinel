@@ -589,6 +589,39 @@
       ]
     },
     {
+      "id": "084",
+      "order": "000.0.15",
+      "title": "Agent Contract Cutover Closure",
+      "file": "tasks/084-agent-contract-cutover-closure.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "083"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/084-agent-contract-cutover-closure.md",
+        "tasks/000-project-bootstrap.md",
+        ".agents/README.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/PROPERTY_TEST_POLICY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -596,7 +629,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "083"
+        "084"
       ],
       "allowed_files": [
         "build.zig",

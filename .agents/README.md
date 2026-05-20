@@ -107,7 +107,7 @@ artifacts/pipeline/<task-id>/
   verification/
 ```
 
-Until that artifact tree exists, record equivalent evidence in `tasks/STATUS.md`, `tasks/status.json`, and the completion summary.
+Until that artifact tree exists, record equivalent evidence in `tasks/STATUS.md`, `tasks/status.json`, and the completion summary. `tasks/status.json` records the narrower machine-checkable `completion_evidence` subset; the full pre-artifact handoff fields live in `tasks/STATUS.md` or the completion summary until task `041` introduces durable artifacts.
 
 After task `041` introduces the artifact tree, writes under `artifacts/pipeline/<active-task-id>/**` are a task-scoped audit exception to normal allowed-file lists. That exception is limited to pipeline evidence and never authorizes source, docs, tests, schema, task-state, or another task's artifact changes.
 

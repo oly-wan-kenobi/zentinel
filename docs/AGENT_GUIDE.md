@@ -201,7 +201,7 @@ A good handoff lets the next agent work without re-investigating:
 - required handoff fields match `docs/HANDOFF_CONTRACTS.md`
 - context packet references are current and scoped to the active task
 
-Pipeline handoff artifacts should be written under `artifacts/pipeline/<task-id>/` once that artifact directory is introduced. Until then, agents must include the same fields in `tasks/STATUS.md` or the task completion summary.
+Pipeline handoff artifacts should be written under `artifacts/pipeline/<task-id>/` once that artifact directory is introduced. Until then, agents must include the same fields in `tasks/STATUS.md` or the task completion summary. `tasks/status.json` records the narrower machine-checkable `completion_evidence` subset so fresh agents can verify completion gates without parsing all Markdown prose.
 
 Pre-artifact completion summaries must include:
 
@@ -213,7 +213,7 @@ Pre-artifact completion summaries must include:
 - risks, assumptions, or skipped gates
 - next role or next task recommendation
 
-Before task `041` creates durable pipeline artifacts, the same completion evidence must also be recorded in `tasks/status.json` under `completion_evidence` so fresh agents can machine-check completed task evidence without parsing Markdown prose.
+Before task `041` creates durable pipeline artifacts, completion evidence must also be recorded in `tasks/status.json` under the `completion_evidence` subset. The subset records failing evidence, implementation summary, files changed, tests added and run, validator result, dogfooding implication, and follow-up task refs; the expanded role, files-read, risk, and next-role handoff details remain in `tasks/STATUS.md` or the completion summary until durable artifacts exist.
 
 Task `041` is the cutover point for durable handoff artifacts. After it is complete, non-trivial tasks must use the artifact paths specified by `docs/HANDOFF_CONTRACTS.md` and `docs/PIPELINE_ARTIFACTS.md`. JSON handoffs are canonical; Markdown summaries are optional companion artifacts only.
 
