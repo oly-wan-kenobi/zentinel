@@ -223,6 +223,23 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
             if dep_task is not None:
                 require(order_key(task_order(dep_task)) < order_key(task_order(task)), errors, f"task {task_id} dependency {dep} must have an earlier execution order")
 
+    previous_non_superseded: dict[str, object] | None = None
+    for task in normalized:
+        if task.get("state") == "superseded":
+            continue
+
+        task_id = task.get("id")
+        deps = task.get("dependencies")
+        previous_id = previous_non_superseded.get("id") if previous_non_superseded is not None else None
+        if previous_non_superseded is not None and isinstance(task_id, str) and isinstance(deps, list):
+            require(
+                isinstance(previous_id, str) and previous_id in deps,
+                errors,
+                f"task {task_id} must directly depend on immediately previous non-superseded execution-order task {previous_id}",
+            )
+
+        previous_non_superseded = task
+
     release_index = next((index for index, task in enumerate(normalized) if task.get("file") == "tasks/060-release-acceptance-verification.md"), None)
     if release_index is not None:
         for later in normalized[release_index + 1:]:

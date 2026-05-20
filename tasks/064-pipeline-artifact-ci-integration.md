@@ -1,6 +1,6 @@
 # 064 Pipeline Artifact CI Integration
 
-Sequential guard: start this task only after task 063 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 062 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
