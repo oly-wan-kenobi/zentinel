@@ -44,6 +44,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Add a failing schema test that optional cache diagnostics must appear only under `diagnostics.cache`.
 - Add a failing schema test that `test_selection` requires `strategy`, `selected`, `commands`, and `fallback_used` and rejects unknown fields.
 - Add a failing test for a deterministic report semantic validator proving schema validation is not the only report oracle; the validator must reject reports whose summary counts match the schema shape but not the serialized `mutants` entries.
+- Add failing semantic-validator cases for derived invariants that JSON Schema cannot fully prove: `summary.total` equals the number of `mutants`, per-status counts match mutant result entries, report-local `display_id` values follow canonical ordering, baseline-failed reports keep `mutants` empty with zero counts, and repeated-run normalization ignores only documented observation metadata.
 - Add a failing test that `backend_stability` and `operator_stability` are distinct fields and validate their separate enum values.
 - Add a failing test that advisory AI fields cannot overwrite result fields.
 - Run `zig build test`.
@@ -55,7 +56,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Baseline failure is represented as `run.status = baseline_failed`, not as a mutant result status.
 - Internal tool failure is represented as `run.status = internal_error` with deterministic `run.error` evidence, not as a mutant result status or advisory AI text.
 - Mutant entries serialize in deterministic order.
-- Summary counts are derived from entries, and deterministic semantic validation proves summary counts match the serialized `mutants` entries.
+- Summary counts are derived from entries, and deterministic report semantic validator coverage proves summary counts match the serialized `mutants` entries, derived invariants match report contents, and repeated-run comparisons follow documented normalization rules.
 - No command runs or mutant generation are implemented.
 
 ## Non-goals

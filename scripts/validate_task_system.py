@@ -1517,6 +1517,31 @@ def validate_agent_contract_cutover_closure_contracts(errors: list[str]) -> None
             require(phrase in text, errors, f"{rel} must contain agent cutover contract phrase '{phrase}'")
 
 
+def validate_validator_scope_clarity_contracts(errors: list[str]) -> None:
+    """Keep task-system validation distinct from product semantic validation."""
+    required_phrases = {
+        "docs/AGENT_GUIDE.md": [
+            "task-system consistency, not product semantic correctness",
+        ],
+        "tasks/STATUS.md": [
+            "task-system consistency, not product semantic correctness",
+        ],
+        "tasks/006-report-schema.md": [
+            "deterministic report semantic validator",
+            "schema validation is not the only report oracle",
+            "derived invariants",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing validator scope contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain validator scope contract phrase '{phrase}'")
+
+
 def unescaped_pipe_count(line: str) -> int:
     count = 0
     escaped = False
@@ -1855,6 +1880,7 @@ def main() -> int:
     validate_agent_contract_finalization_contracts(status, errors)
     validate_task_lifecycle_contracts(errors)
     validate_agent_contract_cutover_closure_contracts(errors)
+    validate_validator_scope_clarity_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)

@@ -19,13 +19,14 @@
     "081",
     "082",
     "083",
-    "084"
+    "084",
+    "086"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 084 agent contract cutover closure; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 086 validator scope and report semantic clarity; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -281,6 +282,21 @@
         "notes": "Validator passed after task 084 agent contract cutover closure."
       },
       "dogfooding_implication": "No runtime behavior exists yet; this prevents pre-bootstrap agents from blocking on unavailable pipeline, property, or mutation infrastructure while preserving future gates.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "086",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on missing validator-scope wording in docs/AGENT_GUIDE.md and tasks/STATUS.md, and missing derived-invariants wording in task 006.",
+      "implementation_summary": "Clarified that validate_task_system.py checks task-system consistency, not product semantic correctness, strengthened task 006 semantic report validator requirements, and added structural validator guardrails.",
+      "files_changed": ["task metadata", "task 000 guard", "agent guide", "status handoff", "report-schema task wording", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for validator-scope wording and report semantic-validator derived invariants."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 086 validator scope and report semantic clarity."
+      },
+      "dogfooding_implication": "Prevents future dogfood and report work from treating governance validation as behavioral proof.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -549,6 +565,16 @@
       "event": "agent_contract_cutover_closure_completed",
       "task": "084",
       "notes": "Completed task 084 before project bootstrap. Lifecycle cutovers, property-test staging, and pre-artifact completion evidence wording now prevent agents from blocking on unavailable gates before tasks 041, 043, 044, and 062."
+    },
+    {
+      "event": "validator_scope_and_report_semantic_clarity_started",
+      "task": "086",
+      "notes": "Inserted task 086 at execution order 000.0.16 before project bootstrap to clarify validator scope and task 006 report semantic validation ownership."
+    },
+    {
+      "event": "validator_scope_and_report_semantic_clarity_completed",
+      "task": "086",
+      "notes": "Completed task 086 before project bootstrap. The agent guide and status handoff now say the validator checks task-system consistency, not product semantic correctness, and task 006 owns derived report semantic invariants."
     }
   ]
 }

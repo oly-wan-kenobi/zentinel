@@ -622,6 +622,37 @@
       ]
     },
     {
+      "id": "086",
+      "order": "000.0.16",
+      "title": "Validator Scope and Report Semantic Clarity",
+      "file": "tasks/086-validator-scope-and-report-semantic-clarity.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "084"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/086-validator-scope-and-report-semantic-clarity.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/006-report-schema.md",
+        "docs/AGENT_GUIDE.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -629,7 +660,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "084"
+        "086"
       ],
       "allowed_files": [
         "build.zig",

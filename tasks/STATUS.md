@@ -13,13 +13,14 @@ This file records implementation task state and handoffs. Documentation bootstra
 | TDD-first policy | enforced |
 | Deterministic core policy | enforced |
 | AI authority over correctness | forbidden |
+| Validator scope | task-system consistency, not product semantic correctness |
 
 ## Bootstrap Record
 
 | Field | Value |
 | --- | --- |
 | Date | 2026-05-19 |
-| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070`, plus pre-bootstrap hardening tasks `071` through `084`. |
+| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070`, plus pre-bootstrap hardening tasks `071` through `086`. |
 | Implementation code changed | none |
 | Verification run | Required file presence scan; governance file scan; ADR index scan; gap registry scan; task section completeness scan; Markdown/JSON task scope sync; follow-up reference sync; schema registry coverage; generated legacy-name and unfinished-marker scan; JSON parse checks; `python3 scripts/validate_task_system.py` |
 | Dogfooding status | policy documented; no dogfood implementation exists yet |
@@ -28,6 +29,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Task | Date completed | Files changed | Tests added | Tests run | Deterministic behavior affected | Dogfooding implication | Known follow-ups |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 086 Validator Scope and Report Semantic Clarity | 2026-05-20 | Task metadata, task 000 guard, agent guide, status handoff, report-schema task wording, and validator guardrails. | Structural validator guardrails requiring validator-scope wording and task 006 semantic-validator derived-invariant coverage. | Pre-fix `python3 scripts/validate_task_system.py` failed on the new guardrails as expected; post-fix `python3 scripts/validate_task_system.py`. | No runtime behavior exists yet; agents now distinguish task-system validation from product semantic correctness. | Prevents future dogfood and report work from treating governance validation as behavioral proof. | `tasks/000-project-bootstrap.md`. |
 | 084 Agent Contract Cutover Closure | 2026-05-20 | Task metadata, task lifecycle docs, property-test policy, pre-artifact handoff docs, task 000 guard, and validator guardrails. | Structural validator guardrails requiring pre-041 lifecycle cutovers, pre-044/pre-062 property-test staging, and `completion_evidence` subset wording. | Pre-fix `python3 scripts/validate_task_system.py` failed on the new guardrails as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks; `git diff --check`. | No runtime behavior exists yet; pre-bootstrap lifecycle gates now distinguish available status evidence from later pipeline artifacts and mutation/property infrastructure. | Prevents agents from blocking project bootstrap on unavailable pipeline, mutation, or property-test gates while preserving those gates after their cutovers. | `tasks/000-project-bootstrap.md`. |
 | 083 Agent Tooling Contract Hardening | 2026-05-20 | Task metadata, queue schema and explicit orders, follow-up task references, report/Zig contract docs, task 005/006 requirements, and validator guardrails. | Structural validator guardrails requiring explicit task orders, canonical follow-up refs, report semantic validation wording, and durable latest-stable Zig evidence wording. | Pre-fix `python3 scripts/validate_task_system.py` failed on the new guardrails as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks for task-control files and schemas; `git diff --check`. | No runtime behavior exists yet; machine-readable task ordering and future report validation contracts are stricter. | Removes pre-bootstrap tooling ambiguity before dogfoodable behavior exists; no dogfood run expected. | `tasks/000-project-bootstrap.md`. |
 | 082 Analysis Findings Closure | 2026-05-20 | Doctest fence docs, doctest parser task requirements, task gate headings, task 000 scope, Zig version policy wording, and task-system validator guardrails. | Structural validator guardrails for doctest fence-length contracts, canonical task gate headings, task 000 task-control file scope, and latest-stable Zig official-source policy. | Pre-fix `python3 scripts/validate_task_system.py` failed on the new guardrails as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks for task-control files; stale-contract scan; `git diff --check`. | No runtime behavior exists yet; future agents now have unambiguous doctest fence rules and stronger task gate validation. | Removes pre-bootstrap ambiguity before dogfoodable behavior exists; no dogfood run expected. | `tasks/000-project-bootstrap.md`. |
@@ -74,14 +76,14 @@ No known blockers.
 
 ## Handoff Notes
 
-The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change.
+The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change. The validator checks task-system consistency, not product semantic correctness; product behavior still requires the active task's failing tests and verification gates.
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
-Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, plus pre-bootstrap hardening tasks `071` through `084`, placed by execution order before project bootstrap.
+Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, plus pre-bootstrap hardening tasks `071` through `086`, placed by execution order before project bootstrap.
 
 Codex-specific operating profiles are available under `.agents/`. Use `.agents/README.md`, `.agents/ORCHESTRATOR.md`, `.agents/roles/`, and `.agents/workflows/` for role dispatch and workflow execution. Do not add `.claude/` to this repository.
 
 The repository scaffold has been prepared as the baseline project state. Future agents should still use the task queue, status files, and explicit handoff notes as the durable source of truth, but `git status` may be used to detect changes made after the baseline is tracked.
 
-Task `084` completed at execution order `000.0.15` before project bootstrap. Future agents should start with `tasks/000-project-bootstrap.md`.
+Task `086` completed at execution order `000.0.16` before project bootstrap. Future agents should start with `tasks/000-project-bootstrap.md`.

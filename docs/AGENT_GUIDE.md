@@ -21,6 +21,8 @@ This repository is designed for sequential AI-agent development. Agents must pre
 15. Use ADRs under `docs/adr/` for foundational decisions that future agents should not re-litigate.
 16. Do not add `.claude/`; translate provider-specific agent patterns into Codex-neutral `.agents/`, `docs/`, `tasks/`, or `scripts/`.
 
+`scripts/validate_task_system.py` validates task-system consistency, not product semantic correctness. A passing validator run proves the queue, status, guardrail wording, and registered contracts are synchronized; task-specific failing tests, snapshots, schemas, doctests, dogfood runs, and semantic validators still prove product behavior.
+
 ## Task Lifecycle
 
 ```text

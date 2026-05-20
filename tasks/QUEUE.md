@@ -38,6 +38,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.13 | `tasks/082-analysis-findings-closure.md` | complete | 0 |
 | 000.0.14 | `tasks/083-agent-tooling-contract-hardening.md` | complete | 0 |
 | 000.0.15 | `tasks/084-agent-contract-cutover-closure.md` | complete | 0 |
+| 000.0.16 | `tasks/086-validator-scope-and-report-semantic-clarity.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
