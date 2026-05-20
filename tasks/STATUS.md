@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | `tasks/082-analysis-findings-closure.md` |
-| Next task | `tasks/082-analysis-findings-closure.md` |
+| Active task | none |
+| Next task | `tasks/000-project-bootstrap.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -28,6 +28,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Task | Date completed | Files changed | Tests added | Tests run | Deterministic behavior affected | Dogfooding implication | Known follow-ups |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 082 Analysis Findings Closure | 2026-05-20 | Doctest fence docs, doctest parser task requirements, task gate headings, task 000 scope, Zig version policy wording, and task-system validator guardrails. | Structural validator guardrails for doctest fence-length contracts, canonical task gate headings, task 000 task-control file scope, and latest-stable Zig official-source policy. | Pre-fix `python3 scripts/validate_task_system.py` failed on the new guardrails as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks for task-control files; stale-contract scan; `git diff --check`. | No runtime behavior exists yet; future agents now have unambiguous doctest fence rules and stronger task gate validation. | Removes pre-bootstrap ambiguity before dogfoodable behavior exists; no dogfood run expected. | `tasks/000-project-bootstrap.md`. |
 | 081 Task-Local Validator Requirements | 2026-05-20 | Task metadata, early queued task required-test lists, task 000 guard, and validator guardrail. | Structural validator guardrail requiring non-superseded task files to list `python3 scripts/validate_task_system.py` in required tests. | Pre-fix `python3 scripts/validate_task_system.py` failed on tasks `000` through `024`, including `019`, as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; `git diff --check`. | No runtime behavior exists yet; task-local completion gates now match the global validator standard. | Future agents see the validator command in each queued task instead of relying on global workflow memory. | `tasks/000-project-bootstrap.md`. |
 | 080 Doctest Survivor Example Identity Guard | 2026-05-20 | Task metadata, doctest AI survivor example, task 000 guard, and validator guardrail. | Structural validator guardrail requiring `doctest_survivor` examples to keep `source_case.id` as `dt_...` and `mutation_case.id` as `dm_...`. | Pre-fix `python3 scripts/validate_task_system.py` failed on the stale `dt_...` mutation-case example as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; `git diff --check`. | No runtime behavior exists yet; doctest survivor AI examples now preserve the documented ID split. | Future doctest mutation dogfood and survivor AI work can join ordinary cases, mutation entries, and survivor refs without copying an invalid example. | `tasks/000-project-bootstrap.md`. |
 | 079 Status Completion Evidence Schema | 2026-05-20 | Task metadata, task 000 guard, status schema, structured status evidence, protocol/guide wording, and validator guardrails. | Structural validator guardrail requiring `completion_evidence` for every completed task plus schema guardrail requiring the field. | Pre-fix `python3 scripts/validate_task_system.py` failed on missing `completion_evidence` as expected; post-fix `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks; `git diff --check`. | No runtime behavior exists yet; pre-artifact task completion evidence is now machine-checkable. | Fresh agents can verify completed-task evidence before dogfood and pipeline artifact tasks exist. | `tasks/000-project-bootstrap.md`. |
@@ -71,7 +72,7 @@ No known blockers.
 
 ## Handoff Notes
 
-The current agent is resolving `tasks/082-analysis-findings-closure.md` before project bootstrap. The next implementation task remains `tasks/000-project-bootstrap.md` after task 082 completes.
+The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change.
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "082",
-  "next_task": "082",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
@@ -16,13 +16,14 @@
     "078",
     "079",
     "080",
-    "081"
+    "081",
+    "082"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after inserting and activating task 082 analysis findings closure before project bootstrap."
+    "notes": "Validator passed after completing task 082 analysis findings closure; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -233,6 +234,21 @@
         "notes": "Validator passed after task 081 task-local validator requirements."
       },
       "dogfooding_implication": "No dogfood run exists yet; future agents see the validator completion gate in every queued task handoff.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "082",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for ambiguous doctest fence-length contracts, missing five-backtick parser coverage, task 000 task-control scope, hard-coded Zig version diagnostics, local-version-only task 005 wording, and legacy Property tests required headings.",
+      "implementation_summary": "Clarified doctest fence support as exactly three or four backticks, treated longer fences as documentation-only until extended, standardized doctest task property gate headings, made task 000 task-control lifecycle files explicit, removed hard-coded Zig version diagnostics, and added validator guardrails for those contracts.",
+      "files_changed": ["doctest fence docs", "doctest parser task requirements", "task gate headings", "task 000 scope", "Zig version policy wording", "task-system validator guardrails", "task metadata"],
+      "tests_added": ["Structural validator guardrails for analysis findings closure contracts."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks for task-control files", "stale-contract scan", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 082 analysis findings closure."
+      },
+      "dogfooding_implication": "No dogfood run exists yet; pre-bootstrap ambiguity is resolved before the first Zig scaffold task.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -466,6 +482,11 @@
       "event": "analysis_findings_closure_started",
       "task": "082",
       "notes": "Inserted and activated task 082 at execution order 000.0.13 before project bootstrap to resolve pre-bootstrap analysis findings around doctest fences, gate-section validation, task-control visibility, and latest-stable Zig policy."
+    },
+    {
+      "event": "analysis_findings_closure_completed",
+      "task": "082",
+      "notes": "Completed task 082 before project bootstrap. Added validator guardrails and aligned doctest fence docs, task gate headings, task 000 task-control scope, and latest-stable Zig policy wording."
     }
   ]
 }
