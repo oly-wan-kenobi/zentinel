@@ -345,7 +345,7 @@
         "status": "passed",
         "notes": "Validator passed after task 089 Zig version verification blocker policy."
       },
-      "dogfooding_implication": "Future dogfood and CI must use source-verified Zig version policy instead of guessed local toolchain state.",
+      "dogfooding_implication": "Historical blocker policy was superseded by task 090's pinned Zig 0.16.0 contract for future dogfood and CI.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     },
     {
@@ -668,7 +668,7 @@
     {
       "event": "zig_version_verification_blocker_policy_completed",
       "task": "089",
-      "notes": "Completed task 089 before project bootstrap. Task 005 and docs/ZIG_VERSION_POLICY.md now require a prerequisite blocker task instead of guessing when official latest-stable Zig verification is unavailable."
+      "notes": "Completed task 089 before project bootstrap. Task 005 and docs/ZIG_VERSION_POLICY.md then required a prerequisite blocker task instead of guessing when official latest-stable Zig verification was unavailable; task 090 later superseded this with a Zig 0.16.0 pin."
     },
     {
       "event": "contract_traceability_and_scope_hardening_started",
