@@ -34,8 +34,9 @@ Introduce doctest authoring conventions into the repository without implementing
 
 ## Required tests
 
-- Add failing validation evidence by running `python3 scripts/validate_task_system.py` after creating fixture markdown but before status synchronization.
+- Add failing validation evidence by running `python3 scripts/validate_task_system.py` before fixture markdown exists; the validator provides validator-backed fixture-presence evidence for this task once task `030` is active.
 - Add documentation examples that future doctest extraction tests can target.
+- Create representative fixture markdown under `test/fixtures/doctest` covering `zig test`, `zig compile_fail`, `bash cli`, `text output`, `json expected`, `toml config`, `zig before`, and `zig after`.
 - Run `python3 scripts/validate_task_system.py`.
 
 ## Required property tests

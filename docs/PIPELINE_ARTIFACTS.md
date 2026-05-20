@@ -42,6 +42,26 @@ decisions/ADR-<task-id>-<short-name>.md
 
 JSON handoffs are canonical. Optional Markdown summaries may use the same handoff basename with `.md`, but they are companion notes and cannot replace the JSON artifact required by `docs/HANDOFF_CONTRACTS.md`.
 
+Required handoff basenames are deterministic:
+
+```text
+00-orchestrator.json
+01-phase-planner.json
+02-task-queue-manager-start.json
+03-planner.json
+04-test-author.json
+05-test-reviewer.json
+06-implementer.json
+07-implementation-reviewer.json
+08-mutation-agent.json
+09-mutation-triage-agent.json
+10-property-test-agent.json
+11-doctest-agent.json
+12-architecture-reviewer.json
+13-verifier.json
+14-task-queue-manager-complete.json
+```
+
 ## Active Lock Artifact
 
 After task `041`, each active task writes exactly one active lock artifact at:

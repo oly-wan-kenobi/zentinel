@@ -42,8 +42,8 @@ Implement an explicitly opt-in AIR backend experiment with semantic diagnostics.
 ## Acceptance criteria
 
 - AST remains the default backend.
-- AIR reports identify backend and experimental stability.
-- AIR failures degrade to clear diagnostics.
+- AIR reports identify `backend` and `backend_stability` using report v1 fields only.
+- AIR failures degrade to clear out-of-report diagnostics, not schema-invalid report fields.
 - `python3 scripts/validate_task_system.py` passes.
 
 ## Non-goals

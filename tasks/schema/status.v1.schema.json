@@ -9,6 +9,7 @@
     "next_task",
     "completed_tasks",
     "blocked_tasks",
+    "blocked_task_details",
     "last_validation",
     "completion_evidence",
     "history"
@@ -38,6 +39,41 @@
       "items": {
         "type": "string",
         "pattern": "^[0-9]{3}$"
+      }
+    },
+    "blocked_task_details": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "task",
+          "reason",
+          "prerequisite_task",
+          "requires_user_input",
+          "notes"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "task": {
+            "type": "string",
+            "pattern": "^[0-9]{3}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prerequisite_task": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]{3}$"
+          },
+          "requires_user_input": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     },
     "last_validation": {

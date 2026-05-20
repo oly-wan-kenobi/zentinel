@@ -72,7 +72,7 @@ emits:
 
 | Risk | Mitigation |
 | --- | --- |
-| Zig grammar changes | Latest-stable-only policy and version gate. |
+| Zig grammar changes | Pinned Zig `0.16.0` policy and version gate. |
 | Precedence changes | Renderer tests for each operator. |
 | Same-file tests mutated accidentally | AST traversal excludes `test` bodies by default. |
 | Formatting churn | Minimal token replacement only. |

@@ -42,8 +42,8 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 ## Acceptance criteria
 
 - AST remains the default backend.
-- ZIR reports identify backend and experimental stability.
-- Unsupported ZIR cases produce diagnostics, not silent misreports.
+- ZIR reports identify `backend` and `backend_stability` using report v1 fields only.
+- Unsupported ZIR cases produce out-of-report diagnostics, not schema-invalid report fields or silent misreports.
 - `python3 scripts/validate_task_system.py` passes.
 
 ## Non-goals

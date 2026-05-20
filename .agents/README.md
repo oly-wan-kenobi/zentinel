@@ -80,7 +80,7 @@ When only one Codex agent is available, preserve the same logical separation by 
 | Role | Trigger | Output |
 | --- | --- | --- |
 | Phase Planner | phase or backlog decomposition is needed | bounded task plan and dependency shape |
-| Task Queue Manager | task state changes are needed | synchronized Markdown and JSON task state |
+| Task Queue Manager Start | a task is selected or resumed | synchronized active-task Markdown and JSON task state |
 | Planner | task is selected for work | concrete implementation plan and risk notes |
 | Test Author | task plan is ready | failing tests, fixtures, doctests, or property cases |
 | Test Reviewer | tests have been authored | approval or required test fixes |
@@ -92,6 +92,7 @@ When only one Codex agent is available, preserve the same logical separation by 
 | Doctest Agent | public examples change | executable docs examples and snapshots |
 | Architecture Reviewer | architecture or public contract changes | architecture drift review and ADR needs |
 | Verifier | task is ready to close | reproducible command evidence and final verdict |
+| Task Queue Manager Complete | verifier approves closure | synchronized completed-task Markdown and JSON task state |
 
 ## Audit Artifacts
 

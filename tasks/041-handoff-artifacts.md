@@ -55,8 +55,10 @@ No mutation run is required unless schema validation code is changed. If code is
 ## Acceptance criteria
 
 - Each pipeline role has a required handoff artifact.
+- Handoff docs define deterministic handoff names for every emitting role, including orchestration, task-state transitions, review, mutation, property, doctest, architecture, and verification roles.
 - The active lock artifact is documented at `locks/active-task-lock.json` with deterministic task, queue, context packet, and working-tree evidence.
 - Artifact fields include files changed, tests added, commands executed, risks, assumptions, mutation results, and next-step instructions.
+- Document that tests_added is cumulative task-level evidence; role-local test changes are documented in the role-specific content or command evidence.
 - Machine-readable JSON handoffs are documented as the canonical artifact with required and optional fields.
 - Artifact names are deterministic and task-scoped.
 - `python3 scripts/validate_task_system.py` passes.

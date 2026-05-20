@@ -227,6 +227,8 @@ Each command result records `phase`, `status`, `exit_code`, `timed_out`, `durati
 
 `backend_stability` describes the backend that produced the mutant. Valid values are `stable` and `experimental`; the AST backend is stable, while ZIR and AIR are experimental until promoted by a future ADR and release criteria.
 
+report v1 has no backend-specific diagnostics namespace. Experimental ZIR/AIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
+
 `operator_stability` describes the mutator operator. Valid values are `stable`, `preview`, and `experimental` as defined by `docs/MUTATOR_SPEC.md`. Preview operators may appear only when explicitly enabled by config or task scope; they are never part of the default stable minimum product.
 
 ## Text Output Style

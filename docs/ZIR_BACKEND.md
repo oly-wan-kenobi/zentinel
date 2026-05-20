@@ -18,7 +18,7 @@ The ZIR backend exists to answer:
 | --- | --- |
 | Default status | Disabled. |
 | Activation | Explicit config or CLI opt-in only. |
-| Report stability | Experimental backend fields may change, shared result fields may not. |
+| Report stability | Shared report v1 fields stay schema-valid; `backend_stability` is `experimental`. |
 | Source mapping | Required before a candidate can be executed. |
 | Failure mode | Backend diagnostic and fallback to no ZIR candidates. |
 
@@ -35,23 +35,26 @@ Zig compiler frontend data
 
 The ZIR backend must not bypass the shared runner or reporter.
 
+The backend targets pinned Zig `0.16.0`; compiler-internal drift is handled by explicit opt-in diagnostics, not by looking up a moving stable release.
+
 ## Source Mapping Strategy
 
 ZIR candidates are executable only when mapped to an exact source span. If a ZIR instruction cannot map to source:
 
-- it may be recorded in backend diagnostics
+- it may be recorded in out-of-report backend diagnostics
 - it must not become an executable mutant
 - it must not affect mutation score or survivor counts
 
-The report must include:
+The report must include only the closed report v1 backend fields:
 
 ```json
 {
   "backend": "zir",
-  "stability": "experimental",
-  "source_mapping": "exact"
+  "backend_stability": "experimental"
 }
 ```
+
+The report v1 schema is closed. It accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields. Source-mapping inventories, unsupported-instruction notes, and compiler-internal evidence are out-of-report backend diagnostics until a future schema task adds a namespaced field.
 
 ## Mutation Generation Strategy
 
@@ -68,7 +71,7 @@ ZIR must emit the same operator names defined in `docs/MUTATOR_SPEC.md` when equ
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Zig internals change | Backend breaks between Zig releases. | Latest-stable gate and backend diagnostics. |
+| Zig internals change | Backend breaks between Zig releases. | Pinned Zig `0.16.0` gate and out-of-report backend diagnostics. |
 | Poor source mapping | Misleading reports. | Require exact mapping for executable mutants. |
 | Generic instantiation duplication | Duplicate logical mutants. | Stable dedupe keys using source span and operator. |
 | Inactive comptime branch behavior | Compile errors surprise users. | `expected_compile: may_fail` and fixture coverage. |

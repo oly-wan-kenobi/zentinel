@@ -21,7 +21,7 @@ This backend is for research and controlled experiments until it proves reliable
 | Default status | Disabled. |
 | Activation | Explicit experimental opt-in only. |
 | Source mapping | Required for executable mutants. |
-| Result semantics | Must use shared runner and report model. |
+| Result semantics | Must use shared runner and report model; `backend_stability` is `experimental`. |
 | User trust | Never present AIR output as stable until promoted by roadmap. |
 
 ## Architecture
@@ -36,6 +36,8 @@ semantic analysis / AIR data
 ```
 
 AIR may identify semantic candidates, but the initial execution strategy should still prefer source-level patches when possible. Runner-level IR mutation is not allowed until it has a deterministic sandbox and report story.
+
+The backend targets pinned Zig `0.16.0`; compiler-internal drift is handled by explicit opt-in diagnostics, not by moving version discovery.
 
 ## Source Mapping Strategy
 
@@ -58,6 +60,8 @@ exact
 
 Only `exact` can enter the normal mutant list.
 
+Non-executable AIR inventories, unsupported mapping notes, and compiler-internal evidence are out-of-report AIR diagnostics. The report v1 schema is closed: it accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields.
+
 ## Mutation Generation Strategy
 
 Initial AIR exploration areas:
@@ -74,7 +78,7 @@ AIR must not invent operator names outside `docs/MUTATOR_SPEC.md` without first 
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Compiler internal instability | Frequent breakage. | Latest-stable-only and experimental flag. |
+| Compiler internal instability | Frequent breakage. | Pinned Zig `0.16.0` and experimental flag. |
 | Lost source intent | Reports become untrustworthy. | Exact mapping requirement. |
 | Optimizer interaction | Different behavior by mode. | Mode-aware report fields. |
 | Duplicate logical mutants | Noise and inflated counts. | Dedupe against AST/ZIR by source span and operator. |

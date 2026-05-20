@@ -83,7 +83,7 @@ Optional fields become required when applicable:
 | `role` | string | yes | One role from `docs/AGENT_ROLE_SPEC.md`. |
 | `status` | string | yes | `passed`, `failed`, `blocked`, `needs_review`, or `not_applicable`. |
 | `files_changed` | array string | yes | Project-relative paths only. |
-| `tests_added` | array string | yes | Empty only for non-behavior tasks with explanation in `known_risks`. |
+| `tests_added` | array string | yes | tests_added is cumulative task-level evidence: list every approved test, fixture, doctest, or property case added for the task so far. A role that adds no tests keeps the cumulative list unchanged and records role-local test changes in `commands_executed`, role-specific result fields, or `known_risks`. |
 | `commands_executed` | array object | yes | Include failed commands and skipped required commands with reasons. |
 | `artifacts_produced` | array string | yes | Project-relative artifact paths. |
 | `known_risks` | array string | yes | Use empty array only when no residual risk is known. |
@@ -130,6 +130,10 @@ A handoff is invalid when:
 
 | Role | Additional required handoff content |
 | --- | --- |
+| Orchestrator | Role route selected, skipped-role reasons, and current task/control-file evidence. |
+| Phase Planner | Phase boundary, prerequisite ordering, and task split rationale. |
+| Task Queue Manager Start | Active task transition evidence and synchronized queue/status files. |
+| Planner | Referenced contracts, allowed/forbidden file review, and implementation risk notes. |
 | Test Author | Failing command evidence and acceptance criteria covered. |
 | Test Reviewer | Approved test list or required changes. |
 | Implementer | Targeted passing command evidence and changed files. |
@@ -138,20 +142,30 @@ A handoff is invalid when:
 | Mutation Triage Agent | Classification for every survivor and retry/escalation recommendation. |
 | Property Test Agent | Invariants, seeds, generated case count, minimized failure if any. |
 | Doctest Agent | Changed docs, case IDs, snapshot diff summary. |
+| Architecture Reviewer | Public contract drift, ADR need, and invariant/style citations. |
 | Verifier | Final ordered command list, skipped stage reasons, completion recommendation. |
+| Task Queue Manager Complete | Completion evidence, final task-state synchronization, and next-task handoff. |
 
 ## Machine-Readable Naming
 
 Use deterministic file names:
 
 ```text
-artifacts/pipeline/<task-id>/handoffs/01-test-author.json
-artifacts/pipeline/<task-id>/handoffs/02-test-reviewer.json
-artifacts/pipeline/<task-id>/handoffs/03-implementer.json
-artifacts/pipeline/<task-id>/handoffs/04-implementation-reviewer.json
-artifacts/pipeline/<task-id>/handoffs/05-mutation-agent.json
-artifacts/pipeline/<task-id>/handoffs/06-mutation-triage-agent.json
-artifacts/pipeline/<task-id>/handoffs/07-verifier.json
+artifacts/pipeline/<task-id>/handoffs/00-orchestrator.json
+artifacts/pipeline/<task-id>/handoffs/01-phase-planner.json
+artifacts/pipeline/<task-id>/handoffs/02-task-queue-manager-start.json
+artifacts/pipeline/<task-id>/handoffs/03-planner.json
+artifacts/pipeline/<task-id>/handoffs/04-test-author.json
+artifacts/pipeline/<task-id>/handoffs/05-test-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/06-implementer.json
+artifacts/pipeline/<task-id>/handoffs/07-implementation-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/08-mutation-agent.json
+artifacts/pipeline/<task-id>/handoffs/09-mutation-triage-agent.json
+artifacts/pipeline/<task-id>/handoffs/10-property-test-agent.json
+artifacts/pipeline/<task-id>/handoffs/11-doctest-agent.json
+artifacts/pipeline/<task-id>/handoffs/12-architecture-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/13-verifier.json
+artifacts/pipeline/<task-id>/handoffs/14-task-queue-manager-complete.json
 ```
 
 If a role is not required, the Verifier records the skip reason instead of creating a fake passing handoff.

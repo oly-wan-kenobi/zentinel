@@ -8,7 +8,9 @@ in bootstrap environments before project dependencies exist.
 from __future__ import annotations
 
 import json
+import fnmatch
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -70,6 +72,31 @@ TASK_CONTROL_FILES = {
     "tasks/STATUS.md",
     "tasks/status.json",
 }
+
+QUEUE_TOP_LEVEL_FIELDS = {"schema_version", "ordering", "tasks"}
+QUEUE_TASK_FIELDS = {
+    "id",
+    "order",
+    "title",
+    "file",
+    "phase",
+    "state",
+    "dependencies",
+    "allowed_files",
+    "forbidden_files",
+}
+STATUS_TOP_LEVEL_FIELDS = {
+    "schema_version",
+    "active_task",
+    "next_task",
+    "completed_tasks",
+    "blocked_tasks",
+    "blocked_task_details",
+    "last_validation",
+    "completion_evidence",
+    "history",
+}
+BLOCKED_TASK_DETAIL_FIELDS = {"task", "reason", "prerequisite_task", "requires_user_input", "notes"}
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
 GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
@@ -186,6 +213,12 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
     if not isinstance(queue, dict):
         return []
 
+    queue_keys = set(queue)
+    for field in sorted(QUEUE_TOP_LEVEL_FIELDS - queue_keys):
+        fail(errors, f"queue.json missing top-level field {field}")
+    for field in sorted(queue_keys - QUEUE_TOP_LEVEL_FIELDS):
+        fail(errors, f"queue.json contains unknown top-level field {field}")
+
     require(queue.get("schema_version") == "zentinel.tasks.queue.v1", errors, "queue.json schema_version mismatch")
     require(queue.get("ordering") == "sequential", errors, "queue.json ordering must be sequential")
 
@@ -204,10 +237,21 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
         if not isinstance(task, dict):
             continue
 
+        task_keys = set(task)
+        for field in sorted(QUEUE_TASK_FIELDS - task_keys):
+            fail(errors, f"task at index {index} missing field {field}")
+        for field in sorted(task_keys - QUEUE_TASK_FIELDS):
+            fail(errors, f"task at index {index} contains unknown field {field}")
+
         task_id = task.get("id")
         require(isinstance(task_id, str) and TASK_ID_RE.match(task_id) is not None, errors, f"task at index {index} has invalid id")
         if not isinstance(task_id, str):
             continue
+
+        title = task.get("title")
+        require(isinstance(title, str) and bool(title.strip()), errors, f"task {task_id} title must be a non-empty string")
+        phase = task.get("phase")
+        require(isinstance(phase, int) and phase >= 0, errors, f"task {task_id} phase must be a non-negative integer")
 
         require(task_id not in seen_ids, errors, f"duplicate task id {task_id}")
         seen_ids.add(task_id)
@@ -288,6 +332,12 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
     if not isinstance(status, dict):
         return
 
+    status_keys = set(status)
+    for field in sorted(STATUS_TOP_LEVEL_FIELDS - status_keys):
+        fail(errors, f"status.json missing top-level field {field}")
+    for field in sorted(status_keys - STATUS_TOP_LEVEL_FIELDS):
+        fail(errors, f"status.json contains unknown top-level field {field}")
+
     require(status.get("schema_version") == "zentinel.tasks.status.v1", errors, "status.json schema_version mismatch")
 
     task_ids = [task["id"] for task in tasks if isinstance(task.get("id"), str)]
@@ -307,19 +357,62 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
 
     completed = status.get("completed_tasks")
     require(isinstance(completed, list), errors, "status completed_tasks must be an array")
+    status_completed_ids: set[str] = set()
     if isinstance(completed, list):
         for task_id in completed:
             require(isinstance(task_id, str) and task_id in task_by_id, errors, f"completed task {task_id!r} is not known")
             if isinstance(task_id, str) and task_id in task_by_id:
+                status_completed_ids.add(task_id)
                 require(task_by_id[task_id].get("state") == "complete", errors, f"completed task {task_id} must have queue state complete")
+        queue_completed_ids = {task["id"] for task in tasks if task.get("state") == "complete" and isinstance(task.get("id"), str)}
+        for task_id in sorted(queue_completed_ids - status_completed_ids):
+            fail(errors, f"queue complete task {task_id} is missing from status completed_tasks")
+        for task_id in sorted(status_completed_ids - queue_completed_ids):
+            fail(errors, f"status completed task {task_id} is not complete in queue.json")
 
     blocked = status.get("blocked_tasks")
     require(isinstance(blocked, list), errors, "status blocked_tasks must be an array")
+    blocked_ids: set[str] = set()
     if isinstance(blocked, list):
         for task_id in blocked:
             require(isinstance(task_id, str) and task_id in task_by_id, errors, f"blocked task {task_id!r} is not known")
             if isinstance(task_id, str) and task_id in task_by_id:
+                blocked_ids.add(task_id)
                 require(task_by_id[task_id].get("state") == "blocked", errors, f"blocked task {task_id} must have queue state blocked")
+
+    blocked_details = status.get("blocked_task_details")
+    require(isinstance(blocked_details, list), errors, "status blocked_task_details must be an array")
+    detail_task_ids: set[str] = set()
+    if isinstance(blocked_details, list):
+        for index, detail in enumerate(blocked_details):
+            require(isinstance(detail, dict), errors, f"blocked_task_details entry {index} must be an object")
+            if not isinstance(detail, dict):
+                continue
+            detail_keys = set(detail)
+            for field in sorted(BLOCKED_TASK_DETAIL_FIELDS - detail_keys):
+                fail(errors, f"blocked_task_details entry {index} missing field {field}")
+            for field in sorted(detail_keys - BLOCKED_TASK_DETAIL_FIELDS):
+                fail(errors, f"blocked_task_details entry {index} contains unknown field {field}")
+            detail_task = detail.get("task")
+            require(isinstance(detail_task, str) and detail_task in task_by_id, errors, f"blocked_task_details entry {index} task must be known")
+            if isinstance(detail_task, str) and detail_task in task_by_id:
+                detail_task_ids.add(detail_task)
+            reason = detail.get("reason")
+            require(isinstance(reason, str) and bool(reason.strip()), errors, f"blocked_task_details entry {index} reason must be non-empty")
+            prerequisite_task = detail.get("prerequisite_task")
+            require(
+                prerequisite_task is None or (isinstance(prerequisite_task, str) and prerequisite_task in task_by_id),
+                errors,
+                f"blocked_task_details entry {index} prerequisite_task must be null or a known task id",
+            )
+            require(isinstance(detail.get("requires_user_input"), bool), errors, f"blocked_task_details entry {index} requires_user_input must be boolean")
+            notes = detail.get("notes")
+            require(isinstance(notes, str) and bool(notes.strip()), errors, f"blocked_task_details entry {index} notes must be non-empty")
+
+    for task_id in sorted(blocked_ids - detail_task_ids):
+        fail(errors, f"blocked task {task_id} is missing blocked_task_details entry")
+    for task_id in sorted(detail_task_ids - blocked_ids):
+        fail(errors, f"blocked_task_details entry {task_id} is not listed in blocked_tasks")
 
     for task in tasks:
         task_id = task.get("id")
@@ -515,6 +608,9 @@ def validate_markdown_queue(tasks: list[dict[str, object]], errors: list[str]) -
         return
     queue_text = QUEUE_MD.read_text(encoding="utf-8")
     rows = {match.group(2): {"order": match.group(1), "state": match.group(3).strip(), "phase": match.group(4).strip()} for match in QUEUE_ROW_RE.finditer(queue_text)}
+    queue_files = {task.get("file") for task in tasks if isinstance(task.get("file"), str)}
+    for file_value in sorted(set(rows) - queue_files):
+        fail(errors, f"tasks/QUEUE.md has extra row not present in queue.json: {file_value}")
     for task in tasks:
         task_id = task.get("id")
         file_value = task.get("file")
@@ -568,6 +664,71 @@ def validate_markdown_status(status: object, tasks: list[dict[str, object]], err
             require(isinstance(next_task, str) and (next_task in next_value or (isinstance(expected_file, str) and expected_file in next_value)), errors, "tasks/STATUS.md Next task must match status.json next_task")
 
 
+def path_matches(path: str, pattern: str) -> bool:
+    return path == pattern or fnmatch.fnmatchcase(path, pattern)
+
+
+def path_matches_any(path: str, patterns: object) -> bool:
+    return isinstance(patterns, list) and any(isinstance(pattern, str) and path_matches(path, pattern) for pattern in patterns)
+
+
+def changed_files_against_head(errors: list[str]) -> list[str]:
+    def git_names(args: list[str]) -> set[str]:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            fail(errors, f"git {' '.join(args)} failed while checking active task scope: {result.stderr.strip()}")
+            return set()
+        return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+    changed = git_names(["diff", "--name-only", "HEAD", "--"])
+    changed.update(git_names(["ls-files", "--others", "--exclude-standard"]))
+    return sorted(changed)
+
+
+def task_is_complete(tasks: list[dict[str, object]], task_id: str) -> bool:
+    return any(task.get("id") == task_id and task.get("state") == "complete" for task in tasks)
+
+
+def is_global_scope_exception(path: str, active_task_id: str, tasks: list[dict[str, object]]) -> bool:
+    if path in TASK_CONTROL_FILES:
+        return True
+    if re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", path):
+        return True
+    if task_is_complete(tasks, "041") and path_matches(path, f"artifacts/pipeline/{active_task_id}/**"):
+        return True
+    return False
+
+
+def validate_active_task_changed_file_scope(status: object, tasks: list[dict[str, object]], errors: list[str]) -> None:
+    if not isinstance(status, dict):
+        return
+    active_task_id = status.get("active_task")
+    if not isinstance(active_task_id, str):
+        return
+    task_by_id = {task["id"]: task for task in tasks if isinstance(task.get("id"), str)}
+    active_task = task_by_id.get(active_task_id)
+    if active_task is None:
+        return
+
+    allowed_files = active_task.get("allowed_files")
+    forbidden_files = active_task.get("forbidden_files")
+    for path in changed_files_against_head(errors):
+        if path_matches_any(path, forbidden_files):
+            fail(errors, f"changed file {path} is forbidden by active task {active_task_id}")
+            continue
+        if is_global_scope_exception(path, active_task_id, tasks):
+            continue
+        if not path_matches_any(path, allowed_files):
+            fail(errors, f"changed file {path} is outside active task {active_task_id} allowed_files")
+
+
 def validate_schema_files(errors: list[str]) -> None:
     required = [
         "schemas/report.v1.schema.json",
@@ -588,6 +749,8 @@ def validate_schema_files(errors: list[str]) -> None:
                 properties = schema.get("properties")
                 require(isinstance(required_fields, list) and "completion_evidence" in required_fields, errors, "status schema must require completion_evidence")
                 require(isinstance(properties, dict) and "completion_evidence" in properties, errors, "status schema must define completion_evidence")
+                require(isinstance(required_fields, list) and "blocked_task_details" in required_fields, errors, "status schema must require blocked_task_details")
+                require(isinstance(properties, dict) and "blocked_task_details" in properties, errors, "status schema must define blocked_task_details")
 
 
 def validate_schema_registry(errors: list[str]) -> None:
@@ -671,7 +834,7 @@ def validate_pipeline_contracts(errors: list[str]) -> None:
     if handoffs.is_file():
         text = handoffs.read_text(encoding="utf-8")
         require("JSON handoffs are canonical" in text or "JSON handoff is the canonical" in text, errors, "docs/HANDOFF_CONTRACTS.md must make JSON handoffs canonical")
-        require("01-test-author.json" in text, errors, "docs/HANDOFF_CONTRACTS.md must list deterministic JSON handoff names")
+        require("04-test-author.json" in text, errors, "docs/HANDOFF_CONTRACTS.md must list deterministic JSON handoff names")
 
     orchestration = ROOT / "docs" / "ORCHESTRATION_SPEC.md"
     if orchestration.is_file():
@@ -1962,6 +2125,156 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             require(phrase not in text, errors, f"{rel} contains stale analysis cleanup phrase '{phrase}'")
 
 
+def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 092's agent-readiness fixes against future drift."""
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+
+    task030 = task_by_id.get("030")
+    require(task030 is not None, errors, "task 030 must exist for doctest fixture contract validation")
+    task030_path = ROOT / "tasks/030-doctest-conventions.md"
+    if task030_path.is_file():
+        text = task030_path.read_text(encoding="utf-8")
+        required_doctest_phrases = [
+            "validator-backed fixture-presence evidence",
+            "test/fixtures/doctest",
+            "zig test",
+            "zig compile_fail",
+            "bash cli",
+            "text output",
+            "json expected",
+            "toml config",
+            "zig before",
+            "zig after",
+        ]
+        for phrase in required_doctest_phrases:
+            require(phrase in text, errors, f"tasks/030-doctest-conventions.md must contain doctest fixture contract phrase '{phrase}'")
+    else:
+        fail(errors, "missing task 030 doctest conventions file")
+
+    if isinstance(task030, dict) and task030.get("state") in {"active", "implemented", "verified", "complete"}:
+        fixture_dir = ROOT / "test" / "fixtures" / "doctest"
+        fixture_files = sorted(fixture_dir.rglob("*.md")) if fixture_dir.is_dir() else []
+        require(bool(fixture_files), errors, "task 030 requires doctest markdown fixtures under test/fixtures/doctest")
+        fixture_text = "\n".join(path.read_text(encoding="utf-8") for path in fixture_files)
+        for marker in ("zig test", "zig compile_fail", "bash cli", "text output", "json expected", "toml config", "zig before", "zig after"):
+            require(marker in fixture_text, errors, f"task 030 doctest fixtures must include marker '{marker}'")
+
+    handoff_files = {
+        "docs/HANDOFF_CONTRACTS.md": [
+            "tests_added is cumulative task-level evidence",
+            "role-local test changes",
+            "00-orchestrator.json",
+            "01-phase-planner.json",
+            "02-task-queue-manager-start.json",
+            "03-planner.json",
+            "04-test-author.json",
+            "05-test-reviewer.json",
+            "06-implementer.json",
+            "07-implementation-reviewer.json",
+            "08-mutation-agent.json",
+            "09-mutation-triage-agent.json",
+            "10-property-test-agent.json",
+            "11-doctest-agent.json",
+            "12-architecture-reviewer.json",
+            "13-verifier.json",
+            "14-task-queue-manager-complete.json",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "00-orchestrator.json",
+            "01-phase-planner.json",
+            "02-task-queue-manager-start.json",
+            "03-planner.json",
+            "04-test-author.json",
+            "05-test-reviewer.json",
+            "06-implementer.json",
+            "07-implementation-reviewer.json",
+            "08-mutation-agent.json",
+            "09-mutation-triage-agent.json",
+            "10-property-test-agent.json",
+            "11-doctest-agent.json",
+            "12-architecture-reviewer.json",
+            "13-verifier.json",
+            "14-task-queue-manager-complete.json",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "deterministic handoff names for every emitting role",
+            "tests_added is cumulative task-level evidence",
+        ],
+        ".agents/README.md": [
+            "Implementation Reviewer",
+            "Task Queue Manager Start",
+            "Task Queue Manager Complete",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Implementation Reviewer",
+        ],
+    }
+    for rel, phrases in handoff_files.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing handoff hardening contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain handoff hardening phrase '{phrase}'")
+
+    for rel in ("docs/AUTONOMOUS_AGENT_PROTOCOL.md", ".agents/README.md", "docs/HANDOFF_CONTRACTS.md"):
+        path = ROOT / rel
+        if path.is_file():
+            require("Code Reviewer" not in path.read_text(encoding="utf-8"), errors, f"{rel} must use canonical Implementation Reviewer terminology")
+
+    backend_required_phrases = {
+        "docs/AST_BACKEND.md": [
+            "pinned Zig `0.16.0`",
+        ],
+        "docs/ZIR_BACKEND.md": [
+            "`backend_stability` is `experimental`",
+            "out-of-report backend diagnostics",
+            "report v1 does not define backend-specific diagnostic fields",
+            "pinned Zig `0.16.0`",
+        ],
+        "docs/AIR_BACKEND.md": [
+            "`backend_stability` is `experimental`",
+            "out-of-report AIR diagnostics",
+            "report v1 does not define backend-specific diagnostic fields",
+            "pinned Zig `0.16.0`",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "report v1 has no backend-specific diagnostics namespace",
+            "`backend_stability`",
+        ],
+        "tasks/056-zir-backend-experiment.md": [
+            "`backend_stability`",
+            "out-of-report diagnostics",
+        ],
+        "tasks/057-air-backend-experiment.md": [
+            "`backend_stability`",
+            "out-of-report diagnostics",
+        ],
+    }
+    for rel, phrases in backend_required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing backend hardening contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain backend hardening phrase '{phrase}'")
+
+    backend_forbidden_phrases = {
+        "docs/AST_BACKEND.md": ["Latest-stable", "latest-stable"],
+        "docs/ZIR_BACKEND.md": ["Latest-stable", "latest-stable", "\"stability\":", "\"source_mapping\":"],
+        "docs/AIR_BACKEND.md": ["Latest-stable", "latest-stable"],
+    }
+    for rel, phrases in backend_forbidden_phrases.items():
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale backend phrase '{phrase}'")
+
+
 def validate_adr_system(errors: list[str]) -> None:
     readme = ADR_DIR / "README.md"
     require(readme.is_file(), errors, "docs/adr/README.md is missing")
@@ -2113,6 +2426,7 @@ def main() -> int:
     status = load_json(STATUS_JSON, errors)
     tasks = validate_queue(queue, errors)
     validate_status(status, tasks, errors)
+    validate_active_task_changed_file_scope(status, tasks, errors)
     validate_task_markdown(tasks, errors)
     validate_markdown_queue(tasks, errors)
     validate_markdown_status(status, tasks, errors)
@@ -2142,6 +2456,7 @@ def main() -> int:
     validate_agent_tooling_contract_hardening_contracts(errors)
     validate_contract_traceability_and_scope_hardening_contracts(tasks, errors)
     validate_analysis_risk_cleanup_contracts(errors)
+    validate_analysis_followup_hardening_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

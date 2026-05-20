@@ -125,7 +125,7 @@ An autonomous implementation may be performed by one agent only if no multi-agen
 | Test Author | Writes failing tests or fixtures. |
 | Test Reviewer | Checks tests would fail for the right reason and are not overfit. |
 | Implementer | Writes code to pass approved tests. |
-| Code Reviewer | Reviews changed code for drift, determinism, and forbidden scope expansion. |
+| Implementation Reviewer | Reviews changed code for drift, determinism, and forbidden scope expansion. |
 | Verifier | Runs required commands and records evidence. |
 
 When subagents are available and explicitly authorized by the user or environment, the Test Author and Implementer should be separate agents. Tests must not be weakened by the Implementer.
