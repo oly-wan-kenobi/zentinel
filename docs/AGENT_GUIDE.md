@@ -5,7 +5,7 @@ This repository is designed for sequential AI-agent development. Agents must pre
 ## Operating Rules
 
 1. Only one task is active at a time.
-2. Tasks are executed by queue execution order. A task's explicit `order` key may differ from its stable numeric ID when a prerequisite is inserted.
+2. Tasks are executed by queue execution order. Every task entry in `tasks/queue.json` contains an explicit `order` key. That key may differ from the stable numeric ID when a prerequisite is inserted.
 3. Read this guide, `docs/VISION.md`, `docs/NON_GOALS.md`, `docs/GLOSSARY.md`, `docs/ARCHITECTURE.md`, `docs/TDD_POLICY.md`, `docs/INVARIANTS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, and the active task before changing files.
 4. Write or update tests before implementation.
 5. Modify only files allowed by the active task, except Task Queue Manager lifecycle edits to task-control files, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts after task `041` is complete.

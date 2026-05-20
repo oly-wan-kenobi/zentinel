@@ -18,7 +18,8 @@ Before task `041`, the synchronized task files are the canonical active-task loc
 
 ## Queue Semantics
 
-- tasks execute by the queue's execution order, using an explicit `order` key when it differs from the task ID
+- Every task entry in `tasks/queue.json` contains an explicit `order` key.
+- tasks execute by the queue's execution order, not by stable task ID
 - dependencies must be complete
 - reordering requires queue and status updates
 - blocked tasks create prerequisite tasks rather than hidden side work

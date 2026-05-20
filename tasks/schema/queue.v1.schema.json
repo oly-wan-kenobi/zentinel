@@ -19,6 +19,7 @@
         "type": "object",
         "required": [
           "id",
+          "order",
           "title",
           "file",
           "phase",

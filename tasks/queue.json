@@ -543,6 +543,52 @@
       ]
     },
     {
+      "id": "083",
+      "order": "000.0.14",
+      "title": "Agent Tooling Contract Hardening",
+      "file": "tasks/083-agent-tooling-contract-hardening.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "082"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/083-agent-tooling-contract-hardening.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/005-version-policy.md",
+        "tasks/006-report-schema.md",
+        "tasks/040-agent-pipeline-foundation.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/043-mutation-gate.md",
+        "tasks/044-property-test-policy.md",
+        "tasks/045-doctest-policy.md",
+        "tasks/046-verification-pipeline.md",
+        "tasks/047-sequential-task-locking.md",
+        "tasks/048-failure-recovery.md",
+        "tasks/schema/queue.v1.schema.json",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -550,7 +596,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "082"
+        "083"
       ],
       "allowed_files": [
         "build.zig",
@@ -570,6 +616,7 @@
     },
     {
       "id": "001",
+      "order": "001",
       "title": "CLI Shell",
       "file": "tasks/001-cli-shell.md",
       "phase": 0,
@@ -596,6 +643,7 @@
     },
     {
       "id": "002",
+      "order": "002",
       "title": "Config Parser",
       "file": "tasks/002-config-parser.md",
       "phase": 0,
@@ -623,6 +671,7 @@
     },
     {
       "id": "003",
+      "order": "003",
       "title": "Test Harness",
       "file": "tasks/003-test-harness.md",
       "phase": 0,
@@ -647,6 +696,7 @@
     },
     {
       "id": "004",
+      "order": "004",
       "title": "Fixture System",
       "file": "tasks/004-fixture-system.md",
       "phase": 0,
@@ -670,6 +720,7 @@
     },
     {
       "id": "005",
+      "order": "005",
       "title": "Version Policy and Check Command",
       "file": "tasks/005-version-policy.md",
       "phase": 0,
@@ -700,6 +751,7 @@
     },
     {
       "id": "006",
+      "order": "006",
       "title": "Report Schema",
       "file": "tasks/006-report-schema.md",
       "phase": 0,
@@ -723,6 +775,7 @@
     },
     {
       "id": "007",
+      "order": "007",
       "title": "Mutant Model",
       "file": "tasks/007-mutant-model.md",
       "phase": 1,
@@ -747,6 +800,7 @@
     },
     {
       "id": "008",
+      "order": "008",
       "title": "AST Parser Spike",
       "file": "tasks/008-ast-parser-spike.md",
       "phase": 1,
@@ -772,6 +826,7 @@
     },
     {
       "id": "009",
+      "order": "009",
       "title": "AST Candidate Ordering",
       "file": "tasks/009-ast-candidate-ordering.md",
       "phase": 1,
@@ -820,6 +875,7 @@
     },
     {
       "id": "010",
+      "order": "010",
       "title": "Arithmetic Mutators",
       "file": "tasks/010-arithmetic-mutators.md",
       "phase": 1,
@@ -847,6 +903,7 @@
     },
     {
       "id": "011",
+      "order": "011",
       "title": "Comparison Mutators",
       "file": "tasks/011-comparison-mutators.md",
       "phase": 1,
@@ -872,6 +929,7 @@
     },
     {
       "id": "012",
+      "order": "012",
       "title": "Logical and Boolean Mutators",
       "file": "tasks/012-logical-boolean-mutators.md",
       "phase": 1,
@@ -896,6 +954,7 @@
     },
     {
       "id": "013",
+      "order": "013",
       "title": "Patch Sandbox",
       "file": "tasks/013-patch-sandbox.md",
       "phase": 1,
@@ -920,6 +979,7 @@
     },
     {
       "id": "014",
+      "order": "014",
       "title": "Baseline Runner",
       "file": "tasks/014-baseline-runner.md",
       "phase": 1,
@@ -944,6 +1004,7 @@
     },
     {
       "id": "015",
+      "order": "015",
       "title": "Mutant Runner",
       "file": "tasks/015-mutant-runner.md",
       "phase": 1,
@@ -970,6 +1031,7 @@
     },
     {
       "id": "016",
+      "order": "016",
       "title": "Minimal Run Command",
       "file": "tasks/016-minimal-run-command.md",
       "phase": 1,
@@ -1000,6 +1062,7 @@
     },
     {
       "id": "017",
+      "order": "017",
       "title": "List Mutants Command",
       "file": "tasks/017-list-mutants-command.md",
       "phase": 1,
@@ -1029,6 +1092,7 @@
     },
     {
       "id": "018",
+      "order": "018",
       "title": "Report Renderers",
       "file": "tasks/018-report-renderers.md",
       "phase": 1,
@@ -1062,6 +1126,7 @@
     },
     {
       "id": "020",
+      "order": "020",
       "title": "Test Selection Same File",
       "file": "tasks/020-test-selection-same-file.md",
       "phase": 1,
@@ -1089,6 +1154,7 @@
     },
     {
       "id": "021",
+      "order": "021",
       "title": "Cache Key Design",
       "file": "tasks/021-cache-key-design.md",
       "phase": 3,
@@ -1117,6 +1183,7 @@
     },
     {
       "id": "022",
+      "order": "022",
       "title": "Dogfood Fixture Run",
       "file": "tasks/022-dogfood-fixture-run.md",
       "phase": 3,
@@ -1142,6 +1209,7 @@
     },
     {
       "id": "023",
+      "order": "023",
       "title": "Optional and Null Mutators",
       "file": "tasks/023-optional-null-mutators.md",
       "phase": 2,
@@ -1169,6 +1237,7 @@
     },
     {
       "id": "024",
+      "order": "024",
       "title": "Error Path Mutators",
       "file": "tasks/024-error-path-mutators.md",
       "phase": 2,
@@ -1195,6 +1264,7 @@
     },
     {
       "id": "025",
+      "order": "025",
       "title": "Autonomous Backlog Audit",
       "file": "tasks/025-autonomous-backlog-audit.md",
       "phase": 0,
@@ -1261,6 +1331,7 @@
     },
     {
       "id": "026",
+      "order": "026",
       "title": "Errdefer Mutator",
       "file": "tasks/026-errdefer-mutator.md",
       "phase": 2,
@@ -1287,6 +1358,7 @@
     },
     {
       "id": "027",
+      "order": "027",
       "title": "Integer Literal Boundary Mutator",
       "file": "tasks/027-integer-literal-boundary-mutator.md",
       "phase": 2,
@@ -1313,6 +1385,7 @@
     },
     {
       "id": "028",
+      "order": "028",
       "title": "Loop Boundary Mutator",
       "file": "tasks/028-loop-boundary-mutator.md",
       "phase": 2,
@@ -1339,6 +1412,7 @@
     },
     {
       "id": "029",
+      "order": "029",
       "title": "Phase 2 Semantic Dogfood",
       "file": "tasks/029-phase2-semantic-dogfood.md",
       "phase": 2,
@@ -1364,6 +1438,7 @@
     },
     {
       "id": "030",
+      "order": "030",
       "title": "Doctest Conventions",
       "file": "tasks/030-doctest-conventions.md",
       "phase": 0,
@@ -1391,6 +1466,7 @@
     },
     {
       "id": "031",
+      "order": "031",
       "title": "Doctest Parser",
       "file": "tasks/031-doctest-parser.md",
       "phase": 1,
@@ -1418,6 +1494,7 @@
     },
     {
       "id": "032",
+      "order": "032",
       "title": "Doctest Extraction",
       "file": "tasks/032-doctest-extraction.md",
       "phase": 1,
@@ -1444,6 +1521,7 @@
     },
     {
       "id": "033",
+      "order": "033",
       "title": "Doctest Runner",
       "file": "tasks/033-doctest-runner.md",
       "phase": 1,
@@ -1473,6 +1551,7 @@
     },
     {
       "id": "034",
+      "order": "034",
       "title": "Doctest Snapshots",
       "file": "tasks/034-doctest-snapshots.md",
       "phase": 1,
@@ -1503,6 +1582,7 @@
     },
     {
       "id": "035",
+      "order": "035",
       "title": "CLI Doctests",
       "file": "tasks/035-cli-doctests.md",
       "phase": 1,
@@ -1533,6 +1613,7 @@
     },
     {
       "id": "036",
+      "order": "036",
       "title": "Config Doctests",
       "file": "tasks/036-config-doctests.md",
       "phase": 1,
@@ -1558,6 +1639,7 @@
     },
     {
       "id": "037",
+      "order": "037",
       "title": "Mutator Spec Doctests",
       "file": "tasks/037-mutator-spec-doctests.md",
       "phase": 2,
@@ -1584,6 +1666,7 @@
     },
     {
       "id": "038",
+      "order": "038",
       "title": "Doctest Cache",
       "file": "tasks/038-doctest-cache.md",
       "phase": 3,
@@ -1609,6 +1692,7 @@
     },
     {
       "id": "039",
+      "order": "039",
       "title": "Doctest Mutation Experiments",
       "file": "tasks/039-doctest-mutation-experiments.md",
       "phase": 2,
@@ -1637,6 +1721,7 @@
     },
     {
       "id": "040",
+      "order": "040",
       "title": "Agent Pipeline Foundation",
       "file": "tasks/040-agent-pipeline-foundation.md",
       "phase": 0,
@@ -1665,6 +1750,7 @@
     },
     {
       "id": "041",
+      "order": "041",
       "title": "Handoff Artifacts",
       "file": "tasks/041-handoff-artifacts.md",
       "phase": 0,
@@ -1725,6 +1811,7 @@
     },
     {
       "id": "042",
+      "order": "042",
       "title": "Context Packet System",
       "file": "tasks/042-context-packet-system.md",
       "phase": 0,
@@ -1753,6 +1840,7 @@
     },
     {
       "id": "043",
+      "order": "043",
       "title": "Mutation Gate",
       "file": "tasks/043-mutation-gate.md",
       "phase": 1,
@@ -1780,6 +1868,7 @@
     },
     {
       "id": "044",
+      "order": "044",
       "title": "Property Test Policy",
       "file": "tasks/044-property-test-policy.md",
       "phase": 1,
@@ -1806,6 +1895,7 @@
     },
     {
       "id": "045",
+      "order": "045",
       "title": "Doctest Policy",
       "file": "tasks/045-doctest-policy.md",
       "phase": 1,
@@ -1832,6 +1922,7 @@
     },
     {
       "id": "046",
+      "order": "046",
       "title": "Verification Pipeline",
       "file": "tasks/046-verification-pipeline.md",
       "phase": 1,
@@ -1860,6 +1951,7 @@
     },
     {
       "id": "047",
+      "order": "047",
       "title": "Sequential Task Locking",
       "file": "tasks/047-sequential-task-locking.md",
       "phase": 0,
@@ -1887,6 +1979,7 @@
     },
     {
       "id": "048",
+      "order": "048",
       "title": "Failure Recovery",
       "file": "tasks/048-failure-recovery.md",
       "phase": 0,
@@ -1914,6 +2007,7 @@
     },
     {
       "id": "049",
+      "order": "049",
       "title": "Pipeline Escalation",
       "file": "tasks/049-pipeline-escalation.md",
       "phase": 0,
@@ -1942,6 +2036,7 @@
     },
     {
       "id": "050",
+      "order": "050",
       "title": "Parallel Worker Pool",
       "file": "tasks/050-parallel-worker-pool.md",
       "phase": 3,
@@ -1971,6 +2066,7 @@
     },
     {
       "id": "051",
+      "order": "051",
       "title": "Fail Fast and Impact Analysis",
       "file": "tasks/051-fail-fast-impact-analysis.md",
       "phase": 3,
@@ -1997,6 +2093,7 @@
     },
     {
       "id": "052",
+      "order": "052",
       "title": "Performance Benchmarks",
       "file": "tasks/052-performance-benchmarks.md",
       "phase": 3,
@@ -2025,6 +2122,7 @@
     },
     {
       "id": "053",
+      "order": "053",
       "title": "AI Provider and Context",
       "file": "tasks/053-ai-provider-and-context.md",
       "phase": 4,
@@ -2052,6 +2150,7 @@
     },
     {
       "id": "054",
+      "order": "054",
       "title": "AI Advisory Commands",
       "file": "tasks/054-ai-advisory-commands.md",
       "phase": 4,
@@ -2081,6 +2180,7 @@
     },
     {
       "id": "055",
+      "order": "055",
       "title": "AI Doctest Assistance",
       "file": "tasks/055-ai-doctest-assistance.md",
       "phase": 4,
@@ -2115,6 +2215,7 @@
     },
     {
       "id": "056",
+      "order": "056",
       "title": "ZIR Backend Experiment",
       "file": "tasks/056-zir-backend-experiment.md",
       "phase": 5,
@@ -2141,6 +2242,7 @@
     },
     {
       "id": "057",
+      "order": "057",
       "title": "AIR Backend Experiment",
       "file": "tasks/057-air-backend-experiment.md",
       "phase": 5,
@@ -2167,6 +2269,7 @@
     },
     {
       "id": "058",
+      "order": "058",
       "title": "Safety Mode Matrix",
       "file": "tasks/058-safety-mode-matrix.md",
       "phase": 6,
@@ -2196,6 +2299,7 @@
     },
     {
       "id": "059",
+      "order": "059",
       "title": "Production Dogfood CI",
       "file": "tasks/059-production-dogfood-ci.md",
       "phase": 7,
@@ -2397,6 +2501,7 @@
     },
     {
       "id": "060",
+      "order": "060",
       "title": "Release Acceptance Verification",
       "file": "tasks/060-release-acceptance-verification.md",
       "phase": 7,

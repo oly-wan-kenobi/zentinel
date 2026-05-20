@@ -18,6 +18,7 @@ QUEUE_JSON = ROOT / "tasks" / "queue.json"
 STATUS_JSON = ROOT / "tasks" / "status.json"
 QUEUE_MD = ROOT / "tasks" / "QUEUE.md"
 STATUS_MD = ROOT / "tasks" / "STATUS.md"
+QUEUE_SCHEMA_JSON = ROOT / "tasks" / "schema" / "queue.v1.schema.json"
 SCHEMA_REGISTRY_MD = ROOT / "docs" / "SCHEMA_REGISTRY.md"
 ADR_DIR = ROOT / "docs" / "adr"
 GAP_REGISTRY_DIR = ROOT / "tests" / "coverage-gaps"
@@ -209,7 +210,7 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
         seen_ids.add(task_id)
 
         explicit_order = task.get("order")
-        require(explicit_order is None or (isinstance(explicit_order, str) and ORDER_RE.match(explicit_order) is not None), errors, f"task {task_id} has invalid order")
+        require(isinstance(explicit_order, str) and ORDER_RE.match(explicit_order) is not None, errors, f"task {task_id} must have an explicit valid order")
         task_order_value = task_order(task)
         require(ORDER_RE.match(task_order_value) is not None, errors, f"task {task_id} has invalid effective order")
         require(task_order_value not in seen_orders, errors, f"duplicate task order {task_order_value}")
@@ -449,6 +450,7 @@ def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) ->
             require(NO_FOLLOW_UP_RE.match(item) is not None, errors, f"{file_value} follow-up bullet must reference a concrete queued task or say 'None predefined.': {item}")
 
         for ref in follow_up_refs(text):
+            require(ref.startswith("tasks/"), errors, f"{file_value} follow-up task reference must use canonical tasks/ path: {ref}")
             normalized = ref if ref.startswith("tasks/") else f"tasks/{ref}"
             require(normalized in task_files, errors, f"{file_value} follow-up task reference does not exist in queue.json: {ref}")
             if normalized in task_files:
@@ -1594,6 +1596,62 @@ def validate_analysis_findings_closure_contracts(tasks: list[dict[str, object]],
                 require(bool(section_body(text, heading)), errors, f"{file_value} section {heading!r} must not be empty")
 
 
+def validate_agent_tooling_contract_hardening_contracts(errors: list[str]) -> None:
+    queue_schema = load_json(QUEUE_SCHEMA_JSON, errors)
+    if isinstance(queue_schema, dict):
+        required = (
+            queue_schema.get("properties", {})
+            .get("tasks", {})
+            .get("items", {})
+            .get("required")
+        )
+        require(isinstance(required, list) and "order" in required, errors, "tasks/schema/queue.v1.schema.json must require task order")
+
+    required_phrases = {
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md": [
+            "Every task entry in `tasks/queue.json` contains an explicit `order` key.",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "Every task entry in `tasks/queue.json` contains an explicit `order` key.",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Every task entry in `tasks/queue.json` contains an explicit `order` key.",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "JSON Schema validation checks report shape",
+            "deterministic semantic validation must also verify derived invariants",
+            "summary counts match the `mutants` entries",
+        ],
+        "tasks/006-report-schema.md": [
+            "deterministic report semantic validator",
+            "schema validation is not the only report oracle",
+            "summary counts match the serialized `mutants` entries",
+        ],
+        "docs/ZIG_VERSION_POLICY.md": [
+            "durable verification evidence",
+            "official release source consulted",
+            "official latest stable version",
+            "local `zig version`",
+            "match or mismatch result",
+        ],
+        "tasks/005-version-policy.md": [
+            "durable verification evidence",
+            "official release source consulted",
+            "official latest stable version",
+            "local `zig version`",
+            "match or mismatch result",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing agent-tooling contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain agent-tooling contract phrase '{phrase}'")
+
+
 def validate_adr_system(errors: list[str]) -> None:
     readme = ADR_DIR / "README.md"
     require(readme.is_file(), errors, "docs/adr/README.md is missing")
@@ -1768,6 +1826,7 @@ def main() -> int:
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
+    validate_agent_tooling_contract_hardening_contracts(errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)
