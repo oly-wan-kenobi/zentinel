@@ -12,6 +12,7 @@ Define the pipeline mutation gate that runs after implementation review and befo
 - Connect mutation gate outcomes to `docs/VERIFICATION_PIPELINE.md` and `docs/FAILURE_RECOVERY.md`.
 - Define survivor classification, equivalent-risk handling, retry behavior, and escalation rules.
 - Add artifact examples for mutation gate reports.
+- Task `043` establishes the mutation-gate availability cutover defined by `docs/MUTATION_GATE_POLICY.md`.
 
 ## Files allowed to modify
 
@@ -56,6 +57,7 @@ This task defines mutation testing requirements but does not run product mutatio
 - Blocking conditions are explicit.
 - Equivalent mutant handling is advisory unless backed by deterministic policy.
 - Retry limits and escalation paths are documented.
+- The `pre-gate unavailable` skip reason is no longer allowed for mutation-testable tasks after this task is complete.
 - `python3 scripts/validate_task_system.py` passes.
 
 ## Non-goals

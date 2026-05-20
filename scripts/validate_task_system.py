@@ -663,6 +663,30 @@ def validate_same_file_exclusion_sequence(tasks: list[dict[str, object]], errors
             require(phrase in path.read_text(encoding="utf-8"), errors, f"{rel} must contain same-file sequencing phrase '{phrase}'")
 
 
+def validate_mutation_gate_availability_policy(errors: list[str]) -> None:
+    required_phrases = {
+        "docs/MUTATION_GATE_POLICY.md": [
+            "Task `043` is the mutation-gate availability cutover.",
+            "Before task `043` is complete, mutation-gate skip reasons must use `pre-gate unavailable`",
+            "After task `043` is complete, mutation gate is mandatory for mutation-testable tasks",
+            "only when the active scope is mutation-testable",
+        ],
+        "tasks/043-mutation-gate.md": [
+            "Task `043` establishes the mutation-gate availability cutover",
+            "`pre-gate unavailable` skip reason is no longer allowed for mutation-testable tasks after this task is complete",
+        ],
+    }
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing mutation-gate availability file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain mutation-gate availability phrase '{phrase}'")
+
+
 def validate_agent_execution_contracts(errors: list[str]) -> None:
     required_phrases = {
         ".agents/workflows/task-plan.md": ["first dependency-ready queued task by execution order"],
@@ -1522,6 +1546,7 @@ def main() -> int:
     validate_task_order_contracts(errors)
     validate_protocol_startup_order(errors)
     validate_same_file_exclusion_sequence(tasks, errors)
+    validate_mutation_gate_availability_policy(errors)
     validate_agent_execution_contracts(errors)
     validate_cli_contracts(errors)
     validate_doctest_identity_contracts(errors)

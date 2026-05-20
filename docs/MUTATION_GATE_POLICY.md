@@ -15,7 +15,9 @@ Tests
 
 ## Required When
 
-Mutation gate is required for:
+Task `043` is the mutation-gate availability cutover. Before task `043` is complete, mutation-gate skip reasons must use `pre-gate unavailable` when the active task changes behavior that would otherwise require the gate but the gate cannot exist yet. The skip reason must name the missing prerequisite and must not claim mutation evidence was run.
+
+After task `043` is complete, mutation gate is mandatory for mutation-testable tasks only when the active scope is mutation-testable and the required runner/report surface exists for that scope. Mutation gate is required for:
 
 - mutator implementation
 - runner behavior

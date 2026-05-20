@@ -9,13 +9,14 @@
     "071",
     "072",
     "073",
-    "074"
+    "074",
+    "075"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 074 same-file exclusion sequencing: task 019 now executes after task 009 and before task 010, task 010 depends on task 019, and task 020 depends on tasks 018 and 019. Python validator compilation passed."
+    "notes": "Validator passed after completing task 075 mutation gate availability policy: docs now define task 043 as the mutation-gate availability cutover, allow only a pre-gate unavailable skip reason before that cutover, and make the gate mandatory for mutation-testable work after it exists. Python validator compilation passed."
   },
   "history": [
     {
@@ -172,6 +173,16 @@
       "event": "same_file_exclusion_sequencing_completed",
       "task": "074",
       "notes": "Completed task 074 before project bootstrap. Moved task 019 to execution order 009.1, updated task 010 and task 020 dependencies, synchronized affected guards and follow-ups, and added a validator guardrail for this ordering."
+    },
+    {
+      "event": "mutation_gate_availability_policy_started",
+      "task": "075",
+      "notes": "Inserted task 075 at execution order 000.0.6 before project bootstrap to resolve the mutation-gate policy timing contradiction before implementation starts."
+    },
+    {
+      "event": "mutation_gate_availability_policy_completed",
+      "task": "075",
+      "notes": "Completed task 075 before project bootstrap. Added the task 043 mutation-gate availability cutover, the pre-gate unavailable skip reason, post-cutover mandatory wording for mutation-testable tasks, and a validator guardrail."
     }
   ]
 }
