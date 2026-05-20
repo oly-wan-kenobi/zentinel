@@ -10,6 +10,7 @@
     "completed_tasks",
     "blocked_tasks",
     "last_validation",
+    "completion_evidence",
     "history"
   ],
   "additionalProperties": false,
@@ -52,6 +53,79 @@
         },
         "notes": {
           "type": "string"
+        }
+      }
+    },
+    "completion_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "task",
+          "failing_evidence",
+          "implementation_summary",
+          "files_changed",
+          "tests_added",
+          "tests_run",
+          "validator_result",
+          "dogfooding_implication",
+          "follow_up_tasks"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "task": {
+            "type": "string",
+            "pattern": "^[0-9]{3}$"
+          },
+          "failing_evidence": {
+            "type": "string"
+          },
+          "implementation_summary": {
+            "type": "string"
+          },
+          "files_changed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tests_added": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tests_run": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "validator_result": {
+            "type": "object",
+            "required": ["command", "status", "notes"],
+            "additionalProperties": false,
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "status": {
+                "enum": ["not_run", "passed", "failed"]
+              },
+              "notes": {
+                "type": "string"
+              }
+            }
+          },
+          "dogfooding_implication": {
+            "type": "string"
+          },
+          "follow_up_tasks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       }
     },

@@ -385,6 +385,38 @@
       ]
     },
     {
+      "id": "079",
+      "order": "000.0.10",
+      "title": "Status Completion Evidence Schema",
+      "file": "tasks/079-status-completion-evidence-schema.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "078"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/079-status-completion-evidence-schema.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/schema/status.v1.schema.json",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/AGENT_GUIDE.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/DOCTEST_*.md",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -392,7 +424,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "078"
+        "079"
       ],
       "allowed_files": [
         "build.zig",

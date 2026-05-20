@@ -13,14 +13,197 @@
     "075",
     "076",
     "077",
-    "078"
+    "078",
+    "079"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 078 bootstrap TDD order: task 000 now instructs agents to add bootstrap tests before build.zig and records acceptable missing-scaffold or unresolved-import failing evidence. Python validator compilation passed."
+    "notes": "Validator passed after completing task 079 status completion evidence schema: status.v1 schema defines completion_evidence, tasks/status.json has evidence for every completed task, and validator enforces both. Python validator compilation, JSON syntax checks, and git diff --check passed."
   },
+  "completion_evidence": [
+    {
+      "task": "068",
+      "failing_evidence": "No new structural guardrail was added; task 068 aligned existing docs/schema contracts using existing validator and syntax checks.",
+      "implementation_summary": "Aligned preimplementation contracts for backlog audit scope, preview mutator roadmap wording, doctest mutation summaries, survivor AI context, pre-041 pipeline wording, and report internal_error schema ownership.",
+      "files_changed": ["task metadata", "contract docs", "report schema", "gap registry rows"],
+      "tests_added": [],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "Markdown JSON fence checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 068 contract alignment."
+      },
+      "dogfooding_implication": "Removed ambiguity before dogfoodable behavior exists; no dogfood run expected.",
+      "follow_up_tasks": []
+    },
+    {
+      "task": "069",
+      "failing_evidence": "Pre-fix validator failed on new guardrails for run-option ownership, config worker-count coverage, mutation-agent compiler_crash wording, baseline timeout semantics, pipeline validator ordering, and doctest snapshot modes.",
+      "implementation_summary": "Aligned CLI/config/report/doctest contracts, mutation-agent role profile, and task-system validator guardrails.",
+      "files_changed": ["task metadata", "CLI/config/report/doctest contracts", "mutation agent role profile", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for agent-readiness contracts."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "Markdown JSON fence checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 069 agent-readiness contract closure."
+      },
+      "dogfooding_implication": "Removed ambiguity before dogfoodable behavior exists; no dogfood run expected.",
+      "follow_up_tasks": []
+    },
+    {
+      "task": "070",
+      "failing_evidence": "Pre-fix validator failed on new guardrails for bootstrap test discovery, active-lock artifacts, follow-up execution order, doctest expectation kinds, status prose, and README orientation.",
+      "implementation_summary": "Aligned bootstrap/test-harness contracts, pipeline artifact docs, schema registry rows, doctest docs, README, and status prose.",
+      "files_changed": ["task metadata", "validator guardrails", "bootstrap/test-harness task contracts", "pipeline artifact docs", "schema registry rows", "doctest docs", "README", "status prose"],
+      "tests_added": ["Structural validator guardrails for agent-blocker contracts."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 070 agent-blocker contract closure."
+      },
+      "dogfooding_implication": "Removed agent-blocking contract gaps before project bootstrap; no dogfood run expected.",
+      "follow_up_tasks": []
+    },
+    {
+      "task": "071",
+      "failing_evidence": "Pre-fix validator failed on new guardrails for orchestrator routing, pipeline schema ownership, Zig artifact ignores, and stale baseline status wording.",
+      "implementation_summary": "Aligned Codex orchestrator routing, pipeline schema ownership contracts, schema gap registry rows, root gitignore, and stale status history.",
+      "files_changed": ["task metadata", "Codex orchestrator routing", "pipeline schema ownership contracts", "schema gap registry rows", "validator guardrails", ".gitignore", "status history"],
+      "tests_added": ["Structural validator guardrails for agent-contract finalization."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 071 agent contract finalization."
+      },
+      "dogfooding_implication": "Removed remaining pre-bootstrap agent-contract drift; no dogfood run expected.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "072",
+      "failing_evidence": "Pre-fix validator failed on task 064 missing dependency 062 as expected.",
+      "implementation_summary": "Added direct previous-task dependency guardrail, fixed task 064 dependency, synced task 000 guard with task 072, and aligned harness/roadmap/invariant wording.",
+      "files_changed": ["task metadata", "task 064 dependency and guard", "task 000 guard", "validator guardrail", "harness and roadmap wording", "invariant gap row"],
+      "tests_added": ["Structural validator guardrail for direct previous non-superseded execution-order dependencies."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 072 prebootstrap sequencing and contract cleanup."
+      },
+      "dogfooding_implication": "Removed pre-bootstrap sequencing risk before dogfoodable behavior exists; no dogfood run expected.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "073",
+      "failing_evidence": "Pre-fix validator failed on stale startup-order wording that marked tasks active before reading selected task docs.",
+      "implementation_summary": "Aligned autonomous task startup ordering so agents read selected task docs before marking active, and added a validator guardrail.",
+      "files_changed": ["task metadata", "task 000 guard", "startup-order docs", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail rejecting mark-active-before-read startup wording."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 073 agent protocol readiness order."
+      },
+      "dogfooding_implication": "Removed startup-order ambiguity before dogfoodable behavior exists; no dogfood run expected.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "074",
+      "failing_evidence": "Pre-fix validator failed because task 019 executed after task 010 and task 020 lacked both required prerequisites.",
+      "implementation_summary": "Moved same-file test exclusion to execution order 009.1 before arithmetic mutators, synchronized dependencies, guards, follow-ups, and validator guardrail.",
+      "files_changed": ["task metadata", "task 000 guard", "task 009/010/018/019/020 sequencing metadata", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail rejecting task 019 after task 010."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 074 same-file exclusion sequencing."
+      },
+      "dogfooding_implication": "Future dogfood candidate sets are protected from normal test-body mutation by task order.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "075",
+      "failing_evidence": "Pre-fix validator failed on missing mutation-gate availability cutover and pre-gate skip wording.",
+      "implementation_summary": "Defined task 043 as mutation-gate availability cutover, added pre-gate unavailable skip reason, and preserved mandatory post-cutover gates for mutation-testable work.",
+      "files_changed": ["task metadata", "task 000 guard", "mutation gate policy", "task 043 wording", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring task 043 cutover and pre-gate unavailable policy wording."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 075 mutation gate availability policy."
+      },
+      "dogfooding_implication": "Preserves future mutation gates while preventing pre-gate tasks from blocking on nonexistent tooling.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "076",
+      "failing_evidence": "Pre-fix validator failed on missing dm_ mutation-aware doctest entry identity wording.",
+      "implementation_summary": "Added dm_ mutation-aware doctest entry IDs, kept dt_ as source case identity, preserved ds_ as survivor-only, and updated task 061/067 requirements.",
+      "files_changed": ["task metadata", "task 000 guard", "doctest identity docs", "task 061/067 requirements", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring dm_ mutation-aware doctest entry identity wording."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 076 doctest mutation entry identity."
+      },
+      "dogfooding_implication": "Future doctest mutation dogfood and survivor AI can join source cases, mutation entries, and survivor refs without ambiguity.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "077",
+      "failing_evidence": "Pre-fix validator failed because task 025 lacked a new-task-file allowance for concrete audit gaps.",
+      "implementation_summary": "Allowed task 025 to create next-unused task markdown files only for concrete missing backlog tasks and added validator enforcement.",
+      "files_changed": ["task metadata", "task 000 guard", "task 025 scope and allowed files", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring task 025 task-file creation scope."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 077 backlog audit task creation scope."
+      },
+      "dogfooding_implication": "Prevents the audit from becoming a human-coordination blocker before dogfood expansion tasks.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "078",
+      "failing_evidence": "Pre-fix validator failed because task 000 did not say to add bootstrap tests before build.zig or name the expected missing-scaffold failure.",
+      "implementation_summary": "Aligned task 000 suggested approach with failing-test-first bootstrap order and documented acceptable pre-scaffold failure evidence.",
+      "files_changed": ["task metadata", "task 000 guard and TDD wording", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring task 000 to add bootstrap tests before build.zig."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 078 bootstrap TDD order."
+      },
+      "dogfooding_implication": "Keeps the first implementation task from bypassing failing evidence before dogfoodable behavior exists.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "079",
+      "failing_evidence": "Pre-fix validator failed because tasks/status.json lacked a completion_evidence array.",
+      "implementation_summary": "Added status.v1 completion_evidence schema, populated structured evidence for completed tasks, updated protocol/guide wording, and added validator guardrails for evidence and schema presence.",
+      "files_changed": ["task metadata", "task 000 guard", "status schema", "tasks/status.json completion evidence", "protocol and guide wording", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails requiring completion_evidence for every completed task and status schema support."],
+      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 079 status completion evidence schema."
+      },
+      "dogfooding_implication": "Fresh agents can verify completed-task evidence before dogfood and pipeline artifact tasks exist.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    }
+  ],
   "history": [
     {
       "event": "bootstrap_docs_created",
@@ -216,6 +399,16 @@
       "event": "bootstrap_tdd_order_completed",
       "task": "078",
       "notes": "Completed task 078 before project bootstrap. Task 000 now starts with bootstrap tests before build.zig, documents the acceptable missing-scaffold or unresolved-import failure, and the validator enforces this TDD order."
+    },
+    {
+      "event": "status_completion_evidence_schema_started",
+      "task": "079",
+      "notes": "Inserted task 079 at execution order 000.0.10 before project bootstrap to make completion evidence machine-checkable in tasks/status.json before pipeline artifacts exist."
+    },
+    {
+      "event": "status_completion_evidence_schema_completed",
+      "task": "079",
+      "notes": "Completed task 079 before project bootstrap. Added status.v1 completion_evidence, populated structured evidence for every completed task, updated protocol wording, and added validator guardrails."
     }
   ]
 }

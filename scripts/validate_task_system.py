@@ -313,6 +313,62 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
 
     require(isinstance(status.get("last_validation"), dict), errors, "status last_validation must be an object")
     require(isinstance(status.get("history"), list), errors, "status history must be an array")
+    validate_completion_evidence(status, task_by_id, errors)
+
+
+def validate_completion_evidence(status: dict[object, object], task_by_id: dict[str, dict[str, object]], errors: list[str]) -> None:
+    evidence = status.get("completion_evidence")
+    require(isinstance(evidence, list), errors, "status completion_evidence must be an array")
+    completed = status.get("completed_tasks")
+    if not isinstance(evidence, list) or not isinstance(completed, list):
+        return
+
+    required_fields = {
+        "task",
+        "failing_evidence",
+        "implementation_summary",
+        "files_changed",
+        "tests_added",
+        "tests_run",
+        "validator_result",
+        "dogfooding_implication",
+        "follow_up_tasks",
+    }
+    evidence_by_task: dict[str, dict[str, object]] = {}
+    for index, entry in enumerate(evidence):
+        require(isinstance(entry, dict), errors, f"completion_evidence entry {index} must be an object")
+        if not isinstance(entry, dict):
+            continue
+        keys = set(entry)
+        missing = required_fields - keys
+        extra = keys - required_fields
+        for field in sorted(missing):
+            fail(errors, f"completion_evidence entry {index} missing field {field}")
+        for field in sorted(extra):
+            fail(errors, f"completion_evidence entry {index} has unknown field {field}")
+
+        task_id = entry.get("task")
+        require(isinstance(task_id, str) and task_id in task_by_id, errors, f"completion_evidence entry {index} task must be known")
+        if isinstance(task_id, str):
+            require(task_id not in evidence_by_task, errors, f"completion_evidence has duplicate task {task_id}")
+            evidence_by_task[task_id] = entry
+
+        for field in ["failing_evidence", "implementation_summary", "dogfooding_implication"]:
+            require(isinstance(entry.get(field), str) and bool(entry.get(field)), errors, f"completion_evidence entry {index} field {field} must be a non-empty string")
+        for field in ["files_changed", "tests_added", "tests_run", "follow_up_tasks"]:
+            require(isinstance(entry.get(field), list) and all(isinstance(item, str) and item for item in entry.get(field, [])), errors, f"completion_evidence entry {index} field {field} must be a string array")
+
+        validator = entry.get("validator_result")
+        require(isinstance(validator, dict), errors, f"completion_evidence entry {index} validator_result must be an object")
+        if isinstance(validator, dict):
+            require(set(validator) == {"command", "status", "notes"}, errors, f"completion_evidence entry {index} validator_result must contain command, status, and notes")
+            require(isinstance(validator.get("command"), str) and bool(validator.get("command")), errors, f"completion_evidence entry {index} validator_result.command must be non-empty")
+            require(validator.get("status") in {"passed", "failed", "not_run"}, errors, f"completion_evidence entry {index} validator_result.status is invalid")
+            require(isinstance(validator.get("notes"), str) and bool(validator.get("notes")), errors, f"completion_evidence entry {index} validator_result.notes must be non-empty")
+
+    completed_ids = [task_id for task_id in completed if isinstance(task_id, str)]
+    for task_id in completed_ids:
+        require(task_id in evidence_by_task, errors, f"completed task {task_id} missing completion_evidence entry")
 
 
 def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
@@ -477,7 +533,12 @@ def validate_schema_files(errors: list[str]) -> None:
         path = ROOT / rel
         require(path.is_file(), errors, f"missing schema file {rel}")
         if path.is_file():
-            load_json(path, errors)
+            schema = load_json(path, errors)
+            if rel == "tasks/schema/status.v1.schema.json" and isinstance(schema, dict):
+                required_fields = schema.get("required")
+                properties = schema.get("properties")
+                require(isinstance(required_fields, list) and "completion_evidence" in required_fields, errors, "status schema must require completion_evidence")
+                require(isinstance(properties, dict) and "completion_evidence" in properties, errors, "status schema must define completion_evidence")
 
 
 def validate_schema_registry(errors: list[str]) -> None:

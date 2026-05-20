@@ -213,6 +213,8 @@ Pre-artifact completion summaries must include:
 - risks, assumptions, or skipped gates
 - next role or next task recommendation
 
+Before task `041` creates durable pipeline artifacts, the same completion evidence must also be recorded in `tasks/status.json` under `completion_evidence` so fresh agents can machine-check completed task evidence without parsing Markdown prose.
+
 Task `041` is the cutover point for durable handoff artifacts. After it is complete, non-trivial tasks must use the artifact paths specified by `docs/HANDOFF_CONTRACTS.md` and `docs/PIPELINE_ARTIFACTS.md`. JSON handoffs are canonical; Markdown summaries are optional companion artifacts only.
 
 ## Pipeline Reference Map

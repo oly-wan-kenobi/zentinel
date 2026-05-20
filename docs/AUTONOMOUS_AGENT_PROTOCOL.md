@@ -161,4 +161,4 @@ Each completed task must record:
 - dogfooding implication
 - follow-up tasks created
 
-Evidence belongs in `tasks/status.json` and summarized in `tasks/STATUS.md`.
+Evidence belongs in `tasks/status.json` under `completion_evidence` and is summarized in `tasks/STATUS.md`.
