@@ -630,6 +630,39 @@ def validate_protocol_startup_order(errors: list[str]) -> None:
         require(first != -1 and second != -1 and first < second, errors, f"{rel} must read task docs before marking a task active")
 
 
+def validate_same_file_exclusion_sequence(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    required = ["009", "010", "018", "019", "020"]
+    for task_id in required:
+        require(task_id in task_by_id, errors, f"task {task_id} must exist for same-file exclusion sequencing")
+    if not all(task_id in task_by_id for task_id in required):
+        return
+
+    order_009 = order_key(task_order(task_by_id["009"]))
+    order_010 = order_key(task_order(task_by_id["010"]))
+    order_019 = order_key(task_order(task_by_id["019"]))
+    require(order_009 < order_019 < order_010, errors, "task 019 same-file exclusion must execute after task 009 and before task 010")
+
+    deps_010 = task_by_id["010"].get("dependencies")
+    require(isinstance(deps_010, list) and "019" in deps_010, errors, "task 010 must depend on task 019 same-file exclusion")
+
+    deps_020 = task_by_id["020"].get("dependencies")
+    require(isinstance(deps_020, list) and "018" in deps_020 and "019" in deps_020, errors, "task 020 must depend on both task 018 report rendering and task 019 same-file exclusion")
+
+    required_phrases = {
+        "tasks/009-ast-candidate-ordering.md": "tasks/019-same-file-test-exclusion.md",
+        "tasks/010-arithmetic-mutators.md": "task 019",
+        "tasks/018-report-renderers.md": "tasks/020-test-selection-same-file.md",
+        "tasks/019-same-file-test-exclusion.md": "task 009",
+        "tasks/020-test-selection-same-file.md": "tasks 018 and 019",
+    }
+    for rel, phrase in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing same-file sequencing file {rel}")
+        if path.is_file():
+            require(phrase in path.read_text(encoding="utf-8"), errors, f"{rel} must contain same-file sequencing phrase '{phrase}'")
+
+
 def validate_agent_execution_contracts(errors: list[str]) -> None:
     required_phrases = {
         ".agents/workflows/task-plan.md": ["first dependency-ready queued task by execution order"],
@@ -1488,6 +1521,7 @@ def main() -> int:
     validate_pipeline_contracts(errors)
     validate_task_order_contracts(errors)
     validate_protocol_startup_order(errors)
+    validate_same_file_exclusion_sequence(tasks, errors)
     validate_agent_execution_contracts(errors)
     validate_cli_contracts(errors)
     validate_doctest_identity_contracts(errors)

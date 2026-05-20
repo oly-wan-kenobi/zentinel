@@ -1,6 +1,6 @@
 # 019 Same-File Test Exclusion
 
-Sequential guard: start this task only after task 018 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 009 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -61,4 +61,4 @@ This protects dogfood runs from mutating zentinel's own tests and misrepresentin
 
 ## Follow-up tasks
 
-- `tasks/020-test-selection-same-file.md`
+- `tasks/010-arithmetic-mutators.md`

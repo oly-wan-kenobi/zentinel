@@ -230,6 +230,40 @@
       ]
     },
     {
+      "id": "074",
+      "order": "000.0.5",
+      "title": "Same-File Exclusion Sequencing",
+      "file": "tasks/074-same-file-exclusion-sequencing.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "073"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/074-same-file-exclusion-sequencing.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/009-ast-candidate-ordering.md",
+        "tasks/010-arithmetic-mutators.md",
+        "tasks/018-report-renderers.md",
+        "tasks/019-same-file-test-exclusion.md",
+        "tasks/020-test-selection-same-file.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/**",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -237,7 +271,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "073"
+        "074"
       ],
       "allowed_files": [
         "build.zig",
@@ -480,13 +514,37 @@
       ]
     },
     {
+      "id": "019",
+      "order": "009.1",
+      "title": "Same-File Test Exclusion",
+      "file": "tasks/019-same-file-test-exclusion.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "009"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/source_map.zig",
+        "test/same_file_test_exclusion_test.zig",
+        "test/fixtures/same_file_tests/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/test_selection.zig",
+        "src/ai/**"
+      ]
+    },
+    {
       "id": "010",
       "title": "Arithmetic Mutators",
       "file": "tasks/010-arithmetic-mutators.md",
       "phase": 1,
       "state": "queued",
       "dependencies": [
-        "009"
+        "019"
       ],
       "allowed_files": [
         "src/ast_backend.zig",
@@ -722,35 +780,13 @@
       ]
     },
     {
-      "id": "019",
-      "title": "Same-File Test Exclusion",
-      "file": "tasks/019-same-file-test-exclusion.md",
-      "phase": 1,
-      "state": "queued",
-      "dependencies": [
-        "018"
-      ],
-      "allowed_files": [
-        "src/ast_backend.zig",
-        "src/source_map.zig",
-        "test/same_file_test_exclusion_test.zig",
-        "test/fixtures/same_file_tests/**",
-        "tasks/STATUS.md",
-        "tasks/status.json"
-      ],
-      "forbidden_files": [
-        "src/runner.zig",
-        "src/test_selection.zig",
-        "src/ai/**"
-      ]
-    },
-    {
       "id": "020",
       "title": "Test Selection Same File",
       "file": "tasks/020-test-selection-same-file.md",
       "phase": 1,
       "state": "queued",
       "dependencies": [
+        "018",
         "019"
       ],
       "allowed_files": [

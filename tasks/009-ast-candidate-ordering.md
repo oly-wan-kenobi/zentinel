@@ -62,4 +62,4 @@ Stable ordering makes dogfood diffs reviewable and prevents worker scheduling fr
 
 ## Follow-up tasks
 
-- `tasks/010-arithmetic-mutators.md`
+- `tasks/019-same-file-test-exclusion.md`

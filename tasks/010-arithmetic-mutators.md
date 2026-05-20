@@ -1,6 +1,6 @@
 # 010 Arithmetic Mutators
 
-Sequential guard: start this task only after task 009 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 019 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 

@@ -8,13 +8,14 @@
     "070",
     "071",
     "072",
-    "073"
+    "073",
+    "074"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 073 agent protocol readiness order: startup instructions read the selected task file and required docs before marking the task active, and the structural guardrail enforces that ordering. Python validator compilation passed."
+    "notes": "Validator passed after completing task 074 same-file exclusion sequencing: task 019 now executes after task 009 and before task 010, task 010 depends on task 019, and task 020 depends on tasks 018 and 019. Python validator compilation passed."
   },
   "history": [
     {
@@ -161,6 +162,16 @@
       "event": "agent_protocol_readiness_order_completed",
       "task": "073",
       "notes": "Completed task 073 before project bootstrap. Added a validator guardrail for read-before-activate startup wording and aligned docs/AUTONOMOUS_AGENT_PROTOCOL.md, docs/AGENT_GUIDE.md, and tasks/QUEUE.md."
+    },
+    {
+      "event": "same_file_exclusion_sequencing_started",
+      "task": "074",
+      "notes": "Inserted task 074 at execution order 000.0.5 before project bootstrap to move same-file test exclusion before the first stable mutator task."
+    },
+    {
+      "event": "same_file_exclusion_sequencing_completed",
+      "task": "074",
+      "notes": "Completed task 074 before project bootstrap. Moved task 019 to execution order 009.1, updated task 010 and task 020 dependencies, synchronized affected guards and follow-ups, and added a validator guardrail for this ordering."
     }
   ]
 }

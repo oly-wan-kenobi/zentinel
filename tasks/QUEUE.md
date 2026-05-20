@@ -27,6 +27,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.2 | `tasks/071-agent-contract-finalization.md` | complete | 0 |
 | 000.0.3 | `tasks/072-prebootstrap-sequencing-and-contract-cleanup.md` | complete | 0 |
 | 000.0.4 | `tasks/073-agent-protocol-readiness-order.md` | complete | 0 |
+| 000.0.5 | `tasks/074-same-file-exclusion-sequencing.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
@@ -37,6 +38,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 007 | `tasks/007-mutant-model.md` | queued | 1 |
 | 008 | `tasks/008-ast-parser-spike.md` | queued | 1 |
 | 009 | `tasks/009-ast-candidate-ordering.md` | queued | 1 |
+| 009.1 | `tasks/019-same-file-test-exclusion.md` | queued | 1 |
 | 010 | `tasks/010-arithmetic-mutators.md` | queued | 1 |
 | 011 | `tasks/011-comparison-mutators.md` | queued | 1 |
 | 012 | `tasks/012-logical-boolean-mutators.md` | queued | 1 |
@@ -46,7 +48,6 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 016 | `tasks/016-minimal-run-command.md` | queued | 1 |
 | 017 | `tasks/017-list-mutants-command.md` | queued | 1 |
 | 018 | `tasks/018-report-renderers.md` | queued | 1 |
-| 019 | `tasks/019-same-file-test-exclusion.md` | queued | 1 |
 | 020 | `tasks/020-test-selection-same-file.md` | queued | 1 |
 | 021 | `tasks/021-cache-key-design.md` | queued | 3 |
 | 022 | `tasks/022-dogfood-fixture-run.md` | queued | 3 |

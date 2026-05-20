@@ -80,4 +80,4 @@ Dogfood reports depend on clear survivor output. This task improves the review s
 
 ## Follow-up tasks
 
-- `tasks/019-same-file-test-exclusion.md`
+- `tasks/020-test-selection-same-file.md`
