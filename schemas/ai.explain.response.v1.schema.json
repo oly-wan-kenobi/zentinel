@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.explain.response.v1.schema.json",
+  "title": "zentinel AI explain response v1",
+  "type": "object",
+  "required": ["schema_version", "classification", "confidence", "summary", "evidence_refs", "next_action"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.explain.response.v1" },
+    "classification": { "$ref": "#/$defs/classification" },
+    "confidence": { "enum": ["low", "medium", "high", "unclear"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" }
+        }
+      }
+    },
+    "next_action": { "type": "string" }
+  },
+  "$defs": {
+    "classification": {
+      "enum": [
+        "boundary_missing",
+        "null_path_missing",
+        "error_path_missing",
+        "cleanup_path_missing",
+        "comptime_case_missing",
+        "logical_case_missing",
+        "constant_case_missing",
+        "doctest_output_mismatch",
+        "doctest_invalid_example",
+        "doctest_snapshot_wording_change",
+        "doctest_assertion_missing",
+        "doctest_survivor_missing_assertion",
+        "possibly_equivalent",
+        "unclear"
+      ]
+    }
+  }
+}

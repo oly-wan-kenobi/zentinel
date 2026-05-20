@@ -1,0 +1,27 @@
+{
+  "schema_version": "zentinel.coverage_gaps.mutators.v1",
+  "source": "docs/MUTATOR_SPEC.md",
+  "mode": "regression_only",
+  "entries": [
+    { "operator": "arithmetic_add_sub", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/010-arithmetic-mutators.md", "notes": "Needs arithmetic fixture coverage." },
+    { "operator": "arithmetic_mul_div", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/010-arithmetic-mutators.md", "notes": "Needs arithmetic fixture coverage." },
+    { "operator": "equality_swap", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs equality fixture coverage." },
+    { "operator": "comparison_boundary", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs boundary fixture coverage." },
+    { "operator": "logical_and_or", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/012-logical-boolean-mutators.md", "notes": "Needs logical operator fixture coverage." },
+    { "operator": "boolean_literal", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/012-logical-boolean-mutators.md", "notes": "Needs boolean literal fixture coverage." },
+    { "operator": "optional_orelse_unreachable", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/023-optional-null-mutators.md", "notes": "Needs optional fallback fixture coverage." },
+    { "operator": "optional_orelse_default", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Preview mutator only; stable optional task may add fixtures but must not implement or enable it unless a future task names this operator." },
+    { "operator": "optional_null_check", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/023-optional-null-mutators.md", "notes": "Needs null-check fixture coverage." },
+    { "operator": "error_catch_unreachable", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/024-error-path-mutators.md", "notes": "Needs error catch fixture coverage." },
+    { "operator": "error_catch_return", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Preview mutator only; stable error-path task may add fixtures but must not implement or enable it unless a future task names this operator." },
+    { "operator": "try_to_catch_unreachable", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Preview mutator only; stable error-path task may add fixtures but must not implement or enable it unless a future task names this operator." },
+    { "operator": "defer_remove", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Preview cleanup fixture coverage only; no stable task owns implementation." },
+    { "operator": "errdefer_remove", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/026-errdefer-mutator.md", "notes": "Needs errdefer cleanup fixture coverage." },
+    { "operator": "allocator_failure_path", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Requires harness-controlled allocator behavior; task 029 dogfoods stable operators only." },
+    { "operator": "comptime_branch_flip", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Requires comptime fixture coverage; task 029 dogfoods stable operators only." },
+    { "operator": "comptime_value_boundary", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Requires comptime fixture coverage; task 029 dogfoods stable operators only." },
+    { "operator": "safety_unreachable_to_return", "phase": 2, "stability": "preview", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Requires safety-mode matrix; task 058 may add fixture coverage but does not implement preview mutators by default." },
+    { "operator": "integer_literal_boundary", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/027-integer-literal-boundary-mutator.md", "notes": "Needs protected literal and boundary fixture coverage." },
+    { "operator": "loop_boundary", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/028-loop-boundary-mutator.md", "notes": "Needs loop and range fixture coverage." }
+  ]
+}

@@ -1,0 +1,70 @@
+# Orchestration Specification
+
+The Orchestrator coordinates role execution while preserving sequential task ownership.
+
+## Inputs
+
+- active task markdown
+- `tasks/queue.json`
+- `tasks/status.json`
+- relevant specs under `docs/`
+- prior pipeline artifacts for the task
+- repository status
+
+## Outputs
+
+- context packets
+- role assignments
+- handoff artifacts
+- escalation decisions
+- final verification request
+
+## Orchestration Steps
+
+1. Validate task system.
+2. Acquire active task lock through Task Queue Manager.
+3. Classify task complexity.
+4. Build context packets.
+5. Run Test Author.
+6. Run Test Reviewer.
+7. Run Implementer only after tests are approved.
+8. Run Implementation Reviewer.
+9. Run property, doctest, and mutation agents as required.
+10. Run Verifier.
+11. Update queue/status and artifacts.
+
+## State Ownership
+
+The Orchestrator may not rely on chat history as state. It must persist key decisions in:
+
+```text
+artifacts/pipeline/<task-id>/orchestration.md
+artifacts/pipeline/<task-id>/context/*.json
+artifacts/pipeline/<task-id>/handoffs/*.json
+```
+
+Markdown handoff summaries may be written next to JSON handoffs, but JSON handoffs are the canonical machine-readable state.
+
+## Subagent Rules
+
+Fresh subagents receive context packets and produce artifacts. They should not assume access to previous conversation beyond packet content.
+
+Subagents must:
+
+- respect allowed files
+- avoid broad refactors
+- report uncertainty
+- include commands run
+- avoid changing task state directly unless assigned Task Queue Manager role
+
+## Complexity Classification
+
+| Class | Trigger |
+| --- | --- |
+| Low-risk | Docs-only or narrow tests with no public contract change. |
+| Normal | Single-module behavior with clear tests. |
+| High-risk | Shared model, runner, cache, report, mutation semantics, or public schema. |
+| Compiler-internal | AST/ZIR/AIR, source mapping, Zig version coupling, or safety-mode semantics. |
+| Architecture | Roadmap, public contracts, task system, or module boundaries. |
+
+The Orchestrator chooses the highest applicable class.

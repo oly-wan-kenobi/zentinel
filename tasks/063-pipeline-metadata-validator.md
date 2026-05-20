@@ -1,0 +1,77 @@
+# 063 Pipeline Metadata Validator
+
+Sequential guard: start this task only after task 062 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+
+## Goal
+
+Validate pipeline metadata artifacts so handoffs, context packets, reviews, and verification reports cannot silently drift from their schemas.
+
+## Scope
+
+- Extend validation for pipeline artifact directories after task 041.
+- Validate required JSON handoffs, context packets, stale-context markers, escalation records, and verification records when present.
+- Implement a project-owned schema subset validator for pipeline artifacts: `schema_version`, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership.
+- Reject Markdown-only handoffs after the JSON handoff cutover.
+- Keep validation deterministic and standard-library-only unless a task explicitly adds a dependency.
+- Do not claim full Draft 2020-12 support for conditionals, arbitrary `$ref` traversal, or derived invariants unless a later task approves a schema-validation dependency or expands the supported subset.
+
+## Files allowed to modify
+
+- `scripts/validate_task_system.py`
+- `docs/PIPELINE_ARTIFACTS.md`
+- `docs/HANDOFF_CONTRACTS.md`
+- `docs/AGENT_CONTEXT_PACKETS.md`
+- `schemas/pipeline.handoff.v1.schema.json`
+- `schemas/pipeline.context.v1.schema.json`
+- `schemas/pipeline.stale_context.v1.schema.json`
+- `schemas/pipeline.verification.v1.schema.json`
+- `schemas/pipeline.escalation.v1.schema.json`
+- `test/fixtures/pipeline/metadata_validator/**`
+- `tasks/STATUS.md`
+- `tasks/status.json`
+
+## Files forbidden to modify
+
+- `src/**`
+- `test/**/*.zig`
+- `build.zig`
+- `docs/MUTATOR_SPEC.md`
+- `docs/DOCTEST_*.md`
+
+## Required tests
+
+- Add a failing fixture where a post-041 task has a Markdown handoff without the required JSON handoff.
+- Add a failing fixture where a pipeline JSON artifact is missing a required schema field.
+- Add a failing fixture where a pipeline JSON artifact has an unknown field rejected by the artifact schema subset.
+- Add a failing fixture where enum or const values, including `schema_version`, do not match the registered pipeline schema.
+- Add a failing fixture where an artifact is written under the wrong task ID.
+- Run `python3 scripts/validate_task_system.py`.
+
+## Acceptance criteria
+
+- Pipeline artifact validation is deterministic and task-scoped.
+- Validator documentation states the supported schema subset and does not imply full Draft 2020-12 support.
+- JSON handoffs are required after task 041 for non-trivial tasks.
+- Wrong-task artifact paths are rejected.
+- `python3 scripts/validate_task_system.py` passes.
+
+## Non-goals
+
+- Runtime orchestration.
+- Subagent spawning.
+- CI script integration.
+
+## Suggested implementation approach
+
+1. Add fixture directories that simulate valid and invalid artifact trees.
+2. Validate paths and required fields before adding deeper semantic checks.
+3. Keep error messages stable and actionable.
+4. Preserve existing task-system validation behavior.
+
+## Dogfooding implications
+
+Pipeline metadata validation keeps long-running dogfood and release work restartable by fresh agents.
+
+## Follow-up tasks
+
+- `tasks/064-pipeline-artifact-ci-integration.md`

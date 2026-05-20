@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/report.v1.schema.json",
+  "title": "zentinel report v1",
+  "type": "object",
+  "required": ["schema_version", "run", "baseline", "summary", "mutants"],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "run": {
+            "properties": {
+              "status": { "const": "baseline_failed" }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["run"]
+      },
+      "then": {
+        "properties": {
+          "baseline": {
+            "properties": {
+              "status": { "const": "failed" }
+            },
+            "required": ["status"]
+          },
+          "summary": {
+            "properties": {
+              "total": { "const": 0 },
+              "killed": { "const": 0 },
+              "survived": { "const": 0 },
+              "compile_error": { "const": 0 },
+              "timeout": { "const": 0 },
+              "skipped": { "const": 0 },
+              "invalid": { "const": 0 }
+            },
+            "required": ["total", "killed", "survived", "compile_error", "timeout", "skipped", "invalid"]
+          },
+          "mutants": {
+            "maxItems": 0
+          }
+        },
+        "required": ["baseline", "summary", "mutants"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "run": {
+            "properties": {
+              "status": { "const": "completed" }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["run"]
+      },
+      "then": {
+        "properties": {
+          "baseline": {
+            "properties": {
+              "status": { "const": "passed" }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["baseline"]
+      }
+    }
+  ],
+  "properties": {
+    "schema_version": { "const": "zentinel.report.v1" },
+    "run": {
+      "type": "object",
+      "required": ["id", "status", "zentinel_version", "zig_version", "command", "config_hash", "project_root", "started_at", "duration_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^run_[A-Za-z0-9]+$" },
+        "status": { "enum": ["completed", "baseline_failed", "internal_error"] },
+        "zentinel_version": { "type": "string" },
+        "zig_version": { "type": "string" },
+        "command": { "type": "string" },
+        "config_hash": { "type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$" },
+        "project_root": { "type": "string" },
+        "started_at": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "required": ["status", "commands"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["passed", "failed"] },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/baseline_command_result" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "killed", "survived", "compile_error", "timeout", "skipped", "invalid"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "killed": { "type": "integer", "minimum": 0 },
+        "survived": { "type": "integer", "minimum": 0 },
+        "compile_error": { "type": "integer", "minimum": 0 },
+        "timeout": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "invalid": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mutants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/mutant" }
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": ["cache"],
+      "additionalProperties": false,
+      "properties": {
+        "cache": { "$ref": "#/$defs/cache_diagnostics" }
+      }
+    }
+  },
+  "$defs": {
+    "command_evidence": {
+      "type": "object",
+      "required": ["original", "argv", "cwd", "environment_policy", "shell"],
+      "additionalProperties": false,
+      "properties": {
+        "original": { "type": "string" },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            { "type": "string", "minLength": 1 }
+          ],
+          "items": { "type": "string" }
+        },
+        "cwd": { "type": "string" },
+        "environment_policy": { "enum": ["minimal"] },
+        "shell": { "const": false }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["stdout_excerpt", "stderr_excerpt", "failure_summary"],
+      "additionalProperties": false,
+      "properties": {
+        "stdout_excerpt": { "type": "string" },
+        "stderr_excerpt": { "type": "string" },
+        "failure_summary": { "type": "string" }
+      }
+    },
+    "cache_diagnostics": {
+      "type": "object",
+      "required": ["enabled", "mode", "hits", "misses"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "enum": ["disabled", "metadata_only", "read_write"] },
+        "hits": { "type": "integer", "minimum": 0 },
+        "misses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "baseline_command_result": {
+      "type": "object",
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms", "evidence", "skip_reason"],
+      "additionalProperties": false,
+      "properties": {
+        "command": { "$ref": "#/$defs/command_evidence" },
+        "phase": { "const": "baseline" },
+        "status": { "enum": ["passed", "failed", "timeout"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "timed_out": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "skip_reason": { "type": "null" }
+      }
+    },
+    "mutant_command_result": {
+      "type": "object",
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms", "evidence", "skip_reason"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "skipped" } }, "required": ["status"] },
+          "then": { "properties": { "skip_reason": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "skip_reason": { "type": "null" } } }
+        }
+      ],
+      "properties": {
+        "command": { "$ref": "#/$defs/command_evidence" },
+        "phase": { "const": "mutant" },
+        "status": { "enum": ["passed", "failed", "timeout", "skipped"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "timed_out": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "skip_reason": { "type": ["string", "null"] }
+      }
+    },
+    "span": {
+      "type": "object",
+      "required": ["byte_start", "byte_end", "line_start", "column_start", "line_end", "column_end"],
+      "additionalProperties": false,
+      "properties": {
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_end": { "type": "integer", "minimum": 0 },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "column_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 },
+        "column_end": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "selected_test": {
+      "type": "object",
+      "required": ["file", "name", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "name": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["status", "mode", "commands", "phase", "duration_ms", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["killed", "survived", "compile_error", "timeout", "skipped", "invalid"] },
+        "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutant_command_result" }
+        },
+        "phase": { "const": "mutant" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "evidence": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "mutant": {
+      "type": "object",
+      "required": [
+        "id",
+        "display_id",
+        "backend",
+        "backend_stability",
+        "operator",
+        "operator_stability",
+        "file",
+        "span",
+        "original",
+        "replacement",
+        "diff",
+        "expected_compile",
+        "result",
+        "test_selection",
+        "advisory"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^m_[A-Za-z0-9]+$" },
+        "display_id": { "type": "integer", "minimum": 1 },
+        "backend": { "enum": ["ast", "zir", "air"] },
+        "backend_stability": { "enum": ["stable", "experimental"] },
+        "operator": { "type": "string" },
+        "operator_stability": { "enum": ["stable", "preview", "experimental"] },
+        "file": { "type": "string" },
+        "span": { "$ref": "#/$defs/span" },
+        "original": { "type": "string" },
+        "replacement": { "type": "string" },
+        "diff": { "type": "array", "items": { "type": "string" } },
+        "expected_compile": { "enum": ["compiles", "may_fail", "must_fail"] },
+        "result": { "$ref": "#/$defs/result" },
+        "test_selection": {
+          "type": "object",
+          "required": ["strategy", "selected", "commands", "fallback_used"],
+          "additionalProperties": false,
+          "properties": {
+            "strategy": { "enum": ["all", "same_file", "same_file_then_package", "impact_graph"] },
+            "selected": { "type": "array", "items": { "$ref": "#/$defs/selected_test" } },
+            "commands": { "type": "array", "items": { "type": "string" } },
+            "fallback_used": { "type": "boolean" }
+          }
+        },
+        "advisory": {
+          "type": "object",
+          "required": ["equivalent_risks", "ai"],
+          "additionalProperties": false,
+          "properties": {
+            "equivalent_risks": { "type": "array", "items": { "type": "string" } },
+            "ai": { "type": ["object", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

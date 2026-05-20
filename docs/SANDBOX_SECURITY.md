@@ -1,0 +1,121 @@
+# Sandbox Security
+
+zentinel runs project test commands against mutated source. That is powerful and potentially dangerous. This document defines safety boundaries for autonomous implementation.
+
+## Threat Model
+
+zentinel must assume test commands can:
+
+- read and write files inside the project
+- execute arbitrary local code
+- consume CPU and memory
+- emit secrets accidentally present in environment variables
+- interact with Zig cache directories
+
+zentinel cannot fully sandbox arbitrary local code in Phase 1, but it must avoid making risk worse and must document what it executes.
+
+## Phase 1 Safety Requirements
+
+The runner must:
+
+- execute only configured test commands
+- use a controlled current working directory
+- apply one mutant per isolated workspace
+- avoid modifying the developer working tree
+- enforce timeouts
+- bound captured stdout and stderr
+- record commands in reports
+- not pass secret environment variables to AI prompts
+
+The runner must not:
+
+- run shell-expanded command strings through an implicit shell unless explicitly documented
+- delete project cache directories
+- mutate files outside the sandbox
+- follow symlinks outside the project root for mutation targets
+- execute AI-generated commands
+
+## Command Execution Policy
+
+Required command representation:
+
+```text
+argv array + cwd + environment policy
+```
+
+Config starts with string commands for UX, but zentinel must parse those strings into argv and execute the argv directly. Phase 1 must not use an implicit shell for configured test commands.
+
+The command parser must support only the grammar documented in `docs/CONFIG_SPEC.md`. Unsupported shell syntax is a config error, not a best-effort execution request.
+
+Reports must record:
+
+- original command string
+- parsed argv
+- cwd label
+- environment policy label
+- whether shell execution was used, which must be `false` for stable Phase 1 behavior
+- phase label (`baseline` or `mutant`)
+
+## Workspace Policy
+
+Sandbox workspaces must live under a deterministic zentinel-controlled temp/cache location, such as:
+
+```text
+.zig-cache/zentinel/workspaces/
+```
+
+Rules:
+
+- workspace paths are not included raw in stable snapshots
+- workspaces are content-isolated by mutant/run identifier
+- cleanup failures are warnings unless they risk source corruption
+- patch application validates original text before replacement
+
+## Symlink Policy
+
+Mutation targets must resolve inside the project root.
+
+Allowed:
+
+- symlinks whose real target remains inside the project root
+
+Forbidden:
+
+- mutating a symlink target outside the project root
+- using symlink traversal to write outside the sandbox
+
+## Environment Policy
+
+Default runner environment must be minimal and deterministic:
+
+- preserve only variables needed for Zig execution and local tool discovery
+- normalize locale-related behavior with fixed `LC_ALL=C` and `LANG=C` unless the platform requires omitting them
+- omit secrets from reports
+- never include full environment in AI context
+
+Future config may allow explicit environment variables, but default behavior should be conservative.
+
+## AI Security Boundary
+
+AI providers receive only privacy-filtered context from `docs/AI_CONTEXT_SCHEMA.md`.
+
+AI must not receive:
+
+- full environment variables
+- arbitrary files
+- sandbox paths with user home directories
+- command output beyond bounded excerpts
+- secrets matching redaction patterns
+
+AI output must never become a command to execute.
+
+## Security Regression Tests
+
+Future tasks must add tests for:
+
+- patch cannot write outside project root
+- symlink escape is rejected
+- command timeout is enforced
+- output excerpts are bounded
+- secret-like environment content is not included in AI context
+- original source tree remains unchanged after mutant execution

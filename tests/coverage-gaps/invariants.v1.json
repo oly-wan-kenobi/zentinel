@@ -1,0 +1,155 @@
+{
+  "schema_version": "zentinel.coverage_gaps.invariants.v1",
+  "source": "docs/INVARIANTS.md",
+  "mode": "regression_only",
+  "entries": [
+    {
+      "number": "I-001",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/014-baseline-runner.md",
+      "notes": "Runner evidence authority lands with baseline and mutant runner work."
+    },
+    {
+      "number": "I-002",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/009-ast-candidate-ordering.md",
+      "notes": "Candidate determinism requires AST candidate ordering and mutant model tests."
+    },
+    {
+      "number": "I-003",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/018-report-renderers.md",
+      "notes": "Canonical report ordering lands with report renderer snapshots."
+    },
+    {
+      "number": "I-004",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/053-ai-provider-and-context.md",
+      "notes": "AI boundary tests land with stub provider and context schema work."
+    },
+    {
+      "number": "I-005",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/005-version-policy.md",
+      "notes": "Backend default enforcement is first covered by config and version-policy tests."
+    },
+    {
+      "number": "I-006",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/005-version-policy.md",
+      "notes": "Latest-stable Zig checks land with Zig version policy."
+    },
+    {
+      "number": "I-007",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/013-patch-sandbox.md",
+      "notes": "No permanent worktree mutation is covered by sandbox tests."
+    },
+    {
+      "number": "I-008",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/013-patch-sandbox.md",
+      "notes": "Original-text span validation is covered by patch sandbox tests."
+    },
+    {
+      "number": "I-009",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/019-same-file-test-exclusion.md",
+      "notes": "Test declaration exclusion is covered by AST traversal fixtures."
+    },
+    {
+      "number": "I-010",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/015-mutant-runner.md",
+      "notes": "Compile-error classification lands with mutant runner tests."
+    },
+    {
+      "number": "I-011",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/007-mutant-model.md",
+      "notes": "Invalid mutant semantics start with the shared mutant model and continue through sandbox tests."
+    },
+    {
+      "number": "I-012",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/020-test-selection-same-file.md",
+      "notes": "Test selection reporting is covered when selection strategies exist."
+    },
+    {
+      "number": "I-013",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/021-cache-key-design.md",
+      "notes": "Cache-key input coverage lands with cache-key design tests."
+    },
+    {
+      "number": "I-014",
+      "covered": true,
+      "tests": [
+        "scripts/validate_task_system.py"
+      ],
+      "deferred_to": null,
+      "notes": "Task and schema registry versions are validated by the bootstrap validator; report and AI schema contract tests land later."
+    },
+    {
+      "number": "I-015",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/018-report-renderers.md",
+      "notes": "Snapshot normalization lands with report and doctest snapshots."
+    },
+    {
+      "number": "I-016",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/032-doctest-extraction.md",
+      "notes": "Doctest deterministic case IDs land with extraction tests."
+    },
+    {
+      "number": "I-017",
+      "covered": true,
+      "tests": [
+        "scripts/validate_task_system.py"
+      ],
+      "deferred_to": null,
+      "notes": "The validator enforces at most one active or implemented task."
+    },
+    {
+      "number": "I-018",
+      "covered": true,
+      "tests": [
+        "scripts/validate_task_system.py"
+      ],
+      "deferred_to": null,
+      "notes": "The validator checks Markdown and JSON task queue/status consistency."
+    },
+    {
+      "number": "I-019",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/040-agent-pipeline-foundation.md",
+      "notes": "Pipeline handoffs will record failing evidence before implementation."
+    },
+    {
+      "number": "I-020",
+      "covered": true,
+      "tests": [
+        "scripts/validate_task_system.py"
+      ],
+      "deferred_to": null,
+      "notes": "The validator rejects prose-only follow-up bullets unless they explicitly state no predefined follow-up exists, and validates concrete task references in task Markdown."
+    }
+  ]
+}

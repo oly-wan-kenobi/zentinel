@@ -1,0 +1,153 @@
+# Performance Strategy
+
+zentinel should feel fast without hiding evidence. Performance work must preserve deterministic IDs, ordering, reports, and result semantics.
+
+## Goals
+
+- minimize repeated Zig compilation work
+- run independent mutants in parallel
+- reuse safe caches
+- stop early when a mutant is killed if configured
+- select relevant tests without losing diagnostic clarity
+- provide benchmark evidence for regressions
+
+## Caching Strategy
+
+Cache keys must include:
+
+- zentinel version
+- Zig version
+- backend name and backend version
+- operator name
+- source file content hash
+- config hash
+- test command
+- mode
+- relevant environment normalization
+
+Cache entries may store:
+
+- baseline pass result
+- generated mutant list
+- individual mutant execution result
+- parsed source metadata
+- test discovery metadata
+
+Cache entries must not store:
+
+- AI output as deterministic evidence
+- results from unsupported Zig versions
+- data keyed only by file path without content hash
+
+## Zig Cache Reuse
+
+zentinel should preserve and reuse Zig's own cache where safe:
+
+- use stable cache directories
+- avoid deleting project `.zig-cache`
+- isolate mutant workspace outputs
+- avoid cross-mutant source contamination
+
+Mutant workspaces may share compiler cache inputs only when source content hashes make reuse safe.
+
+## Parallel Worker Architecture
+
+```text
+candidate list (stable order)
+  -> scheduler assigns work
+  -> worker applies one mutant in sandbox
+  -> worker runs selected tests
+  -> worker emits result
+  -> collector sorts by canonical order
+  -> reporter writes deterministic output
+```
+
+Worker count must not affect:
+
+- mutant IDs
+- final report order
+- summary counts
+- cache keys
+
+## Mutation Scheduling
+
+Scheduling may optimize for:
+
+- expected runtime
+- cached results first
+- file locality
+- operator priority
+- fail-fast configuration
+
+Scheduling decisions must be internal. Reports remain sorted by canonical mutant order.
+
+## Fail-Fast Behavior
+
+Supported fail-fast levels:
+
+| Level | Behavior |
+| --- | --- |
+| `off` | Run all selected commands. |
+| `per_mutant` | Stop commands for a mutant once killed. |
+| `run_on_baseline_failure` | Stop entire run when baseline fails. |
+| `run_on_invalid` | Stop entire run on internal invalid mutant. |
+
+Default:
+
+```text
+per_mutant + run_on_baseline_failure
+```
+
+Fail-fast must record skipped commands in result evidence.
+
+## Test Impact Analysis
+
+Impact analysis should start conservative:
+
+1. same-file tests
+2. package/build target tests
+3. dependency graph tests
+4. historical signal
+
+AI must not decide impact. AI may later explain why selected tests missed behavior.
+
+## Benchmark Strategy
+
+Benchmarks should measure:
+
+- mutant generation time
+- baseline test time
+- per-mutant execution overhead
+- cache hit rate
+- report serialization time
+- worker scaling efficiency
+
+Benchmark fixtures:
+
+- tiny project for overhead
+- medium project for realistic source traversal
+- allocator/error-heavy project for semantic mutators
+- dogfood subset for real zentinel behavior
+
+Benchmark output must be machine-readable and stable enough for trend comparison.
+
+## Budget Authority
+
+Task `052` is the first task that may set numeric CI smoke budgets. Before task `052` is complete, references to a runtime budget mean "budget not established yet" and must not be guessed by agents.
+
+Task `052` must write concrete initial budgets for:
+
+- fixture dogfood runtime
+- selected production dogfood runtime
+- doctest runtime
+- benchmark smoke runtime
+
+Later dogfood and CI tasks must use those documented budgets or create a prerequisite performance-budget task before claiming completion.
+
+## Performance Invariants
+
+- Correctness and determinism outrank speed.
+- Cached and uncached runs must produce equivalent reports except for `diagnostics.cache` and durations.
+- Parallel and serial runs must produce equivalent reports except for durations.
+- A timeout is a deterministic result with recorded command evidence.
+- No performance optimization may skip baseline verification in report v1. A future schema or ADR must define fresh-cache proof before baseline skipping is allowed.

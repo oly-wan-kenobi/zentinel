@@ -1,0 +1,977 @@
+#!/usr/bin/env python3
+"""Validate zentinel's autonomous task system.
+
+This script intentionally uses only the Python standard library so it can run
+in bootstrap environments before project dependencies exist.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+QUEUE_JSON = ROOT / "tasks" / "queue.json"
+STATUS_JSON = ROOT / "tasks" / "status.json"
+QUEUE_MD = ROOT / "tasks" / "QUEUE.md"
+STATUS_MD = ROOT / "tasks" / "STATUS.md"
+SCHEMA_REGISTRY_MD = ROOT / "docs" / "SCHEMA_REGISTRY.md"
+ADR_DIR = ROOT / "docs" / "adr"
+GAP_REGISTRY_DIR = ROOT / "tests" / "coverage-gaps"
+AGENTS_DIR = ROOT / ".agents"
+CLAUDE_DIR = ROOT / ".claude"
+
+REQUIRED_TASK_SECTIONS = [
+    "## Goal",
+    "## Scope",
+    "## Files allowed to modify",
+    "## Files forbidden to modify",
+    "## Required tests",
+    "## Acceptance criteria",
+    "## Non-goals",
+    "## Suggested implementation approach",
+    "## Dogfooding implications",
+    "## Follow-up tasks",
+]
+
+TASK_ID_RE = re.compile(r"^[0-9]{3}$")
+TASK_FILE_RE = re.compile(r"^tasks/[0-9]{3}-.+\.md$")
+TASK_REF_RE = re.compile(r"`((?:tasks/)?[0-9]{3}-[^`]+\.md)`")
+NO_FOLLOW_UP_RE = re.compile(r"^None predefined\.")
+ORDER_RE = re.compile(r"^[0-9]{3}(?:\.[0-9]+)*$")
+QUEUE_ROW_RE = re.compile(r"^\| ([0-9]{3}(?:\.[0-9]+)*) \| `([^`]+)` \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
+INVARIANT_RE = re.compile(r"^\*\*(I-[0-9]{3})\.", re.MULTILINE)
+FAILURE_MODE_RE = re.compile(r"^\*\*(F-[0-9]{3})\.", re.MULTILINE)
+ADR_INDEX_RE = re.compile(r"^\| (ADR-[0-9]{4}) \| \[[^\]]+\]\(([^)]+)\) \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
+
+TASK_CONTROL_FILES = {
+    "tasks/QUEUE.md",
+    "tasks/queue.json",
+    "tasks/STATUS.md",
+    "tasks/status.json",
+}
+
+PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
+
+GOVERNANCE_FILES = [
+    "docs/VISION.md",
+    "docs/NON_GOALS.md",
+    "docs/GLOSSARY.md",
+    "docs/INVARIANTS.md",
+    "docs/HARNESS.md",
+    "docs/DISCIPLINE.md",
+    "docs/STYLE.md",
+    "docs/FAILURE_MODES.md",
+    "docs/GAP_REGISTRIES.md",
+    "docs/adr/README.md",
+]
+
+REQUIRED_AGENT_FILES = [
+    ".agents/README.md",
+    ".agents/ORCHESTRATOR.md",
+    ".agents/roles/phase-planner.md",
+    ".agents/roles/task-queue-manager.md",
+    ".agents/roles/planner.md",
+    ".agents/roles/test-author.md",
+    ".agents/roles/test-reviewer.md",
+    ".agents/roles/implementer.md",
+    ".agents/roles/implementation-reviewer.md",
+    ".agents/roles/mutation-agent.md",
+    ".agents/roles/mutation-triage-agent.md",
+    ".agents/roles/property-test-agent.md",
+    ".agents/roles/doctest-agent.md",
+    ".agents/roles/architecture-reviewer.md",
+    ".agents/roles/verifier.md",
+    ".agents/workflows/task-plan.md",
+    ".agents/workflows/task-test.md",
+    ".agents/workflows/task-implement.md",
+    ".agents/workflows/task-verify.md",
+    ".agents/workflows/task-done.md",
+    ".agents/workflows/sync.md",
+]
+
+SCHEMA_REGISTRY_PAIRS = [
+    ("zentinel.report.v1", "schemas/report.v1.schema.json"),
+    ("zentinel.ai.prompt.v1", "schemas/ai.prompt.v1.schema.json"),
+    ("zentinel.ai.context.v1", "schemas/ai.context.v1.schema.json"),
+    ("zentinel.ai.explain.response.v1", "schemas/ai.explain.response.v1.schema.json"),
+    ("zentinel.ai.suggest.response.v1", "schemas/ai.suggest.response.v1.schema.json"),
+    ("zentinel.ai.review_tests.response.v1", "schemas/ai.review_tests.response.v1.schema.json"),
+    ("zentinel.doctest.report.v1", "schemas/doctest.report.v1.schema.json"),
+    ("zentinel.ai.doctest.context.v1", "schemas/ai.doctest.context.v1.schema.json"),
+    ("zentinel.ai.doctest.suggest.response.v1", "schemas/ai.doctest.suggest.response.v1.schema.json"),
+    ("zentinel.ai.doctest.snapshot_review.response.v1", "schemas/ai.doctest.snapshot_review.response.v1.schema.json"),
+    ("zentinel.pipeline.handoff.v1", "schemas/pipeline.handoff.v1.schema.json"),
+    ("zentinel.pipeline.context.v1", "schemas/pipeline.context.v1.schema.json"),
+    ("zentinel.pipeline.stale_context.v1", "schemas/pipeline.stale_context.v1.schema.json"),
+    ("zentinel.pipeline.verification.v1", "schemas/pipeline.verification.v1.schema.json"),
+    ("zentinel.pipeline.escalation.v1", "schemas/pipeline.escalation.v1.schema.json"),
+    ("zentinel.tasks.queue.v1", "tasks/schema/queue.v1.schema.json"),
+    ("zentinel.tasks.status.v1", "tasks/schema/status.v1.schema.json"),
+]
+
+
+def fail(errors: list[str], message: str) -> None:
+    errors.append(message)
+
+
+def load_json(path: Path, errors: list[str]) -> object:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        fail(errors, f"missing file: {path.relative_to(ROOT)}")
+    except json.JSONDecodeError as exc:
+        fail(errors, f"invalid JSON in {path.relative_to(ROOT)}: {exc}")
+    return {}
+
+
+def require(condition: bool, errors: list[str], message: str) -> None:
+    if not condition:
+        fail(errors, message)
+
+
+def task_order(task: dict[str, object]) -> str:
+    order = task.get("order")
+    if isinstance(order, str):
+        return order
+    task_id = task.get("id")
+    return task_id if isinstance(task_id, str) else ""
+
+
+def order_key(order: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in order.split("."))
+
+
+def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
+    require(isinstance(queue, dict), errors, "queue.json must contain an object")
+    if not isinstance(queue, dict):
+        return []
+
+    require(queue.get("schema_version") == "zentinel.tasks.queue.v1", errors, "queue.json schema_version mismatch")
+    require(queue.get("ordering") == "sequential", errors, "queue.json ordering must be sequential")
+
+    tasks = queue.get("tasks")
+    require(isinstance(tasks, list) and len(tasks) > 0, errors, "queue.json tasks must be a non-empty array")
+    if not isinstance(tasks, list):
+        return []
+
+    seen_ids: set[str] = set()
+    seen_orders: set[str] = set()
+    previous_order: tuple[int, ...] | None = None
+    normalized: list[dict[str, object]] = []
+
+    for index, task in enumerate(tasks):
+        require(isinstance(task, dict), errors, f"task at index {index} must be an object")
+        if not isinstance(task, dict):
+            continue
+
+        task_id = task.get("id")
+        require(isinstance(task_id, str) and TASK_ID_RE.match(task_id) is not None, errors, f"task at index {index} has invalid id")
+        if not isinstance(task_id, str):
+            continue
+
+        require(task_id not in seen_ids, errors, f"duplicate task id {task_id}")
+        seen_ids.add(task_id)
+
+        explicit_order = task.get("order")
+        require(explicit_order is None or (isinstance(explicit_order, str) and ORDER_RE.match(explicit_order) is not None), errors, f"task {task_id} has invalid order")
+        task_order_value = task_order(task)
+        require(ORDER_RE.match(task_order_value) is not None, errors, f"task {task_id} has invalid effective order")
+        require(task_order_value not in seen_orders, errors, f"duplicate task order {task_order_value}")
+        seen_orders.add(task_order_value)
+        current_order = order_key(task_order_value)
+        require(previous_order is None or current_order > previous_order, errors, f"task {task_id} order {task_order_value} is not after the previous task order")
+        previous_order = current_order
+
+        file_value = task.get("file")
+        require(isinstance(file_value, str) and TASK_FILE_RE.match(file_value) is not None, errors, f"task {task_id} has invalid file path")
+        if isinstance(file_value, str):
+            require((ROOT / file_value).is_file(), errors, f"task {task_id} file does not exist: {file_value}")
+            require(file_value.startswith(f"tasks/{task_id}-"), errors, f"task {task_id} file name does not start with id")
+
+        state = task.get("state")
+        require(state in {"queued", "active", "blocked", "implemented", "verified", "complete", "superseded"}, errors, f"task {task_id} has invalid state")
+
+        deps = task.get("dependencies")
+        require(isinstance(deps, list), errors, f"task {task_id} dependencies must be an array")
+        if isinstance(deps, list):
+            for dep in deps:
+                require(isinstance(dep, str) and TASK_ID_RE.match(dep) is not None, errors, f"task {task_id} has invalid dependency {dep!r}")
+
+        for key in ("allowed_files", "forbidden_files"):
+            value = task.get(key)
+            require(isinstance(value, list) and all(isinstance(item, str) and item for item in value), errors, f"task {task_id} {key} must be a non-empty string array")
+
+        normalized.append(task)
+
+    task_by_id = {task["id"]: task for task in normalized if isinstance(task.get("id"), str)}
+    for task in normalized:
+        task_id = task.get("id")
+        deps = task.get("dependencies")
+        if not isinstance(task_id, str) or not isinstance(deps, list):
+            continue
+        for dep in deps:
+            if not isinstance(dep, str) or TASK_ID_RE.match(dep) is None:
+                continue
+            dep_task = task_by_id.get(dep)
+            require(dep_task is not None, errors, f"task {task_id} dependency {dep} is not known")
+            if dep_task is not None:
+                require(order_key(task_order(dep_task)) < order_key(task_order(task)), errors, f"task {task_id} dependency {dep} must have an earlier execution order")
+
+    release_index = next((index for index, task in enumerate(normalized) if task.get("file") == "tasks/060-release-acceptance-verification.md"), None)
+    if release_index is not None:
+        for later in normalized[release_index + 1:]:
+            later_id = later.get("id")
+            require(later.get("state") == "superseded", errors, f"release acceptance task 060 must be the final non-superseded execution-order task; task {later_id} follows it")
+
+    return normalized
+
+
+def validate_status(status: object, tasks: list[dict[str, object]], errors: list[str]) -> None:
+    require(isinstance(status, dict), errors, "status.json must contain an object")
+    if not isinstance(status, dict):
+        return
+
+    require(status.get("schema_version") == "zentinel.tasks.status.v1", errors, "status.json schema_version mismatch")
+
+    task_ids = [task["id"] for task in tasks if isinstance(task.get("id"), str)]
+    task_by_id = {task["id"]: task for task in tasks if isinstance(task.get("id"), str)}
+
+    active_states = [task["id"] for task in tasks if task.get("state") == "active"]
+    current_states = [task["id"] for task in tasks if task.get("state") in {"active", "implemented", "verified"}]
+    require(len(active_states) <= 1, errors, "only one task may be active")
+    require(len(current_states) <= 1, errors, "only one task may be active, implemented, or verified pending completion")
+
+    active_task = status.get("active_task")
+    require(active_task is None or (isinstance(active_task, str) and active_task in task_by_id), errors, "status.json active_task must be null or a known task id")
+    if current_states:
+        require(active_task == current_states[0], errors, "status active_task must match the current active/implemented/verified queue state")
+    else:
+        require(active_task is None, errors, "status active_task must be null when no task is active, implemented, or verified")
+
+    completed = status.get("completed_tasks")
+    require(isinstance(completed, list), errors, "status completed_tasks must be an array")
+    if isinstance(completed, list):
+        for task_id in completed:
+            require(isinstance(task_id, str) and task_id in task_by_id, errors, f"completed task {task_id!r} is not known")
+            if isinstance(task_id, str) and task_id in task_by_id:
+                require(task_by_id[task_id].get("state") == "complete", errors, f"completed task {task_id} must have queue state complete")
+
+    blocked = status.get("blocked_tasks")
+    require(isinstance(blocked, list), errors, "status blocked_tasks must be an array")
+    if isinstance(blocked, list):
+        for task_id in blocked:
+            require(isinstance(task_id, str) and task_id in task_by_id, errors, f"blocked task {task_id!r} is not known")
+            if isinstance(task_id, str) and task_id in task_by_id:
+                require(task_by_id[task_id].get("state") == "blocked", errors, f"blocked task {task_id} must have queue state blocked")
+
+    for task in tasks:
+        task_id = task.get("id")
+        state = task.get("state")
+        deps = task.get("dependencies")
+        if not isinstance(task_id, str) or not isinstance(deps, list):
+            continue
+        if state not in {"active", "implemented", "verified", "complete"}:
+            continue
+        for dep in deps:
+            if isinstance(dep, str) and dep in task_by_id:
+                require(task_by_id[dep].get("state") == "complete", errors, f"task {task_id} state {state} requires dependency {dep} to be complete")
+
+    next_task = status.get("next_task")
+    completed_ids = {task["id"] for task in tasks if task.get("state") == "complete"}
+    ready_ids = [
+        task["id"]
+        for task in tasks
+        if task.get("state") == "queued"
+        and isinstance(task.get("dependencies"), list)
+        and all(isinstance(dep, str) and dep in completed_ids for dep in task.get("dependencies", []))
+    ]
+    expected_next = current_states[0] if current_states else (ready_ids[0] if ready_ids else None)
+    require(next_task == expected_next, errors, f"status next_task must be current in-progress task or first dependency-ready queued task {expected_next!r}")
+
+    require(isinstance(status.get("last_validation"), dict), errors, "status last_validation must be an object")
+    require(isinstance(status.get("history"), list), errors, "status history must be an array")
+
+
+def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_files = {task.get("file") for task in tasks if isinstance(task.get("file"), str)}
+
+    for task in tasks:
+        task_id = task.get("id")
+        file_value = task.get("file")
+        if not isinstance(task_id, str) or not isinstance(file_value, str):
+            continue
+        path = ROOT / file_value
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        require(text.startswith(f"# {task_id} "), errors, f"{file_value} heading must start with '# {task_id} '")
+        require("Sequential guard:" in text, errors, f"{file_value} missing sequential guard")
+        for section in REQUIRED_TASK_SECTIONS:
+            require(section in text, errors, f"{file_value} missing section {section}")
+        require("Add a failing" in text or "Add failing" in text or "First add a failing" in text, errors, f"{file_value} must explicitly require a failing test")
+
+        allowed = task.get("allowed_files")
+        forbidden = task.get("forbidden_files")
+        if isinstance(allowed, list):
+            require(section_bullets(text, "Files allowed to modify") == allowed, errors, f"{file_value} allowed files must match queue.json exactly")
+        if isinstance(forbidden, list):
+            require(section_bullets(text, "Files forbidden to modify") == forbidden, errors, f"{file_value} forbidden files must match queue.json exactly")
+            for task_control_file in TASK_CONTROL_FILES:
+                require(task_control_file not in forbidden, errors, f"{file_value} must not forbid task-control file {task_control_file}")
+
+        deps = task.get("dependencies")
+        sequential_guard = next((line for line in text.splitlines() if line.startswith("Sequential guard:")), "")
+        if isinstance(deps, list):
+            for dep in deps:
+                if isinstance(dep, str):
+                    require(dep in sequential_guard, errors, f"{file_value} sequential guard must reference dependency {dep}")
+
+        for item in follow_up_items(text):
+            if TASK_REF_RE.search(item) is not None:
+                continue
+            require(NO_FOLLOW_UP_RE.match(item) is not None, errors, f"{file_value} follow-up bullet must reference a concrete queued task or say 'None predefined.': {item}")
+
+        for ref in follow_up_refs(text):
+            normalized = ref if ref.startswith("tasks/") else f"tasks/{ref}"
+            require(normalized in task_files, errors, f"{file_value} follow-up task reference does not exist in queue.json: {ref}")
+            if normalized in task_files:
+                ref_id = normalized.removeprefix("tasks/")[:3]
+                require(ref_id > task_id, errors, f"{file_value} follow-up task {ref} must have a higher task id")
+
+
+def section_bullets(text: str, heading: str) -> list[str]:
+    match = re.search(rf"^## {re.escape(heading)}\n\n(?P<body>.*?)(?=\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    if match is None:
+        return []
+    bullets: list[str] = []
+    for line in match.group("body").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("- "):
+            continue
+        item = stripped[2:].strip()
+        if item.startswith("`") and item.endswith("`"):
+            item = item[1:-1]
+        bullets.append(item)
+    return bullets
+
+
+def follow_up_refs(text: str) -> list[str]:
+    match = re.search(r"^## Follow-up tasks\n\n(?P<body>.*?)(?=\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    if match is None:
+        return []
+    return [match.group(1) for match in TASK_REF_RE.finditer(match.group("body"))]
+
+
+def follow_up_items(text: str) -> list[str]:
+    match = re.search(r"^## Follow-up tasks\n\n(?P<body>.*?)(?=\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    if match is None:
+        return []
+    items: list[str] = []
+    for line in match.group("body").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            items.append(stripped[2:].strip())
+    return items
+
+
+def validate_markdown_queue(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    require(QUEUE_MD.is_file(), errors, "tasks/QUEUE.md is missing")
+    require(STATUS_MD.is_file(), errors, "tasks/STATUS.md is missing")
+    if not QUEUE_MD.is_file():
+        return
+    queue_text = QUEUE_MD.read_text(encoding="utf-8")
+    rows = {match.group(2): {"order": match.group(1), "state": match.group(3).strip(), "phase": match.group(4).strip()} for match in QUEUE_ROW_RE.finditer(queue_text)}
+    for task in tasks:
+        task_id = task.get("id")
+        file_value = task.get("file")
+        if isinstance(task_id, str) and isinstance(file_value, str):
+            expected_order = task_order(task)
+            require(f"| {expected_order} | `{file_value}` |" in queue_text, errors, f"tasks/QUEUE.md missing task {task_id}")
+            row = rows.get(file_value)
+            require(row is not None, errors, f"tasks/QUEUE.md missing parseable row for task {task_id}")
+            if row is not None:
+                require(row["order"] == expected_order, errors, f"tasks/QUEUE.md task {task_id} order must match queue.json")
+                require(row["state"] == task.get("state"), errors, f"tasks/QUEUE.md task {task_id} status must match queue.json")
+                require(row["phase"] == str(task.get("phase")), errors, f"tasks/QUEUE.md task {task_id} phase must match queue.json")
+
+
+def validate_markdown_status(status: object, tasks: list[dict[str, object]], errors: list[str]) -> None:
+    if not isinstance(status, dict) or not STATUS_MD.is_file():
+        return
+    task_by_id = {task["id"]: task for task in tasks if isinstance(task.get("id"), str)}
+    text = STATUS_MD.read_text(encoding="utf-8")
+    match = re.search(r"^## Current State\n\n(?P<body>.*?)(?=\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    require(match is not None, errors, "tasks/STATUS.md missing Current State section")
+    if match is None:
+        return
+    values: dict[str, str] = {}
+    for line in match.group("body").splitlines():
+        row = line.strip()
+        if not row.startswith("|") or row.startswith("| ---") or row.startswith("| Field "):
+            continue
+        parts = [part.strip() for part in row.strip("|").split("|")]
+        if len(parts) == 2:
+            values[parts[0]] = parts[1]
+
+    active_value = values.get("Active task")
+    require(active_value is not None, errors, "tasks/STATUS.md Current State missing Active task row")
+    active_task = status.get("active_task")
+    if active_value is not None:
+        if active_task is None:
+            require(active_value.lower() == "none", errors, "tasks/STATUS.md Active task must be none when status.json active_task is null")
+        else:
+            require(isinstance(active_task, str) and active_task in active_value, errors, "tasks/STATUS.md Active task must match status.json active_task")
+
+    next_value = values.get("Next task")
+    require(next_value is not None, errors, "tasks/STATUS.md Current State missing Next task row")
+    next_task = status.get("next_task")
+    if next_value is not None:
+        if next_task is None:
+            require(next_value.lower() == "none", errors, "tasks/STATUS.md Next task must be none when status.json next_task is null")
+        else:
+            task = task_by_id.get(next_task)
+            expected_file = task.get("file") if isinstance(task, dict) else None
+            require(isinstance(next_task, str) and (next_task in next_value or (isinstance(expected_file, str) and expected_file in next_value)), errors, "tasks/STATUS.md Next task must match status.json next_task")
+
+
+def validate_schema_files(errors: list[str]) -> None:
+    required = [
+        "schemas/report.v1.schema.json",
+        "schemas/ai.context.v1.schema.json",
+        "schemas/ai.explain.response.v1.schema.json",
+        "schemas/ai.suggest.response.v1.schema.json",
+        "schemas/ai.review_tests.response.v1.schema.json",
+        "tasks/schema/queue.v1.schema.json",
+        "tasks/schema/status.v1.schema.json",
+    ]
+    for rel in required:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing schema file {rel}")
+        if path.is_file():
+            load_json(path, errors)
+
+
+def validate_schema_registry(errors: list[str]) -> None:
+    require(SCHEMA_REGISTRY_MD.is_file(), errors, "docs/SCHEMA_REGISTRY.md is missing")
+    if not SCHEMA_REGISTRY_MD.is_file():
+        return
+    text = SCHEMA_REGISTRY_MD.read_text(encoding="utf-8")
+    for version, file_path in SCHEMA_REGISTRY_PAIRS:
+        require(version in text, errors, f"schema registry missing version {version}")
+        require(file_path in text, errors, f"schema registry missing file {file_path}")
+
+
+def validate_governance_files(errors: list[str]) -> None:
+    for rel in GOVERNANCE_FILES:
+        require((ROOT / rel).is_file(), errors, f"missing governance file {rel}")
+
+
+def validate_agent_layer(errors: list[str]) -> None:
+    require(AGENTS_DIR.is_dir(), errors, "missing Codex agent directory .agents")
+    require(not CLAUDE_DIR.exists(), errors, "Claude-specific .claude directory must not exist in zentinel")
+    for rel in REQUIRED_AGENT_FILES:
+        require((ROOT / rel).is_file(), errors, f"missing Codex agent file {rel}")
+    orchestrator = ROOT / ".agents" / "ORCHESTRATOR.md"
+    if orchestrator.is_file():
+        text = orchestrator.read_text(encoding="utf-8")
+        require(
+            "Only one task may be `active`, `implemented`, or `verified` pending completion at a time." in text,
+            errors,
+            ".agents/ORCHESTRATOR.md must include active/implemented/verified single-task wording",
+        )
+        require(
+            "More than one task is active, implemented, or verified pending completion." in text,
+            errors,
+            ".agents/ORCHESTRATOR.md stop conditions must include verified tasks",
+        )
+        require(
+            "Only one task may be `active` or `implemented` at a time." not in text,
+            errors,
+            ".agents/ORCHESTRATOR.md contains stale active/implemented-only wording",
+        )
+
+
+def validate_pipeline_contracts(errors: list[str]) -> None:
+    exception_files = [
+        "AGENTS.md",
+        "tasks/QUEUE.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        ".agents/README.md",
+    ]
+    for rel in exception_files:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing pipeline exception contract file {rel}")
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            require(PIPELINE_ARTIFACT_EXCEPTION in text, errors, f"{rel} must document the task-scoped pipeline artifact exception")
+
+    artifacts = ROOT / "docs" / "PIPELINE_ARTIFACTS.md"
+    if artifacts.is_file():
+        text = artifacts.read_text(encoding="utf-8")
+        require("handoffs/<step>-<role>.json" in text, errors, "docs/PIPELINE_ARTIFACTS.md must use JSON handoff naming")
+        require("handoffs/<step>-<role>.md" not in text, errors, "docs/PIPELINE_ARTIFACTS.md must not make Markdown handoffs canonical")
+        require("verification/report.json" in text, errors, "docs/PIPELINE_ARTIFACTS.md must list JSON verification artifacts")
+
+    handoffs = ROOT / "docs" / "HANDOFF_CONTRACTS.md"
+    if handoffs.is_file():
+        text = handoffs.read_text(encoding="utf-8")
+        require("JSON handoffs are canonical" in text or "JSON handoff is the canonical" in text, errors, "docs/HANDOFF_CONTRACTS.md must make JSON handoffs canonical")
+        require("01-test-author.json" in text, errors, "docs/HANDOFF_CONTRACTS.md must list deterministic JSON handoff names")
+
+    orchestration = ROOT / "docs" / "ORCHESTRATION_SPEC.md"
+    if orchestration.is_file():
+        text = orchestration.read_text(encoding="utf-8")
+        require("handoffs/*.json" in text, errors, "docs/ORCHESTRATION_SPEC.md must persist JSON handoffs")
+        require("handoffs/*.md" not in text, errors, "docs/ORCHESTRATION_SPEC.md must not require Markdown handoffs as canonical state")
+
+    metadata_task = ROOT / "tasks" / "063-pipeline-metadata-validator.md"
+    if metadata_task.is_file():
+        text = metadata_task.read_text(encoding="utf-8")
+        require("schema subset validator" in text, errors, "tasks/063-pipeline-metadata-validator.md must define the pipeline schema subset validator scope")
+        require("full Draft 2020-12" in text or "Full Draft 2020-12" in text, errors, "tasks/063-pipeline-metadata-validator.md must explicitly avoid claiming full Draft 2020-12 validation")
+
+    if SCHEMA_REGISTRY_MD.is_file():
+        text = SCHEMA_REGISTRY_MD.read_text(encoding="utf-8")
+        require("project-owned schema subset validator" in text, errors, "docs/SCHEMA_REGISTRY.md must document the pipeline schema subset validator")
+
+
+def validate_task_order_contracts(errors: list[str]) -> None:
+    contracts = [
+        "AGENTS.md",
+        "tasks/QUEUE.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+    ]
+    for rel in contracts:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task order contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        require("execution order" in text or "execution `order`" in text, errors, f"{rel} must refer to execution order")
+        require("`order`" in text, errors, f"{rel} must document explicit task order keys")
+    queue_text = QUEUE_MD.read_text(encoding="utf-8") if QUEUE_MD.is_file() else ""
+    require("next unused three-digit ID" in queue_text, errors, "tasks/QUEUE.md must document stable IDs for prerequisite insertion")
+
+
+def validate_agent_execution_contracts(errors: list[str]) -> None:
+    required_phrases = {
+        ".agents/workflows/task-plan.md": ["first dependency-ready queued task by execution order"],
+        ".agents/workflows/sync.md": ["first dependency-ready queued task by execution order", "active, implemented, or verified"],
+        ".agents/roles/task-queue-manager.md": ["first dependency-ready queued task by execution order"],
+        "docs/AGENT_ROLE_SPEC.md": ["active, implemented, or verified pending completion"],
+    }
+    stale_phrases = [
+        "first queued task",
+        "active or implemented pending verification",
+    ]
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing agent execution contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain '{phrase}'")
+        for phrase in stale_phrases:
+            require(phrase not in text, errors, f"{rel} contains stale phrase '{phrase}'")
+
+
+def validate_cli_contracts(errors: list[str]) -> None:
+    cli_path = ROOT / "docs" / "CLI_SPEC.md"
+    doctest_mutation_path = ROOT / "docs" / "DOCTEST_MUTATION_STRATEGY.md"
+    ai_ux_path = ROOT / "docs" / "AI_ASSISTED_UX.md"
+    task054_path = ROOT / "tasks" / "054-ai-advisory-commands.md"
+    task055_path = ROOT / "tasks" / "055-ai-doctest-assistance.md"
+
+    for path in [cli_path, doctest_mutation_path, ai_ux_path, task054_path, task055_path]:
+        require(path.is_file(), errors, f"missing CLI contract file {path.relative_to(ROOT)}")
+    if not cli_path.is_file() or not doctest_mutation_path.is_file():
+        return
+
+    cli_text = cli_path.read_text(encoding="utf-8")
+    doctest_mutation_text = doctest_mutation_path.read_text(encoding="utf-8")
+    require("zentinel doctest explain <case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest explain as a user-facing command")
+    require("zentinel doctest suggest <doc-path>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest suggest as a user-facing command")
+    require("<case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define doctest case references as <case-ref>")
+    require("<mutant-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define AI mutant references as <mutant-ref>")
+    require("--ai-provider <disabled|stub|local|remote>" in cli_text, errors, "docs/CLI_SPEC.md must define AI provider option values")
+    require("--report <path>" in cli_text, errors, "docs/CLI_SPEC.md must define AI report path option")
+    require("zig-out/zentinel/report.json" in cli_text, errors, "docs/CLI_SPEC.md must define the default mutation AI report path")
+    require("zig-out/zentinel/doctest/report.json" in cli_text, errors, "docs/CLI_SPEC.md must define the default doctest AI report path")
+    require("Display IDs are scoped to the report" in cli_text, errors, "docs/CLI_SPEC.md must scope display IDs to the selected report")
+    require("case anchor line" in cli_text, errors, "docs/CLI_SPEC.md must define doctest source refs as anchor-line selectors")
+    require("--format <text|json|jsonl>" in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must use --format for output selection")
+    require("--report <text|json|jsonl>" not in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must not use --report for doctest output format")
+
+    if ai_ux_path.is_file():
+        ai_ux_text = ai_ux_path.read_text(encoding="utf-8")
+        require("zentinel doctest explain <case-ref>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest explain")
+        require("zentinel doctest suggest <doc-path>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest suggest")
+
+    if task054_path.is_file():
+        task054_text = task054_path.read_text(encoding="utf-8")
+        require("display IDs scoped to the selected report" in task054_text, errors, "tasks/054-ai-advisory-commands.md must require display-ID resolution tests")
+        require("--ai-provider <disabled|stub|local|remote>" in task054_text, errors, "tasks/054-ai-advisory-commands.md must require AI provider option tests")
+
+    if task055_path.is_file():
+        task055_text = task055_path.read_text(encoding="utf-8")
+        for required in ["src/cli.zig", "src/main.zig", "test/ai_doctest_cli_test.zig"]:
+            require(required in task055_text, errors, f"tasks/055-ai-doctest-assistance.md must allow {required}")
+        require("zentinel doctest explain <case-ref>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest explain CLI tests")
+        require("zentinel doctest suggest <doc-path>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest suggest CLI tests")
+
+
+def validate_doctest_identity_contracts(errors: list[str]) -> None:
+    required_phrases = {
+        "docs/DOCTEST_SPEC.md": [
+            "Duplicate unlabeled cases in the same file are invalid",
+            "canonical anchor line",
+            "block_refs",
+            "occurrence indexes",
+        ],
+        "docs/DOCTEST_ARCHITECTURE.md": [
+            "`source_ref` is a case-level anchor",
+            "block_refs",
+            "Duplicate unlabeled cases in one file",
+        ],
+        "docs/GLOSSARY.md": [
+            "Duplicate unlabeled identical cases",
+            "case anchor line",
+        ],
+        "tasks/032-doctest-extraction.md": [
+            "duplicate unlabeled identical cases",
+            "anchor `source_ref`",
+            "secondary `block_refs`",
+        ],
+        "tasks/035-cli-doctests.md": [
+            "source-ref selectors resolve only the case anchor line",
+            "secondary expectation blocks",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing doctest identity contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain doctest identity phrase '{phrase}'")
+
+
+def validate_ai_contracts(errors: list[str]) -> None:
+    explain_schema = ROOT / "schemas" / "ai.explain.response.v1.schema.json"
+    data = load_json(explain_schema, errors) if explain_schema.is_file() else {}
+    if isinstance(data, dict):
+        defs = data.get("$defs")
+        classification_values: list[object] = []
+        if isinstance(defs, dict):
+            classification = defs.get("classification")
+            if isinstance(classification, dict):
+                enum = classification.get("enum")
+                if isinstance(enum, list):
+                    classification_values = enum
+        for label in [
+            "doctest_output_mismatch",
+            "doctest_invalid_example",
+            "doctest_snapshot_wording_change",
+            "doctest_assertion_missing",
+            "doctest_survivor_missing_assertion",
+        ]:
+            require(label in classification_values, errors, f"AI explain response schema must allow doctest classification {label}")
+
+    required_phrases = {
+        "docs/AI_PROMPT_CONTRACTS.md": [
+            "Doctest explain classifications",
+            "doctest_output_mismatch",
+        ],
+        "docs/AI_ASSISTED_UX.md": [
+            "doctest_output_mismatch",
+            "default redaction patterns are exactly",
+        ],
+        "docs/DOCTEST_AI_INTEGRATION.md": [
+            "doctest-specific classification labels",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            '`redact_patterns` | list(string) | `["(?i)api[_-]?key", "(?i)token"]`',
+            '`ai.provider = "remote"` unless `ai.remote_allowed = true`',
+            "ZNTL_AI_PROVIDER_NOT_ALLOWED",
+        ],
+        "docs/FAILURE_MODES.md": [
+            "ZNTL_AI_PROVIDER_NOT_ALLOWED",
+            "ZNTL_AI_REPORT_NOT_FOUND",
+            "ZNTL_AI_TARGET_NOT_FOUND",
+            "ZNTL_DOCTEST_CASE_NOT_FOUND",
+            "ZNTL_DOCTEST_DOC_NOT_FOUND",
+        ],
+        "tasks/053-ai-provider-and-context.md": [
+            'omitted `ai.redact_patterns` expands to `["(?i)api[_-]?key", "(?i)token"]`',
+            '`ai.provider = "remote"` unless `ai.remote_allowed = true`',
+        ],
+        "tasks/054-ai-advisory-commands.md": [
+            "doctest-specific classification values",
+            "ai.remote_allowed = false",
+        ],
+        "tasks/055-ai-doctest-assistance.md": [
+            "doctest-specific classification labels",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing AI contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain AI contract phrase '{phrase}'")
+
+
+def validate_task_lifecycle_contracts(errors: list[str]) -> None:
+    path = ROOT / "docs" / "TASK_LIFECYCLE.md"
+    require(path.is_file(), errors, "docs/TASK_LIFECYCLE.md is missing")
+    if not path.is_file():
+        return
+    text = path.read_text(encoding="utf-8")
+    require("## Queue States" in text, errors, "docs/TASK_LIFECYCLE.md must separate queue states")
+    require("## Pipeline Artifact Stages" in text, errors, "docs/TASK_LIFECYCLE.md must separate pipeline artifact stages")
+    require("artifact stages only" in text, errors, "docs/TASK_LIFECYCLE.md must state fine-grained stages are artifact-only")
+    for state in ["`tests_authored`", "`tests_reviewed`", "`reviewed`", "`mutation_checked`"]:
+        require(state in text, errors, f"docs/TASK_LIFECYCLE.md must classify {state} as an artifact stage")
+
+
+def unescaped_pipe_count(line: str) -> int:
+    count = 0
+    escaped = False
+    for char in line:
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == "|":
+            count += 1
+    return count
+
+
+def validate_markdown_table_shapes(errors: list[str]) -> None:
+    files = [
+        "docs/MUTATOR_SPEC.md",
+    ]
+    for rel in files:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing markdown table contract file {rel}")
+        if not path.is_file():
+            continue
+        expected_pipes: int | None = None
+        table_start = 0
+        in_fence = False
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+            if line.lstrip().startswith("```"):
+                in_fence = not in_fence
+                expected_pipes = None
+                continue
+            if in_fence or not line.startswith("|"):
+                expected_pipes = None
+                continue
+            pipe_count = unescaped_pipe_count(line)
+            if expected_pipes is None:
+                expected_pipes = pipe_count
+                table_start = line_no
+                continue
+            require(
+                pipe_count == expected_pipes,
+                errors,
+                f"{rel}:{line_no} has {pipe_count} unescaped table pipes; expected {expected_pipes} from table starting at line {table_start}",
+            )
+
+
+def validate_adr_system(errors: list[str]) -> None:
+    readme = ADR_DIR / "README.md"
+    require(readme.is_file(), errors, "docs/adr/README.md is missing")
+    if not readme.is_file():
+        return
+
+    index_text = readme.read_text(encoding="utf-8")
+    indexed_files: set[str] = set()
+    for match in ADR_INDEX_RE.finditer(index_text):
+        adr_id, rel_file, status, date = match.groups()
+        indexed_files.add(rel_file)
+        path = ADR_DIR / rel_file
+        require(path.is_file(), errors, f"{adr_id} index entry points to missing file {rel_file}")
+        require(status.strip() in {"Proposed", "Accepted", "Deprecated"} or status.strip().startswith("Superseded by ADR-"), errors, f"{adr_id} has invalid status {status.strip()!r}")
+        require(bool(re.match(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date.strip())), errors, f"{adr_id} has invalid date {date.strip()!r}")
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            require(text.startswith(f"# {adr_id}: "), errors, f"{rel_file} heading must start with '# {adr_id}: '")
+            for section in ("## Context", "## Decision", "## Alternatives Considered", "## Consequences"):
+                require(section in text, errors, f"{rel_file} missing section {section}")
+
+    require(len(indexed_files) > 0, errors, "docs/adr/README.md must index at least one ADR")
+    actual_files = {path.name for path in ADR_DIR.glob("[0-9][0-9][0-9][0-9]-*.md")}
+    for rel_file in sorted(actual_files - indexed_files):
+        fail(errors, f"ADR file missing from docs/adr/README.md index: {rel_file}")
+
+
+def validate_gap_registries(errors: list[str]) -> None:
+    expected = [
+        ("invariants.v1.json", "zentinel.coverage_gaps.invariants.v1", "number", invariant_numbers(errors)),
+        ("failure_modes.v1.json", "zentinel.coverage_gaps.failure_modes.v1", "number", failure_mode_numbers(errors)),
+        ("mutators.v1.json", "zentinel.coverage_gaps.mutators.v1", "operator", mutator_operators(errors)),
+        ("schemas.v1.json", "zentinel.coverage_gaps.schemas.v1", "version", [version for version, _ in SCHEMA_REGISTRY_PAIRS]),
+    ]
+
+    for filename, schema_version, key, required_values in expected:
+        path = GAP_REGISTRY_DIR / filename
+        require(path.is_file(), errors, f"missing gap registry tests/coverage-gaps/{filename}")
+        if not path.is_file():
+            continue
+        data = load_json(path, errors)
+        if not isinstance(data, dict):
+            fail(errors, f"tests/coverage-gaps/{filename} must contain an object")
+            continue
+        require(data.get("schema_version") == schema_version, errors, f"tests/coverage-gaps/{filename} schema_version mismatch")
+        require(data.get("mode") == "regression_only", errors, f"tests/coverage-gaps/{filename} mode must be regression_only")
+        entries = data.get("entries")
+        require(isinstance(entries, list), errors, f"tests/coverage-gaps/{filename} entries must be an array")
+        if not isinstance(entries, list):
+            continue
+
+        seen: set[str] = set()
+        for index, entry in enumerate(entries):
+            require(isinstance(entry, dict), errors, f"tests/coverage-gaps/{filename} entry {index} must be an object")
+            if not isinstance(entry, dict):
+                continue
+            value = entry.get(key)
+            require(isinstance(value, str) and bool(value), errors, f"tests/coverage-gaps/{filename} entry {index} missing {key}")
+            if isinstance(value, str):
+                require(value not in seen, errors, f"tests/coverage-gaps/{filename} duplicate {key} {value}")
+                seen.add(value)
+            covered = entry.get("covered")
+            tests = entry.get("tests")
+            deferred_to = entry.get("deferred_to")
+            require(isinstance(covered, bool), errors, f"tests/coverage-gaps/{filename} {value!r} covered must be boolean")
+            require(isinstance(tests, list) and all(isinstance(item, str) for item in tests), errors, f"tests/coverage-gaps/{filename} {value!r} tests must be a string array")
+            if covered is True:
+                require(isinstance(tests, list) and len(tests) > 0, errors, f"tests/coverage-gaps/{filename} {value!r} covered rows must list tests")
+            if covered is False:
+                require(isinstance(deferred_to, str) and bool(deferred_to), errors, f"tests/coverage-gaps/{filename} {value!r} uncovered rows must name deferred_to")
+            if isinstance(deferred_to, str) and deferred_to.startswith("tasks/"):
+                require((ROOT / deferred_to).is_file(), errors, f"tests/coverage-gaps/{filename} {value!r} deferred_to missing task file {deferred_to}")
+
+        missing = set(required_values) - seen
+        extra = seen - set(required_values)
+        for value in sorted(missing):
+            fail(errors, f"tests/coverage-gaps/{filename} missing {key} {value}")
+        for value in sorted(extra):
+            fail(errors, f"tests/coverage-gaps/{filename} has unknown {key} {value}")
+
+
+def validate_schema_gap_ownership(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    path = GAP_REGISTRY_DIR / "schemas.v1.json"
+    if not path.is_file():
+        return
+    data = load_json(path, errors)
+    if not isinstance(data, dict):
+        return
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        return
+
+    task_by_file = {task.get("file"): task for task in tasks if isinstance(task.get("file"), str)}
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("covered") is True:
+            continue
+        schema_file = entry.get("file")
+        deferred_to = entry.get("deferred_to")
+        if not isinstance(schema_file, str) or not isinstance(deferred_to, str):
+            continue
+        task = task_by_file.get(deferred_to)
+        require(task is not None, errors, f"schemas.v1.json entry {index} deferred_to task not found in queue: {deferred_to}")
+        if task is None:
+            continue
+        allowed = task.get("allowed_files")
+        require(isinstance(allowed, list) and schema_file in allowed, errors, f"schemas.v1.json entry {index} defers {schema_file} to {deferred_to}, but that task does not allow the schema file")
+
+
+def invariant_numbers(errors: list[str]) -> list[str]:
+    path = ROOT / "docs" / "INVARIANTS.md"
+    if not path.is_file():
+        fail(errors, "docs/INVARIANTS.md is missing")
+        return []
+    return INVARIANT_RE.findall(path.read_text(encoding="utf-8"))
+
+
+def failure_mode_numbers(errors: list[str]) -> list[str]:
+    path = ROOT / "docs" / "FAILURE_MODES.md"
+    if not path.is_file():
+        fail(errors, "docs/FAILURE_MODES.md is missing")
+        return []
+    return FAILURE_MODE_RE.findall(path.read_text(encoding="utf-8"))
+
+
+def mutator_operators(errors: list[str]) -> list[str]:
+    path = ROOT / "docs" / "MUTATOR_SPEC.md"
+    if not path.is_file():
+        fail(errors, "docs/MUTATOR_SPEC.md is missing")
+        return []
+    text = path.read_text(encoding="utf-8")
+    match = re.search(r"^## Operator Catalog\n\n(?P<body>.*?)(?=\n## )", text, flags=re.MULTILINE | re.DOTALL)
+    if match is None:
+        fail(errors, "docs/MUTATOR_SPEC.md missing Operator Catalog section")
+        return []
+    operators: list[str] = []
+    for line in match.group("body").splitlines():
+        row = re.match(r"^\| `([a-z0-9_]+)` \|", line)
+        if row:
+            operators.append(row.group(1))
+    return operators
+
+
+def main() -> int:
+    errors: list[str] = []
+
+    queue = load_json(QUEUE_JSON, errors)
+    status = load_json(STATUS_JSON, errors)
+    tasks = validate_queue(queue, errors)
+    validate_status(status, tasks, errors)
+    validate_task_markdown(tasks, errors)
+    validate_markdown_queue(tasks, errors)
+    validate_markdown_status(status, tasks, errors)
+    validate_schema_files(errors)
+    validate_schema_registry(errors)
+    validate_governance_files(errors)
+    validate_agent_layer(errors)
+    validate_pipeline_contracts(errors)
+    validate_task_order_contracts(errors)
+    validate_agent_execution_contracts(errors)
+    validate_cli_contracts(errors)
+    validate_doctest_identity_contracts(errors)
+    validate_ai_contracts(errors)
+    validate_task_lifecycle_contracts(errors)
+    validate_markdown_table_shapes(errors)
+    validate_adr_system(errors)
+    validate_gap_registries(errors)
+    validate_schema_gap_ownership(tasks, errors)
+
+    if errors:
+        print("task system validation failed:", file=sys.stderr)
+        for error in errors:
+            print(f"- {error}", file=sys.stderr)
+        return 1
+
+    print(f"task system validation passed: {len(tasks)} tasks")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

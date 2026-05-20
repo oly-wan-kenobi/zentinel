@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.context.v1.schema.json",
+  "title": "zentinel AI context v1",
+  "type": "object",
+  "required": ["schema_version", "flow", "created_by", "provider_mode", "privacy", "project", "mutant", "result", "source_context", "test_context", "operator"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.context.v1" },
+    "flow": { "enum": ["explain", "suggest", "review_tests"] },
+    "created_by": { "const": "zentinel" },
+    "provider_mode": { "enum": ["disabled", "stub", "local", "remote"] },
+    "privacy": {
+      "type": "object",
+      "required": ["redactions_applied", "source_context_policy", "remote_allowed"],
+      "additionalProperties": false,
+      "properties": {
+        "redactions_applied": { "type": "array", "items": { "type": "string" } },
+        "source_context_policy": { "enum": ["minimal", "none"] },
+        "remote_allowed": { "type": "boolean" }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "root_label", "zig_version", "zentinel_version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "root_label": { "type": "string", "minLength": 1 },
+        "zig_version": { "type": "string", "minLength": 1 },
+        "zentinel_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mutant": { "$ref": "#/$defs/mutant" },
+    "result": { "$ref": "#/$defs/result" },
+    "source_context": { "$ref": "#/$defs/source_context" },
+    "test_context": { "$ref": "#/$defs/test_context" },
+    "operator": { "$ref": "#/$defs/operator" }
+  },
+  "$defs": {
+    "span": {
+      "type": "object",
+      "required": ["byte_start", "byte_end", "line_start", "column_start", "line_end", "column_end"],
+      "additionalProperties": false,
+      "properties": {
+        "byte_start": { "type": "integer", "minimum": 0 },
+        "byte_end": { "type": "integer", "minimum": 0 },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "column_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 },
+        "column_end": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "mutant": {
+      "type": "object",
+      "required": ["id", "display_id", "backend", "backend_stability", "operator", "operator_stability", "file", "span", "original", "replacement", "diff", "expected_compile"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^m_[A-Za-z0-9]+$" },
+        "display_id": { "type": "integer", "minimum": 1 },
+        "backend": { "enum": ["ast", "zir", "air"] },
+        "backend_stability": { "enum": ["stable", "experimental"] },
+        "operator": { "type": "string", "minLength": 1 },
+        "operator_stability": { "enum": ["stable", "preview", "experimental"] },
+        "file": { "type": "string", "minLength": 1 },
+        "span": { "$ref": "#/$defs/span" },
+        "original": { "type": "string" },
+        "replacement": { "type": "string" },
+        "diff": { "type": "array", "items": { "type": "string" } },
+        "expected_compile": { "enum": ["compiles", "may_fail", "must_fail"] }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["status", "mode", "commands", "phase", "duration_ms_normalized", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["killed", "survived", "compile_error", "timeout", "skipped", "invalid"] },
+        "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
+        "commands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutant_command_result" }
+        },
+        "phase": { "const": "mutant" },
+        "duration_ms_normalized": { "const": "<duration>" },
+        "evidence": { "$ref": "#/$defs/evidence" }
+      }
+    },
+    "mutant_command_result": {
+      "type": "object",
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms_normalized", "evidence", "skip_reason"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "skipped" } }, "required": ["status"] },
+          "then": { "properties": { "skip_reason": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "skip_reason": { "type": "null" } } }
+        }
+      ],
+      "properties": {
+        "command": { "$ref": "#/$defs/command_evidence" },
+        "phase": { "const": "mutant" },
+        "status": { "enum": ["passed", "failed", "timeout", "skipped"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "timed_out": { "type": "boolean" },
+        "duration_ms_normalized": { "const": "<duration>" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "skip_reason": { "type": ["string", "null"] }
+      }
+    },
+    "command_evidence": {
+      "type": "object",
+      "required": ["original", "argv", "cwd", "environment_policy", "shell"],
+      "additionalProperties": false,
+      "properties": {
+        "original": { "type": "string" },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            { "type": "string", "minLength": 1 }
+          ],
+          "items": { "type": "string" }
+        },
+        "cwd": { "type": "string" },
+        "environment_policy": { "enum": ["minimal"] },
+        "shell": { "const": false }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["stdout_excerpt", "stderr_excerpt", "failure_summary"],
+      "additionalProperties": false,
+      "properties": {
+        "stdout_excerpt": { "type": "string" },
+        "stderr_excerpt": { "type": "string" },
+        "failure_summary": { "type": "string" }
+      }
+    },
+    "source_symbol": {
+      "type": "object",
+      "required": ["kind", "name", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "source_context": {
+      "type": "object",
+      "required": ["policy", "language", "before_lines", "after_lines", "snippet", "symbols"],
+      "additionalProperties": false,
+      "properties": {
+        "policy": { "enum": ["minimal", "none"] },
+        "language": { "const": "zig" },
+        "before_lines": { "type": "integer", "minimum": 0 },
+        "after_lines": { "type": "integer", "minimum": 0 },
+        "snippet": { "type": "array", "items": { "type": "string" } },
+        "symbols": { "type": "array", "items": { "$ref": "#/$defs/source_symbol" } }
+      }
+    },
+    "selected_test": {
+      "type": "object",
+      "required": ["name", "file", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "test_context": {
+      "type": "object",
+      "required": ["selection_reason", "selected_tests", "baseline_status", "same_file_tests_excluded_from_mutation"],
+      "additionalProperties": false,
+      "properties": {
+        "selection_reason": { "type": "string", "minLength": 1 },
+        "selected_tests": { "type": "array", "items": { "$ref": "#/$defs/selected_test" } },
+        "baseline_status": { "enum": ["passed", "failed", "unknown"] },
+        "same_file_tests_excluded_from_mutation": { "type": "boolean" }
+      }
+    },
+    "operator": {
+      "type": "object",
+      "required": ["name", "category", "equivalent_risks", "suggested_test_focus"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "equivalent_risks": { "type": "array", "items": { "type": "string" } },
+        "suggested_test_focus": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

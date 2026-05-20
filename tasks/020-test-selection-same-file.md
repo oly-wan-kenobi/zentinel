@@ -1,0 +1,68 @@
+# 020 Test Selection Same File
+
+Sequential guard: start this task only after task 019 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+
+## Goal
+
+Implement the default `same_file_then_package` test selection strategy.
+
+## Scope
+
+- Discover same-file Zig tests for a mutated file.
+- Select `zig test <file>` when appropriate.
+- Fall back to configured test commands when same-file selection is unavailable.
+- Record selection reason in reports.
+
+## Files allowed to modify
+
+- `src/test_selection.zig`
+- `src/ast_backend.zig`
+- `src/run_command.zig`
+- `src/report.zig`
+- `test/test_selection_test.zig`
+- `test/fixtures/test_selection/**`
+- `tasks/STATUS.md`
+- `tasks/status.json`
+
+## Files forbidden to modify
+
+- `src/mutators/**`
+- `src/sandbox.zig`
+- `src/ai/**`
+- `src/cache.zig`
+
+## Required tests
+
+- Add a failing test for same-file test selection.
+- Add a failing test for fallback to configured commands.
+- Add a failing test for deterministic selected test ordering.
+- Add a failing report snapshot showing selection metadata with required `strategy`, `selected`, `commands`, and `fallback_used` fields and no unknown fields.
+- Run `zig build test`.
+
+## Acceptance criteria
+
+- Default selection matches `docs/TEST_SELECTION.md`.
+- Reports include strategy, selected tests, commands, and fallback flag.
+- Selection never uses AI.
+- Full command fallback is deterministic.
+
+## Non-goals
+
+- Impact graph.
+- Parallel scheduling.
+- Historical selection.
+
+## Suggested implementation approach
+
+1. Parse test declaration names and line numbers from source mapping.
+2. Keep selected tests sorted by file, line, and name.
+3. Build commands from normalized project-relative paths.
+4. Integrate selection into `run` only after unit tests pass.
+
+## Dogfooding implications
+
+Same-file selection makes future self-mutation faster while preserving a clear fallback path.
+
+## Follow-up tasks
+
+- `tasks/021-cache-key-design.md`

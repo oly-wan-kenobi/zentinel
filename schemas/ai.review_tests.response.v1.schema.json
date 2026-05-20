@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.review_tests.response.v1.schema.json",
+  "title": "zentinel AI review tests response v1",
+  "type": "object",
+  "required": ["schema_version", "clusters", "top_actions"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.review_tests.response.v1" },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["classification", "mutant_ids", "summary", "recommended_focus"],
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "enum": [
+              "boundary_missing",
+              "null_path_missing",
+              "error_path_missing",
+              "cleanup_path_missing",
+              "comptime_case_missing",
+              "logical_case_missing",
+              "constant_case_missing",
+              "possibly_equivalent",
+              "unclear"
+            ]
+          },
+          "mutant_ids": { "type": "array", "items": { "type": "string", "pattern": "^m_[A-Za-z0-9]+$" } },
+          "summary": { "type": "string" },
+          "recommended_focus": { "type": "string" }
+        }
+      }
+    },
+    "top_actions": { "type": "array", "items": { "type": "string" } }
+  }
+}

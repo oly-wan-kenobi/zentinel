@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/tasks.status.v1.schema.json",
+  "title": "zentinel task status",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "active_task",
+    "next_task",
+    "completed_tasks",
+    "blocked_tasks",
+    "last_validation",
+    "history"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "zentinel.tasks.status.v1"
+    },
+    "active_task": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{3}$"
+    },
+    "next_task": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{3}$"
+    },
+    "completed_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]{3}$"
+      }
+    },
+    "blocked_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]{3}$"
+      }
+    },
+    "last_validation": {
+      "type": "object",
+      "required": ["command", "status", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string"
+        },
+        "status": {
+          "enum": ["not_run", "passed", "failed"]
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event", "task", "notes"],
+        "additionalProperties": false,
+        "properties": {
+          "event": {
+            "type": "string"
+          },
+          "task": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]{3}$"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

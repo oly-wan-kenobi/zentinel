@@ -1,0 +1,1817 @@
+{
+  "schema_version": "zentinel.tasks.queue.v1",
+  "ordering": "sequential",
+  "tasks": [
+    {
+      "id": "000",
+      "title": "Project Bootstrap",
+      "file": "tasks/000-project-bootstrap.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [],
+      "allowed_files": [
+        "build.zig",
+        "build.zig.zon",
+        "src/root.zig",
+        "src/main.zig",
+        "test/bootstrap_test.zig",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "docs/**"
+      ]
+    },
+    {
+      "id": "001",
+      "title": "CLI Shell",
+      "file": "tasks/001-cli-shell.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "000"
+      ],
+      "allowed_files": [
+        "src/main.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/cli_test.zig",
+        "test/snapshots/cli_help.txt",
+        "test/snapshots/init_config.toml",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutation_engine.zig",
+        "src/backends/**",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "002",
+      "title": "Config Parser",
+      "file": "tasks/002-config-parser.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "001"
+      ],
+      "allowed_files": [
+        "src/config.zig",
+        "src/config_toml.zig",
+        "src/cli.zig",
+        "src/main.zig",
+        "test/cli_test.zig",
+        "test/config_test.zig",
+        "test/fixtures/config/**",
+        "test/snapshots/init_config.toml",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ast_backend.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "003",
+      "title": "Test Harness",
+      "file": "tasks/003-test-harness.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "002"
+      ],
+        "allowed_files": [
+          "test/support/**",
+          "test/harness_test.zig",
+          "test/*_test.zig",
+          "test/fixtures/harness/test_discovery/**",
+          "build.zig",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ast_backend.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "004",
+      "title": "Fixture System",
+      "file": "tasks/004-fixture-system.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "003"
+      ],
+      "allowed_files": [
+        "test/fixtures/**",
+        "test/support/fixture.zig",
+        "test/fixture_system_test.zig",
+        "build.zig",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ast_backend.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "005",
+      "title": "Version Policy and Check Command",
+      "file": "tasks/005-version-policy.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "004"
+      ],
+        "allowed_files": [
+          "src/zig_version.zig",
+          "src/command.zig",
+          "src/check_command.zig",
+        "src/config.zig",
+        "src/cli.zig",
+        "src/main.zig",
+        "docs/ZIG_VERSION_POLICY.md",
+        "test/zig_version_test.zig",
+        "test/check_command_test.zig",
+        "test/fixtures/check/**",
+        "test/snapshots/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ast_backend.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "006",
+      "title": "Report Schema",
+      "file": "tasks/006-report-schema.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "005"
+      ],
+      "allowed_files": [
+        "schemas/report.v1.schema.json",
+        "src/report.zig",
+        "test/report_schema_test.zig",
+        "test/snapshots/report_minimal.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/ast_backend.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "007",
+      "title": "Mutant Model",
+      "file": "tasks/007-mutant-model.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "006"
+      ],
+      "allowed_files": [
+        "src/mutant.zig",
+        "src/report.zig",
+        "test/mutant_model_test.zig",
+        "test/snapshots/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ast_backend.zig",
+        "src/runner.zig",
+        "src/cli.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "008",
+      "title": "AST Parser Spike",
+      "file": "tasks/008-ast-parser-spike.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "007"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/source_map.zig",
+        "src/mutant.zig",
+        "test/ast_parser_test.zig",
+        "test/fixtures/ast_parser/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "009",
+      "title": "AST Candidate Ordering",
+      "file": "tasks/009-ast-candidate-ordering.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "008"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/ast_candidate_ordering_test.zig",
+        "test/fixtures/candidate_ordering/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/cli.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "010",
+      "title": "Arithmetic Mutators",
+      "file": "tasks/010-arithmetic-mutators.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "009"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/mutators/arithmetic.zig",
+        "src/mutant.zig",
+        "test/mutators/arithmetic_test.zig",
+        "test/fixtures/mutators/arithmetic/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/comparison.zig",
+        "src/mutators/logical.zig",
+        "src/mutators/boolean.zig",
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "011",
+      "title": "Comparison Mutators",
+      "file": "tasks/011-comparison-mutators.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "010"
+      ],
+      "allowed_files": [
+        "src/mutators/comparison.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/comparison_test.zig",
+        "test/fixtures/mutators/comparison/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/logical.zig",
+        "src/mutators/boolean.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "012",
+      "title": "Logical and Boolean Mutators",
+      "file": "tasks/012-logical-boolean-mutators.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "011"
+      ],
+      "allowed_files": [
+        "src/mutators/logical.zig",
+        "src/mutators/boolean.zig",
+        "src/ast_backend.zig",
+        "test/mutators/logical_boolean_test.zig",
+        "test/fixtures/mutators/logical_boolean/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "013",
+      "title": "Patch Sandbox",
+      "file": "tasks/013-patch-sandbox.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "012"
+      ],
+      "allowed_files": [
+        "src/sandbox.zig",
+        "src/mutant.zig",
+        "test/sandbox_test.zig",
+        "test/fixtures/sandbox/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/cli.zig",
+        "src/mutators/**",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "014",
+      "title": "Baseline Runner",
+      "file": "tasks/014-baseline-runner.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "013"
+      ],
+      "allowed_files": [
+        "src/runner.zig",
+        "src/command.zig",
+        "src/config.zig",
+        "test/runner_baseline_test.zig",
+        "test/fixtures/runner/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutant_runner.zig",
+        "src/ai/**",
+        "src/ast_backend.zig"
+      ]
+    },
+    {
+      "id": "015",
+      "title": "Mutant Runner",
+      "file": "tasks/015-mutant-runner.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "014"
+      ],
+      "allowed_files": [
+        "src/mutant_runner.zig",
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/report.zig",
+        "test/mutant_runner_test.zig",
+        "test/fixtures/mutant_runner/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/worker_pool.zig",
+        "src/cache.zig",
+        "src/ai/**",
+        "src/mutators/**"
+      ]
+    },
+    {
+      "id": "016",
+      "title": "Minimal Run Command",
+      "file": "tasks/016-minimal-run-command.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "015"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/main.zig",
+        "src/run_command.zig",
+        "src/report.zig",
+        "src/ast_backend.zig",
+        "test/run_command_test.zig",
+        "test/fixtures/run_command/**",
+        "test/snapshots/run_command_*.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/worker_pool.zig",
+        "src/cache.zig",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/mutators/optional.zig"
+      ]
+    },
+    {
+      "id": "017",
+      "title": "List Mutants Command",
+      "file": "tasks/017-list-mutants-command.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "016"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/main.zig",
+        "src/list_mutants_command.zig",
+        "src/ast_backend.zig",
+        "src/report.zig",
+        "test/list_mutants_command_test.zig",
+        "test/snapshots/list_mutants_*.txt",
+        "test/snapshots/list_mutants_*.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/sandbox.zig",
+        "src/ai/**",
+        "src/cache.zig",
+        "src/mutators/optional.zig"
+      ]
+    },
+    {
+      "id": "018",
+      "title": "Report Renderers",
+      "file": "tasks/018-report-renderers.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "017"
+      ],
+      "allowed_files": [
+        "src/report.zig",
+        "src/cli.zig",
+        "src/main.zig",
+        "src/report_text.zig",
+        "src/report_jsonl.zig",
+        "src/report_junit.zig",
+        "test/report_renderers_test.zig",
+        "test/snapshots/report_*.txt",
+        "test/snapshots/report_*.json",
+        "test/snapshots/report_*.jsonl",
+        "test/snapshots/report_*.xml",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/runner.zig",
+        "src/ai/**",
+        "src/cache.zig"
+      ]
+    },
+    {
+      "id": "019",
+      "title": "Same-File Test Exclusion",
+      "file": "tasks/019-same-file-test-exclusion.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "018"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/source_map.zig",
+        "test/same_file_test_exclusion_test.zig",
+        "test/fixtures/same_file_tests/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/runner.zig",
+        "src/test_selection.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "020",
+      "title": "Test Selection Same File",
+      "file": "tasks/020-test-selection-same-file.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "019"
+      ],
+      "allowed_files": [
+        "src/test_selection.zig",
+        "src/ast_backend.zig",
+        "src/run_command.zig",
+        "src/report.zig",
+        "test/test_selection_test.zig",
+        "test/fixtures/test_selection/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/sandbox.zig",
+        "src/ai/**",
+        "src/cache.zig"
+      ]
+    },
+    {
+      "id": "021",
+      "title": "Cache Key Design",
+      "file": "tasks/021-cache-key-design.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "020"
+      ],
+      "allowed_files": [
+        "src/cache.zig",
+        "src/config.zig",
+        "src/mutant.zig",
+        "src/runner.zig",
+        "test/cache_key_test.zig",
+        "test/snapshots/cache_metadata.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/worker_pool.zig",
+        "src/ai/**",
+        "src/ast_backend.zig"
+      ]
+    },
+    {
+      "id": "022",
+      "title": "Dogfood Fixture Run",
+      "file": "tasks/022-dogfood-fixture-run.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "021"
+      ],
+      "allowed_files": [
+        "zentinel.dogfood.toml",
+        "build.zig",
+        "scripts/**",
+        "test/dogfood_fixture_test.zig",
+        "test/fixtures/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "023",
+      "title": "Optional and Null Mutators",
+      "file": "tasks/023-optional-null-mutators.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "022"
+      ],
+      "allowed_files": [
+        "src/mutators/optional.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/optional_test.zig",
+        "test/fixtures/mutators/optional/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/error_path.zig",
+        "src/mutators/allocator.zig",
+        "src/ai/**",
+        "src/cache.zig",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "024",
+      "title": "Error Path Mutators",
+      "file": "tasks/024-error-path-mutators.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "023"
+      ],
+      "allowed_files": [
+        "src/mutators/error_path.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/error_path_test.zig",
+        "test/fixtures/mutators/error_path/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/optional.zig",
+        "src/mutators/allocator.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "025",
+      "title": "Autonomous Backlog Audit",
+      "file": "tasks/025-autonomous-backlog-audit.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "024"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/026-*.md",
+        "tasks/027-*.md",
+        "tasks/028-*.md",
+        "tasks/029-*.md",
+        "tasks/030-*.md",
+        "tasks/031-*.md",
+        "tasks/032-*.md",
+        "tasks/033-*.md",
+        "tasks/034-*.md",
+        "tasks/035-*.md",
+        "tasks/036-*.md",
+        "tasks/037-*.md",
+        "tasks/038-*.md",
+        "tasks/039-*.md",
+        "tasks/040-*.md",
+        "tasks/041-*.md",
+        "tasks/042-*.md",
+        "tasks/043-*.md",
+        "tasks/044-*.md",
+        "tasks/045-*.md",
+        "tasks/046-*.md",
+        "tasks/047-*.md",
+        "tasks/048-*.md",
+        "tasks/049-*.md",
+        "tasks/050-*.md",
+        "tasks/051-*.md",
+        "tasks/052-*.md",
+        "tasks/053-*.md",
+        "tasks/054-*.md",
+        "tasks/055-*.md",
+        "tasks/056-*.md",
+        "tasks/057-*.md",
+        "tasks/058-*.md",
+        "tasks/059-*.md",
+        "tasks/060-*.md"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**",
+        "schemas/**",
+        "scripts/**",
+        "docs/**"
+      ]
+    },
+    {
+      "id": "026",
+      "title": "Errdefer Mutator",
+      "file": "tasks/026-errdefer-mutator.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "025"
+      ],
+      "allowed_files": [
+        "src/mutators/error_path.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/errdefer_test.zig",
+        "test/fixtures/mutators/errdefer/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/optional.zig",
+        "src/mutators/allocator.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "027",
+      "title": "Integer Literal Boundary Mutator",
+      "file": "tasks/027-integer-literal-boundary-mutator.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "026"
+      ],
+      "allowed_files": [
+        "src/mutators/integer_boundary.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/integer_boundary_test.zig",
+        "test/fixtures/mutators/integer_boundary/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/loop_boundary.zig",
+        "src/mutators/allocator.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "028",
+      "title": "Loop Boundary Mutator",
+      "file": "tasks/028-loop-boundary-mutator.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "027"
+      ],
+      "allowed_files": [
+        "src/mutators/loop_boundary.zig",
+        "src/ast_backend.zig",
+        "src/mutant.zig",
+        "test/mutators/loop_boundary_test.zig",
+        "test/fixtures/mutators/loop_boundary/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/integer_boundary.zig",
+        "src/mutators/allocator.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "029",
+      "title": "Phase 2 Semantic Dogfood",
+      "file": "tasks/029-phase2-semantic-dogfood.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "028"
+      ],
+      "allowed_files": [
+        "zentinel.dogfood.toml",
+        "build.zig",
+        "scripts/**",
+        "test/dogfood_semantic_test.zig",
+        "test/fixtures/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/mutators/allocator.zig"
+      ]
+    },
+    {
+      "id": "030",
+      "title": "Doctest Conventions",
+      "file": "tasks/030-doctest-conventions.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "029"
+      ],
+      "allowed_files": [
+        "docs/DOCTEST_*.md",
+        "docs/CLI_SPEC.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/MUTATOR_SPEC.md",
+        "test/fixtures/doctest/**/*.md",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "schemas/**",
+        "scripts/**",
+        "test/fixtures/**/*.zig"
+      ]
+    },
+    {
+      "id": "031",
+      "title": "Doctest Parser",
+      "file": "tasks/031-doctest-parser.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "030"
+      ],
+      "allowed_files": [
+        "src/doctest/parser.zig",
+        "src/doctest/block.zig",
+        "src/error_codes.zig",
+        "docs/ERROR_CODES.md",
+        "test/doctest_parser_test.zig",
+        "test/fixtures/doctest/parser/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/doctest/extractor.zig",
+        "src/doctest/runner.zig",
+        "src/doctest/snapshot.zig",
+        "src/runner.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "032",
+      "title": "Doctest Extraction",
+      "file": "tasks/032-doctest-extraction.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "031"
+      ],
+      "allowed_files": [
+        "src/doctest/extractor.zig",
+        "src/doctest/case.zig",
+        "src/doctest/parser.zig",
+        "src/doctest/block.zig",
+        "test/doctest_extraction_test.zig",
+        "test/fixtures/doctest/extraction/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/doctest/runner.zig",
+        "src/doctest/snapshot.zig",
+        "src/cli.zig",
+        "src/ai/**"
+      ]
+    },
+    {
+      "id": "033",
+      "title": "Doctest Runner",
+      "file": "tasks/033-doctest-runner.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "032"
+      ],
+      "allowed_files": [
+        "src/doctest/runner.zig",
+        "src/doctest/workspace.zig",
+        "src/doctest/case.zig",
+        "src/runner.zig",
+        "src/config.zig",
+        "src/cli.zig",
+        "test/doctest_runner_test.zig",
+        "test/fixtures/doctest/runner/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/doctest/snapshot.zig",
+        "src/mutators/**",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "034",
+      "title": "Doctest Snapshots",
+      "file": "tasks/034-doctest-snapshots.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "033"
+      ],
+      "allowed_files": [
+        "src/doctest/snapshot.zig",
+        "src/doctest/normalizer.zig",
+        "src/doctest/matcher.zig",
+        "src/doctest/runner.zig",
+        "src/error_codes.zig",
+        "docs/ERROR_CODES.md",
+        "test/doctest_snapshot_test.zig",
+        "test/fixtures/doctest/snapshots/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/cli.zig",
+        "src/mutators/**",
+        "src/cache.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "035",
+      "title": "CLI Doctests",
+      "file": "tasks/035-cli-doctests.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "034"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/main.zig",
+        "src/doctest_command.zig",
+        "src/doctest/**",
+        "src/report.zig",
+        "schemas/doctest.report.v1.schema.json",
+        "docs/CLI_SPEC.md",
+        "test/doctest_cli_command_test.zig",
+        "test/fixtures/doctest/cli/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/cache.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "036",
+      "title": "Config Doctests",
+      "file": "tasks/036-config-doctests.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "035"
+      ],
+      "allowed_files": [
+        "docs/CONFIG_SPEC.md",
+        "src/doctest/**",
+        "src/config.zig",
+        "test/doctest_config_test.zig",
+        "test/fixtures/doctest/config/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "037",
+      "title": "Mutator Spec Doctests",
+      "file": "tasks/037-mutator-spec-doctests.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "036"
+      ],
+      "allowed_files": [
+        "docs/MUTATOR_SPEC.md",
+        "src/doctest/**",
+        "src/ast_backend.zig",
+        "src/mutators/**",
+        "test/doctest_mutator_spec_test.zig",
+        "test/fixtures/doctest/mutator_spec/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/cache.zig",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "038",
+      "title": "Doctest Cache",
+      "file": "tasks/038-doctest-cache.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "037"
+      ],
+      "allowed_files": [
+        "src/cache.zig",
+        "src/doctest/**",
+        "test/doctest_cache_test.zig",
+        "test/snapshots/doctest_cache_metadata.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/**"
+      ]
+    },
+    {
+      "id": "039",
+      "title": "Doctest Mutation Experiments",
+      "file": "tasks/039-doctest-mutation-experiments.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "038"
+      ],
+      "allowed_files": [
+        "src/doctest/**",
+        "src/mutant.zig",
+        "src/mutant_runner.zig",
+        "src/report.zig",
+        "src/cli.zig",
+        "test/doctest_mutation_experiment_test.zig",
+        "test/fixtures/doctest/mutation/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/ai/**",
+        "docs/ROADMAP.md",
+        "docs/DOCTEST_ROADMAP.md"
+      ]
+    },
+    {
+      "id": "040",
+      "title": "Agent Pipeline Foundation",
+      "file": "tasks/040-agent-pipeline-foundation.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "039"
+      ],
+      "allowed_files": [
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/AGENT_GUIDE.md",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**",
+        "build.zig",
+        "build.zig.zon",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "041",
+      "title": "Handoff Artifacts",
+      "file": "tasks/041-handoff-artifacts.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "040"
+      ],
+      "allowed_files": [
+        "docs/HANDOFF_CONTRACTS.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/AGENT_GUIDE.md",
+        "schemas/pipeline.handoff.v1.schema.json",
+        "test/fixtures/pipeline/handoff/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "042",
+      "title": "Context Packet System",
+      "file": "tasks/042-context-packet-system.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "041"
+      ],
+      "allowed_files": [
+        "docs/AGENT_CONTEXT_PACKETS.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/HANDOFF_CONTRACTS.md",
+        "docs/AGENT_GUIDE.md",
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "test/fixtures/pipeline/context_packet/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "043",
+      "title": "Mutation Gate",
+      "file": "tasks/043-mutation-gate.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "042"
+      ],
+      "allowed_files": [
+        "docs/MUTATION_GATE_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/DOGFOODING.md",
+        "test/fixtures/pipeline/mutation_gate/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "044",
+      "title": "Property Test Policy",
+      "file": "tasks/044-property-test-policy.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "043"
+      ],
+      "allowed_files": [
+        "docs/PROPERTY_TEST_POLICY.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/TDD_POLICY.md",
+        "test/fixtures/pipeline/property_tests/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "045",
+      "title": "Doctest Policy",
+      "file": "tasks/045-doctest-policy.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "044"
+      ],
+      "allowed_files": [
+        "docs/DOCTEST_POLICY.md",
+        "docs/DOCTEST_SPEC.md",
+        "docs/DOCTEST_BLOCK_FORMATS.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/AGENT_GUIDE.md",
+        "test/fixtures/pipeline/doctest_policy/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "046",
+      "title": "Verification Pipeline",
+      "file": "tasks/046-verification-pipeline.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "045"
+      ],
+      "allowed_files": [
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/CI_STRATEGY.md",
+        "docs/AGENT_GUIDE.md",
+        "test/fixtures/pipeline/verification/**",
+        "schemas/pipeline.verification.v1.schema.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "047",
+      "title": "Sequential Task Locking",
+      "file": "tasks/047-sequential-task-locking.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "046"
+      ],
+      "allowed_files": [
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/AGENT_GUIDE.md",
+        "test/fixtures/pipeline/sequential_locking/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "048",
+      "title": "Failure Recovery",
+      "file": "tasks/048-failure-recovery.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "047"
+      ],
+      "allowed_files": [
+        "docs/FAILURE_RECOVERY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/MUTATION_GATE_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "test/fixtures/pipeline/failure_recovery/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "049",
+      "title": "Pipeline Escalation",
+      "file": "tasks/049-pipeline-escalation.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "048"
+      ],
+      "allowed_files": [
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/ROADMAP.md",
+        "test/fixtures/pipeline/escalation/**",
+        "schemas/pipeline.escalation.v1.schema.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "050",
+      "title": "Parallel Worker Pool",
+      "file": "tasks/050-parallel-worker-pool.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "049"
+      ],
+      "allowed_files": [
+        "src/worker_pool.zig",
+        "src/mutant_runner.zig",
+        "src/report.zig",
+        "src/config.zig",
+        "test/worker_pool_test.zig",
+        "test/fixtures/worker_pool/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/**"
+      ]
+    },
+    {
+      "id": "051",
+      "title": "Fail Fast and Impact Analysis",
+      "file": "tasks/051-fail-fast-impact-analysis.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "050"
+      ],
+      "allowed_files": [
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "src/runner.zig",
+        "src/report.zig",
+        "test/fail_fast_impact_test.zig",
+        "test/fixtures/impact_analysis/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/mutators/**"
+      ]
+    },
+    {
+      "id": "052",
+      "title": "Performance Benchmarks",
+      "file": "tasks/052-performance-benchmarks.md",
+      "phase": 3,
+      "state": "queued",
+      "dependencies": [
+        "051"
+      ],
+      "allowed_files": [
+        "src/cache.zig",
+        "src/worker_pool.zig",
+        "src/report.zig",
+        "schemas/report.v1.schema.json",
+        "scripts/**",
+        "test/performance_benchmark_test.zig",
+        "test/fixtures/performance/**",
+        "docs/PERFORMANCE_STRATEGY.md",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "053",
+      "title": "AI Provider and Context",
+      "file": "tasks/053-ai-provider-and-context.md",
+      "phase": 4,
+      "state": "queued",
+      "dependencies": [
+        "052"
+      ],
+      "allowed_files": [
+        "src/ai/provider.zig",
+        "src/ai/context.zig",
+        "src/ai/redaction.zig",
+        "src/config.zig",
+        "schemas/ai.context.v1.schema.json",
+        "test/ai_context_test.zig",
+        "test/fixtures/ai/context/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/runner.zig"
+      ]
+    },
+    {
+      "id": "054",
+      "title": "AI Advisory Commands",
+      "file": "tasks/054-ai-advisory-commands.md",
+      "phase": 4,
+      "state": "queued",
+      "dependencies": [
+        "053"
+      ],
+      "allowed_files": [
+        "src/ai/**",
+        "src/cli.zig",
+        "src/main.zig",
+        "src/report.zig",
+        "schemas/ai.prompt.v1.schema.json",
+        "schemas/ai.explain.response.v1.schema.json",
+        "schemas/ai.suggest.response.v1.schema.json",
+        "schemas/ai.review_tests.response.v1.schema.json",
+        "test/ai_commands_test.zig",
+        "test/fixtures/ai/commands/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "055",
+      "title": "AI Doctest Assistance",
+      "file": "tasks/055-ai-doctest-assistance.md",
+      "phase": 4,
+      "state": "queued",
+      "dependencies": [
+        "054"
+      ],
+      "allowed_files": [
+        "src/ai/**",
+        "src/cli.zig",
+        "src/doctest/**",
+        "src/main.zig",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/ai.doctest.suggest.response.v1.schema.json",
+        "schemas/ai.doctest.snapshot_review.response.v1.schema.json",
+        "test/ai_doctest_cli_test.zig",
+        "test/ai_doctest_test.zig",
+        "test/fixtures/ai/doctest/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "056",
+      "title": "ZIR Backend Experiment",
+      "file": "tasks/056-zir-backend-experiment.md",
+      "phase": 5,
+      "state": "queued",
+      "dependencies": [
+        "055"
+      ],
+      "allowed_files": [
+        "src/zir_backend.zig",
+        "src/backends/**",
+        "src/mutant.zig",
+        "src/config.zig",
+        "docs/ZIR_BACKEND.md",
+        "test/zir_backend_test.zig",
+        "test/fixtures/zir_backend/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/air_backend.zig",
+        "src/ai/**",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "057",
+      "title": "AIR Backend Experiment",
+      "file": "tasks/057-air-backend-experiment.md",
+      "phase": 5,
+      "state": "queued",
+      "dependencies": [
+        "056"
+      ],
+      "allowed_files": [
+        "src/air_backend.zig",
+        "src/backends/**",
+        "src/mutant.zig",
+        "src/config.zig",
+        "docs/AIR_BACKEND.md",
+        "test/air_backend_test.zig",
+        "test/fixtures/air_backend/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/zir_backend.zig",
+        "src/ai/**",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "058",
+      "title": "Safety Mode Matrix",
+      "file": "tasks/058-safety-mode-matrix.md",
+      "phase": 6,
+      "state": "queued",
+      "dependencies": [
+        "057"
+      ],
+      "allowed_files": [
+        "src/safety_modes.zig",
+        "src/runner.zig",
+        "src/report.zig",
+        "src/config.zig",
+        "docs/ZIG_SEMANTICS.md",
+        "test/safety_mode_matrix_test.zig",
+        "test/fixtures/safety_modes/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "059",
+      "title": "Production Dogfood CI",
+      "file": "tasks/059-production-dogfood-ci.md",
+      "phase": 7,
+      "state": "queued",
+      "dependencies": [
+        "058"
+      ],
+      "allowed_files": [
+        "zentinel.dogfood.toml",
+        "build.zig",
+        "scripts/**",
+        "docs/CI_STRATEGY.md",
+        "docs/DOGFOODING.md",
+        "test/dogfood_production_test.zig",
+        "test/fixtures/dogfood/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig"
+      ]
+    },
+    {
+      "id": "061",
+      "order": "059.1",
+      "title": "Doctest Mutate Stabilization",
+      "file": "tasks/061-doctest-mutate-stabilization.md",
+      "phase": 2,
+      "state": "queued",
+      "dependencies": [
+        "059"
+      ],
+      "allowed_files": [
+        "src/doctest/**",
+        "src/mutant_runner.zig",
+        "src/report.zig",
+        "docs/DOCTEST_MUTATION_STRATEGY.md",
+        "schemas/doctest.report.v1.schema.json",
+        "test/doctest_mutate_stabilization_test.zig",
+        "test/fixtures/doctest/mutation_stabilization/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "src/ai/**",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "062",
+      "order": "059.2",
+      "title": "Property Generator Infrastructure",
+      "file": "tasks/062-property-generator-infrastructure.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "061"
+      ],
+      "allowed_files": [
+        "src/property/**",
+        "test/support/property.zig",
+        "test/property_generator_test.zig",
+        "test/fixtures/pipeline/property_tests/**",
+        "docs/PROPERTY_TEST_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "063",
+      "order": "059.3",
+      "title": "Pipeline Metadata Validator",
+      "file": "tasks/063-pipeline-metadata-validator.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "062"
+      ],
+      "allowed_files": [
+        "scripts/validate_task_system.py",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/HANDOFF_CONTRACTS.md",
+        "docs/AGENT_CONTEXT_PACKETS.md",
+        "schemas/pipeline.handoff.v1.schema.json",
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "schemas/pipeline.verification.v1.schema.json",
+        "schemas/pipeline.escalation.v1.schema.json",
+        "test/fixtures/pipeline/metadata_validator/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "064",
+      "order": "059.4",
+      "title": "Pipeline Artifact CI Integration",
+      "file": "tasks/064-pipeline-artifact-ci-integration.md",
+      "phase": 7,
+      "state": "queued",
+      "dependencies": [
+        "063"
+      ],
+      "allowed_files": [
+        "scripts/**",
+        "docs/CI_STRATEGY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "test/fixtures/pipeline/ci_artifacts/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "065",
+      "order": "059.5",
+      "title": "Failure Recovery Validator",
+      "file": "tasks/065-failure-recovery-validator.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "064"
+      ],
+      "allowed_files": [
+        "scripts/validate_task_system.py",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "test/fixtures/pipeline/failure_recovery_validator/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
+      "id": "066",
+      "order": "059.6",
+      "title": "Public Docs Doctest Coverage",
+      "file": "tasks/066-public-docs-doctest-coverage.md",
+      "phase": 1,
+      "state": "queued",
+      "dependencies": [
+        "065"
+      ],
+      "allowed_files": [
+        "docs/CLI_SPEC.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/AI_PROMPT_CONTRACTS.md",
+        "docs/DOCTEST_POLICY.md",
+        "docs/DOCTEST_BLOCK_FORMATS.md",
+        "src/doctest/**",
+        "test/public_docs_doctest_test.zig",
+        "test/fixtures/doctest/public_docs/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "060",
+      "title": "Release Acceptance Verification",
+      "file": "tasks/060-release-acceptance-verification.md",
+      "phase": 7,
+      "state": "queued",
+      "dependencies": [
+        "066"
+      ],
+      "allowed_files": [
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md",
+        "docs/ROADMAP.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "scripts/**",
+        "test/release_acceptance_test.zig",
+        "test/fixtures/release/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    }
+  ]
+}
