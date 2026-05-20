@@ -101,6 +101,10 @@ For `run.status = internal_error`, `mutants` may be empty or may contain a deter
 
 Report v1 does not support skipping the baseline. `baseline.status = "not_run"` is allowed only for `run.status = internal_error` before baseline command evidence exists; it is not a cache-backed baseline skip. Any future cache-backed baseline skip requires a new documented proof contract before a writer may emit it.
 
+## Report Validation
+
+JSON Schema validation checks report shape, required fields, closed objects, enums, and supported conditional state shapes. It is not the only report oracle: deterministic semantic validation must also verify derived invariants, including that `summary.total` equals the number of `mutants`, per-status summary counts match the `mutants` entries, report-local `display_id` values follow canonical ordering, baseline-failed reports keep `mutants` empty with zero counts, and repeated-run normalization ignores only documented observation metadata.
+
 ## Mutant Entry
 
 `id` is the durable mutant reference. `display_id` is a report-local compact index assigned after canonical sorting; it is valid as a short selector only with the report that produced it.

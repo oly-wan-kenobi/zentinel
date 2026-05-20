@@ -46,6 +46,7 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 - Add failing CLI tests for `zentinel check` success, invalid config, unsupported Zig version, invalid include/exclude paths, invalid test command syntax with `ZNTL_CONFIG_INVALID_COMMAND`, and invalid report output directory.
 - Add failing CLI tests that `--config <path>` and `--root <path>` parse before command dispatch for `zentinel check`, and that unowned global options still fail with `ZNTL_CLI_INVALID_OPTION`.
 - Add a failing test that `zentinel check` does not execute configured test commands.
+- Record durable verification evidence for latest-stable selection: official release source consulted, official latest stable version, local `zig version`, and match or mismatch result.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
@@ -62,6 +63,7 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 - Unsupported versions fail before mutation work begins.
 - Diagnostics include detected version and required policy.
 - The compiled-in supported Zig version is stored in one version-policy module after confirming the official latest stable Zig release source and checking that the implementation environment's `zig version` matches it.
+- Task status or release metadata records durable verification evidence for official release source consulted, official latest stable version, local `zig version`, and match or mismatch result.
 - A local `zig version` result alone is not enough to choose the supported version.
 - `docs/ZIG_VERSION_POLICY.md` remains version-agnostic and does not hard-code a stale latest-stable number in examples.
 
