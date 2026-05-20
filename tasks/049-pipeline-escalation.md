@@ -78,5 +78,4 @@ Escalation rules determine when zentinel's own development tasks require mutatio
 
 ## Follow-up tasks
 
-- `tasks/063-pipeline-metadata-validator.md`
 - `tasks/064-pipeline-artifact-ci-integration.md`

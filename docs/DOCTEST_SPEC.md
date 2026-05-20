@@ -30,8 +30,7 @@ zentinel doctest explain-survivor ds_01hr7p6h0v2fj3drdzt9k2a0xe
 | CLI example | `bash cli` plus `text output` or `json expected` | zentinel command example must match output. |
 | Config example | `toml config` | Config must parse and validate. |
 | Config failure example | `toml config_fail` plus optional expected output | Config must fail validation deterministically. |
-| Report JSON example | `json expected` | JSON must satisfy schema or match produced output. |
-| Text output example | `text output` | Output snapshot for preceding executable block. |
+| Expectation block | `text output`, `json expected`, or `diagnostic expected` | Secondary matching block attached to the preceding producer case. |
 | Mutation example | `zig before` plus `zig after` | Future mutation-aware documentation validation. |
 
 ## General Execution Semantics
@@ -73,10 +72,10 @@ zig_compile_fail
 cli
 config
 config_fail
-json_expected
-text_output
 mutation
 ```
+
+Expectation-only blocks do not produce standalone `case.kind` values. Blocks such as `text output`, `json expected`, `diagnostic expected`, and `zig after` are stored as expectation, snapshot, diagnostic, or secondary block evidence on the producer case.
 
 `docs_target` is an AI-only kind used by `zentinel.ai.doctest.context.v1` for suggestion flows. It must never appear as a `zentinel.doctest.report.v1` case kind.
 

@@ -106,6 +106,7 @@ SCHEMA_REGISTRY_PAIRS = [
     ("zentinel.ai.doctest.suggest.response.v1", "schemas/ai.doctest.suggest.response.v1.schema.json"),
     ("zentinel.ai.doctest.snapshot_review.response.v1", "schemas/ai.doctest.snapshot_review.response.v1.schema.json"),
     ("zentinel.pipeline.handoff.v1", "schemas/pipeline.handoff.v1.schema.json"),
+    ("zentinel.pipeline.active_lock.v1", "schemas/pipeline.active_lock.v1.schema.json"),
     ("zentinel.pipeline.context.v1", "schemas/pipeline.context.v1.schema.json"),
     ("zentinel.pipeline.stale_context.v1", "schemas/pipeline.stale_context.v1.schema.json"),
     ("zentinel.pipeline.verification.v1", "schemas/pipeline.verification.v1.schema.json"),
@@ -299,6 +300,7 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
 
 def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
     task_files = {task.get("file") for task in tasks if isinstance(task.get("file"), str)}
+    task_by_file = {task.get("file"): task for task in tasks if isinstance(task.get("file"), str)}
 
     for task in tasks:
         task_id = task.get("id")
@@ -340,8 +342,13 @@ def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) ->
             normalized = ref if ref.startswith("tasks/") else f"tasks/{ref}"
             require(normalized in task_files, errors, f"{file_value} follow-up task reference does not exist in queue.json: {ref}")
             if normalized in task_files:
-                ref_id = normalized.removeprefix("tasks/")[:3]
-                require(ref_id > task_id, errors, f"{file_value} follow-up task {ref} must have a higher task id")
+                ref_task = task_by_file.get(normalized)
+                if isinstance(ref_task, dict):
+                    require(
+                        order_key(task_order(ref_task)) > order_key(task_order(task)),
+                        errors,
+                        f"{file_value} follow-up task {ref} must have a later execution order",
+                    )
 
 
 def section_bullets(text: str, heading: str) -> list[str]:
@@ -1016,6 +1023,120 @@ def validate_agent_readiness_contracts(tasks: list[dict[str, object]], errors: l
         require("063" in task042.get("dependencies", []), errors, "task 042 must depend on task 063 so post-041 artifacts are validator-backed")
 
 
+def validate_preimplementation_blocker_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+
+    task000 = task_by_id.get("000")
+    require(task000 is not None, errors, "task 000 must exist for bootstrap contract validation")
+    if isinstance(task000, dict):
+        allowed = task000.get("allowed_files")
+        require(
+            isinstance(allowed, list) and "test/bootstrap_discovery_test.zig" in allowed,
+            errors,
+            "task 000 must allow a bootstrap discovery test so future top-level tests are included by zig build test",
+        )
+
+    required_phrases = {
+        "tasks/000-project-bootstrap.md": [
+            "top-level `test/*_test.zig`",
+            "`test/bootstrap_discovery_test.zig`",
+            "without per-task `build.zig` edits",
+        ],
+        "tasks/003-test-harness.md": [
+            "extends the bootstrap top-level discovery",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "locks/",
+            "locks/active-task-lock.json",
+            "`schema_version`",
+            "`zentinel.pipeline.active_lock.v1`",
+        ],
+        "docs/SCHEMA_REGISTRY.md": [
+            "zentinel.pipeline.active_lock.v1",
+            "schemas/pipeline.active_lock.v1.schema.json",
+        ],
+        "tests/coverage-gaps/schemas.v1.json": [
+            "zentinel.pipeline.active_lock.v1",
+            "schemas/pipeline.active_lock.v1.schema.json",
+        ],
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md": [
+            "locks/active-task-lock.json",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "active lock artifact",
+            "locks/active-task-lock.json",
+        ],
+        "tasks/063-pipeline-metadata-validator.md": [
+            "active lock artifact",
+            "locks/active-task-lock.json",
+        ],
+        ".agents/README.md": [
+            "locks/",
+        ],
+        "docs/AGENT_ROLE_SPEC.md": [
+            "locks/active-task-lock.json",
+        ],
+        "docs/VERIFICATION_PIPELINE.md": [
+            "active lock",
+        ],
+        "docs/DOCTEST_SPEC.md": [
+            "Expectation-only blocks do not produce standalone `case.kind` values",
+        ],
+        "docs/DOCTEST_AI_INTEGRATION.md": [
+            "Expectation-only blocks do not appear as doctest `kind` values",
+        ],
+        "README.md": [
+            "AGENTS.md",
+            "docs/AGENT_GUIDE.md",
+            "tasks/STATUS.md",
+        ],
+        "tasks/STATUS.md": [
+            "tasks `061` through `070`",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing preimplementation contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain preimplementation contract phrase '{phrase}'")
+
+    forbidden_phrases = {
+        "docs/DOCTEST_SPEC.md": [
+            "json_expected",
+            "text_output",
+        ],
+        "docs/DOCTEST_AI_INTEGRATION.md": [
+            "json_expected",
+            "text_output",
+        ],
+        "tasks/STATUS.md": [
+            "through task 060",
+            "tasks 061-066",
+            "passed with 61 tasks",
+            "passed with 67 tasks",
+            "passed with 68 tasks",
+            "passed with 69 tasks",
+            "passed with 70 tasks",
+        ],
+        "tasks/status.json": [
+            "task count is 70",
+            "through release acceptance task 060",
+            "concrete queued tasks 061-066",
+        ],
+    }
+    for rel, phrases in forbidden_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing preimplementation stale-contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale or ambiguous phrase '{phrase}'")
+
+
 def validate_task_lifecycle_contracts(errors: list[str]) -> None:
     path = ROOT / "docs" / "TASK_LIFECYCLE.md"
     require(path.is_file(), errors, "docs/TASK_LIFECYCLE.md is missing")
@@ -1242,6 +1363,7 @@ def main() -> int:
     validate_ai_contracts(errors)
     validate_runtime_safety_contracts(errors)
     validate_agent_readiness_contracts(tasks, errors)
+    validate_preimplementation_blocker_contracts(tasks, errors)
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_adr_system(errors)

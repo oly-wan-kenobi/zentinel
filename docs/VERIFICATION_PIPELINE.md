@@ -32,7 +32,7 @@ Not every task requires every stage. Required stages are determined by task type
 | Mutation checks | Baseline evidence, mutation report, survivor triage. | Invalid mutants, baseline failure, untriaged survivors. |
 | Dogfood checks | Scope, config, report path, runtime budget. | Internal zentinel error, nondeterministic report, protected survivor increase. |
 | Performance checks | Benchmark or smoke result with normalized durations. | Budget regression for performance-sensitive tasks. |
-| Final artifact audit | Required handoff paths and status update. | Missing handoff, stale context, inconsistent state. |
+| Final artifact audit | Required handoff paths, active lock evidence, and status update. | Missing handoff, missing active lock, stale context, inconsistent state. |
 
 The task-system validator also checks governance bootstrap files, ADR index consistency, and docs-to-tests gap registry coverage rows.
 
@@ -123,6 +123,7 @@ The Verifier may recommend `complete` only when:
 - all required stages passed
 - all skipped stages have policy-backed reasons
 - every prior role handoff is present, or before task `041`, equivalent pre-artifact handoff fields are present in task status or the completion summary
+- after task `041`, the active lock artifact matches the task-control files and context packet
 - no stale context artifacts remain unresolved
 - queue/status files are ready for the next task
 

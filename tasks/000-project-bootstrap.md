@@ -1,6 +1,6 @@
 # 000 Project Bootstrap
 
-Sequential guard: start this task only after task 069 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 070 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -11,6 +11,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - Add build files and source/test directories.
 - Add a minimal root module that can compile.
 - Add a smoke test proving `zig build test` runs.
+- Establish deterministic top-level `test/*_test.zig` discovery so task 001 and task 002 tests are included by `zig build test` without per-task `build.zig` edits.
 - Preserve all existing documentation.
 
 ## Files allowed to modify
@@ -20,6 +21,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - `src/root.zig`
 - `src/main.zig`
 - `test/bootstrap_test.zig`
+- `test/bootstrap_discovery_test.zig`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 
@@ -30,12 +32,14 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 ## Required tests
 
 - First add a failing smoke test that imports the root module and asserts a stable project name or version constant.
+- Add a failing `test/bootstrap_discovery_test.zig` that proves a second top-level `test/*_test.zig` file is included by `zig build test`.
 - Run the targeted test and record the failure before implementation.
 - Run `zig build test` after implementation.
 
 ## Acceptance criteria
 
 - `zig build test` passes.
+- `zig build test` runs every top-level `test/*_test.zig` file without requiring future tasks 001 and 002 to edit `build.zig`.
 - The root module exposes deterministic compile-time constants for project name and initial version.
 - No mutation behavior exists.
 - No CLI commands beyond what is necessary for compilation exist.
@@ -51,10 +55,11 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 
 ## Suggested implementation approach
 
-1. Add the smallest `build.zig` that defines a module, executable target, and test step.
+1. Add the smallest `build.zig` that defines a module, executable target, and a deterministic top-level test discovery step for `test/*_test.zig`.
 2. Add a root module with constants such as `project_name = "zentinel"`.
-3. Add a test that imports the module through the build graph.
-4. Keep naming aligned with `docs/VISION.md`.
+3. Add `test/bootstrap_test.zig` that imports the module through the build graph.
+4. Add `test/bootstrap_discovery_test.zig` so the bootstrap task proves future top-level tests are not omitted.
+5. Keep naming aligned with `docs/VISION.md`.
 
 ## Dogfooding implications
 

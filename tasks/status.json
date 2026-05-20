@@ -4,13 +4,14 @@
   "next_task": "000",
   "completed_tasks": [
     "068",
-    "069"
+    "069",
+    "070"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 069 agent-readiness contract closure: run-option ownership is explicit and allowed-file backed; config worker-count and validation coverage is owned; mutation-agent compiler_crash wording is aligned; baseline timeout report semantics are defined; pipeline metadata validation now executes immediately after task 041; doctest snapshot modes are synchronized; task count is 70. Python validator compilation, JSON syntax checks, Markdown JSON fence checks, stale-contract scan, and git diff --check passed."
+    "notes": "Validator passed after completing task 070 agent-blocker contract closure: follow-up references are checked by execution order, task 000 owns top-level test discovery, post-041 active-lock artifacts and schema ownership are defined, doctest expectation blocks are secondary evidence, stale status prose is removed, and README orientation exists. Python validator compilation, JSON syntax checks, and git diff --check passed."
   },
   "history": [
     {
@@ -31,7 +32,7 @@
     {
       "event": "consistency_findings_resolved",
       "task": null,
-      "notes": "Resolved stale follow-up references, registered pipeline schema contracts, synchronized task Markdown scopes with queue.json, and added concrete tasks through release acceptance task 060."
+      "notes": "Resolved stale follow-up references, registered pipeline schema contracts, synchronized task Markdown scopes with queue.json, and added concrete tasks through release acceptance; later insertions extended the preimplementation and follow-up task set."
     },
     {
       "event": "governance_docs_added",
@@ -66,7 +67,7 @@
     {
       "event": "agent_contract_findings_resolved",
       "task": null,
-      "notes": "Resolved another deep-analysis pass: pipeline artifacts now have a task-scoped exception, JSON handoffs are canonical, schema ownership is validator-checked, doctest and AI examples are schema-valid, report command evidence is stricter, baseline skipping is reserved, cache diagnostics are reserved under diagnostics.cache, CLI option ownership is explicit, and prose-only follow-ups became concrete queued tasks 061-066."
+      "notes": "Resolved another deep-analysis pass: pipeline artifacts now have a task-scoped exception, JSON handoffs are canonical, schema ownership is validator-checked, doctest and AI examples are schema-valid, report command evidence is stricter, baseline skipping is reserved, cache diagnostics are reserved under diagnostics.cache, CLI option ownership is explicit, and prose-only follow-ups became concrete queued task metadata later extended through task 067."
     },
     {
       "event": "execution_order_and_evidence_contracts_refined",
@@ -117,6 +118,16 @@
       "event": "agent_readiness_contract_closure_completed",
       "task": "069",
       "notes": "Completed task 069 before project bootstrap. Added validator guardrails and aligned CLI run-option ownership, config run.jobs/validation coverage, mutation-agent compiler_crash wording, baseline timeout semantics, pipeline metadata validator ordering, and doctest snapshot match modes."
+    },
+    {
+      "event": "agent_blocker_contract_closure_started",
+      "task": "070",
+      "notes": "Inserted task 070 at execution order 000.0.1 before project bootstrap to resolve build-test discovery, post-041 active-lock artifact, follow-up execution-order, doctest expectation-block, status-prose, and README orientation findings."
+    },
+    {
+      "event": "agent_blocker_contract_closure_completed",
+      "task": "070",
+      "notes": "Completed task 070 before project bootstrap. Added validator guardrails and aligned bootstrap test discovery ownership, active-lock artifact contracts and schema registry ownership, follow-up execution-order validation, doctest expectation-block semantics, status history wording, and README entry-point guidance."
     }
   ]
 }

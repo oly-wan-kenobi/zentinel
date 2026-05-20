@@ -11,7 +11,7 @@ Create deterministic test helpers for snapshots, temp directories, command-outpu
 - Add reusable testing utilities.
 - Normalize absolute paths and durations in snapshots.
 - Support CLI tests without relying on global process state.
-- Establish build integration that discovers future `test/**/*_test.zig` files automatically.
+- Extend the bootstrap top-level discovery so future nested `test/**/*_test.zig` files are discovered automatically.
 - Keep helpers small and documented through tests.
 
 ## Files allowed to modify
@@ -43,7 +43,7 @@ Create deterministic test helpers for snapshots, temp directories, command-outpu
 - Test helpers do not require network access.
 - Temporary directories are cleaned or clearly scoped to test output.
 - Existing CLI/config tests still pass.
-- Future `test/**/*_test.zig` files are picked up by `zig build test` without per-task `build.zig` edits.
+- Future nested `test/**/*_test.zig` files are picked up by `zig build test` without per-task `build.zig` edits.
 
 ## Non-goals
 
@@ -55,13 +55,14 @@ Create deterministic test helpers for snapshots, temp directories, command-outpu
 
 1. Build pure normalization helpers first.
 2. Add snapshot assertion helpers second.
-3. Add recursive test discovery in `build.zig` for files ending in `_test.zig` under `test/`.
+3. Extend the bootstrap top-level discovery to recursive test discovery in `build.zig` for files ending in `_test.zig` under `test/`.
 4. Exclude fixture source files that are not test entrypoints.
 5. Keep helper API narrow so future agents can reason about it.
 
 ## Dogfooding implications
 
 The harness makes future dogfood reports stable by normalizing volatile output.
+It also extends the bootstrap top-level discovery to nested test files once reusable test helpers exist.
 
 ## Follow-up tasks
 

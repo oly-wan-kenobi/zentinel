@@ -11,6 +11,7 @@ Define and validate the persistent handoff artifact structure used between pipel
 - Refine `docs/HANDOFF_CONTRACTS.md` and `docs/PIPELINE_ARTIFACTS.md`.
 - Define JSON artifact fields for each pipeline role and optional Markdown companion summaries.
 - Specify artifact naming, retention, traceability, and reproducibility rules.
+- Define the active lock artifact path `locks/active-task-lock.json` and its required fields.
 - Add schema documentation only; do not implement a runtime writer.
 
 ## Files allowed to modify
@@ -20,6 +21,7 @@ Define and validate the persistent handoff artifact structure used between pipel
 - `docs/TASK_LIFECYCLE.md`
 - `docs/AGENT_GUIDE.md`
 - `schemas/pipeline.handoff.v1.schema.json`
+- `schemas/pipeline.active_lock.v1.schema.json`
 - `test/fixtures/pipeline/handoff/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -53,6 +55,7 @@ No mutation run is required unless schema validation code is changed. If code is
 ## Acceptance criteria
 
 - Each pipeline role has a required handoff artifact.
+- The active lock artifact is documented at `locks/active-task-lock.json` with deterministic task, queue, context packet, and working-tree evidence.
 - Artifact fields include files changed, tests added, commands executed, risks, assumptions, mutation results, and next-step instructions.
 - Machine-readable JSON handoffs are documented as the canonical artifact with required and optional fields.
 - Artifact names are deterministic and task-scoped.

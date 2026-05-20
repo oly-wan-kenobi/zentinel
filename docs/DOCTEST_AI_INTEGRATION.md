@@ -121,7 +121,7 @@ Required top-level fields:
 | `line_start`, `line_end` | Display-only line evidence, both one-based integers. |
 | `source_ref` | Anchor-line source ref, never a secondary expectation block. |
 | `block_refs` | Secondary block refs retained for diagnostics and display. |
-| `kind` | Exact doctest report case kind: `zig_compile_pass`, `zig_test`, `zig_compile_fail`, `cli`, `config`, `config_fail`, `json_expected`, `text_output`, or `mutation`. |
+| `kind` | Exact doctest report case kind: `zig_compile_pass`, `zig_test`, `zig_compile_fail`, `cli`, `config`, `config_fail`, or `mutation`. Expectation-only blocks do not appear as doctest `kind` values. |
 | `status` | Deterministic status from the report or extraction. |
 
 For `explain_doctest_survivor`, the top-level `doctest` object is the selected mutation-aware report case and must have `kind = "mutation"` and `status = "survived"`. Metadata for the original preflight doctest case lives in `evidence.source_case`; agents must not overload one `case` object to mean both the original passing doctest and the survived mutation entry.

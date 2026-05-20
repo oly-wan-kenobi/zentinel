@@ -50,7 +50,7 @@ Forbidden:
 Required artifacts:
 
 - queue update summary
-- active lock record
+- active lock record, written as `locks/active-task-lock.json` after task `041`
 - completion transition record
 
 Verification duties:

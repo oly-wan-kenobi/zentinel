@@ -12,6 +12,7 @@ Subdirectories:
 
 ```text
 context/
+locks/
 handoffs/
 reviews/
 tests/
@@ -26,6 +27,7 @@ decisions/
 
 ```text
 context/<role>.json
+locks/active-task-lock.json
 handoffs/<step>-<role>.json
 reviews/test-review.md
 reviews/implementation-review.md
@@ -39,6 +41,29 @@ decisions/ADR-<task-id>-<short-name>.md
 ```
 
 JSON handoffs are canonical. Optional Markdown summaries may use the same handoff basename with `.md`, but they are companion notes and cannot replace the JSON artifact required by `docs/HANDOFF_CONTRACTS.md`.
+
+## Active Lock Artifact
+
+After task `041`, each active task writes exactly one active lock artifact at:
+
+```text
+artifacts/pipeline/<task-id>/locks/active-task-lock.json
+```
+
+The artifact records:
+
+- `schema_version`: constant `zentinel.pipeline.active_lock.v1`
+- `task_id`
+- `state`
+- `queue_order`
+- `queue_file`
+- `status_file`
+- `context_packet`
+- `created_by_role`
+- `source_commit`
+- `working_tree_state`
+
+The active lock artifact is evidence that the task-control files, context packet, and pipeline artifact directory all name the same active task. It does not replace `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, or `tasks/STATUS.md`; those synchronized task files remain the canonical queue state.
 
 ## Retention Policy
 

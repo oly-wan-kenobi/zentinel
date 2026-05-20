@@ -12,9 +12,9 @@ Lock state lives in:
 - `tasks/QUEUE.md`
 - `tasks/status.json`
 - `tasks/STATUS.md`
-- after task `041`, the task-scoped pipeline artifact lock record
+- after task `041`, `artifacts/pipeline/<task-id>/locks/active-task-lock.json`
 
-Before task `041`, the synchronized task files are the canonical active-task lock and equivalent context evidence is recorded in task status or completion summaries. After task `041`, no subagent may start implementation unless the active task lock also matches its context packet and task-scoped pipeline artifact lock record.
+Before task `041`, the synchronized task files are the canonical active-task lock and equivalent context evidence is recorded in task status or completion summaries. After task `041`, no subagent may start implementation unless the active task lock also matches its context packet and `locks/active-task-lock.json`.
 
 ## Queue Semantics
 

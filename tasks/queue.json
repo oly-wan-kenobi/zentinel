@@ -84,6 +84,51 @@
       ]
     },
     {
+      "id": "070",
+      "order": "000.0.1",
+      "title": "Agent Blocker Contract Closure",
+      "file": "tasks/070-agent-blocker-contract-closure.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "069"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/070-agent-blocker-contract-closure.md",
+        "README.md",
+        "scripts/validate_task_system.py",
+        "docs/SCHEMA_REGISTRY.md",
+        "tests/coverage-gaps/schemas.v1.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/003-test-harness.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/047-sequential-task-locking.md",
+        "tasks/049-pipeline-escalation.md",
+        "tasks/062-property-generator-infrastructure.md",
+        "tasks/063-pipeline-metadata-validator.md",
+        "docs/DOCTEST_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        ".agents/README.md"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -91,7 +136,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "069"
+        "070"
       ],
       "allowed_files": [
         "build.zig",
@@ -99,6 +144,7 @@
         "src/root.zig",
         "src/main.zig",
         "test/bootstrap_test.zig",
+        "test/bootstrap_discovery_test.zig",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],
@@ -1213,6 +1259,7 @@
         "docs/TASK_LIFECYCLE.md",
         "docs/AGENT_GUIDE.md",
         "schemas/pipeline.handoff.v1.schema.json",
+        "schemas/pipeline.active_lock.v1.schema.json",
         "test/fixtures/pipeline/handoff/**",
         "tasks/STATUS.md",
         "tasks/status.json"

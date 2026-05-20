@@ -18,6 +18,7 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 | Doctest AI suggest response v1 | Future `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | Future `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |
 | Pipeline handoff v1 | Future `schemas/pipeline.handoff.v1.schema.json` | Agent pipeline |
+| Pipeline active lock v1 | Future `schemas/pipeline.active_lock.v1.schema.json` | Agent pipeline |
 | Pipeline context packet v1 | Future `schemas/pipeline.context.v1.schema.json` | Agent pipeline |
 | Pipeline stale context v1 | Future `schemas/pipeline.stale_context.v1.schema.json` | Agent pipeline |
 | Pipeline verification v1 | Future `schemas/pipeline.verification.v1.schema.json` | Agent pipeline |
@@ -61,6 +62,7 @@ zentinel.ai.doctest.context.v1
 zentinel.ai.doctest.suggest.response.v1
 zentinel.ai.doctest.snapshot_review.response.v1
 zentinel.pipeline.handoff.v1
+zentinel.pipeline.active_lock.v1
 zentinel.pipeline.context.v1
 zentinel.pipeline.stale_context.v1
 zentinel.pipeline.verification.v1

@@ -101,6 +101,7 @@ Once `artifacts/pipeline/` exists, every non-trivial task should write durable e
 artifacts/pipeline/<task-id>/
   orchestration.md
   context/
+  locks/
   handoffs/
   reviews/
   verification/

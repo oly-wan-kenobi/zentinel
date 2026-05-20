@@ -65,4 +65,4 @@ Property generators make deterministic surfaces such as ordering, IDs, and cache
 
 ## Follow-up tasks
 
-- `tasks/063-pipeline-metadata-validator.md`
+- `tasks/064-pipeline-artifact-ci-integration.md`
