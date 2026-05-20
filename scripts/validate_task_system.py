@@ -1162,6 +1162,8 @@ def validate_preimplementation_blocker_contracts(tasks: list[dict[str, object]],
             "top-level `test/*_test.zig`",
             "`test/bootstrap_discovery_test.zig`",
             "without per-task `build.zig` edits",
+            "Add `test/bootstrap_test.zig` and `test/bootstrap_discovery_test.zig` before adding `build.zig`",
+            "missing build scaffold or unresolved root-module import",
         ],
         "tasks/003-test-harness.md": [
             "extends the bootstrap top-level discovery",

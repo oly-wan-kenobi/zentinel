@@ -356,6 +356,35 @@
       ]
     },
     {
+      "id": "078",
+      "order": "000.0.9",
+      "title": "Bootstrap TDD Order",
+      "file": "tasks/078-bootstrap-tdd-order.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "077"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/078-bootstrap-tdd-order.md",
+        "tasks/000-project-bootstrap.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/**",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -363,7 +392,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "077"
+        "078"
       ],
       "allowed_files": [
         "build.zig",

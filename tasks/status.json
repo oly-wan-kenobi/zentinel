@@ -12,13 +12,14 @@
     "074",
     "075",
     "076",
-    "077"
+    "077",
+    "078"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 077 backlog audit task creation scope: task 025 may now create next-unused task files only for concrete missing audit gaps, and the validator enforces that allowance. Python validator compilation passed."
+    "notes": "Validator passed after completing task 078 bootstrap TDD order: task 000 now instructs agents to add bootstrap tests before build.zig and records acceptable missing-scaffold or unresolved-import failing evidence. Python validator compilation passed."
   },
   "history": [
     {
@@ -205,6 +206,16 @@
       "event": "backlog_audit_task_creation_scope_completed",
       "task": "077",
       "notes": "Completed task 077 before project bootstrap. Task 025 now allows tasks/[0-9][0-9][0-9]-*.md only for concrete missing audit tasks and the validator enforces the scope."
+    },
+    {
+      "event": "bootstrap_tdd_order_started",
+      "task": "078",
+      "notes": "Inserted task 078 at execution order 000.0.9 before project bootstrap to align task 000's suggested implementation order with its failing-test-first requirement."
+    },
+    {
+      "event": "bootstrap_tdd_order_completed",
+      "task": "078",
+      "notes": "Completed task 078 before project bootstrap. Task 000 now starts with bootstrap tests before build.zig, documents the acceptable missing-scaffold or unresolved-import failure, and the validator enforces this TDD order."
     }
   ]
 }

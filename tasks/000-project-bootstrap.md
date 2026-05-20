@@ -1,6 +1,6 @@
 # 000 Project Bootstrap
 
-Sequential guard: start this task only after task 077 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 078 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -33,7 +33,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 
 - First add a failing smoke test that imports the root module and asserts a stable project name or version constant.
 - Add a failing `test/bootstrap_discovery_test.zig` that proves a second top-level `test/*_test.zig` file is included by `zig build test`.
-- Run the targeted test and record the failure before implementation.
+- Run the targeted test and record the failure before implementation; before `build.zig` exists, the expected failure may be a missing build scaffold or unresolved root-module import.
 - Run `zig build test` after implementation.
 
 ## Acceptance criteria
@@ -55,10 +55,10 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 
 ## Suggested implementation approach
 
-1. Add the smallest `build.zig` that defines a module, executable target, and a deterministic top-level test discovery step for `test/*_test.zig`.
-2. Add a root module with constants such as `project_name = "zentinel"`.
-3. Add `test/bootstrap_test.zig` that imports the module through the build graph.
-4. Add `test/bootstrap_discovery_test.zig` so the bootstrap task proves future top-level tests are not omitted.
+1. Add `test/bootstrap_test.zig` and `test/bootstrap_discovery_test.zig` before adding `build.zig`.
+2. Run the targeted bootstrap command and record the expected missing build scaffold or unresolved root-module import failure.
+3. Add the smallest `build.zig` that defines a module, executable target, and a deterministic top-level test discovery step for `test/*_test.zig`.
+4. Add a root module with constants such as `project_name = "zentinel"`.
 5. Keep naming aligned with `docs/VISION.md`.
 
 ## Dogfooding implications
