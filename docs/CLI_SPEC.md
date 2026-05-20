@@ -14,6 +14,9 @@ zentinel run
 zentinel doctest
 zentinel doctest explain <case-ref>
 zentinel doctest suggest <doc-path>
+zentinel doctest review-snapshot <case-ref>
+zentinel doctest suggest-missing [--file <doc-path>]
+zentinel doctest explain-survivor <survivor-ref>
 zentinel explain <mutant-ref>
 zentinel suggest <mutant-ref>
 zentinel review-tests
@@ -175,6 +178,9 @@ zentinel suggest m_01hr7p6h0v2fj3drdzt9k2a0xe --ai-provider stub
 zentinel review-tests --report zig-out/zentinel/report.json
 zentinel doctest explain dt_01hr7p6h0v2fj3drdzt9k2a0xe --ai-provider stub
 zentinel doctest suggest docs/CLI_SPEC.md --ai-provider stub
+zentinel doctest review-snapshot docs/CLI_SPEC.md:47:help-output --ai-provider stub
+zentinel doctest suggest-missing --file docs/CLI_SPEC.md --ai-provider stub
+zentinel doctest explain-survivor ds_01hr7p6h0v2fj3drdzt9k2a0xe --ai-provider stub
 ```
 
 AI command-local options:
@@ -190,11 +196,11 @@ For mutation AI commands, `--report <path>` points to a deterministic mutation r
 
 `<mutant-ref>` accepts either a durable mutant ID such as `m_01hr7p6h0v2fj3drdzt9k2a0xe` or the display ID from the selected report, such as `42`. Display IDs are scoped to the report named by `--report` and must not be persisted in handoffs, reports, or AI context as durable references.
 
-For doctest AI commands, `--report <path>` points to a deterministic doctest report. `zentinel doctest explain <case-ref>` requires the selected report and defaults to `zig-out/zentinel/doctest/report.json` when omitted; a missing default report is a usage error. `zentinel doctest suggest <doc-path>` does not require a report; when `--report` is provided, the report is optional context and must be validated before use.
+For doctest AI commands, `--report <path>` points to a deterministic doctest report. `zentinel doctest explain <case-ref>` and `zentinel doctest review-snapshot <case-ref>` require the selected report and default to `zig-out/zentinel/doctest/report.json` when omitted; a missing default report is a usage error. `zentinel doctest suggest <doc-path>` and `zentinel doctest suggest-missing [--file <doc-path>]` do not require a report; when `--report` is provided, the report is optional context and must be validated before use. `zentinel doctest explain-survivor <survivor-ref>` requires a mutation-aware doctest report from `zentinel doctest --mutate` and is owned by task `067` after task `061` defines stable survivor fields.
 
 `<case-ref>` accepts either a durable doctest case ID such as `dt_01hr7p6h0v2fj3drdzt9k2a0xe` or a source ref such as `docs/CLI_SPEC.md:47[:help-output]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, which is the first executable or producer block in the grouped case. Lines that point only at secondary expectation blocks must fail with `ZNTL_DOCTEST_CASE_NOT_FOUND` instead of guessing the producer. Source refs are selectors, not durable references, and must not be persisted in handoffs, reports, or AI context as canonical IDs.
 
-Doctest AI subcommands are user-facing CLI commands because autonomous agents can invoke and test CLI surfaces reliably. `zentinel doctest explain <case-ref>` explains a failing doctest case or documentation mutation survivor from the selected doctest report. `zentinel doctest suggest <doc-path>` suggests missing executable examples for a project-relative docs path. Neither command edits documentation, snapshots, or deterministic doctest reports.
+Doctest AI subcommands are user-facing CLI commands because autonomous agents can invoke and test CLI surfaces reliably. `zentinel doctest explain <case-ref>` explains a failing doctest case from the selected doctest report. `zentinel doctest suggest <doc-path>` suggests executable examples for one project-relative docs path. `zentinel doctest review-snapshot <case-ref>` summarizes normalized expected/actual snapshot differences from exact `case.result.snapshot` evidence for one report case. `zentinel doctest suggest-missing [--file <doc-path>]` suggests public docs that need executable examples. `zentinel doctest explain-survivor <survivor-ref>` explains a mutation-aware doctest survivor after task `067` implements that deferred flow. None of these commands edit documentation, snapshots, or deterministic doctest reports.
 
 If AI is disabled, commands fail with a clear message:
 

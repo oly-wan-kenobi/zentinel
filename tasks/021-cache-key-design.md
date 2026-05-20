@@ -9,7 +9,7 @@ Implement deterministic cache key construction and cache metadata without enabli
 ## Scope
 
 - Define cache key inputs.
-- Hash source content, config, Zig version, backend, operator, mode, and command.
+- Hash source content, config, Zig version, backend, operator, mode, command, and Zig cache namespace metadata when it can affect observable command behavior.
 - Add cache metadata serialization.
 - Keep cache reads disabled for mutation results until a later task validates reuse.
 
@@ -33,13 +33,14 @@ Implement deterministic cache key construction and cache metadata without enabli
 ## Required tests
 
 - Add failing tests for cache key stability.
-- Add failing tests that changing source, config, Zig version, mode, or command changes the key.
+- Add failing tests that changing source, config, Zig version, mode, command, or Zig cache namespace metadata changes the key.
 - Add a failing metadata serialization snapshot.
 - Run `zig build test`.
 
 ## Acceptance criteria
 
 - Cache keys include all inputs listed in `docs/PERFORMANCE_STRATEGY.md`.
+- Cache metadata distinguishes zentinel result cache keys from Zig build-cache reuse metadata.
 - Keys are stable across repeated runs.
 - Cache metadata is deterministic.
 - No stale result reuse is possible because result reads remain disabled or guarded.

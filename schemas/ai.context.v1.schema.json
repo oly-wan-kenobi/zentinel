@@ -75,7 +75,7 @@
       "required": ["status", "mode", "commands", "phase", "duration_ms_normalized", "evidence"],
       "additionalProperties": false,
       "properties": {
-        "status": { "enum": ["killed", "survived", "compile_error", "timeout", "skipped", "invalid"] },
+        "status": { "enum": ["killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"] },
         "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
         "commands": {
           "type": "array",
@@ -100,7 +100,7 @@
       "properties": {
         "command": { "$ref": "#/$defs/command_evidence" },
         "phase": { "const": "mutant" },
-        "status": { "enum": ["passed", "failed", "timeout", "skipped"] },
+        "status": { "enum": ["passed", "failed", "compiler_crash", "timeout", "skipped"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
         "duration_ms_normalized": { "const": "<duration>" },

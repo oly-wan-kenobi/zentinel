@@ -8,7 +8,7 @@ This queue is the human-readable source of truth for sequential AI-agent work. T
 - Mark the task `active` in `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` before editing implementation files.
 - Read the task file and all referenced docs.
 - Write failing tests before implementation.
-- Modify only files allowed by the task. Task Queue Manager lifecycle edits to task-control files are the only pre-pipeline exception. After task `041` is complete, task-scoped pipeline artifacts under `artifacts/pipeline/<active-task-id>/**` are also allowed for audit evidence only.
+- Modify only files allowed by the task. Task Queue Manager lifecycle edits to task-control files and row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are the only pre-pipeline exceptions. After task `041` is complete, task-scoped pipeline artifacts under `artifacts/pipeline/<active-task-id>/**` are also allowed for audit evidence only.
 - Update `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` after completion or blockage.
 - Run `python3 scripts/validate_task_system.py` after queue or status changes.
 - Do not skip a dependency-ready task unless this file is updated with a documented reason.
@@ -87,6 +87,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 059.4 | `tasks/064-pipeline-artifact-ci-integration.md` | queued | 7 |
 | 059.5 | `tasks/065-failure-recovery-validator.md` | queued | 0 |
 | 059.6 | `tasks/066-public-docs-doctest-coverage.md` | queued | 1 |
+| 059.7 | `tasks/067-ai-doctest-survivor-assistance.md` | queued | 4 |
 | 060 | `tasks/060-release-acceptance-verification.md` | queued | 7 |
 
 ## Reordering Policy

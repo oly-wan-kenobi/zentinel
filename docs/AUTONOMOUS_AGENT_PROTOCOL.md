@@ -73,6 +73,12 @@ After task `041` is complete, pipeline roles may write audit artifacts under `ar
 
 Agents must not use pipeline artifacts to modify product behavior, change task scope, write another task's evidence, or replace the synchronized queue/status files.
 
+## Gap Registry Row Exception
+
+When an active task adds, changes, or covers a documented invariant, failure mode, stable mutator, or schema contract, it may update only the matching row or newly required row in `tests/coverage-gaps/<registry>.v1.json` even when that file is not listed in the task's allowed files.
+
+This exception is row-scoped. It does not allow broad registry cleanup, unrelated coverage claims, docs changes, schema changes, source changes, or task-scope expansion.
+
 ## Autonomous Blocker Handling
 
 Most blockers should be resolved without user input.

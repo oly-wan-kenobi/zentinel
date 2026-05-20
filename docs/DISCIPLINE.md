@@ -24,7 +24,7 @@ Each rule is binding even before it is fully machine-enforced. When a rule is no
 
 ## 2. Mutation Correctness
 
-**D-100.** Runner evidence is the only authority for killed, survived, compile_error, timeout, skipped, invalid, and run-level baseline_failed statuses.
+**D-100.** Runner evidence is the only authority for killed, survived, compile_error, compiler_crash, timeout, skipped, invalid, and run-level baseline_failed statuses.
 
 **D-101.** AI output must not classify mutation correctness, decide equivalence, suppress mutants, or alter deterministic report fields.
 
@@ -32,7 +32,7 @@ Each rule is binding even before it is fully machine-enforced. When a rule is no
 
 **D-103.** A mutator may not silently drop a candidate because it might be equivalent.
 
-**D-104.** `compile_error` and `invalid` must remain distinct. A Zig compile failure from a syntactically valid mutant is not an invalid mutant.
+**D-104.** `compile_error`, `compiler_crash`, and `invalid` must remain distinct. A Zig diagnostic from a syntactically valid mutant is `compile_error`; abnormal Zig compiler termination is `compiler_crash`; malformed patches and backend contract violations are `invalid`.
 
 **D-105.** Code inside Zig `test` declarations is not a normal mutation target. Any test-mutation experiment must be explicit and labeled.
 

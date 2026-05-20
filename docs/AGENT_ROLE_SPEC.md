@@ -205,7 +205,7 @@ Responsibilities:
 
 - run configured mutation checks
 - preserve deterministic reports
-- identify killed, survived, compile_error, timeout, skipped, and invalid results
+- identify killed, survived, compile_error, compiler_crash, timeout, skipped, and invalid results
 
 Forbidden:
 

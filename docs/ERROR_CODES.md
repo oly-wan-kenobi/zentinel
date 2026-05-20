@@ -50,6 +50,7 @@ INTERNAL
 | `ZNTL_SANDBOX_PATCH_MISMATCH` | Sandbox | Source at span does not match mutant original text. |
 | `ZNTL_SANDBOX_PATCH_OUT_OF_RANGE` | Sandbox | Mutant span is outside source bounds. |
 | `ZNTL_RUNNER_BASELINE_FAILED` | Runner | Baseline tests failed before mutation execution. |
+| `ZNTL_RUNNER_COMPILER_CRASH` | Runner | Zig compiler crashed, panicked, or terminated abnormally while compiling a mutant. |
 | `ZNTL_RUNNER_TIMEOUT` | Runner | Test command exceeded timeout. |
 | `ZNTL_RUNNER_COMMAND_FAILED` | Runner | Process failed in a non-mutant baseline context. |
 | `ZNTL_REPORT_SCHEMA_ERROR` | Report | Report object cannot satisfy schema. |
@@ -61,6 +62,7 @@ INTERNAL
 | `ZNTL_AI_RESPONSE_INVALID` | AI | Provider response failed schema validation. |
 | `ZNTL_DOCTEST_CASE_NOT_FOUND` | Doctest | Doctest case ref does not resolve to exactly one case in the selected report or extraction. |
 | `ZNTL_DOCTEST_DOC_NOT_FOUND` | Doctest | Doctest suggestion target is not an existing project-relative documentation path. |
+| `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND` | Doctest | Doctest mutation survivor ref does not resolve in the selected mutation-aware doctest report. |
 | `ZNTL_DOCTEST_INVALID_BLOCK` | Doctest | Doctest block grouping or metadata is invalid. |
 | `ZNTL_DOCTEST_UNSUPPORTED_TAG` | Doctest | Executable doctest fence uses an unsupported tag. |
 | `ZNTL_DOCTEST_COMMAND_REJECTED` | Doctest | CLI doctest command is not allowed by doctest policy. |

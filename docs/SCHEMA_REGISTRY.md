@@ -13,7 +13,7 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 | AI suggest response v1 | `schemas/ai.suggest.response.v1.schema.json` | AI assistance |
 | AI review-tests response v1 | `schemas/ai.review_tests.response.v1.schema.json` | AI assistance |
 | Doctest report v1 | Future `schemas/doctest.report.v1.schema.json` | Doctest |
-| Doctest AI context v1 | Future `schemas/ai.doctest.context.v1.schema.json` | Doctest AI |
+| Doctest AI context v1 | Future `schemas/ai.doctest.context.v1.schema.json`; task `055` creates non-survivor flows and task `067` adds the survivor flow | Doctest AI |
 | Doctest AI explain response v1 | Reuses `schemas/ai.explain.response.v1.schema.json`; doctest classifications are included in that shared enum | Doctest AI |
 | Doctest AI suggest response v1 | Future `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | Future `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |

@@ -211,6 +211,7 @@ Allowed `status` values:
 killed
 survived
 compile_error
+compiler_crash
 timeout
 skipped
 invalid

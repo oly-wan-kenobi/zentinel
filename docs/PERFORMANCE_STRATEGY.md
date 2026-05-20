@@ -17,6 +17,7 @@ Cache keys must include:
 
 - zentinel version
 - Zig version
+- Zig compiler cache namespace metadata when local or global Zig cache configuration can affect observable results
 - backend name and backend version
 - operator name
 - source file content hash
@@ -41,14 +42,16 @@ Cache entries must not store:
 
 ## Zig Cache Reuse
 
+Compilation cost is the primary performance constraint for zentinel. Incremental reuse must use Zig's build cache safely instead of forcing full rebuilds for every mutant.
+
 zentinel should preserve and reuse Zig's own cache where safe:
 
 - use stable cache directories
 - avoid deleting project `.zig-cache`
-- isolate mutant workspace outputs
+- isolate mutant workspace outputs, local `.zig-cache`, and `zig-out` paths per worker or per mutant when they are writable
 - avoid cross-mutant source contamination
 
-Mutant workspaces may share compiler cache inputs only when source content hashes make reuse safe.
+Mutant workspaces may share compiler cache inputs only when source content hashes make reuse safe. Result reuse is valid only when the cache key covers source content, config, Zig version, mode, selected test command, backend/operator metadata, and any Zig cache namespace inputs that affect command behavior. A warm Zig build cache may reduce compile time, but it must not change report statuses, ordering, or evidence. Report v1 still requires baseline execution unless a future schema or ADR defines fresh-cache proof.
 
 ## Parallel Worker Architecture
 
@@ -68,6 +71,8 @@ Worker count must not affect:
 - final report order
 - summary counts
 - cache keys
+
+Concurrent workers must not write to the same local workspace, local `.zig-cache`, or `zig-out` directory. Each worker or mutant gets a dedicated writable workspace and output directory. Sharing is allowed only for read-only inputs or content-addressed compiler cache entries that cannot be corrupted by concurrent writes.
 
 ## Mutation Scheduling
 
@@ -118,6 +123,7 @@ Benchmarks should measure:
 - mutant generation time
 - baseline test time
 - per-mutant execution overhead
+- cold versus warm Zig build-cache behavior
 - cache hit rate
 - report serialization time
 - worker scaling efficiency

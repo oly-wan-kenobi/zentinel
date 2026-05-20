@@ -1,6 +1,6 @@
 # 060 Release Acceptance Verification
 
-Sequential guard: start this task only after task 066 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 067 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 

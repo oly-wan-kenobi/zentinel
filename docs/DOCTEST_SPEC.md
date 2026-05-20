@@ -13,6 +13,7 @@ zentinel doctest --format json
 zentinel doctest --file docs/CLI_SPEC.md
 zentinel doctest --case dt_01hr7p6h0v2fj3drdzt9k2a0xe
 zentinel doctest --case docs/CLI_SPEC.md:47:help-output
+zentinel doctest explain-survivor ds_01hr7p6h0v2fj3drdzt9k2a0xe
 ```
 
 `zentinel doctest` validates documentation examples.
@@ -28,6 +29,7 @@ zentinel doctest --case docs/CLI_SPEC.md:47:help-output
 | Zig compile-fail | `zig compile_fail` plus optional expected output | Snippet must fail compilation deterministically. |
 | CLI example | `bash cli` plus `text output` or `json expected` | zentinel command example must match output. |
 | Config example | `toml config` | Config must parse and validate. |
+| Config failure example | `toml config_fail` plus optional expected output | Config must fail validation deterministically. |
 | Report JSON example | `json expected` | JSON must satisfy schema or match produced output. |
 | Text output example | `text output` | Output snapshot for preceding executable block. |
 | Mutation example | `zig before` plus `zig after` | Future mutation-aware documentation validation. |
@@ -59,6 +61,24 @@ invalid
 ```
 
 `expected_compile_error` is a pass status for `zig compile_fail` only.
+
+## Doctest Case Kind Enum
+
+`case.kind` in `zentinel.doctest.report.v1` must be one of exactly:
+
+```text
+zig_compile_pass
+zig_test
+zig_compile_fail
+cli
+config
+config_fail
+json_expected
+text_output
+mutation
+```
+
+`docs_target` is an AI-only kind used by `zentinel.ai.doctest.context.v1` for suggestion flows. It must never appear as a `zentinel.doctest.report.v1` case kind.
 
 ## Zig Compile-Pass Blocks
 
@@ -271,33 +291,211 @@ Each case has a canonical anchor line. The anchor line is the first executable o
 
 Source refs have the form `docs/path.md:line[:label]`. The `line` component resolves only against the case anchor line. They are accepted by CLI selectors such as `--case <case-ref>` and `doctest explain <case-ref>` when they resolve to exactly one case in the current extraction or selected doctest report. A line pointing only to a secondary expectation block must fail with a case-ref diagnostic instead of guessing the producer case. Reports must store durable `id` values, the anchor `source_ref`, and may also store secondary `block_refs`, source location fields, and labels for display.
 
+### Doctest Survivor Refs
+
+Mutation-aware doctest survivor refs use the `ds_` prefix. They are durable selectors for survived documentation mutants inside a selected `zentinel doctest --mutate` report and are consumed by `zentinel doctest explain-survivor <survivor-ref>`.
+
+`survivor_ref` is emitted only when `case.kind = "mutation"` and `case.status = "survived"`. Killed, skipped, invalid, compile-error, compiler-crash, and timeout documentation mutants set `survivor_ref` to `null` and are not valid `explain-survivor` targets.
+
+The deterministic derivation is:
+
+```text
+ds_ + first_26_chars(lowercase_unpadded_crockford_base32(sha256(canonical_survivor_bytes)))
+```
+
+`canonical_survivor_bytes` is UTF-8 text with `\n` separators and this exact field order:
+
+```text
+zentinel.doctest_survivor.v1
+doctest_case_id
+mutant_id
+operator
+doc_file
+source_ref
+normalized_mutated_diff
+```
+
+The derivation must not include display order, wall-clock time, absolute paths, command output, result duration, or AI output. `normalized_mutated_diff` uses project-relative paths and `/` separators, with trailing whitespace stripped from each diff line before hashing. A mutation-aware doctest report must not contain duplicate non-null `survivor_ref` values.
+
 ## Doctest Reports
 
-Minimal JSON shape:
+`zentinel.doctest.report.v1` is the exact schema target for task `035`. JSON doctest reports must be deterministic, use project-relative paths, and normalize observation metadata in snapshots.
+
+Minimal valid JSON shape:
 
 ```json
 {
   "schema_version": "zentinel.doctest.report.v1",
+  "run": {
+    "id": "doctest_run_01hr7pc9qdyj2f3d7z7me3x1rk",
+    "status": "completed",
+    "zentinel_version": "0.1.0",
+    "zig_version": "latest-stable",
+    "command": "zentinel doctest --file docs/CLI_SPEC.md --format json",
+    "project_root": "<project>",
+    "started_at": "<normalized>",
+    "duration_ms": 0
+  },
   "summary": {
     "total": 1,
     "passed": 1,
-    "failed": 0
+    "failed": 0,
+    "compile_error": 0,
+    "expected_compile_error": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
   },
   "cases": [
     {
       "id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe",
       "file": "docs/CLI_SPEC.md",
       "line_start": 47,
+      "line_end": 54,
       "source_ref": "docs/CLI_SPEC.md:47:help-output",
       "block_refs": ["docs/CLI_SPEC.md:47:help-output", "docs/CLI_SPEC.md:54:help-output"],
       "kind": "cli",
-      "status": "passed"
+      "status": "passed",
+      "expectation": {
+        "mode": "exact",
+        "block_ref": "docs/CLI_SPEC.md:54:help-output"
+      },
+      "command": {
+        "original": "zentinel --help",
+        "argv": ["zentinel", "--help"],
+        "cwd": "<project>",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+	      "result": {
+	        "exit_code": 0,
+	        "timed_out": false,
+	        "duration_ms": 0,
+	        "stdout_excerpt": "zentinel - Zig-native mutation testing",
+	        "stderr_excerpt": "",
+	        "normalized_stdout_excerpt": "zentinel - Zig-native mutation testing",
+	        "normalized_stderr_excerpt": "",
+	        "snapshot": {
+	          "expected_excerpt": "zentinel - Zig-native mutation testing",
+	          "actual_excerpt": "zentinel - Zig-native mutation testing",
+	          "normalized_expected_excerpt": "zentinel - Zig-native mutation testing",
+	          "normalized_actual_excerpt": "zentinel - Zig-native mutation testing",
+	          "match_mode": "contains",
+	          "expected_block_ref": "docs/CLI_SPEC.md:54:help-output",
+	          "actual_ref": "stdout",
+	          "matched": true
+	        },
+	        "failure_summary": ""
+	      },
+      "diagnostics": [],
+      "advisory": {
+        "ai": null
+      }
     }
   ]
 }
 ```
 
-The report schema should be added before implementation reaches doctest reporting.
+Report field rules:
+
+| Field | Rule |
+| --- | --- |
+| `schema_version` | Constant `zentinel.doctest.report.v1`. |
+| `run.status` | `completed`, `failed`, or `internal_error`. |
+| `summary` | Counts only entries in `cases` and includes every doctest status key; `total` equals the sum of status-count fields. |
+| `cases` | Sorted by project-relative file path, anchor line, block index, and durable case ID. |
+| `case.id` | Durable `dt_...` ID. |
+| `case.source_ref` | Anchor-line source ref for selectors. |
+| `case.block_refs` | All grouped block refs, including secondary expectation blocks. |
+| `case.kind` | One of the exact values from the Doctest Case Kind Enum. |
+| `case.status` | One of the allowed statuses listed above. |
+| `case.command` | Structured command evidence when the case executes a command, otherwise `null`. |
+| `case.result` | Bounded deterministic execution, normalization, and mismatch evidence when available. |
+| `case.result.snapshot` | Required when output matching or snapshot evidence exists; otherwise `null`. Non-null snapshot objects require `expected_excerpt`, `actual_excerpt`, `normalized_expected_excerpt`, `normalized_actual_excerpt`, `match_mode`, `expected_block_ref`, `actual_ref`, and `matched`. |
+| `case.diagnostics` | Array of compiler-like diagnostics with stable error codes for invalid or failing cases. |
+| `case.advisory.ai` | Optional advisory AI payload; never required for deterministic doctest execution. |
+
+`additionalProperties` should be false for the report envelope, run object, summary object, case object, command object, result object, diagnostic object, and advisory object unless a future schema version explicitly opens a field.
+
+Snapshot field rules:
+
+| Field | Rule |
+| --- | --- |
+| `snapshot.expected_excerpt` | Bounded excerpt from the expected output block or diagnostic expectation. |
+| `snapshot.actual_excerpt` | Bounded excerpt from the actual command output, compiler diagnostic, JSON output, or report field. |
+| `snapshot.normalized_expected_excerpt` | Expected excerpt after doctest normalization. |
+| `snapshot.normalized_actual_excerpt` | Actual excerpt after doctest normalization. |
+| `snapshot.match_mode` | One of `exact`, `contains`, `regex`, `json`, `json_subset`, `json_unordered`, or `diagnostic`. |
+| `snapshot.expected_block_ref` | Secondary block ref for the expected block, or `null` only when the expectation is implicit. |
+| `snapshot.actual_ref` | One of `stdout`, `stderr`, `diagnostic`, `json`, or `report`. |
+| `snapshot.matched` | Boolean result of deterministic matching. |
+
+Failure report rules:
+
+- Invalid blocks are emitted as `status = "invalid"` with a diagnostic using the documented doctest error code.
+- Snapshot mismatches are emitted as `status = "failed"` with `case.result.snapshot.matched = false` plus expected, actual, and normalized excerpts in the snapshot object.
+- Compile failures in `zig compile_fail` cases are `expected_compile_error` when they match the expected diagnostic and `compile_error` when they do not. `expected_compile_error` is counted under its own summary key and is successful for CLI exit behavior.
+- Timeouts include `timed_out = true`, a `null` exit code, and bounded output excerpts.
+- Doctest reports must not include AI-generated explanations unless the user invoked an AI command or a future task explicitly adds advisory report enrichment.
+
+## Mutation-Aware Doctest Reports
+
+Task `061` owns the stable `zentinel doctest --mutate` report extension. It must update `schemas/doctest.report.v1.schema.json` and report fixtures from the exact contract in this section before emitting mutation-aware reports outside the experimental fixture path.
+
+Normal `zentinel doctest` reports use the ordinary doctest statuses listed above. Mutation-aware entries use `case.kind = "mutation"` and a shared mutation-result status:
+
+```text
+killed
+survived
+compile_error
+compiler_crash
+timeout
+skipped
+invalid
+```
+
+For `zentinel doctest --mutate`, `summary` keeps the normal doctest status keys for the preflight doctest run and adds a `mutation` object at `summary.mutation` with these integer keys:
+
+```text
+total
+killed
+survived
+compile_error
+compiler_crash
+timeout
+skipped
+invalid
+```
+
+`case.mutation` is required and non-null when `case.kind = "mutation"`. It is absent or `null` for non-mutation doctest cases. The object is closed with `additionalProperties: false` and contains:
+
+| Field | Rule |
+| --- | --- |
+| `mutant_id` | Durable `m_...` shared mutant ID for the documentation mutant. |
+| `doctest_case_id` | Durable `dt_...` ID of the normal doctest case that was mutated. |
+| `survivor_ref` | Durable `ds_...` survivor ref when `case.status = "survived"`; otherwise `null`. |
+| `operator` | Stable mutator operator name from `docs/MUTATOR_SPEC.md`. |
+| `operator_stability` | `stable`, `preview`, or `experimental`. |
+| `backend` | `ast` for stable doctest mutation; `zir` and `air` remain experimental only. |
+| `backend_stability` | `stable` or `experimental`. |
+| `doc_file` | Project-relative documentation path that owns the doctest case. |
+| `doc_line` | One-based anchor line for display and diagnostics only. |
+| `source_ref` | Anchor-line source ref for the selected doctest case. |
+| `mutated_diff` | Bounded array of normalized diff lines for the documentation mutant. |
+| `runner_evidence` | Closed object copied from deterministic mutated-doctest command evidence. |
+
+`case.mutation.runner_evidence` contains:
+
+| Field | Rule |
+| --- | --- |
+| `status` | Same value as `case.status`. |
+| `command` | Structured command evidence or `null` when the mutant was skipped before command execution. |
+| `exit_code` | Integer process exit code or `null` for timeout/skipped/no process. |
+| `timed_out` | Boolean timeout evidence. |
+| `stdout_excerpt`, `stderr_excerpt`, `failure_summary` | Bounded normalized excerpts. |
+| `skip_reason` | Stable skip reason string for skipped mutation entries; otherwise `null`. |
+
+Mutation-aware case entries must reuse the ordinary case identity fields (`id`, `file`, `source_ref`, `block_refs`, `line_start`, and `line_end`) so selectors and AI evidence can join normal doctest results to documentation mutants without line-number-derived IDs.
 
 ## Invalid Doctests
 

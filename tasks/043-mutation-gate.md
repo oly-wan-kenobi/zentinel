@@ -36,7 +36,7 @@ Define the pipeline mutation gate that runs after implementation review and befo
 
 - Add a failing fixture or contract example for an untriaged survivor before updating the policy.
 - Run `python3 scripts/validate_task_system.py`.
-- If report validation exists, validate mutation gate artifacts for killed, survived, compile_error, timeout, and invalid cases.
+- If report validation exists, validate mutation gate artifacts for killed, survived, compile_error, compiler_crash, timeout, and invalid cases.
 
 ## Required property tests
 

@@ -56,7 +56,7 @@ Deliver:
   - boundary swap: `>= -> >`, `<= -> <`, `> -> >=`, `< -> <=`
   - logical swap: `&& <-> ||`
   - boolean literal swap: `true <-> false`
-- killed/survived/compile_error/timeout reports
+- killed/survived/compile_error/compiler_crash/timeout reports
 - `zentinel doctest` extraction and normal execution for CLI/config/report examples
 
 Exit criteria:
@@ -117,6 +117,9 @@ Deliver:
 - `zentinel review-tests`
 - `zentinel doctest explain <case-ref>`
 - `zentinel doctest suggest <doc-path>`
+- `zentinel doctest review-snapshot <case-ref>`
+- `zentinel doctest suggest-missing [--file <doc-path>]`
+- `zentinel doctest explain-survivor <survivor-ref>`
 - local/offline model provider interface
 - privacy-safe prompt construction
 - JSON prompt contracts and response validation

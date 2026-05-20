@@ -13,9 +13,19 @@ AiProvider
 └─ complete(request) -> response
 ```
 
-Provider adapters must not receive raw project data except through `AI_CONTEXT_SCHEMA.md`.
+Provider adapters must not receive raw project data except through a registered AI context schema. Mutation AI flows use `docs/AI_CONTEXT_SCHEMA.md` and `schemas/ai.context.v1.schema.json`. Doctest AI flows use `docs/DOCTEST_AI_INTEGRATION.md` and the future `schemas/ai.doctest.context.v1.schema.json`.
 
-The `context` object in a prompt request is an embedded `zentinel.ai.context.v1` payload and must validate against `schemas/ai.context.v1.schema.json`. Do not replace it with a schema-version-only placeholder in fixtures, snapshots, or provider tests.
+The `context` object in a prompt request is an embedded registered context payload, not an untyped object. `zentinel.ai.prompt.v1` must discriminate by `context.schema_version`:
+
+| Flow family | Context schema |
+| --- | --- |
+| `explain`, `suggest`, `review_tests` | `zentinel.ai.context.v1` |
+| `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, `suggest_missing_doctests` | `zentinel.ai.doctest.context.v1` created by task `055` |
+| `explain_doctest_survivor` | `zentinel.ai.doctest.context.v1` extended by task `067` after task `061` stabilizes mutation-aware report fields |
+
+Task `054` owns mutation prompt requests and must require embedded `zentinel.ai.context.v1` payloads to validate against `schemas/ai.context.v1.schema.json`. Task `055` owns the non-survivor doctest prompt requests (`explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, and `suggest_missing_doctests`) and may update `schemas/ai.prompt.v1.schema.json` so those doctest flows validate embedded `zentinel.ai.doctest.context.v1` payloads against `schemas/ai.doctest.context.v1.schema.json`. Task `055` must reject `explain_doctest_survivor` prompt requests. Task `067` owns the deferred `explain_doctest_survivor` prompt after task `061` defines mutation-aware doctest report fields, and only task `067` may add that flow to prompt-schema validation.
+
+Do not replace any registered context with a schema-version-only placeholder in fixtures, snapshots, or provider tests. A writer must not emit a prompt using a context schema until the matching schema file exists and validation passes.
 
 ## Common Request
 

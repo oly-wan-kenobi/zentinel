@@ -9,7 +9,7 @@ Run selected test commands against one patched mutant sandbox and classify the m
 ## Scope
 
 - Combine mutant model, sandbox, and runner.
-- Classify killed, survived, compile_error, timeout, and invalid.
+- Classify killed, survived, compile_error, compiler_crash, timeout, and invalid.
 - Record command evidence.
 - Keep execution serial for now.
 
@@ -33,7 +33,8 @@ Run selected test commands against one patched mutant sandbox and classify the m
 
 ## Required tests
 
-- Add failing tests for killed, survived, compile_error, timeout, and invalid patch cases.
+- Add failing tests for killed, survived, compile_error, compiler_crash, timeout, and invalid patch cases.
+- Add a failing test proving abnormal Zig compiler termination is classified as `compiler_crash`, not `compile_error`, `invalid`, or `internal_error`.
 - Add a failing test that fail-fast per mutant records skipped commands.
 - Add a failing test that mutant results preserve the structured command evidence emitted by the runner without falling back to a display-only command string.
 - Run `zig build test`.
@@ -42,6 +43,7 @@ Run selected test commands against one patched mutant sandbox and classify the m
 
 - Mutant result classification follows `docs/REPORT_FORMAT.md`.
 - Compile errors are not treated as internal invalid mutants.
+- Compiler crashes are not treated as compile errors, invalid mutants, or zentinel internal errors.
 - Invalid patches are distinguished from Zig compile failures.
 - Serial execution produces deterministic structured command evidence.
 

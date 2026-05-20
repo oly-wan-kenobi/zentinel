@@ -8,7 +8,7 @@ Make selected public contract docs executable through `zentinel doctest` after n
 
 ## Scope
 
-- Convert selected CLI, config, report, AI, and doctest policy examples into executable doctest blocks.
+- Convert selected CLI, config, report, AI, doctest AI, and doctest policy examples into executable doctest blocks.
 - Add coverage fixtures for public docs that must remain executable.
 - Ensure doctest evidence feeds verifier artifacts.
 - Keep examples deterministic and snapshot-friendly.
@@ -19,6 +19,7 @@ Make selected public contract docs executable through `zentinel doctest` after n
 - `docs/CONFIG_SPEC.md`
 - `docs/REPORT_FORMAT.md`
 - `docs/AI_PROMPT_CONTRACTS.md`
+- `docs/DOCTEST_AI_INTEGRATION.md`
 - `docs/DOCTEST_POLICY.md`
 - `docs/DOCTEST_BLOCK_FORMATS.md`
 - `src/doctest/**`
@@ -37,7 +38,7 @@ Make selected public contract docs executable through `zentinel doctest` after n
 ## Required tests
 
 - Add a failing doctest coverage test for at least one public CLI example.
-- Add a failing doctest coverage test for at least one config example and one report JSON example.
+- Add a failing doctest coverage test for at least one config example, one report JSON example, and one doctest AI JSON example.
 - Add a failing verification fixture proving doctest evidence is referenced from the final verifier artifact.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.

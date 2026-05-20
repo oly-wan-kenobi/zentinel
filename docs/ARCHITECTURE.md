@@ -39,7 +39,7 @@ The deterministic core includes:
 - applying and reverting mutations
 - selecting tests
 - invoking Zig commands
-- classifying mutant results as killed, survived, timeout, compile_error, skipped, or invalid, and run-level baseline failures as baseline_failed
+- classifying mutant results as killed, survived, timeout, compile_error, compiler_crash, skipped, or invalid, and run-level baseline failures as baseline_failed
 - writing machine-readable and human-readable reports
 - reading and writing cache entries
 
@@ -113,7 +113,7 @@ The display ID is stable only within one report after canonical sorting. It is u
 9. Select tests for each mutant.
 10. Apply one mutant in an isolated worktree or patch sandbox.
 11. Run selected tests with deterministic timeout and environment.
-12. Classify result from process status, compiler output, and test output.
+12. Classify result from process status, compiler output, compiler crash evidence, and test output.
 13. Record report entries and cache artifacts.
 14. Optionally run AI explanation against the completed deterministic report.
 

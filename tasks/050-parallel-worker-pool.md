@@ -34,6 +34,7 @@ Implement deterministic parallel mutant execution without changing report orderi
 ## Required tests
 
 - Add a failing test proving worker count does not change report ordering or IDs.
+- Add a failing test proving concurrent workers use dedicated writable workspace, local `.zig-cache`, and `zig-out` paths and cannot clobber another worker's temporary build artifacts.
 - Add a failing test for worker error propagation.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
@@ -41,6 +42,7 @@ Implement deterministic parallel mutant execution without changing report orderi
 ## Acceptance criteria
 
 - Serial and parallel runs produce equivalent reports except normalized durations.
+- Parallel runs never share writable workspaces, local build caches, output directories, or scratch artifact paths between active workers.
 - Worker failures are deterministic and visible.
 - Default behavior remains conservative.
 - `python3 scripts/validate_task_system.py` passes.

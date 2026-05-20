@@ -12,7 +12,7 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Advisory AI**: Optional AI behavior that explains, clusters, or suggests from deterministic evidence. Advisory AI never determines mutation correctness.
 
-**AI context packet**: A bounded, schema-versioned payload sent to an AI provider. It contains only the deterministic report excerpts and source context allowed by `docs/AI_CONTEXT_SCHEMA.md`.
+**AI context packet**: A bounded, schema-versioned payload sent to an AI provider. Mutation AI context is governed by `docs/AI_CONTEXT_SCHEMA.md`; doctest AI context is governed by `docs/DOCTEST_AI_INTEGRATION.md`. Both contain only privacy-filtered deterministic evidence allowed by their registered schema.
 
 **AST backend**: The stable default backend that generates mutants from Zig source syntax and exact source spans.
 
@@ -26,6 +26,8 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Compile error**: A deterministic mutant result where the patched project failed to compile before tests executed.
 
+**Compiler crash**: A deterministic mutant result where the Zig compiler process crashes, panics, or terminates abnormally while compiling a syntactically valid mutant. It is distinct from `compile_error` and `invalid`.
+
 **Deterministic core**: The part of zentinel that parses config, discovers files and tests, generates mutants, applies patches, runs commands, classifies results, writes reports, and manages cache entries without AI authority or remote services.
 
 **Display ID**: A compact per-report mutant index derived from canonical order. It is useful for humans but not durable across changed candidate sets.
@@ -37,6 +39,8 @@ When a new concept becomes part of the public contract, add it here before using
 **Doctest case ID**: A durable deterministic ID for one extracted doctest case, formatted with the `dt_` prefix. It is derived from stable case content and grouping metadata, not from display-only line numbers. Duplicate unlabeled identical cases in one file are invalid instead of receiving hidden occurrence-based IDs.
 
 **Doctest case ref**: A CLI selector for one doctest case. It may be a durable doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:label]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, not secondary expectation blocks, and are not durable handoff identifiers.
+
+**Doctest survivor ref**: A durable selector for one survived mutation-aware doctest entry, formatted with the `ds_` prefix. It is derived from stable doctest case ID, shared mutant ID, operator, documentation path, source ref, and normalized mutated diff. It is scoped to survived documentation mutants in `zentinel doctest --mutate` reports and is consumed by `zentinel doctest explain-survivor`.
 
 **Equivalent risk**: Metadata saying a mutant may be semantically equivalent or may require a stronger test to distinguish. It is not a reason to suppress the mutant unless a deterministic equivalent filter is documented and tested.
 

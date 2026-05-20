@@ -45,6 +45,9 @@ zentinel suggest <mutant-ref>
 zentinel review-tests
 zentinel doctest explain <case-ref>
 zentinel doctest suggest <doc-path>
+zentinel doctest review-snapshot <case-ref>
+zentinel doctest suggest-missing [--file <doc-path>]
+zentinel doctest explain-survivor <survivor-ref>
 ```
 
 The doctest AI commands are user-facing CLI subcommands. This is intentional: autonomous agents can invoke, snapshot, and gate CLI behavior more reliably than hidden UI-only flows.
@@ -243,3 +246,5 @@ AI advisory
 ```
 
 JSON reports store AI output under `advisory.ai`, never under `result`.
+
+Doctest AI commands render advisory CLI output and do not persist suggestions or snapshot reviews by default. A future persistence feature must write only advisory data, either to an advisory-only artifact or under `advisory.ai`, and must not change deterministic doctest case status, expected output blocks, snapshots, or reports.

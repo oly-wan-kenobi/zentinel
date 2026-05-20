@@ -38,6 +38,8 @@ Add machine-readable performance benchmarks and cache/parallel equivalence check
 
 - Add a failing benchmark-output schema or snapshot test before implementation.
 - Add a failing equivalence test for cached versus uncached reports that ignores only durations and `diagnostics.cache`.
+- Add a failing cold-versus-warm Zig build-cache benchmark smoke test proving warm cache reuse does not change statuses, ordering, evidence, or summary counts.
+- Add a failing serial-versus-parallel cache isolation test proving parallel workers do not share writable `.zig-cache`, `zig-out`, or workspace paths.
 - Add a failing report schema or snapshot test for cache diagnostics under `diagnostics.cache`.
 - Add a failing documentation check or snapshot proving numeric CI smoke budgets are present in `docs/PERFORMANCE_STRATEGY.md`.
 - Run `zig build test`.
@@ -47,6 +49,7 @@ Add machine-readable performance benchmarks and cache/parallel equivalence check
 
 - Benchmark output is machine-readable.
 - Cached and uncached reports differ only in `diagnostics.cache` and durations.
+- Cold and warm Zig build-cache runs differ only in durations and allowed cache diagnostics.
 - Serial and parallel reports differ only in durations.
 - `docs/PERFORMANCE_STRATEGY.md` contains concrete initial CI smoke budgets for later dogfood and doctest tasks.
 - `python3 scripts/validate_task_system.py` passes.

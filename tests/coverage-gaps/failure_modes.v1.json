@@ -33,6 +33,9 @@
     { "number": "F-028", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Mutation AI target resolution test." },
     { "number": "F-029", "covered": false, "tests": [], "deferred_to": "tasks/055-ai-doctest-assistance.md", "notes": "Doctest AI missing report-path test." },
     { "number": "F-030", "covered": false, "tests": [], "deferred_to": "tasks/055-ai-doctest-assistance.md", "notes": "Doctest case-ref resolution test." },
-    { "number": "F-031", "covered": false, "tests": [], "deferred_to": "tasks/055-ai-doctest-assistance.md", "notes": "Doctest suggestion docs-path test." }
+    { "number": "F-031", "covered": false, "tests": [], "deferred_to": "tasks/055-ai-doctest-assistance.md", "notes": "Doctest suggestion docs-path test." },
+    { "number": "F-032", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Compiler crash classification fixture." },
+    { "number": "F-033", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Allocator mutator remains preview/backlog until a future task explicitly names allocator_failure_path and includes wrapper-sandbox source and fixture coverage." },
+    { "number": "F-034", "covered": false, "tests": [], "deferred_to": "tasks/067-ai-doctest-survivor-assistance.md", "notes": "Doctest survivor AI survivor-ref resolution test." }
   ]
 }

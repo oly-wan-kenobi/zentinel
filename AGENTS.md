@@ -33,7 +33,7 @@ For behavior changes, also read:
 - Execute tasks sequentially.
 - Keep exactly one task active.
 - Write failing tests before implementation.
-- Modify only files allowed by the active task, except task-control state updates performed by the Task Queue Manager and task-scoped pipeline artifacts after task `041` is complete.
+- Modify only files allowed by the active task, except task-control state updates performed by the Task Queue Manager, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts after task `041` is complete.
 - Preserve deterministic core behavior.
 - Support only latest stable Zig.
 - Keep AST as the stable default backend.
@@ -52,6 +52,8 @@ Agents must keep Markdown and JSON task state synchronized:
 - docs-to-tests gap registries under `tests/coverage-gaps/` when changing covered docs contracts
 
 The task-control files are a narrow scope exception. The Task Queue Manager may edit `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`, and may create or rename task markdown files under `tasks/`, only for lifecycle transitions, blocker insertion, queue reordering, or validator-required synchronization. Product implementation roles must not use this exception to change task scope opportunistically.
+
+Gap registry files are a narrow row-scoped exception. When the active task adds, changes, or covers a documented invariant, failure mode, stable mutator, or schema contract, the task may update only the matching row or newly required row in `tests/coverage-gaps/<registry>.v1.json` even when that registry file is not listed in the active task's allowed files. This exception does not authorize unrelated registry cleanup, source changes, docs changes, schema changes, or task-scope expansion.
 
 After task `041` is complete, pipeline roles may create or update only their active task's audit artifacts under `artifacts/pipeline/<active-task-id>/**` even when that path is not listed in the active task's allowed files. This exception is limited to handoffs, reviews, verification evidence, context packets, and other pipeline metadata defined by `docs/PIPELINE_ARTIFACTS.md`; it does not permit product source, docs, tests, schemas, or task-scope changes outside the active task.
 
@@ -84,5 +86,5 @@ A task is complete only when:
 - broader relevant tests pass
 - task status is updated in Markdown and JSON
 - validator passes
-- no forbidden files were modified, except Task Queue Manager edits to task-control files and task-scoped pipeline artifacts allowed after task `041`
+- no forbidden files were modified, except Task Queue Manager edits to task-control files, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts allowed after task `041`
 - follow-up work is captured as tasks, not prose-only notes

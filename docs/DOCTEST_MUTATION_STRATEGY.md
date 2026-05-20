@@ -114,13 +114,44 @@ JSON report fields should reuse the shared mutant model and add doctest context:
 
 ```json
 {
-  "mutant_id": "m_01hr7p6h0v2fj3drdzt9k2a0xe",
-  "doctest_case_id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe",
-  "doc_file": "docs/MUTATOR_SPEC.md",
-  "doc_line": 120,
-  "status": "survived"
+  "kind": "mutation",
+  "status": "survived",
+  "mutation": {
+    "mutant_id": "m_01hr7p6h0v2fj3drdzt9k2a0xe",
+    "doctest_case_id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe",
+    "survivor_ref": "ds_01hr7p6h0v2fj3drdzt9k2a0xe",
+    "operator": "comparison_boundary",
+    "operator_stability": "stable",
+    "backend": "ast",
+    "backend_stability": "stable",
+    "doc_file": "docs/MUTATOR_SPEC.md",
+    "doc_line": 120,
+    "source_ref": "docs/MUTATOR_SPEC.md:120:range-boundary",
+    "mutated_diff": [
+      "- if (idx >= len) return error.OutOfBounds;",
+      "+ if (idx > len) return error.OutOfBounds;"
+    ],
+    "runner_evidence": {
+      "status": "survived",
+      "command": {
+        "original": "zig test src/doctest.zig",
+        "argv": ["zig", "test", "src/doctest.zig"],
+        "cwd": "<project>",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+      "exit_code": 0,
+      "timed_out": false,
+      "stdout_excerpt": "",
+      "stderr_excerpt": "",
+      "failure_summary": "",
+      "skip_reason": null
+    }
+  }
 }
 ```
+
+The exact field contract, including `ds_` survivor-ref derivation, lives in `docs/DOCTEST_SPEC.md`.
 
 ## Mutation Score for Docs
 
@@ -179,6 +210,7 @@ Long-term validation:
 Mutation-aware doctests must preserve:
 
 - stable doctest case IDs
+- stable doctest survivor refs
 - stable mutant IDs
 - stable report order
 - deterministic workspace generation

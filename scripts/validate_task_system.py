@@ -55,6 +55,7 @@ TASK_CONTROL_FILES = {
 }
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
+GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
 
 GOVERNANCE_FILES = [
     "docs/VISION.md",
@@ -510,6 +511,21 @@ def validate_pipeline_contracts(errors: list[str]) -> None:
             text = path.read_text(encoding="utf-8")
             require(PIPELINE_ARTIFACT_EXCEPTION in text, errors, f"{rel} must document the task-scoped pipeline artifact exception")
 
+    gap_exception_files = [
+        "AGENTS.md",
+        "tasks/QUEUE.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        ".agents/README.md",
+        "docs/GAP_REGISTRIES.md",
+    ]
+    for rel in gap_exception_files:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing gap registry exception contract file {rel}")
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
+            require(GAP_REGISTRY_EXCEPTION in text, errors, f"{rel} must document the row-scoped gap registry exception")
+
     artifacts = ROOT / "docs" / "PIPELINE_ARTIFACTS.md"
     if artifacts.is_file():
         text = artifacts.read_text(encoding="utf-8")
@@ -590,8 +606,9 @@ def validate_cli_contracts(errors: list[str]) -> None:
     ai_ux_path = ROOT / "docs" / "AI_ASSISTED_UX.md"
     task054_path = ROOT / "tasks" / "054-ai-advisory-commands.md"
     task055_path = ROOT / "tasks" / "055-ai-doctest-assistance.md"
+    task067_path = ROOT / "tasks" / "067-ai-doctest-survivor-assistance.md"
 
-    for path in [cli_path, doctest_mutation_path, ai_ux_path, task054_path, task055_path]:
+    for path in [cli_path, doctest_mutation_path, ai_ux_path, task054_path, task055_path, task067_path]:
         require(path.is_file(), errors, f"missing CLI contract file {path.relative_to(ROOT)}")
     if not cli_path.is_file() or not doctest_mutation_path.is_file():
         return
@@ -600,6 +617,9 @@ def validate_cli_contracts(errors: list[str]) -> None:
     doctest_mutation_text = doctest_mutation_path.read_text(encoding="utf-8")
     require("zentinel doctest explain <case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest explain as a user-facing command")
     require("zentinel doctest suggest <doc-path>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest suggest as a user-facing command")
+    require("zentinel doctest review-snapshot <case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest review-snapshot as a user-facing command")
+    require("zentinel doctest suggest-missing [--file <doc-path>]" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest suggest-missing as a user-facing command")
+    require("zentinel doctest explain-survivor <survivor-ref>" in cli_text, errors, "docs/CLI_SPEC.md must expose doctest explain-survivor as a user-facing command")
     require("<case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define doctest case references as <case-ref>")
     require("<mutant-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define AI mutant references as <mutant-ref>")
     require("--ai-provider <disabled|stub|local|remote>" in cli_text, errors, "docs/CLI_SPEC.md must define AI provider option values")
@@ -615,6 +635,9 @@ def validate_cli_contracts(errors: list[str]) -> None:
         ai_ux_text = ai_ux_path.read_text(encoding="utf-8")
         require("zentinel doctest explain <case-ref>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest explain")
         require("zentinel doctest suggest <doc-path>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest suggest")
+        require("zentinel doctest review-snapshot <case-ref>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest review-snapshot")
+        require("zentinel doctest suggest-missing [--file <doc-path>]" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest suggest-missing")
+        require("zentinel doctest explain-survivor <survivor-ref>" in ai_ux_text, errors, "docs/AI_ASSISTED_UX.md must list doctest explain-survivor")
 
     if task054_path.is_file():
         task054_text = task054_path.read_text(encoding="utf-8")
@@ -623,40 +646,96 @@ def validate_cli_contracts(errors: list[str]) -> None:
 
     if task055_path.is_file():
         task055_text = task055_path.read_text(encoding="utf-8")
-        for required in ["src/cli.zig", "src/main.zig", "test/ai_doctest_cli_test.zig"]:
+        for required in ["src/cli.zig", "src/main.zig", "docs/CLI_SPEC.md", "schemas/ai.prompt.v1.schema.json", "test/ai_doctest_cli_test.zig"]:
             require(required in task055_text, errors, f"tasks/055-ai-doctest-assistance.md must allow {required}")
         require("zentinel doctest explain <case-ref>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest explain CLI tests")
         require("zentinel doctest suggest <doc-path>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest suggest CLI tests")
+        require("zentinel doctest review-snapshot <case-ref>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest review-snapshot CLI tests")
+        require("zentinel doctest suggest-missing [--file <doc-path>]" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest suggest-missing CLI tests")
+
+    if task067_path.is_file():
+        task067_text = task067_path.read_text(encoding="utf-8")
+        require("zentinel doctest explain-survivor <survivor-ref>" in task067_text, errors, "tasks/067-ai-doctest-survivor-assistance.md must require doctest explain-survivor CLI tests")
+        require("ZNTL_DOCTEST_SURVIVOR_NOT_FOUND" in task067_text, errors, "tasks/067-ai-doctest-survivor-assistance.md must require unresolved survivor diagnostics")
 
 
 def validate_doctest_identity_contracts(errors: list[str]) -> None:
-    required_phrases = {
-        "docs/DOCTEST_SPEC.md": [
+    required_phrases = [
+        ("docs/DOCTEST_SPEC.md", [
             "Duplicate unlabeled cases in the same file are invalid",
             "canonical anchor line",
             "block_refs",
             "occurrence indexes",
-        ],
-        "docs/DOCTEST_ARCHITECTURE.md": [
+            "Doctest Case Kind Enum",
+            "`docs_target` is an AI-only kind",
+            "case.result.snapshot",
+            "json_unordered",
+        ]),
+        ("docs/DOCTEST_ARCHITECTURE.md", [
             "`source_ref` is a case-level anchor",
             "block_refs",
             "Duplicate unlabeled cases in one file",
-        ],
-        "docs/GLOSSARY.md": [
+        ]),
+        ("docs/GLOSSARY.md", [
             "Duplicate unlabeled identical cases",
             "case anchor line",
-        ],
-        "tasks/032-doctest-extraction.md": [
+        ]),
+        ("tasks/032-doctest-extraction.md", [
             "duplicate unlabeled identical cases",
             "anchor `source_ref`",
             "secondary `block_refs`",
-        ],
-        "tasks/035-cli-doctests.md": [
+        ]),
+        ("tasks/035-cli-doctests.md", [
             "source-ref selectors resolve only the case anchor line",
             "secondary expectation blocks",
-        ],
-    }
-    for rel, phrases in required_phrases.items():
+            "structured `command`, bounded `result`, `diagnostics`, and `advisory.ai` fields",
+            "exact `case.kind` enum",
+            "exact `case.result.snapshot` evidence",
+        ]),
+        ("tasks/061-doctest-mutate-stabilization.md", [
+            "docs/DOCTEST_SPEC.md",
+            "summary.mutation",
+            "case.mutation",
+            "ds_...",
+            "survivor_ref",
+        ]),
+        ("tasks/067-ai-doctest-survivor-assistance.md", [
+            "schema-extension test",
+            "case.mutation.runner_evidence",
+            "does not resolve killed, skipped, invalid, compile-error, compiler-crash, or timeout",
+        ]),
+        ("docs/DOCTEST_SPEC.md", [
+            "`zentinel.doctest.report.v1` is the exact schema target",
+            "case.advisory.ai",
+            "Failure report rules",
+            "Doctest Survivor Refs",
+            "case.mutation",
+            "summary.mutation",
+            "canonical_survivor_bytes",
+        ]),
+        ("docs/DOCTEST_AI_INTEGRATION.md", [
+            "case_failure",
+            "docs_target",
+            "snapshot_diff",
+            "missing_doctests",
+            "doctest_survivor",
+            "Task `055` owns the first four variants",
+            "Task `067` owns the deferred `doctest_survivor` variant",
+            "docs_metadata",
+            "runner_evidence",
+            "zentinel doctest suggest-missing [--file <doc-path>]",
+            "zentinel doctest explain-survivor <survivor-ref>",
+            "case.result.snapshot",
+        ]),
+        ("docs/DOCTEST_POLICY.md", [
+            "docs/DOCTEST_AI_INTEGRATION.md",
+        ]),
+        ("tasks/066-public-docs-doctest-coverage.md", [
+            "docs/DOCTEST_AI_INTEGRATION.md",
+            "one doctest AI JSON example",
+        ]),
+    ]
+    for rel, phrases in required_phrases:
         path = ROOT / rel
         require(path.is_file(), errors, f"missing doctest identity contract file {rel}")
         if not path.is_file():
@@ -691,13 +770,23 @@ def validate_ai_contracts(errors: list[str]) -> None:
         "docs/AI_PROMPT_CONTRACTS.md": [
             "Doctest explain classifications",
             "doctest_output_mismatch",
+            "registered AI context schema",
+            "zentinel.ai.doctest.context.v1",
+            "Task `055` must reject `explain_doctest_survivor`",
+            "only task `067` may add that flow",
         ],
         "docs/AI_ASSISTED_UX.md": [
             "doctest_output_mismatch",
             "default redaction patterns are exactly",
+            "do not persist suggestions or snapshot reviews by default",
         ],
         "docs/DOCTEST_AI_INTEGRATION.md": [
             "doctest-specific classification labels",
+            "zentinel doctest review-snapshot <case-ref>",
+            "zentinel doctest suggest-missing [--file <doc-path>]",
+            "zentinel doctest explain-survivor <survivor-ref>",
+            "Response schema target",
+            "additionalProperties: false",
         ],
         "docs/CONFIG_SPEC.md": [
             '`redact_patterns` | list(string) | `["(?i)api[_-]?key", "(?i)token"]`',
@@ -710,6 +799,7 @@ def validate_ai_contracts(errors: list[str]) -> None:
             "ZNTL_AI_TARGET_NOT_FOUND",
             "ZNTL_DOCTEST_CASE_NOT_FOUND",
             "ZNTL_DOCTEST_DOC_NOT_FOUND",
+            "ZNTL_DOCTEST_SURVIVOR_NOT_FOUND",
         ],
         "tasks/053-ai-provider-and-context.md": [
             'omitted `ai.redact_patterns` expands to `["(?i)api[_-]?key", "(?i)token"]`',
@@ -718,9 +808,14 @@ def validate_ai_contracts(errors: list[str]) -> None:
         "tasks/054-ai-advisory-commands.md": [
             "doctest-specific classification values",
             "ai.remote_allowed = false",
+            "reject unknown context schema versions",
         ],
         "tasks/055-ai-doctest-assistance.md": [
             "doctest-specific classification labels",
+            "zentinel doctest review-snapshot <case-ref>",
+            "context.schema_version = \"zentinel.ai.doctest.context.v1\"",
+            "suggest_missing_doctests",
+            "rejects `flow = \"explain_doctest_survivor\"`",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -731,6 +826,96 @@ def validate_ai_contracts(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         for phrase in phrases:
             require(phrase in text, errors, f"{rel} must contain AI contract phrase '{phrase}'")
+
+
+def enum_values(schema: object, path: list[str]) -> list[object]:
+    current = schema
+    for key in path:
+        if not isinstance(current, dict):
+            return []
+        current = current.get(key)
+    return current if isinstance(current, list) else []
+
+
+def validate_runtime_safety_contracts(errors: list[str]) -> None:
+    report_schema = load_json(ROOT / "schemas" / "report.v1.schema.json", errors)
+    if isinstance(report_schema, dict):
+        summary = report_schema.get("properties", {}).get("summary", {}) if isinstance(report_schema.get("properties"), dict) else {}
+        required = summary.get("required") if isinstance(summary, dict) else None
+        require(isinstance(required, list) and "compiler_crash" in required, errors, "report schema summary must require compiler_crash")
+        result_status = enum_values(report_schema, ["$defs", "result", "properties", "status", "enum"])
+        require("compiler_crash" in result_status, errors, "report schema result.status must include compiler_crash")
+
+    ai_context_schema = load_json(ROOT / "schemas" / "ai.context.v1.schema.json", errors)
+    if isinstance(ai_context_schema, dict):
+        result_status = enum_values(ai_context_schema, ["$defs", "result", "properties", "status", "enum"])
+        require("compiler_crash" in result_status, errors, "AI context result.status must include compiler_crash")
+
+    failure_modes_gap = load_json(ROOT / "tests" / "coverage-gaps" / "failure_modes.v1.json", errors)
+    if isinstance(failure_modes_gap, dict):
+        entries = failure_modes_gap.get("entries")
+        if isinstance(entries, list):
+            f033 = next((entry for entry in entries if isinstance(entry, dict) and entry.get("number") == "F-033"), None)
+            require(isinstance(f033, dict), errors, "failure mode gap registry must include F-033")
+            if isinstance(f033, dict):
+                deferred_to = f033.get("deferred_to")
+                require(deferred_to != "tasks/025-autonomous-backlog-audit.md", errors, "F-033 must not be deferred to the administrative backlog audit task")
+                require(
+                    deferred_to == "preview backlog after minimum complete product" or (isinstance(deferred_to, str) and deferred_to.startswith("tasks/")),
+                    errors,
+                    "F-033 must defer either to explicit preview backlog or a concrete future task",
+                )
+
+    required_phrases = {
+        "docs/REPORT_FORMAT.md": [
+            "compiler_crash",
+            "zentinel.compiler_crash",
+            "distinct from `compile_error` and `invalid`",
+        ],
+        "docs/FAILURE_MODES.md": [
+            "F-032. Mutant compiler crash",
+            "F-033. Allocator mutator escapes target allocator boundary",
+            "ZNTL_RUNNER_COMPILER_CRASH",
+        ],
+        "docs/ERROR_CODES.md": [
+            "ZNTL_RUNNER_COMPILER_CRASH",
+            "ZNTL_DOCTEST_SURVIVOR_NOT_FOUND",
+        ],
+        "docs/SANDBOX_SECURITY.md": [
+            "Allocator Mutation Boundary",
+            "injected allocator wrapper",
+            "No two workers may write the same local cache",
+        ],
+        "docs/MUTATOR_SPEC.md": [
+            "runner allocator paths",
+            "harness allocator paths",
+            "compiler_crash",
+        ],
+        "docs/PERFORMANCE_STRATEGY.md": [
+            "Compilation cost is the primary performance constraint",
+            "cold versus warm Zig build-cache behavior",
+            "Concurrent workers must not write",
+        ],
+        "tasks/021-cache-key-design.md": [
+            "Zig cache namespace metadata",
+        ],
+        "tasks/050-parallel-worker-pool.md": [
+            "dedicated writable workspace",
+            "zig-out",
+        ],
+        "tasks/052-performance-benchmarks.md": [
+            "cold-versus-warm Zig build-cache",
+            "cache isolation",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing runtime safety contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain runtime safety phrase '{phrase}'")
 
 
 def validate_task_lifecycle_contracts(errors: list[str]) -> None:
@@ -957,6 +1142,7 @@ def main() -> int:
     validate_cli_contracts(errors)
     validate_doctest_identity_contracts(errors)
     validate_ai_contracts(errors)
+    validate_runtime_safety_contracts(errors)
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_adr_system(errors)

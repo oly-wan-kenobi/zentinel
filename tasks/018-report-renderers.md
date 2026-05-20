@@ -42,7 +42,7 @@ Complete Phase 1 report rendering for text, JSON, JSONL, and the first CI-friend
 - Add failing snapshots for survivor-focused text output.
 - Add failing JSONL snapshot.
 - Add a failing JUnit XML snapshot.
-- Add a failing JUnit status-mapping test for killed, survived, compile_error, timeout, skipped, invalid, run-level baseline_failed, and strict survivor-failing mode.
+- Add a failing JUnit status-mapping test for killed, survived, compile_error, compiler_crash, timeout, skipped, invalid, run-level baseline_failed, and strict survivor-failing mode.
 - Add a failing JUnit property test for structured command evidence under `result.commands[*]` (`command.original`, `command.argv`, `command.cwd`, `command.environment_policy`, `command.shell`, `phase`, `status`, `skip_reason`).
 - Add failing schema compatibility test for JSON.
 - Add failing test that summary counts are derived, not manually trusted.

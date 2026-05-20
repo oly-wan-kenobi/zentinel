@@ -8,7 +8,7 @@ This repository is designed for sequential AI-agent development. Agents must pre
 2. Tasks are executed by queue execution order. A task's explicit `order` key may differ from its stable numeric ID when a prerequisite is inserted.
 3. Read this guide, `docs/VISION.md`, `docs/NON_GOALS.md`, `docs/GLOSSARY.md`, `docs/ARCHITECTURE.md`, `docs/TDD_POLICY.md`, `docs/INVARIANTS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, and the active task before changing files.
 4. Write or update tests before implementation.
-5. Modify only files allowed by the active task, except Task Queue Manager lifecycle edits to task-control files and task-scoped pipeline artifacts after task `041` is complete.
+5. Modify only files allowed by the active task, except Task Queue Manager lifecycle edits to task-control files, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts after task `041` is complete.
 6. Do not perform broad refactors.
 7. Do not implement future phases early.
 8. Preserve deterministic behavior.
@@ -113,6 +113,8 @@ If a forbidden file appears necessary, block the task and explain why.
 Task-control files are the only built-in exception. The Task Queue Manager may update `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`, and may create or rename task markdown files under `tasks/`, for state transitions, blocker insertion, queue reordering, and validator-required synchronization even when the active task does not list them as allowed files.
 
 When inserting a prerequisite, keep existing task IDs stable. Assign the prerequisite the next unused three-digit ID, place it before the blocked task with an `order` key, update dependencies, and run the validator before implementation resumes.
+
+Gap registries are a row-scoped built-in exception. When a task adds, changes, or covers a documented invariant, failure mode, stable mutator, or schema contract, it may update only the matching row or newly required row in `tests/coverage-gaps/<registry>.v1.json` even if that file is not listed in the task's allowed files. This exception never permits unrelated registry cleanup, docs edits, schema edits, source edits, or task-scope expansion.
 
 After task `041` is complete, pipeline artifacts are a second narrow exception. A role may create or update files only under `artifacts/pipeline/<active-task-id>/**` for the active task's context packets, handoffs, reviews, verification reports, or other audit artifacts defined by `docs/PIPELINE_ARTIFACTS.md`. This exception never authorizes changes to source, tests, docs, schemas, task state, or another task's artifact directory.
 

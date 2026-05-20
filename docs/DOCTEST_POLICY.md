@@ -25,6 +25,7 @@ These docs require doctests after support exists:
 - `docs/MUTATOR_SPEC.md`
 - `docs/AI_CONTEXT_SCHEMA.md`
 - `docs/AI_PROMPT_CONTRACTS.md`
+- `docs/DOCTEST_AI_INTEGRATION.md`
 - `docs/DOCTEST_SPEC.md`
 
 ## Agent Rules

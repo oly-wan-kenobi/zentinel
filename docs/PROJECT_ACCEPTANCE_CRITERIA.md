@@ -11,7 +11,7 @@ zentinel is end-to-end complete when a developer can:
 3. Run `zentinel list-mutants`.
 4. Run `zentinel run`.
 5. Read deterministic text and JSON reports.
-6. See killed, survived, compile_error, timeout, skipped, and invalid outcomes represented correctly.
+6. See killed, survived, compile_error, compiler_crash, timeout, skipped, and invalid outcomes represented correctly.
 7. Use Phase 1 stable AST mutators.
 8. Use Phase 2 stable Zig-semantic mutators documented in `docs/MUTATOR_SPEC.md`.
 9. Run fixture dogfood.
@@ -19,8 +19,9 @@ zentinel is end-to-end complete when a developer can:
 11. Run CI without network-only dependencies.
 12. Use AI explanation/suggestion commands with the stub provider and a local provider interface.
 13. Run `zentinel doctest` against public executable docs.
-14. Use `zentinel doctest explain` and `zentinel doctest suggest` with the stub provider.
+14. Use `zentinel doctest explain`, `zentinel doctest suggest`, `zentinel doctest review-snapshot`, and `zentinel doctest suggest-missing` with the stub provider.
 15. Run experimental or stabilized `zentinel doctest --mutate` against fixture documentation when the roadmap reaches mutation-aware doctests.
+16. Use `zentinel doctest explain-survivor` with the stub provider after mutation-aware doctest reports are stabilized.
 
 ## Required Commands
 
@@ -35,6 +36,9 @@ zentinel is end-to-end complete when a developer can:
 | `zentinel doctest` | Extracts and validates executable documentation examples. |
 | `zentinel doctest explain` | Produces advisory AI explanation for a doctest case from a selected doctest report. |
 | `zentinel doctest suggest` | Produces advisory executable-example suggestions for a documentation path. |
+| `zentinel doctest review-snapshot` | Produces advisory AI review for normalized snapshot differences in a selected doctest report case. |
+| `zentinel doctest suggest-missing` | Produces advisory missing-doctest suggestions from deterministic public-docs metadata. |
+| `zentinel doctest explain-survivor` | Produces advisory AI explanation for a mutation-aware doctest survivor. |
 | `zentinel explain` | Produces advisory AI explanation from a report. |
 | `zentinel suggest` | Produces advisory test suggestions from a report. |
 | `zentinel review-tests` | Produces advisory survivor clusters from a report. |

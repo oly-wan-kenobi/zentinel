@@ -31,7 +31,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 ## Deterministic Core
 
 **I-001.** A mutant result is determined only by deterministic command evidence.
-- *Rationale.* Kill, survive, compile-error, timeout, and invalid status must be reproducible and auditable.
+- *Rationale.* Kill, survive, compile-error, compiler-crash, timeout, and invalid status must be reproducible and auditable.
 - *Status.* documented.
 - *Enforcement.* `docs/ARCHITECTURE.md`, `docs/MUTATOR_SPEC.md`, `docs/TDD_POLICY.md`, and future runner tests.
 - *Failure mode.* AI or heuristics override actual test evidence, making reports untrustworthy.
@@ -97,6 +97,12 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Status.* documented.
 - *Enforcement.* Mutator contract tests and sandbox tests.
 - *Failure mode.* Tool bugs are hidden inside ordinary mutation outcomes.
+
+**I-021.** `compiler_crash` is reserved for abnormal Zig compiler termination while compiling a syntactically valid mutant.
+- *Rationale.* Compiler panics and crashes are neither normal type-checking failures nor zentinel patch defects, and they need separate evidence for triage.
+- *Status.* documented.
+- *Enforcement.* Runner classification tests.
+- *Failure mode.* Compiler defects are hidden as `compile_error`, or zentinel tool defects are hidden as compiler crashes.
 
 **I-012.** Test selection may reduce execution cost, but it must never hide an executed mutant from the final report.
 - *Rationale.* The report is the audit trail for every generated and filtered candidate.

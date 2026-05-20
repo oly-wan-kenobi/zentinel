@@ -68,8 +68,25 @@ Rules:
 
 - workspace paths are not included raw in stable snapshots
 - workspaces are content-isolated by mutant/run identifier
+- concurrent workers use distinct writable workspace directories
+- local `.zig-cache` and `zig-out` writes are isolated or namespaced per worker or mutant
+- shared Zig compiler cache use is allowed only for content-addressed cache entries that cannot be corrupted by concurrent writes
 - cleanup failures are warnings unless they risk source corruption
 - patch application validates original text before replacement
+
+No two workers may write the same local cache, output, or temporary build artifact path. This includes `.zig-cache/`, `zig-out/`, generated doctest workspaces, and mutation runner scratch files.
+
+## Allocator Mutation Boundary
+
+Allocator-path mutators are high risk because they can crash the test runner or harness if they rewrite zentinel's own allocation path instead of the target project path.
+
+Rules:
+
+- allocator mutators may target only fixture-controlled code or target modules that receive an injected allocator wrapper explicitly
+- the zentinel runner allocator, harness allocator, global allocator setup, and report writer allocator are forbidden mutation targets
+- target modules must operate on allocator wrappers passed through the sandboxed command or fixture, not on hidden global state
+- allocator failure evidence belongs to the target command evidence in the mutant report, never to runner or harness crash handling
+- a crash in zentinel's runner or harness is an internal error, not a killed mutant
 
 ## Symlink Policy
 
@@ -97,7 +114,7 @@ Future config may allow explicit environment variables, but default behavior sho
 
 ## AI Security Boundary
 
-AI providers receive only privacy-filtered context from `docs/AI_CONTEXT_SCHEMA.md`.
+AI providers receive only privacy-filtered context from registered AI context schemas such as `docs/AI_CONTEXT_SCHEMA.md` for mutation AI and `docs/DOCTEST_AI_INTEGRATION.md` for doctest AI.
 
 AI must not receive:
 

@@ -257,12 +257,12 @@ a < b  -> a <= b
 | Field | Contract |
 | --- | --- |
 | Before | Allocation success path using configured allocator call. |
-| After | Deterministic fixture-controlled failure branch or injected failing allocator. |
-| Allowed contexts | Fixture projects and future runner-controlled allocator wrappers. |
-| Forbidden contexts | Arbitrary source rewrites that guess allocator semantics; production default until stable harness exists. |
+| After | Deterministic fixture-controlled failure branch or injected failing allocator wrapper. |
+| Allowed contexts | Fixture projects and target modules that operate on explicitly injected allocator wrappers owned by the sandboxed target command. |
+| Forbidden contexts | Arbitrary source rewrites that guess allocator semantics; zentinel runner allocator paths; harness allocator paths; global allocator setup; production default until stable wrapper sandbox support exists. |
 | Equivalent risks | Tests do not assert error cleanup; allocation not reached. |
 | Compile expectation | `may_fail` until harness support exists; stable form must compile. |
-| Fixture requirements | Include failing allocator fixture and leak-detection fixture. |
+| Fixture requirements | Include failing allocator fixture, leak-detection fixture, and a guard proving the mutator cannot reach the runner or harness allocator. |
 
 ### `comptime_branch_flip`
 
@@ -342,6 +342,7 @@ Parallel execution must not change this order.
 Compile errors are valid deterministic outcomes. A compile-error mutant is:
 
 - `compile_error` when the patched source fails to compile before tests execute
+- `compiler_crash` when the Zig compiler process crashes, panics, or terminates abnormally while compiling a syntactically valid mutant
 - `invalid` only when zentinel generated a syntactically malformed patch or violated its own mutator contract
 
 Expected compile behavior in this document controls reporting language, not whether the candidate exists.

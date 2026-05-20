@@ -1496,7 +1496,10 @@
         "src/cli.zig",
         "src/doctest/**",
         "src/main.zig",
+        "docs/AI_PROMPT_CONTRACTS.md",
+        "docs/CLI_SPEC.md",
         "docs/DOCTEST_AI_INTEGRATION.md",
+        "schemas/ai.prompt.v1.schema.json",
         "schemas/ai.doctest.context.v1.schema.json",
         "schemas/ai.doctest.suggest.response.v1.schema.json",
         "schemas/ai.doctest.snapshot_review.response.v1.schema.json",
@@ -1631,6 +1634,7 @@
         "src/doctest/**",
         "src/mutant_runner.zig",
         "src/report.zig",
+        "docs/DOCTEST_SPEC.md",
         "docs/DOCTEST_MUTATION_STRATEGY.md",
         "schemas/doctest.report.v1.schema.json",
         "test/doctest_mutate_stabilization_test.zig",
@@ -1773,11 +1777,46 @@
         "docs/CONFIG_SPEC.md",
         "docs/REPORT_FORMAT.md",
         "docs/AI_PROMPT_CONTRACTS.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
         "docs/DOCTEST_POLICY.md",
         "docs/DOCTEST_BLOCK_FORMATS.md",
         "src/doctest/**",
         "test/public_docs_doctest_test.zig",
         "test/fixtures/doctest/public_docs/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/mutators/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
+      "id": "067",
+      "order": "059.7",
+      "title": "AI Doctest Survivor Assistance",
+      "file": "tasks/067-ai-doctest-survivor-assistance.md",
+      "phase": 4,
+      "state": "queued",
+      "dependencies": [
+        "055",
+        "061",
+        "066"
+      ],
+      "allowed_files": [
+        "src/ai/**",
+        "src/cli.zig",
+        "src/doctest/**",
+        "src/main.zig",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "schemas/ai.prompt.v1.schema.json",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/ai.explain.response.v1.schema.json",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/fixtures/ai/doctest_survivor/**",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],
@@ -1795,7 +1834,7 @@
       "phase": 7,
       "state": "queued",
       "dependencies": [
-        "066"
+        "067"
       ],
       "allowed_files": [
         "docs/PROJECT_ACCEPTANCE_CRITERIA.md",

@@ -7,7 +7,7 @@
     "last_validation": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
-        "notes": "Validator passed after applying follow-up contract fixes: duplicate unlabeled identical doctest cases are invalid, doctest source refs use anchor lines plus secondary block refs, shared AI explain schema includes doctest labels, AI/doctest error codes are covered by failure modes and gap rows, remote AI config policy is explicit, AI redaction defaults are exact, validator guardrails cover these contracts, and the repository scaffold baseline was prepared for tracking; task count is 67."
+        "notes": "Validator passed after resolving follow-up contract findings: task 061 can edit docs/DOCTEST_SPEC.md, mutation-aware doctest reports define summary.mutation/case.mutation/ds survivor refs, task 055 and task 067 split doctest AI context schema ownership, doctest AI evidence objects are closed, and F-033 no longer routes to task 025; task count is 68. Python validator compilation, JSON syntax checks, JSON fence checks, and git diff --check passed."
   },
   "history": [
     {
@@ -84,6 +84,21 @@
             "event": "doctest_ai_contract_followups_and_baseline_prepared",
             "task": null,
             "notes": "Applied follow-up contract fixes: duplicate unlabeled identical doctest cases are invalid instead of receiving occurrence IDs, source refs resolve only anchor lines with secondary block_refs retained for diagnostics, the shared AI explain response enum includes doctest classifications, AI/doctest failures have failure-mode and gap-registry rows, remote AI config and CLI override errors are explicitly separated, AI redaction defaults are exact, and validator guardrails preserve these contracts."
+        },
+        {
+            "event": "doctest_ai_report_contracts_refined",
+            "task": null,
+            "notes": "Applied doctest AI/report contract refinements: ai.prompt.v1 context ownership now separates mutation and doctest context schemas, task 055 may update the prompt schema for doctest context, doctest review-snapshot is a first-class CLI subcommand, doctest AI context/suggest/snapshot response schema targets are exact, doctest.report.v1 has concrete run/summary/case/evidence/failure fields, doctest AI output is not persisted by default, and docs/DOCTEST_AI_INTEGRATION.md is included in public-doc doctest coverage."
+        },
+        {
+            "event": "runtime_and_doctest_ai_contracts_hardened",
+            "task": null,
+            "notes": "Resolved deep-analysis and external-agent findings: added compiler_crash as a distinct deterministic status, tightened Zig build-cache and parallel workspace isolation, constrained allocator mutators to injected target allocator wrappers, made doctest report case kinds and snapshot evidence exact, documented row-scoped gap-registry updates, and inserted task 067 for user-facing doctest survivor AI CLI assistance before release acceptance."
+        },
+        {
+            "event": "doctest_mutation_and_ai_contract_findings_resolved",
+            "task": null,
+            "notes": "Resolved follow-up findings from deep analysis and the external agent: task 061 now owns docs/DOCTEST_SPEC.md alongside the doctest report schema, ds_ survivor refs have deterministic derivation and resolution rules, task 055 creates only non-survivor doctest AI context flows while task 067 adds explain_doctest_survivor, doctest AI evidence variants define closed nested properties, and F-033 is deferred to explicit preview backlog instead of the administrative audit task."
         }
     ]
 }

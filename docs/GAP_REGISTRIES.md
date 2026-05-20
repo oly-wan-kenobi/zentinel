@@ -39,3 +39,4 @@ Each row has:
 - When adding tests that cover a row, set `covered` to `true` and list the test paths.
 - Do not set `covered` to `true` for prose-only evidence.
 - Do not delete uncovered rows to make the registry look better.
+- Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a row-scoped task exception: update only the matching row or newly required row for the active task's contract change unless the active task explicitly allows broader registry maintenance.

@@ -32,11 +32,12 @@
               "killed": { "const": 0 },
               "survived": { "const": 0 },
               "compile_error": { "const": 0 },
+              "compiler_crash": { "const": 0 },
               "timeout": { "const": 0 },
               "skipped": { "const": 0 },
               "invalid": { "const": 0 }
             },
-            "required": ["total", "killed", "survived", "compile_error", "timeout", "skipped", "invalid"]
+            "required": ["total", "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"]
           },
           "mutants": {
             "maxItems": 0
@@ -103,13 +104,14 @@
     },
     "summary": {
       "type": "object",
-      "required": ["total", "killed", "survived", "compile_error", "timeout", "skipped", "invalid"],
+      "required": ["total", "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"],
       "additionalProperties": false,
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
         "killed": { "type": "integer", "minimum": 0 },
         "survived": { "type": "integer", "minimum": 0 },
         "compile_error": { "type": "integer", "minimum": 0 },
+        "compiler_crash": { "type": "integer", "minimum": 0 },
         "timeout": { "type": "integer", "minimum": 0 },
         "skipped": { "type": "integer", "minimum": 0 },
         "invalid": { "type": "integer", "minimum": 0 }
@@ -198,7 +200,7 @@
       "properties": {
         "command": { "$ref": "#/$defs/command_evidence" },
         "phase": { "const": "mutant" },
-        "status": { "enum": ["passed", "failed", "timeout", "skipped"] },
+        "status": { "enum": ["passed", "failed", "compiler_crash", "timeout", "skipped"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
         "duration_ms": { "type": "integer", "minimum": 0 },
@@ -234,7 +236,7 @@
       "required": ["status", "mode", "commands", "phase", "duration_ms", "evidence"],
       "additionalProperties": false,
       "properties": {
-        "status": { "enum": ["killed", "survived", "compile_error", "timeout", "skipped", "invalid"] },
+        "status": { "enum": ["killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"] },
         "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
         "commands": {
           "type": "array",

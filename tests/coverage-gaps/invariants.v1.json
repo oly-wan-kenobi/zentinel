@@ -150,6 +150,13 @@
       ],
       "deferred_to": null,
       "notes": "The validator rejects prose-only follow-up bullets unless they explicitly state no predefined follow-up exists, and validates concrete task references in task Markdown."
+    },
+    {
+      "number": "I-021",
+      "covered": false,
+      "tests": [],
+      "deferred_to": "tasks/015-mutant-runner.md",
+      "notes": "Compiler crash classification lands with mutant runner tests."
     }
   ]
 }

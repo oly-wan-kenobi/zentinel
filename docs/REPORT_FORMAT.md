@@ -67,6 +67,7 @@ JSON is the canonical report format.
     "killed": 0,
     "survived": 0,
     "compile_error": 0,
+    "compiler_crash": 0,
     "timeout": 0,
     "skipped": 0,
     "invalid": 0
@@ -184,11 +185,14 @@ Report v1 does not support skipping the baseline. `baseline.status` is only `pas
 | `killed` | Selected tests failed for the mutant after baseline passed. |
 | `survived` | Selected tests passed for the mutant. |
 | `compile_error` | Mutated project failed to compile. |
+| `compiler_crash` | Zig compiler process crashed, panicked, or terminated abnormally while compiling a syntactically valid mutant. |
 | `timeout` | Test command exceeded configured timeout. |
 | `skipped` | Mutant was not executed for a deterministic documented reason. |
 | `invalid` | zentinel generated an invalid patch or violated a backend contract. |
 
 Baseline failure is a run-level state (`run.status = baseline_failed`), not a mutant result status.
+
+`compiler_crash` is distinct from `compile_error` and `invalid`. A normal Zig diagnostic for a mutated project is `compile_error`; a zentinel-generated malformed patch or backend contract violation is `invalid`; an abnormal Zig compiler panic/crash while compiling an otherwise syntactically valid mutant is `compiler_crash` with command evidence and bounded compiler output.
 
 ## Command Evidence
 
@@ -253,6 +257,7 @@ Status mapping in diagnostic mode:
 | --- | --- |
 | Mutant `killed` | Passing testcase with `status=killed` property. |
 | Mutant `compile_error` | Passing testcase with `status=compile_error` property. |
+| Mutant `compiler_crash` | Testcase with `<error type="zentinel.compiler_crash">`. |
 | Mutant `survived` | Passing testcase with `status=survived` property. |
 | Mutant `skipped` | Testcase with `<skipped message="deterministically skipped"/>`. |
 | Mutant `timeout` | Testcase with `<error type="zentinel.timeout">`. |
@@ -265,7 +270,7 @@ Suite counts are derived from emitted testcases:
 
 - `tests`: testcase count
 - `failures`: survived testcase count only in strict survivor-failing mode
-- `errors`: timeout, invalid, and baseline_failed testcase count
+- `errors`: timeout, compiler_crash, invalid, and baseline_failed testcase count
 - `skipped`: skipped testcase count
 - `time`: normalized in snapshots and never used for deterministic comparisons
 

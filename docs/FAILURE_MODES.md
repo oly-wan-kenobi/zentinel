@@ -234,3 +234,24 @@ Each failure mode has:
 - *Code/status.* `ZNTL_DOCTEST_DOC_NOT_FOUND`.
 - *Invariants stressed.* I-004.
 - *Required test surface.* Doctest AI CLI docs-path test.
+
+**F-032. Mutant compiler crash**
+- *Phase.* Runner.
+- *Expected outcome.* Mutant result is `compiler_crash` with command evidence and bounded compiler output.
+- *Code/status.* `ZNTL_RUNNER_COMPILER_CRASH`, `compiler_crash`.
+- *Invariants stressed.* I-001, I-021.
+- *Required test surface.* Mutant runner fixture that simulates abnormal Zig compiler termination distinct from compile diagnostics.
+
+**F-033. Allocator mutator escapes target allocator boundary**
+- *Phase.* Mutator.
+- *Expected outcome.* Candidate is rejected as invalid or blocked by fixture requirements before it can mutate the zentinel runner or harness allocator path.
+- *Code/status.* `ZNTL_MUTATOR_INVALID_CANDIDATE`, `invalid`.
+- *Invariants stressed.* I-007, I-011.
+- *Required test surface.* Allocator mutator fixture proving only injected target allocator wrappers are mutated.
+
+**F-034. Doctest survivor ref missing**
+- *Phase.* Doctest AI.
+- *Expected outcome.* `zentinel doctest explain-survivor` fails when the survivor ref does not resolve in the selected mutation-aware doctest report.
+- *Code/status.* `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
+- *Invariants stressed.* I-004, I-016.
+- *Required test surface.* Doctest survivor AI CLI survivor-ref resolution test.

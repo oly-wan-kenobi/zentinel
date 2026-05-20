@@ -110,6 +110,8 @@ Until that artifact tree exists, record equivalent evidence in `tasks/STATUS.md`
 
 After task `041` introduces the artifact tree, writes under `artifacts/pipeline/<active-task-id>/**` are a task-scoped audit exception to normal allowed-file lists. That exception is limited to pipeline evidence and never authorizes source, docs, tests, schema, task-state, or another task's artifact changes.
 
+Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a separate row-scoped exception. A Codex role may update only the row that corresponds to the invariant, failure mode, stable mutator, or schema contract added, changed, or covered by the active task.
+
 Pre-artifact handoffs must include:
 
 - logical role performed
