@@ -1922,6 +1922,46 @@ def validate_contract_traceability_and_scope_hardening_contracts(tasks: list[dic
         )
 
 
+def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
+    """Guard the final pre-bootstrap cleanup against stale analysis findings."""
+    required_phrases = {
+        "docs/adr/0001-latest-stable-zig-only.md": [
+            "This ADR is a historical superseded record.",
+            "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
+        ],
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `091`",
+            "Task `091` completed at execution order `000.0.21` before project bootstrap.",
+        ],
+        "tasks/000-project-bootstrap.md": [
+            "after task `091` is complete",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing analysis cleanup contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain analysis cleanup phrase '{phrase}'")
+
+    forbidden_phrases = {
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `089`",
+            "pre-bootstrap hardening tasks `071` through `090`",
+        ],
+    }
+    for rel, phrases in forbidden_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing stale analysis cleanup file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale analysis cleanup phrase '{phrase}'")
+
+
 def validate_adr_system(errors: list[str]) -> None:
     readme = ADR_DIR / "README.md"
     require(readme.is_file(), errors, "docs/adr/README.md is missing")
@@ -2101,6 +2141,7 @@ def main() -> int:
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)
     validate_contract_traceability_and_scope_hardening_contracts(tasks, errors)
+    validate_analysis_risk_cleanup_contracts(errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

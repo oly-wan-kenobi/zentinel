@@ -1,19 +1,23 @@
-# ADR-0001: Support latest stable Zig only
+# ADR-0001: Support latest stable Zig only (superseded)
 
 **Status:** Superseded by ADR-0007
 **Date:** 2026-05-19
+
+## Supersession Note
+
+This ADR is a historical superseded record. Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`. The decision text below describes the former policy only and must not be used as current implementation guidance.
 
 ## Context
 
 zentinel is Zig-native and depends on Zig syntax, build behavior, compiler diagnostics, safety modes, comptime semantics, and source mapping. Supporting multiple Zig releases would multiply the parser and fixture matrix before the product has a stable core.
 
-The existing project vision, config spec, version policy, and task queue all assume latest stable Zig only.
+At the time this ADR was accepted, the project vision, config spec, version policy, and task queue assumed latest stable Zig only.
 
 ## Decision
 
-zentinel supports only the latest stable Zig release for a given zentinel version. Older Zig versions are not compatibility targets. The CLI must fail clearly when it detects an unsupported Zig version.
+This historical decision supported only the latest stable Zig release for a given zentinel version. Older Zig versions were not compatibility targets. The CLI was expected to fail clearly when it detected an unsupported Zig version.
 
-Experimental backend work may investigate compiler-version coupling, but stable behavior must continue to use the same latest-stable policy.
+Experimental backend work could investigate compiler-version coupling, but stable behavior was expected to use the same latest-stable policy.
 
 ## Alternatives Considered
 

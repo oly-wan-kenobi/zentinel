@@ -24,13 +24,14 @@
     "087",
     "088",
     "089",
-    "090"
+    "090",
+    "091"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 090 contract traceability and scope hardening; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 091 analysis risk cleanup; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -362,6 +363,21 @@
       },
       "dogfooding_implication": "Future dogfood and release tasks now use a pinned Zig 0.16.0 contract, complete public diagnostic traces, task-specific product evidence, and stable-mutator-only minimum scope.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "091",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails because ADR-0001 lacked a historical supersession note and tasks/STATUS.md still named the pre-bootstrap hardening range as stopping before task 091.",
+      "implementation_summary": "Inserted and completed task 091 before bootstrap, added validator guardrails for the final analysis cleanup, clarified ADR-0001 as superseded historical policy governed by ADR-0007, aligned task-status handoff wording through task 091, and moved task 000 behind task 091.",
+      "files_changed": ["task metadata", "validator guardrails", "ADR supersession wording", "status handoff wording", "task 000 dependency and guard"],
+      "tests_added": ["Structural validator guardrails for ADR-0001 supersession clarity and task-status handoff range clarity."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "jq empty task JSON files", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 091 analysis risk cleanup."
+      },
+      "dogfooding_implication": "Future implementation agents see the current pinned Zig policy and full pre-bootstrap hardening range before starting bootstrap.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -679,6 +695,16 @@
       "event": "contract_traceability_and_scope_hardening_completed",
       "task": "090",
       "notes": "Completed task 090 before project bootstrap. Public ZNTL diagnostics now trace to failure modes, Zig is pinned to 0.16.0, validator success is not product proof, and preview mutators are outside end-to-end minimum-product scope unless explicitly tasked."
+    },
+    {
+      "event": "analysis_risk_cleanup_started",
+      "task": "091",
+      "notes": "Inserted and activated task 091 at execution order 000.0.21 before project bootstrap to resolve the remaining stale handoff and superseded ADR wording found by deep analysis."
+    },
+    {
+      "event": "analysis_risk_cleanup_completed",
+      "task": "091",
+      "notes": "Completed task 091 before project bootstrap. ADR-0001 now identifies itself as a historical superseded record, status handoff wording names pre-bootstrap hardening through task 091, and task 000 follows task 091."
     }
   ]
 }

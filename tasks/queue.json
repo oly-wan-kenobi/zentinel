@@ -818,6 +818,35 @@
     ]
   },
   {
+    "id": "091",
+    "order": "000.0.21",
+    "title": "Analysis Risk Cleanup",
+    "file": "tasks/091-analysis-risk-cleanup.md",
+    "phase": 0,
+    "state": "complete",
+    "dependencies": [
+      "090"
+    ],
+    "allowed_files": [
+      "tasks/QUEUE.md",
+      "tasks/queue.json",
+      "tasks/STATUS.md",
+      "tasks/status.json",
+      "tasks/091-analysis-risk-cleanup.md",
+      "tasks/000-project-bootstrap.md",
+      "docs/adr/0001-latest-stable-zig-only.md",
+      "scripts/validate_task_system.py"
+    ],
+    "forbidden_files": [
+      "src/**",
+      "build.zig",
+      "build.zig.zon",
+      "test/**/*.zig",
+      "schemas/**",
+      ".claude/**"
+    ]
+  },
+  {
     "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -825,7 +854,7 @@
       "phase": 0,
       "state": "queued",
     "dependencies": [
-      "090"
+      "091"
     ],
       "allowed_files": [
         "build.zig",
