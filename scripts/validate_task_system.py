@@ -1137,6 +1137,89 @@ def validate_preimplementation_blocker_contracts(tasks: list[dict[str, object]],
             require(phrase not in text, errors, f"{rel} contains stale or ambiguous phrase '{phrase}'")
 
 
+def validate_agent_contract_finalization_contracts(status: object, errors: list[str]) -> None:
+    orchestrator_path = ROOT / ".agents" / "ORCHESTRATOR.md"
+    escalation_path = ROOT / "docs" / "PIPELINE_ESCALATION_POLICY.md"
+    for path in [orchestrator_path, escalation_path]:
+        require(path.is_file(), errors, f"missing agent contract finalization file {path.relative_to(ROOT)}")
+
+    if orchestrator_path.is_file():
+        text = orchestrator_path.read_text(encoding="utf-8")
+        required_rows = [
+            "| Low-risk | Test Author, Implementer, Verifier |",
+            "| Normal | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier |",
+            "| High-risk | Normal roles plus Property Test Agent or Mutation Agent as applicable |",
+            "| Compiler-internal | High-risk roles plus Architecture Reviewer |",
+            "| Architecture | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |",
+        ]
+        require("mirrors `docs/PIPELINE_ESCALATION_POLICY.md`" in text, errors, ".agents/ORCHESTRATOR.md must state complexity routing mirrors the escalation policy")
+        for row in required_rows:
+            require(row in text, errors, f".agents/ORCHESTRATOR.md must contain escalation-policy routing row {row!r}")
+        for stale in ["Low-risk docs-only", "Low-risk test-only", "| Architecture or governance |"]:
+            require(stale not in text, errors, f".agents/ORCHESTRATOR.md contains stale routing class {stale!r}")
+
+    pipeline_schema_contracts = {
+        "tasks/063-pipeline-metadata-validator.md": [
+            "baseline pipeline schema files",
+            "tasks `042`, `046`, and `049` refine",
+        ],
+        "tasks/042-context-packet-system.md": [
+            "refine the baseline context and stale-context schemas created by task `063`",
+        ],
+        "tasks/046-verification-pipeline.md": [
+            "refine the baseline verification schema created by task `063`",
+        ],
+        "tasks/049-pipeline-escalation.md": [
+            "refine the baseline escalation schema created by task `063`",
+        ],
+        "docs/SCHEMA_REGISTRY.md": [
+            "Task `tasks/063-pipeline-metadata-validator.md` creates baseline pipeline schema files",
+            "tasks `042`, `046`, and `049` refine role-specific fields",
+        ],
+    }
+    for rel, phrases in pipeline_schema_contracts.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing pipeline schema ownership file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must clarify pipeline schema ownership phrase '{phrase}'")
+
+    schema_gap_path = GAP_REGISTRY_DIR / "schemas.v1.json"
+    if schema_gap_path.is_file():
+        data = load_json(schema_gap_path, errors)
+        entries = data.get("entries") if isinstance(data, dict) else None
+        if isinstance(entries, list):
+            expected_later_tasks = {
+                "zentinel.pipeline.context.v1": "tasks/042-context-packet-system.md",
+                "zentinel.pipeline.stale_context.v1": "tasks/042-context-packet-system.md",
+                "zentinel.pipeline.verification.v1": "tasks/046-verification-pipeline.md",
+                "zentinel.pipeline.escalation.v1": "tasks/049-pipeline-escalation.md",
+            }
+            by_version = {entry.get("version"): entry for entry in entries if isinstance(entry, dict)}
+            for version, later_task in expected_later_tasks.items():
+                entry = by_version.get(version)
+                require(isinstance(entry, dict), errors, f"schemas.v1.json missing pipeline schema row {version}")
+                if not isinstance(entry, dict):
+                    continue
+                require(entry.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, f"schemas.v1.json {version} must defer baseline schema validation to task 063")
+                notes = entry.get("notes")
+                require(isinstance(notes, str) and "baseline schema" in notes and later_task in notes, errors, f"schemas.v1.json {version} notes must name baseline schema ownership and later refinement task {later_task}")
+
+    gitignore_path = ROOT / ".gitignore"
+    require(gitignore_path.is_file(), errors, ".gitignore must exist before Zig bootstrap creates build artifacts")
+    if gitignore_path.is_file():
+        text = gitignore_path.read_text(encoding="utf-8")
+        for pattern in [".zig-cache/", "zig-out/"]:
+            require(pattern in text, errors, f".gitignore must ignore {pattern}")
+
+    if isinstance(status, dict):
+        status_text = json.dumps(status)
+        for stale in ["untracked git content", "baseline commit"]:
+            require(stale not in status_text, errors, f"tasks/status.json contains stale baseline wording {stale!r}")
+
+
 def validate_task_lifecycle_contracts(errors: list[str]) -> None:
     path = ROOT / "docs" / "TASK_LIFECYCLE.md"
     require(path.is_file(), errors, "docs/TASK_LIFECYCLE.md is missing")
@@ -1364,6 +1447,7 @@ def main() -> int:
     validate_runtime_safety_contracts(errors)
     validate_agent_readiness_contracts(tasks, errors)
     validate_preimplementation_blocker_contracts(tasks, errors)
+    validate_agent_contract_finalization_contracts(status, errors)
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_adr_system(errors)

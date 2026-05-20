@@ -54,14 +54,15 @@ Add specialized roles when required by task scope:
 
 ## Complexity Routing
 
+This table mirrors `docs/PIPELINE_ESCALATION_POLICY.md`. Task Queue Manager and Planner steps still run when required by the task lifecycle or dispatch flow, but the class-specific minimum roles below must not drift from the escalation policy.
+
 | Task class | Minimum roles |
 | --- | --- |
-| Low-risk docs-only | Planner, Verifier |
-| Low-risk test-only | Test Author, Verifier |
-| Normal behavior | Planner, Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier |
-| High-risk behavior | Normal behavior roles plus Property Test Agent or Mutation Agent as applicable |
-| Compiler-internal | High-risk behavior roles plus Architecture Reviewer |
-| Architecture or governance | Planner, Architecture Reviewer, Verifier |
+| Low-risk | Test Author, Implementer, Verifier |
+| Normal | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier |
+| High-risk | Normal roles plus Property Test Agent or Mutation Agent as applicable |
+| Compiler-internal | High-risk roles plus Architecture Reviewer |
+| Architecture | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |
 
 When in doubt, choose the higher-risk route.
 

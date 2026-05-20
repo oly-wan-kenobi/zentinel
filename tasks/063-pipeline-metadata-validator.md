@@ -10,6 +10,8 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 
 - Extend validation for pipeline artifact directories after task 041.
 - Execute immediately after task 041, before context-packet, mutation-gate, verification, recovery, or CI pipeline tasks consume JSON handoff artifacts.
+- Create baseline pipeline schema files for context packets, stale-context markers, verification records, and escalation records so the validator has concrete contracts before later pipeline tasks emit those artifacts; consume the handoff and active-lock schemas created by task `041`.
+- The baseline pipeline schema files should contain only the required fields already documented by the current contracts; tasks `042`, `046`, and `049` refine context/stale-context, verification, and escalation semantics without weakening task `063` validation.
 - Validate required JSON handoffs, context packets, active lock artifact records, stale-context markers, escalation records, and verification records when present.
 - Implement a project-owned schema subset validator for pipeline artifacts: `schema_version`, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership.
 - Reject Markdown-only handoffs after the JSON handoff cutover.
@@ -53,6 +55,7 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 
 - Pipeline artifact validation is deterministic and task-scoped.
 - Pipeline metadata validation is in place immediately after task 041 introduces durable handoff artifacts.
+- Baseline pipeline schema files exist before tasks `042`, `046`, and `049` refine role-specific fields.
 - Validator documentation states the supported schema subset and does not imply full Draft 2020-12 support.
 - JSON handoffs are required after task 041 for non-trivial tasks.
 - The post-041 active lock artifact at `locks/active-task-lock.json` is validated against task and context-packet ownership.

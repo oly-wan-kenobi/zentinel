@@ -5,13 +5,14 @@
   "completed_tasks": [
     "068",
     "069",
-    "070"
+    "070",
+    "071"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 070 agent-blocker contract closure: follow-up references are checked by execution order, task 000 owns top-level test discovery, post-041 active-lock artifacts and schema ownership are defined, doctest expectation blocks are secondary evidence, stale status prose is removed, and README orientation exists. Python validator compilation, JSON syntax checks, and git diff --check passed."
+    "notes": "Validator passed after completing task 071 agent contract finalization: orchestrator complexity routing mirrors the escalation policy, task 063 baseline pipeline schema ownership is explicit, Zig build artifact ignores exist, stale untracked-baseline wording is rejected, and task 000 is the next dependency-ready task. Python validator compilation, JSON syntax checks, and git diff --check passed."
   },
   "history": [
     {
@@ -57,7 +58,7 @@
     {
       "event": "git_baseline_note_added",
       "task": null,
-      "notes": "Documented that the scaffold appears as untracked git content in this workspace and that future agents must rely on task/status metadata and handoff notes for ownership until a baseline commit is intentionally created."
+      "notes": "Documented that the repository scaffold is tracked as the baseline project state and that future agents may use git status to identify changes made after that baseline."
     },
     {
       "event": "agent_speculation_reduced",
@@ -128,6 +129,16 @@
       "event": "agent_blocker_contract_closure_completed",
       "task": "070",
       "notes": "Completed task 070 before project bootstrap. Added validator guardrails and aligned bootstrap test discovery ownership, active-lock artifact contracts and schema registry ownership, follow-up execution-order validation, doctest expectation-block semantics, status history wording, and README entry-point guidance."
+    },
+    {
+      "event": "agent_contract_finalization_started",
+      "task": "071",
+      "notes": "Inserted task 071 at execution order 000.0.2 before project bootstrap to resolve remaining deep-analysis findings around orchestrator role routing, pipeline schema ownership, Zig build artifact ignores, and stale baseline status history."
+    },
+    {
+      "event": "agent_contract_finalization_completed",
+      "task": "071",
+      "notes": "Completed task 071 before project bootstrap. Added validator guardrails and aligned Codex orchestrator routing with the escalation policy, clarified task 063 baseline pipeline schema ownership with later task refinements, added root Zig build artifact ignore rules, and removed stale untracked-baseline status wording."
     }
   ]
 }

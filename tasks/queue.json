@@ -129,6 +129,44 @@
       ]
     },
     {
+      "id": "071",
+      "order": "000.0.2",
+      "title": "Agent Contract Finalization",
+      "file": "tasks/071-agent-contract-finalization.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "070"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/071-agent-contract-finalization.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/046-verification-pipeline.md",
+        "tasks/049-pipeline-escalation.md",
+        "tasks/063-pipeline-metadata-validator.md",
+        ".agents/ORCHESTRATOR.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "tests/coverage-gaps/schemas.v1.json",
+        "scripts/validate_task_system.py",
+        ".gitignore"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -136,7 +174,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "070"
+        "071"
       ],
       "allowed_files": [
         "build.zig",

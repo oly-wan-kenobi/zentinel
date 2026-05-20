@@ -44,6 +44,8 @@ python3 scripts/validate_task_system.py
 
 Future implementation tasks should add schema validation for reports and AI contracts in Zig tests. Until then, schema files serve as exact implementation targets.
 
+Task `tasks/063-pipeline-metadata-validator.md` creates baseline pipeline schema files for post-041 context, stale-context, verification, and escalation artifacts so the validator has concrete contracts before those artifact types are emitted; it consumes the handoff and active-lock schemas created by task `041`. Those baseline files define the minimal subset required for deterministic validation; tasks `042`, `046`, and `049` refine role-specific fields and fixtures for context packets, verification records, and escalation records without weakening the baseline validation guarantees.
+
 Pipeline metadata validation is intentionally standard-library-only. Task `tasks/063-pipeline-metadata-validator.md` implements a project-owned schema subset validator for pipeline artifacts: schema version checks, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership. Full Draft 2020-12 validation, including arbitrary conditional and reference traversal, requires an explicit future dependency decision.
 
 ## Version Naming

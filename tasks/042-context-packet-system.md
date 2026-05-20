@@ -11,7 +11,8 @@ Specify the context packet format that fresh stateless subagents receive before 
 - Refine `docs/AGENT_CONTEXT_PACKETS.md`.
 - Define required packet fields for task spec, allowed files, forbidden files, relevant docs, prior artifacts, constraints, and verification expectations.
 - Define summarization rules and stale-context handling.
-- Add schema and fixture documentation if the repository has schema validation support.
+- This task must refine the baseline context and stale-context schemas created by task `063`; do not recreate schema ownership from scratch.
+- Add schema and fixture documentation for the refined packet and stale-context contracts.
 
 ## Files allowed to modify
 
