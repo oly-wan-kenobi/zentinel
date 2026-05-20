@@ -841,7 +841,8 @@ def validate_cli_contracts(errors: list[str]) -> None:
     require("<case-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define doctest case references as <case-ref>")
     require("<mutant-ref>" in cli_text, errors, "docs/CLI_SPEC.md must define AI mutant references as <mutant-ref>")
     require("--ai-provider <disabled|stub|local|remote>" in cli_text, errors, "docs/CLI_SPEC.md must define AI provider option values")
-    require("--report <path>" in cli_text, errors, "docs/CLI_SPEC.md must define AI report path option")
+    require("--input-report <path>" in cli_text, errors, "docs/CLI_SPEC.md must define AI input report path option")
+    require("--report <path>" not in cli_text, errors, "docs/CLI_SPEC.md must not use --report for AI input report paths")
     require("zig-out/zentinel/report.json" in cli_text, errors, "docs/CLI_SPEC.md must define the default mutation AI report path")
     require("zig-out/zentinel/doctest/report.json" in cli_text, errors, "docs/CLI_SPEC.md must define the default doctest AI report path")
     require("Display IDs are scoped to the report" in cli_text, errors, "docs/CLI_SPEC.md must scope display IDs to the selected report")
@@ -861,6 +862,8 @@ def validate_cli_contracts(errors: list[str]) -> None:
         task054_text = task054_path.read_text(encoding="utf-8")
         require("display IDs scoped to the selected report" in task054_text, errors, "tasks/054-ai-advisory-commands.md must require display-ID resolution tests")
         require("--ai-provider <disabled|stub|local|remote>" in task054_text, errors, "tasks/054-ai-advisory-commands.md must require AI provider option tests")
+        require("--input-report <path>" in task054_text, errors, "tasks/054-ai-advisory-commands.md must require AI input report path tests")
+        require("--report <path>" not in task054_text, errors, "tasks/054-ai-advisory-commands.md must not use --report for AI input report paths")
 
     if task055_path.is_file():
         task055_text = task055_path.read_text(encoding="utf-8")
@@ -868,6 +871,8 @@ def validate_cli_contracts(errors: list[str]) -> None:
             require(required in task055_text, errors, f"tasks/055-ai-doctest-assistance.md must allow {required}")
         require("zentinel doctest explain <case-ref>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest explain CLI tests")
         require("zentinel doctest suggest <doc-path>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest suggest CLI tests")
+        require("--input-report" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must use --input-report for optional report context")
+        require("--report" not in task055_text, errors, "tasks/055-ai-doctest-assistance.md must not use --report for AI report input context")
         require("zentinel doctest review-snapshot <case-ref>" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest review-snapshot CLI tests")
         require("zentinel doctest suggest-missing [--file <doc-path>]" in task055_text, errors, "tasks/055-ai-doctest-assistance.md must require doctest suggest-missing CLI tests")
 

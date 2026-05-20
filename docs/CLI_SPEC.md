@@ -190,9 +190,9 @@ Default text output emphasizes survivors and diagnostics, not percentages.
 AI commands require `ai.enabled = true` or explicit CLI opt-in:
 
 ```bash
-zentinel explain 42 --report zig-out/zentinel/report.json --ai-provider local
+zentinel explain 42 --input-report zig-out/zentinel/report.json --ai-provider local
 zentinel suggest m_01hr7p6h0v2fj3drdzt9k2a0xe --ai-provider stub
-zentinel review-tests --report zig-out/zentinel/report.json
+zentinel review-tests --input-report zig-out/zentinel/report.json
 zentinel doctest explain dt_01hr7p6h0v2fj3drdzt9k2a0xe --ai-provider stub
 zentinel doctest suggest docs/CLI_SPEC.md --ai-provider stub
 zentinel doctest review-snapshot docs/CLI_SPEC.md:47:help-output --ai-provider stub
@@ -204,16 +204,16 @@ AI command-local options:
 
 ```text
 --ai-provider <disabled|stub|local|remote>
---report <path>
+--input-report <path>
 ```
 
 `--ai-provider` is command-local to advisory AI commands. Passing `stub`, `local`, or `remote` is explicit CLI opt-in for that invocation. `remote` additionally requires normalized config to set `ai.remote_allowed = true`; otherwise command dispatch fails with `ZNTL_AI_PROVIDER_NOT_ALLOWED`. `disabled` is valid so tests and scripts can assert the disabled path deterministically.
 
-For mutation AI commands, `--report <path>` points to a deterministic mutation report and defaults to `zig-out/zentinel/report.json` when omitted. A missing default mutation report is a usage error, not an AI provider error.
+For mutation AI commands, `--input-report <path>` points to a deterministic mutation report and defaults to `zig-out/zentinel/report.json` when omitted. A missing default mutation report is a usage error, not an AI provider error.
 
-`<mutant-ref>` accepts either a durable mutant ID such as `m_01hr7p6h0v2fj3drdzt9k2a0xe` or the display ID from the selected report, such as `42`. Display IDs are scoped to the report named by `--report` and must not be persisted in handoffs, reports, or AI context as durable references.
+`<mutant-ref>` accepts either a durable mutant ID such as `m_01hr7p6h0v2fj3drdzt9k2a0xe` or the display ID from the selected report, such as `42`. Display IDs are scoped to the report named by `--input-report` and must not be persisted in handoffs, reports, or AI context as durable references.
 
-For doctest AI commands, `--report <path>` points to a deterministic doctest report. `zentinel doctest explain <case-ref>` and `zentinel doctest review-snapshot <case-ref>` require the selected report and default to `zig-out/zentinel/doctest/report.json` when omitted; a missing default report is a usage error. `zentinel doctest suggest <doc-path>` and `zentinel doctest suggest-missing [--file <doc-path>]` do not require a report; when `--report` is provided, the report is optional context and must be validated before use. `zentinel doctest explain-survivor <survivor-ref>` requires a mutation-aware doctest report from `zentinel doctest --mutate` and is owned by task `067` after task `061` defines stable survivor fields.
+For doctest AI commands, `--input-report <path>` points to a deterministic doctest report. `zentinel doctest explain <case-ref>` and `zentinel doctest review-snapshot <case-ref>` require the selected report and default to `zig-out/zentinel/doctest/report.json` when omitted; a missing default report is a usage error. `zentinel doctest suggest <doc-path>` and `zentinel doctest suggest-missing [--file <doc-path>]` do not require a report; when `--input-report` is provided, the report is optional context and must be validated before use. `zentinel doctest explain-survivor <survivor-ref>` requires a mutation-aware doctest report from `zentinel doctest --mutate` and is owned by task `067` after task `061` defines stable survivor fields.
 
 `<case-ref>` accepts either a durable doctest case ID such as `dt_01hr7p6h0v2fj3drdzt9k2a0xe` or a source ref such as `docs/CLI_SPEC.md:47[:help-output]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, which is the first executable or producer block in the grouped case. Lines that point only at secondary expectation blocks must fail with `ZNTL_DOCTEST_CASE_NOT_FOUND` instead of guessing the producer. Source refs are selectors, not durable references, and must not be persisted in handoffs, reports, or AI context as canonical IDs.
 

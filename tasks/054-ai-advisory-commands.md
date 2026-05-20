@@ -38,7 +38,7 @@ Implement `explain`, `suggest`, and `review-tests` advisory AI commands.
 
 - Add failing CLI tests for AI-disabled command errors.
 - Add failing CLI tests for `--ai-provider <disabled|stub|local|remote>`, including provider override behavior and `ZNTL_AI_PROVIDER_NOT_ALLOWED` when normalized config has `ai.remote_allowed = false`.
-- Add failing CLI tests proving `--report <path>` selects the report, omitted `--report` uses `zig-out/zentinel/report.json`, and a missing default report fails with `ZNTL_AI_REPORT_NOT_FOUND` as a usage error.
+- Add failing CLI tests proving `--input-report <path>` selects the report, omitted `--input-report` uses `zig-out/zentinel/report.json`, and a missing default report fails with `ZNTL_AI_REPORT_NOT_FOUND` as a usage error.
 - Add failing CLI tests proving `<mutant-ref>` accepts durable mutant IDs and display IDs scoped to the selected report, while unknown IDs and display IDs from another report are rejected with `ZNTL_AI_TARGET_NOT_FOUND`.
 - Add a failing schema-validation test for the AI prompt request envelope before sending it to a provider, including validation that mutation AI flows embed a `context` object satisfying `zentinel.ai.context.v1`, reject schema-version-only placeholders, and reject unknown context schema versions.
 - Add failing schema-validation tests for explain, suggest, and review-tests responses. Explain response tests must include the doctest-specific classification values because task 055 reuses `schemas/ai.explain.response.v1.schema.json` and may not redefine the enum.
@@ -50,7 +50,7 @@ Implement `explain`, `suggest`, and `review-tests` advisory AI commands.
 
 - AI commands work with the stub provider.
 - `explain` and `suggest` resolve `<mutant-ref>` according to `docs/CLI_SPEC.md`.
-- AI commands document and implement command-local `--ai-provider` and `--report` behavior.
+- AI commands document and implement command-local `--ai-provider` and `--input-report` behavior.
 - Malformed responses are rejected deterministically.
 - `schemas/ai.explain.response.v1.schema.json` accepts the mutation explain classifications and the doctest explain classifications documented in `docs/AI_PROMPT_CONTRACTS.md`.
 - AI-only failures use the documented exit code.

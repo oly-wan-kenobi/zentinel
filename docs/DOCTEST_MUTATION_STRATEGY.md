@@ -28,7 +28,7 @@ Planned options:
 --fail-on-survivors
 ```
 
-`--format` intentionally matches normal `zentinel doctest` output selection. `--report <path>` remains reserved for commands that read an existing deterministic report.
+`--format` intentionally matches normal `zentinel doctest` output selection. `--input-report <path>` is used by advisory commands that read an existing deterministic report.
 
 ## Mutation-Aware Documentation
 

@@ -17,16 +17,16 @@ AI can make doctest failures and documentation survivors easier to understand. I
 Doctest AI exposes user-facing CLI subcommands so autonomous agents can invoke and test the flows directly:
 
 ```bash
-zentinel doctest explain <case-ref> [--report <path>] [--ai-provider <disabled|stub|local|remote>]
-zentinel doctest suggest <doc-path> [--report <path>] [--ai-provider <disabled|stub|local|remote>]
-zentinel doctest review-snapshot <case-ref> [--report <path>] [--ai-provider <disabled|stub|local|remote>]
-zentinel doctest suggest-missing [--file <doc-path>] [--report <path>] [--ai-provider <disabled|stub|local|remote>]
-zentinel doctest explain-survivor <survivor-ref> [--report <path>] [--ai-provider <disabled|stub|local|remote>]
+zentinel doctest explain <case-ref> [--input-report <path>] [--ai-provider <disabled|stub|local|remote>]
+zentinel doctest suggest <doc-path> [--input-report <path>] [--ai-provider <disabled|stub|local|remote>]
+zentinel doctest review-snapshot <case-ref> [--input-report <path>] [--ai-provider <disabled|stub|local|remote>]
+zentinel doctest suggest-missing [--file <doc-path>] [--input-report <path>] [--ai-provider <disabled|stub|local|remote>]
+zentinel doctest explain-survivor <survivor-ref> [--input-report <path>] [--ai-provider <disabled|stub|local|remote>]
 ```
 
-`explain` resolves `<case-ref>` against the selected deterministic doctest report, defaulting to `zig-out/zentinel/doctest/report.json` when `--report` is omitted. `<case-ref>` may be a durable `dt_...` doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:help-output]`; source refs are selectors only, resolve against the case anchor line, and must resolve to one case in the selected report.
+`explain` resolves `<case-ref>` against the selected deterministic doctest report, defaulting to `zig-out/zentinel/doctest/report.json` when `--input-report` is omitted. `<case-ref>` may be a durable `dt_...` doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:help-output]`; source refs are selectors only, resolve against the case anchor line, and must resolve to one case in the selected report.
 
-`suggest` accepts a project-relative documentation path and does not require a report. When `--report` is provided, the report is optional context and must be validated before use. `suggest-missing` scans deterministic public-docs metadata and optionally narrows candidates with `--file <doc-path>`. These commands are advisory-only and must not edit documentation, snapshots, or deterministic doctest reports.
+`suggest` accepts a project-relative documentation path and does not require a report. When `--input-report` is provided, the report is optional context and must be validated before use. `suggest-missing` scans deterministic public-docs metadata and optionally narrows candidates with `--file <doc-path>`. These commands are advisory-only and must not edit documentation, snapshots, or deterministic doctest reports.
 
 `review-snapshot` resolves `<case-ref>` like `explain` and requires the selected report. It is valid only for a case whose report entry contains exact `case.result.snapshot` evidence. It returns `zentinel.ai.doctest.snapshot_review.response.v1` and must not approve or apply snapshot updates.
 

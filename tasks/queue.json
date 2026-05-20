@@ -687,6 +687,40 @@
       ]
     },
     {
+      "id": "088",
+      "order": "000.0.18",
+      "title": "AI Input Report Option Clarity",
+      "file": "tasks/088-ai-input-report-option-clarity.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "087"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/088-ai-input-report-option-clarity.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/054-ai-advisory-commands.md",
+        "tasks/055-ai-doctest-assistance.md",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/DOCTEST_MUTATION_STRATEGY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -694,7 +728,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "087"
+        "088"
       ],
       "allowed_files": [
         "build.zig",

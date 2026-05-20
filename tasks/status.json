@@ -21,13 +21,14 @@
     "083",
     "084",
     "086",
-    "087"
+    "087",
+    "088"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 087 dogfood release gate sequencing; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 088 AI input report option clarity; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -313,6 +314,21 @@
         "notes": "Validator passed after task 087 dogfood release gate sequencing."
       },
       "dogfooding_implication": "Initial advisory dogfood CI and the final release dogfood gate are now separate queued tasks.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "088",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because AI command contracts used --report <path> and did not define --input-report <path>.",
+      "implementation_summary": "Changed advisory AI report-input contracts to --input-report <path>, preserved zentinel run --report <format>, updated doctest AI docs and task requirements, and added validator guardrails.",
+      "files_changed": ["task metadata", "task 000 guard", "CLI spec", "doctest AI docs", "doctest mutation strategy", "AI task requirements", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for AI --input-report contracts."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 088 AI input report option clarity."
+      },
+      "dogfooding_implication": "Future AI and doctest dogfood scripts distinguish report input paths from run report format selection.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -601,6 +617,16 @@
       "event": "dogfood_release_gate_sequencing_completed",
       "task": "087",
       "notes": "Completed task 087 before project bootstrap. Task 059 is now initial advisory dogfood CI, task 085 is the final dogfood release gate before task 060, and release acceptance depends on task 085."
+    },
+    {
+      "event": "ai_input_report_option_clarity_started",
+      "task": "088",
+      "notes": "Inserted task 088 at execution order 000.0.18 before project bootstrap to replace AI --report <path> wording with --input-report <path>."
+    },
+    {
+      "event": "ai_input_report_option_clarity_completed",
+      "task": "088",
+      "notes": "Completed task 088 before project bootstrap. Advisory AI commands now use --input-report <path> while mutation runs keep --report for output format selection."
     }
   ]
 }
