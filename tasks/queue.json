@@ -417,6 +417,36 @@
       ]
     },
     {
+      "id": "080",
+      "order": "000.0.11",
+      "title": "Doctest Survivor Example Identity Guard",
+      "file": "tasks/080-doctest-survivor-example-identity-guard.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "079"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/080-doctest-survivor-example-identity-guard.md",
+        "tasks/000-project-bootstrap.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -424,7 +454,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "079"
+        "080"
       ],
       "allowed_files": [
         "build.zig",

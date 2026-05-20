@@ -130,6 +130,23 @@ def load_json(path: Path, errors: list[str]) -> object:
     return {}
 
 
+def markdown_json_objects(path: Path, errors: list[str]) -> list[object]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        fail(errors, f"missing file: {path.relative_to(ROOT)}")
+        return []
+
+    values: list[object] = []
+    for index, match in enumerate(re.finditer(r"```json\n(?P<body>.*?)\n```", text, flags=re.DOTALL), start=1):
+        body = match.group("body")
+        try:
+            values.append(json.loads(body))
+        except json.JSONDecodeError as exc:
+            fail(errors, f"invalid JSON fence {index} in {path.relative_to(ROOT)}: {exc}")
+    return values
+
+
 def require(condition: bool, errors: list[str], message: str) -> None:
     if not condition:
         fail(errors, message)
@@ -922,6 +939,25 @@ def validate_doctest_identity_contracts(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         for phrase in phrases:
             require(phrase in text, errors, f"{rel} must contain doctest identity phrase '{phrase}'")
+
+    ai_integration_path = ROOT / "docs" / "DOCTEST_AI_INTEGRATION.md"
+    survivor_examples = [
+        value
+        for value in markdown_json_objects(ai_integration_path, errors)
+        if isinstance(value, dict) and value.get("kind") == "doctest_survivor"
+    ]
+    require(survivor_examples, errors, "docs/DOCTEST_AI_INTEGRATION.md must include a doctest_survivor JSON example")
+    for index, example in enumerate(survivor_examples, start=1):
+        source_case = example.get("source_case")
+        mutation_case = example.get("mutation_case")
+        require(isinstance(source_case, dict), errors, f"doctest_survivor example {index} source_case must be an object")
+        require(isinstance(mutation_case, dict), errors, f"doctest_survivor example {index} mutation_case must be an object")
+        if isinstance(source_case, dict):
+            source_id = source_case.get("id")
+            require(isinstance(source_id, str) and source_id.startswith("dt_"), errors, f"doctest_survivor example {index} source_case.id must use dt_ ordinary doctest case identity")
+        if isinstance(mutation_case, dict):
+            mutation_id = mutation_case.get("id")
+            require(isinstance(mutation_id, str) and mutation_id.startswith("dm_"), errors, f"doctest_survivor example {index} mutation_case.id must use dm_ mutation-aware report entry identity")
 
 
 def validate_ai_contracts(errors: list[str]) -> None:

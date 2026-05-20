@@ -14,13 +14,14 @@
     "076",
     "077",
     "078",
-    "079"
+    "079",
+    "080"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 079 status completion evidence schema: status.v1 schema defines completion_evidence, tasks/status.json has evidence for every completed task, and validator enforces both. Python validator compilation, JSON syntax checks, and git diff --check passed."
+    "notes": "Validator passed after completing task 080 doctest survivor example identity guard: doctest_survivor examples keep source_case.id as dt_... and mutation_case.id as dm_.... Python validator compilation and git diff --check passed."
   },
   "completion_evidence": [
     {
@@ -201,6 +202,21 @@
         "notes": "Validator passed after task 079 status completion evidence schema."
       },
       "dogfooding_implication": "Fresh agents can verify completed-task evidence before dogfood and pipeline artifact tasks exist.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "080",
+      "failing_evidence": "Pre-fix validator failed on doctest_survivor example 1 because mutation_case.id reused the ordinary dt_ doctest case identity instead of a dm_ mutation-aware report entry identity.",
+      "implementation_summary": "Added a structural validator guardrail for doctest_survivor JSON examples and aligned the doctest AI integration example with the documented dt_/dm_/ds_ identity split.",
+      "files_changed": ["task metadata", "doctest AI survivor example", "task 000 dependency guard", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring doctest_survivor examples to use dt_ source_case.id and dm_ mutation_case.id."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 080 doctest survivor example identity guard."
+      },
+      "dogfooding_implication": "No dogfood run exists yet; future doctest mutation dogfood and survivor AI work now have a valid example identity model.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -409,6 +425,16 @@
       "event": "status_completion_evidence_schema_completed",
       "task": "079",
       "notes": "Completed task 079 before project bootstrap. Added status.v1 completion_evidence, populated structured evidence for every completed task, updated protocol wording, and added validator guardrails."
+    },
+    {
+      "event": "doctest_survivor_example_identity_guard_started",
+      "task": "080",
+      "notes": "Inserted task 080 at execution order 000.0.11 before project bootstrap to guard the doctest survivor AI example against reusing dt_ ordinary doctest IDs for mutation-aware report entries."
+    },
+    {
+      "event": "doctest_survivor_example_identity_guard_completed",
+      "task": "080",
+      "notes": "Completed task 080 before project bootstrap. Added a validator guardrail for doctest_survivor JSON examples and fixed the survivor AI example to use dm_ mutation-aware report entry identity for mutation_case.id while keeping dt_ for source_case.id."
     }
   ]
 }

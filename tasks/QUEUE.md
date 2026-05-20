@@ -33,6 +33,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.8 | `tasks/077-backlog-audit-task-creation-scope.md` | complete | 0 |
 | 000.0.9 | `tasks/078-bootstrap-tdd-order.md` | complete | 0 |
 | 000.0.10 | `tasks/079-status-completion-evidence-schema.md` | complete | 0 |
+| 000.0.11 | `tasks/080-doctest-survivor-example-identity-guard.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
