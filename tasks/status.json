@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "082",
+  "next_task": "082",
   "completed_tasks": [
     "068",
     "069",
@@ -22,7 +22,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 081 task-local validator requirements: non-superseded task files list python3 scripts/validate_task_system.py in required tests. Python validator compilation and git diff --check passed."
+    "notes": "Validator passed after inserting and activating task 082 analysis findings closure before project bootstrap."
   },
   "completion_evidence": [
     {
@@ -461,6 +461,11 @@
       "event": "task_local_validator_requirements_completed",
       "task": "081",
       "notes": "Completed task 081 before project bootstrap. Added a validator guardrail requiring non-superseded task files to list python3 scripts/validate_task_system.py in Required tests and aligned early queued tasks 000 through 024, including task 019."
+    },
+    {
+      "event": "analysis_findings_closure_started",
+      "task": "082",
+      "notes": "Inserted and activated task 082 at execution order 000.0.13 before project bootstrap to resolve pre-bootstrap analysis findings around doctest fences, gate-section validation, task-control visibility, and latest-stable Zig policy."
     }
   ]
 }

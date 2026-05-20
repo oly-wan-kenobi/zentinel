@@ -500,6 +500,49 @@
       ]
     },
     {
+      "id": "082",
+      "order": "000.0.13",
+      "title": "Analysis Findings Closure",
+      "file": "tasks/082-analysis-findings-closure.md",
+      "phase": 0,
+      "state": "active",
+      "dependencies": [
+        "081"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/082-analysis-findings-closure.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/005-version-policy.md",
+        "tasks/030-doctest-conventions.md",
+        "tasks/031-doctest-parser.md",
+        "tasks/032-doctest-extraction.md",
+        "tasks/033-doctest-runner.md",
+        "tasks/034-doctest-snapshots.md",
+        "tasks/035-cli-doctests.md",
+        "tasks/036-config-doctests.md",
+        "tasks/037-mutator-spec-doctests.md",
+        "tasks/038-doctest-cache.md",
+        "tasks/039-doctest-mutation-experiments.md",
+        "docs/DOCTEST_ARCHITECTURE.md",
+        "docs/DOCTEST_BLOCK_FORMATS.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -507,7 +550,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "081"
+        "082"
       ],
       "allowed_files": [
         "build.zig",

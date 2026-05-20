@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/082-analysis-findings-closure.md` |
+| Next task | `tasks/082-analysis-findings-closure.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -71,7 +71,7 @@ No known blockers.
 
 ## Handoff Notes
 
-The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change.
+The current agent is resolving `tasks/082-analysis-findings-closure.md` before project bootstrap. The next implementation task remains `tasks/000-project-bootstrap.md` after task 082 completes.
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
