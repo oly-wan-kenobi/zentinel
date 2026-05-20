@@ -1,6 +1,6 @@
 # 000 Project Bootstrap
 
-Sequential guard: start this task only after task 080 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 081 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -35,6 +35,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - Add a failing `test/bootstrap_discovery_test.zig` that proves a second top-level `test/*_test.zig` file is included by `zig build test`.
 - Run the targeted test and record the failure before implementation; before `build.zig` exists, the expected failure may be a missing build scaffold or unresolved root-module import.
 - Run `zig build test` after implementation.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

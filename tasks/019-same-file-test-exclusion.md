@@ -34,6 +34,7 @@ Ensure AST mutation generation excludes Zig `test` declaration bodies by default
 - Add a failing test proving production candidates remain.
 - Add a failing test proving test body candidates are excluded.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

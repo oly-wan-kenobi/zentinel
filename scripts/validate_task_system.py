@@ -406,6 +406,13 @@ def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) ->
         for section in REQUIRED_TASK_SECTIONS:
             require(section in text, errors, f"{file_value} missing section {section}")
         require("Add a failing" in text or "Add failing" in text or "First add a failing" in text, errors, f"{file_value} must explicitly require a failing test")
+        if task.get("state") != "superseded":
+            required_tests = section_bullets(text, "Required tests")
+            require(
+                any("python3 scripts/validate_task_system.py" in item for item in required_tests),
+                errors,
+                f"{file_value} Required tests must include python3 scripts/validate_task_system.py",
+            )
 
         allowed = task.get("allowed_files")
         forbidden = task.get("forbidden_files")

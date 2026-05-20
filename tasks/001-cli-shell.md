@@ -44,6 +44,7 @@ Implement the Phase 0 CLI shell for `--help`, `version`, and `init` without muta
 - Add a failing test that `--no-color` parses before command dispatch and keeps help output byte-stable.
 - Add a failing test that config-aware init options owned by task 002, such as `--test-command`, return `ZNTL_CLI_INVALID_OPTION` until implemented.
 - Run `zig build test` after implementation.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

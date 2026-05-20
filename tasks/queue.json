@@ -447,6 +447,59 @@
       ]
     },
     {
+      "id": "081",
+      "order": "000.0.12",
+      "title": "Task-Local Validator Requirements",
+      "file": "tasks/081-task-local-validator-requirements.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "080"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/081-task-local-validator-requirements.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/001-cli-shell.md",
+        "tasks/002-config-parser.md",
+        "tasks/003-test-harness.md",
+        "tasks/004-fixture-system.md",
+        "tasks/005-version-policy.md",
+        "tasks/006-report-schema.md",
+        "tasks/007-mutant-model.md",
+        "tasks/008-ast-parser-spike.md",
+        "tasks/009-ast-candidate-ordering.md",
+        "tasks/019-same-file-test-exclusion.md",
+        "tasks/010-arithmetic-mutators.md",
+        "tasks/011-comparison-mutators.md",
+        "tasks/012-logical-boolean-mutators.md",
+        "tasks/013-patch-sandbox.md",
+        "tasks/014-baseline-runner.md",
+        "tasks/015-mutant-runner.md",
+        "tasks/016-minimal-run-command.md",
+        "tasks/017-list-mutants-command.md",
+        "tasks/018-report-renderers.md",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/021-cache-key-design.md",
+        "tasks/022-dogfood-fixture-run.md",
+        "tasks/023-optional-null-mutators.md",
+        "tasks/024-error-path-mutators.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/**",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -454,7 +507,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "080"
+        "081"
       ],
       "allowed_files": [
         "build.zig",

@@ -36,6 +36,7 @@ Implement a deterministic sandbox that can apply one source mutation without per
 - Add a failing test for invalid span rejection.
 - Add a failing test for deterministic patched content.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

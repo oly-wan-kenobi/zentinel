@@ -52,6 +52,7 @@ Complete Phase 1 report rendering for text, JSON, JSONL, and the first CI-friend
 - Add failing CLI tests that `--report jsonl` and `--report junit` route to the new renderers without changing canonical JSON report data.
 - Add failing CLI tests that `--verbose` and `--quiet` parse according to `docs/CLI_SPEC.md` without changing deterministic JSON fields or hiding errors.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

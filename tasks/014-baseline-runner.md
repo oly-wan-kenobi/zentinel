@@ -41,6 +41,7 @@ Implement deterministic execution of baseline test commands before mutant execut
 - Add a failing test proving commands execute without an implicit shell and with the documented environment policy.
 - Add a failing command-result snapshot proving baseline evidence includes original command text, parsed argv, cwd, environment policy, `shell = false`, phase, exit code, timeout flag, duration, and bounded excerpts.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

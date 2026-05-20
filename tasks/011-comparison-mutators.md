@@ -36,6 +36,7 @@ Implement AST candidates for equality and boundary comparison operators.
 - Add a failing test for multiple comparisons sorted by source span.
 - Add a failing test that comments and strings are not mutated.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

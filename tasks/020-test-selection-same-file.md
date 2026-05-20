@@ -38,6 +38,7 @@ Implement the default `same_file_then_package` test selection strategy.
 - Add a failing test for deterministic selected test ordering.
 - Add a failing report snapshot showing selection metadata with required `strategy`, `selected`, `commands`, and `fallback_used` fields and no unknown fields.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

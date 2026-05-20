@@ -41,6 +41,7 @@ Implement `zentinel list-mutants` to generate and display candidate mutants with
 - Add a failing test for operator filtering.
 - Add a failing test that no test command is executed.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

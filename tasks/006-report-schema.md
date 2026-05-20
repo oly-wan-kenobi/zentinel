@@ -46,6 +46,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Add a failing test that `backend_stability` and `operator_stability` are distinct fields and validate their separate enum values.
 - Add a failing test that advisory AI fields cannot overwrite result fields.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

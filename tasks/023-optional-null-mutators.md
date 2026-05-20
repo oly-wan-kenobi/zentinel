@@ -38,6 +38,7 @@ Implement the first Phase 2 optional mutators: `optional_orelse_unreachable` and
 - Add failing tests for `x == null`, `x != null`, `null == x`, and `null != x`.
 - Add a failing fixture for an optional survivor caused by missing null-path tests.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

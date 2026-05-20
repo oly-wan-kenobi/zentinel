@@ -35,6 +35,7 @@ Implement AST candidates for `logical_and_or` and `boolean_literal`.
 - Add failing tests for `true -> false` and `false -> true`.
 - Add a failing short-circuit fixture proving the operator span is exact.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

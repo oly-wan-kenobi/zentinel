@@ -36,6 +36,7 @@ Introduce a minimal AST/source parsing adapter for Zig files that can locate syn
 - Add a failing test for parse diagnostics on invalid Zig source.
 - Add a failing test that traversal order is deterministic.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

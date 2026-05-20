@@ -34,6 +34,7 @@ Create the fixture layout and loader used by future mutation tests.
 - Add a failing test that validates fixture metadata.
 - Add a failing test that confirms fixture paths normalize project-relative paths.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

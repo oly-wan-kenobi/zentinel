@@ -37,6 +37,7 @@ Implement the first Phase 2 error-path mutator: `error_catch_unreachable`.
 - Add a failing test that existing `catch unreachable` is not mutated.
 - Add failing fixtures for killed and survived error-path behavior.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

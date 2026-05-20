@@ -34,6 +34,7 @@ Define the shared `Mutant` model used by all backends and reports.
 - Add a failing test that candidate ordering matches `docs/MUTATOR_SPEC.md`.
 - Add a failing test for source span validation.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

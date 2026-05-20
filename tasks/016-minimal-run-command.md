@@ -49,6 +49,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - Add a failing JSON report snapshot proving baseline timeout maps to `run.status = baseline_failed`, `baseline.status = failed`, timed-out baseline command evidence, empty `mutants`, and zero summary counts.
 - Add a failing JSON report snapshot proving a completed run sets `run.status = completed`, includes deterministic mutant entries, and derives summary counts from those entries.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

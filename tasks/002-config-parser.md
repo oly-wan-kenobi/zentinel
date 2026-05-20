@@ -51,6 +51,7 @@ Implement parsing and validation for `zentinel.toml` according to `docs/CONFIG_S
 - Update the task 001 transitional CLI tests so `init --test-command <command>` and `init --backend ast` are no longer treated as invalid options once config-aware init exists.
 - Add a failing test that `init --backend zir` or `init --backend air` is rejected by init instead of enabling experimental backends.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

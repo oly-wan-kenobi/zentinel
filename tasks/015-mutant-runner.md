@@ -38,6 +38,7 @@ Run selected test commands against one patched mutant sandbox and classify the m
 - Add a failing test that fail-fast per mutant records skipped commands.
 - Add a failing test that mutant results preserve the structured command evidence emitted by the runner without falling back to a display-only command string.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

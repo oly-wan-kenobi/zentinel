@@ -36,6 +36,7 @@ Create deterministic test helpers for snapshots, temp directories, command-outpu
 - Add a failing test that proves temp fixture directories are isolated.
 - Add a failing build integration test or fixture under `test/fixtures/harness/test_discovery/**` proving a nested future test file would be included by `zig build test` without editing `build.zig`.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

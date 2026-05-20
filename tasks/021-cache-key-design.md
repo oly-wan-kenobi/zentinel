@@ -41,6 +41,7 @@ Implement deterministic cache key construction and cache metadata without enabli
 - Add a failing run-command test that `--no-cache` disables zentinel result-cache reads and writes for the invocation without disabling required Zig build-cache isolation metadata.
 - Add a failing metadata serialization snapshot.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

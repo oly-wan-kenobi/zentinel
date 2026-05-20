@@ -15,13 +15,14 @@
     "077",
     "078",
     "079",
-    "080"
+    "080",
+    "081"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 080 doctest survivor example identity guard: doctest_survivor examples keep source_case.id as dt_... and mutation_case.id as dm_.... Python validator compilation and git diff --check passed."
+    "notes": "Validator passed after completing task 081 task-local validator requirements: non-superseded task files list python3 scripts/validate_task_system.py in required tests. Python validator compilation and git diff --check passed."
   },
   "completion_evidence": [
     {
@@ -217,6 +218,21 @@
         "notes": "Validator passed after task 080 doctest survivor example identity guard."
       },
       "dogfooding_implication": "No dogfood run exists yet; future doctest mutation dogfood and survivor AI work now have a valid example identity model.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "081",
+      "failing_evidence": "Pre-fix validator failed on tasks 000 through 024, including task 019, because their local Required tests sections omitted python3 scripts/validate_task_system.py.",
+      "implementation_summary": "Added a structural validator guardrail for task-local validator requirements and added the validator command to early queued task Required tests without changing task-specific targeted tests.",
+      "files_changed": ["task metadata", "early queued task required-test lists", "task 000 dependency guard", "validator guardrail"],
+      "tests_added": ["Structural validator guardrail requiring non-superseded task files to include python3 scripts/validate_task_system.py in Required tests."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 081 task-local validator requirements."
+      },
+      "dogfooding_implication": "No dogfood run exists yet; future agents see the validator completion gate in every queued task handoff.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -435,6 +451,16 @@
       "event": "doctest_survivor_example_identity_guard_completed",
       "task": "080",
       "notes": "Completed task 080 before project bootstrap. Added a validator guardrail for doctest_survivor JSON examples and fixed the survivor AI example to use dm_ mutation-aware report entry identity for mutation_case.id while keeping dt_ for source_case.id."
+    },
+    {
+      "event": "task_local_validator_requirements_started",
+      "task": "081",
+      "notes": "Inserted task 081 at execution order 000.0.12 before project bootstrap to make the task-system validator command visible in early queued tasks' local required-test lists."
+    },
+    {
+      "event": "task_local_validator_requirements_completed",
+      "task": "081",
+      "notes": "Completed task 081 before project bootstrap. Added a validator guardrail requiring non-superseded task files to list python3 scripts/validate_task_system.py in Required tests and aligned early queued tasks 000 through 024, including task 019."
     }
   ]
 }

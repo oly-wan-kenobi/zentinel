@@ -47,6 +47,7 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 - Add failing CLI tests that `--config <path>` and `--root <path>` parse before command dispatch for `zentinel check`, and that unowned global options still fail with `ZNTL_CLI_INVALID_OPTION`.
 - Add a failing test that `zentinel check` does not execute configured test commands.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

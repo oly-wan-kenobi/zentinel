@@ -35,6 +35,7 @@ Implement deterministic candidate collection and sorting for AST backend candida
 - Add a failing duplicate-candidate test.
 - Add a failing test that order is stable across repeated collection.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

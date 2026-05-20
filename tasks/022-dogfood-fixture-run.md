@@ -36,6 +36,7 @@ Add the first zentinel dogfood workflow over fixture projects.
 - Add a failing determinism check that two fixture dogfood runs produce equivalent normalized reports.
 - Run `zig build test`.
 - Run the fixture dogfood command and record the result.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 

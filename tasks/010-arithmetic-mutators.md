@@ -38,6 +38,7 @@ Implement AST candidates for `arithmetic_add_sub` and `arithmetic_mul_div`.
 - Add a failing test that unary minus is not mutated.
 - Add a failing test for deterministic candidate ordering when multiple arithmetic operators exist.
 - Run `zig build test`.
+- Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 
