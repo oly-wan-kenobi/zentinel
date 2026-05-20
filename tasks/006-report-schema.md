@@ -34,6 +34,8 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Add a failing schema test that a report has a run-level `status`, a `baseline` object, and mutant summary counts derived only from `mutants`.
 - Add a failing schema test that `run.status = baseline_failed` requires `baseline.status = failed`, zero summary counts, and an empty `mutants` array.
 - Add a failing schema test that `run.status = completed` requires `baseline.status = passed`.
+- Add a failing schema test that `run.status = internal_error` requires a closed `run.error` object with stable `code`, `message`, and `phase`, allows an empty or schema-valid partial `mutants` array, and keeps summary counts derived only from present `mutants`.
+- Add a failing schema test that `run.error` is `null` for `completed` and `baseline_failed`, and that `baseline.status = not_run` with empty `baseline.commands` is accepted only for `internal_error` before baseline command evidence exists.
 - Add a failing schema test that `baseline.commands` is non-empty and that each command entry has structured evidence fields. Successful quiet commands may have empty stdout, stderr, and failure summaries.
 - Add a failing schema test that baseline command results require `phase = "baseline"`, `status`, and `skip_reason = null`; mutant results require a `commands` array whose entries use `phase = "mutant"`; skipped mutant commands require a non-empty deterministic `skip_reason`; and `baseline.status` rejects skipped baselines in report v1.
 - Add a failing schema test that command evidence uses `original`, a parsed `argv` with non-empty `argv[0]`, `cwd`, `environment_policy = "minimal"`, and `shell = false` instead of a display-only command string.
@@ -48,6 +50,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 
 - JSON report matches documented schema names and status values.
 - Baseline failure is represented as `run.status = baseline_failed`, not as a mutant result status.
+- Internal tool failure is represented as `run.status = internal_error` with deterministic `run.error` evidence, not as a mutant result status or advisory AI text.
 - Mutant entries serialize in deterministic order.
 - Summary counts are derived from entries.
 - No command runs or mutant generation are implemented.

@@ -55,6 +55,13 @@ Audit and refine the complete end-to-end implementation backlog now present in t
 - `tasks/058-*.md`
 - `tasks/059-*.md`
 - `tasks/060-*.md`
+- `tasks/061-*.md`
+- `tasks/062-*.md`
+- `tasks/063-*.md`
+- `tasks/064-*.md`
+- `tasks/065-*.md`
+- `tasks/066-*.md`
+- `tasks/067-*.md`
 
 ## Files forbidden to modify
 
@@ -67,7 +74,7 @@ Audit and refine the complete end-to-end implementation backlog now present in t
 ## Required tests
 
 - Add a failing task-system fixture only if this audit adds or changes validator behavior through an inserted prerequisite task; do not deliberately corrupt the live queue merely to manufacture a failure.
-- Audit the existing future task set against `docs/ROADMAP.md` and `docs/PROJECT_ACCEPTANCE_CRITERIA.md`.
+- Audit the existing future task set, including inserted prerequisite tasks `061` through `067`, against `docs/ROADMAP.md` and `docs/PROJECT_ACCEPTANCE_CRITERIA.md`.
 - Run `python3 scripts/validate_task_system.py` and require it to pass.
 - Run JSON syntax validation for `tasks/queue.json` and `tasks/status.json`.
 

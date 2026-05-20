@@ -69,23 +69,25 @@ Exit criteria:
 
 ## Phase 2: Zig-Native Semantics
 
-Deliver mutators for:
+Deliver stable AST mutators for:
 
 - optionals and `orelse`
-- error union handling
-- `catch` behavior
-- `defer` and `errdefer`
-- allocator failure paths
-- `comptime` branches and compile-time constants
-- safety assertions and `unreachable`
+- optional null checks
+- error union handling through stable `catch` behavior
+- `errdefer`
+- integer literal boundaries
+- loop and range boundaries
+
+Preview mutators documented in `docs/MUTATOR_SPEC.md`, including allocator failure paths, comptime branch or value mutation, `defer_remove`, and safety or `unreachable` transformations, are design targets and backlog candidates. They are not required minimum-product implementation unless a later task explicitly names the preview operator in its title or acceptance criteria.
 
 Exit criteria:
 
-- each semantic mutator has typed fixture coverage
+- each Phase 2 stable semantic mutator has typed fixture coverage
 - compile-error expectations are documented and tested
 - equivalent mutant risks are reported, not silently suppressed
 - dogfooding reaches selected config and report modules
 - stable mutator docs begin using executable `zig before`/`zig after` examples
+- preview mutator examples, if added early, remain fixture or documentation coverage only and do not imply default enablement
 
 ## Phase 3: Performance
 
@@ -209,7 +211,7 @@ The pipeline becomes stricter in stages:
 | Stage | Required behavior |
 | --- | --- |
 | Pipeline contracts documented | Tasks include allowed files, forbidden files, TDD instructions, verification expectations, and handoff requirements. |
-| Handoff artifacts introduced | Each role emits structured Markdown and JSON-compatible artifacts under `artifacts/pipeline/<task-id>/`. |
+| Handoff artifacts introduced | After task `041`, each role emits structured Markdown and JSON-compatible artifacts under `artifacts/pipeline/<task-id>/`; before task `041`, equivalent handoff fields live in task status or completion summaries. |
 | Context packets introduced | Stateless subagents receive bounded packets containing task specs, relevant docs, prior artifacts, constraints, and verification expectations. |
 | Verification pipeline automated | Unit, property, doctest, mutation, dogfood, snapshot, performance, and task-system checks run in deterministic order. |
 | Mutation gate enforced | Mutation-testable tasks cannot complete until mutation results are classified and survivors are triaged. |

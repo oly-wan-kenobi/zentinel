@@ -21,6 +21,7 @@ JSON is the canonical report format.
   "run": {
     "id": "run_01hr7pc9qdyj2f3d7z7me3x1rk",
     "status": "completed",
+    "error": null,
     "zentinel_version": "0.1.0",
     "zig_version": "latest-stable",
     "command": "zentinel run",
@@ -88,11 +89,15 @@ All deterministic fields outside observation metadata must match for the same re
 | --- | --- |
 | `completed` | Baseline completed and mutant execution/reporting reached a deterministic terminal state. |
 | `baseline_failed` | Baseline tests failed before any mutant execution. |
-| `internal_error` | zentinel could not produce normal mutant results because it violated an internal contract or hit an unrecoverable implementation error. |
+| `internal_error` | zentinel could not produce normal mutant results because it violated an internal contract or hit an unrecoverable implementation error; this is a tool failure, not a mutant result. |
 
 `summary` counts only entries in `mutants`. For `run.status = baseline_failed`, `baseline.status` is `failed`, `mutants` is empty unless a future schema explicitly supports partial execution, and all summary counts are zero.
 
-Report v1 does not support skipping the baseline. `baseline.status` is only `passed` or `failed`; any future cache-backed baseline skip requires a new documented proof contract before a writer may emit it.
+`run.error` is required in every report. For `run.status = completed` and `run.status = baseline_failed`, it is `null`. For `run.status = internal_error`, it is a closed object with required `code`, `message`, and `phase` fields plus an optional bounded `details` array of strings. The `code` must be a stable documented error code such as `ZNTL_INTERNAL_INVARIANT`; generic internal-error text without a stable code violates D-302. `run.error` must be derived from deterministic tool evidence and must not contain AI-generated explanation.
+
+For `run.status = internal_error`, `mutants` may be empty or may contain a deterministic partial prefix that still validates as ordinary mutant entries. `summary` counts only the `mutants` entries present in the report. If the internal error occurs before baseline command evidence exists, `baseline.status` is `not_run` and `baseline.commands` is empty. Otherwise, `baseline.status` remains the observed deterministic baseline state.
+
+Report v1 does not support skipping the baseline. `baseline.status = "not_run"` is allowed only for `run.status = internal_error` before baseline command evidence exists; it is not a cache-backed baseline skip. Any future cache-backed baseline skip requires a new documented proof contract before a writer may emit it.
 
 ## Mutant Entry
 

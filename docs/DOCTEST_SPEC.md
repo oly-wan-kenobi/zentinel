@@ -402,7 +402,7 @@ Report field rules:
 | --- | --- |
 | `schema_version` | Constant `zentinel.doctest.report.v1`. |
 | `run.status` | `completed`, `failed`, or `internal_error`. |
-| `summary` | Counts only entries in `cases` and includes every doctest status key; `total` equals the sum of status-count fields. |
+| `summary` | For normal `zentinel doctest`, counts only non-mutation entries in `cases` and includes every ordinary doctest status key; `total` equals the sum of ordinary status-count fields. For `zentinel doctest --mutate`, this same top-level summary still counts only preflight non-mutation doctest entries, while mutation entries are counted only in `summary.mutation`. |
 | `cases` | Sorted by project-relative file path, anchor line, block index, and durable case ID. |
 | `case.id` | Durable `dt_...` ID. |
 | `case.source_ref` | Anchor-line source ref for selectors. |
@@ -454,7 +454,7 @@ skipped
 invalid
 ```
 
-For `zentinel doctest --mutate`, `summary` keeps the normal doctest status keys for the preflight doctest run and adds a `mutation` object at `summary.mutation` with these integer keys:
+For `zentinel doctest --mutate`, `cases` may contain both ordinary preflight doctest entries and mutation entries. `summary` keeps the normal doctest status keys for the preflight doctest run and adds a `mutation` object at `summary.mutation` with these integer keys:
 
 ```text
 total
@@ -466,6 +466,8 @@ timeout
 skipped
 invalid
 ```
+
+`summary.total` equals the number of ordinary non-mutation doctest entries in `cases`. It must not include mutation entries. `summary.mutation.total` equals the number of entries where `case.kind = "mutation"`. It must not include preflight entries. The ordinary status-count fields and the mutation status-count fields are separate partitions; a case is counted in exactly one of them.
 
 `case.mutation` is required and non-null when `case.kind = "mutation"`. It is absent or `null` for non-mutation doctest cases. The object is closed with `additionalProperties: false` and contains:
 

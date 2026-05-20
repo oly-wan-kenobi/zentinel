@@ -10,7 +10,7 @@ Use this workflow when preparing the next queued task for implementation.
 4. Read the task file and required docs from `AGENTS.md`.
 5. Dispatch or simulate `Task Queue Manager` to mark the task active.
 6. Dispatch or simulate `Planner`.
-7. Record the plan, risks, applicable contracts, and required tests in the task handoff location.
+7. Record the plan, risks, applicable contracts, and required tests in the task handoff location. Before task `041`, use task status or the completion summary for equivalent pre-artifact handoff fields; after task `041`, use the task-scoped artifact path under `artifacts/pipeline/<task-id>/`.
 
 ## Stop Conditions
 

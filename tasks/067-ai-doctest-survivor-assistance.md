@@ -42,7 +42,7 @@ Expose advisory-only AI explanation for mutation-aware doctest survivors after s
 - Add a failing CLI test for missing reports using `ZNTL_AI_REPORT_NOT_FOUND`.
 - Add a failing CLI test for unresolved survivor refs using `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 - Add a failing schema-extension test proving `schemas/ai.doctest.context.v1.schema.json` adds `flow = "explain_doctest_survivor"` and evidence `kind = "doctest_survivor"` without weakening the task `055` non-survivor variants.
-- Add a failing context schema fixture proving the flow is `explain_doctest_survivor`, evidence `kind` is `doctest_survivor`, and evidence includes `ds_...` survivor ref, selected case metadata, `m_...` mutant ID, mutated diff, operator, backend stability, and deterministic runner evidence copied from `case.mutation.runner_evidence`.
+- Add a failing context schema fixture proving the flow is `explain_doctest_survivor`, top-level `doctest.kind = "mutation"`, evidence `kind` is `doctest_survivor`, and evidence includes `ds_...` survivor ref, `source_case` metadata for the original ordinary doctest, `mutation_case` metadata for the survived mutation report entry, `m_...` mutant ID, mutated diff, operator, backend stability, and deterministic runner evidence copied from `case.mutation.runner_evidence`.
 - Add a failing resolution test proving `<survivor-ref>` matches only non-null `case.mutation.survivor_ref` values in the selected mutation-aware doctest report and does not resolve killed, skipped, invalid, compile-error, compiler-crash, or timeout documentation mutants.
 - Add a failing stub-provider output snapshot using doctest-specific classification labels from `zentinel.ai.explain.response.v1`.
 - Add a failing test proving the command does not change survivor status, doctest report files, or expected output blocks.
@@ -52,7 +52,7 @@ Expose advisory-only AI explanation for mutation-aware doctest survivors after s
 ## Acceptance criteria
 
 - `zentinel doctest explain-survivor <survivor-ref>` is documented and usable from the CLI.
-- The command consumes only deterministic mutation-aware doctest report evidence from task `061`.
+- The command consumes only deterministic mutation-aware doctest report evidence from task `061` and keeps original doctest metadata separate from mutation report case metadata.
 - The command resolves the `ds_...` survivor-ref format and derivation documented in `docs/DOCTEST_SPEC.md`.
 - AI output is advisory-only and cannot mark survivors equivalent, killed, skipped, or invalid.
 - Missing reports and unresolved survivor refs produce stable documented diagnostics.

@@ -46,6 +46,8 @@ The task-system validator also checks governance bootstrap files, ADR index cons
 
 ## Reports
 
+Task `041` is the cutover point for durable pipeline artifacts. Before task `041` is complete, the Verifier records the same report fields in `tasks/STATUS.md`, `tasks/status.json`, or the task completion summary. After task `041` is complete, the JSON report is the canonical durable artifact and the Markdown report is a companion summary.
+
 Verifier emits:
 
 ```text
@@ -120,7 +122,7 @@ The Verifier may recommend `complete` only when:
 
 - all required stages passed
 - all skipped stages have policy-backed reasons
-- every prior role handoff is present
+- every prior role handoff is present, or before task `041`, equivalent pre-artifact handoff fields are present in task status or the completion summary
 - no stale context artifacts remain unresolved
 - queue/status files are ready for the next task
 

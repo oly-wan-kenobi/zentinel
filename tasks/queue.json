@@ -3,7 +3,45 @@
   "ordering": "sequential",
   "tasks": [
     {
+      "id": "068",
+      "order": "000",
+      "title": "Preimplementation Contract Alignment",
+      "file": "tasks/068-preimplementation-contract-alignment.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/068-preimplementation-contract-alignment.md",
+        "tasks/025-autonomous-backlog-audit.md",
+        "tasks/006-report-schema.md",
+        "tasks/061-doctest-mutate-stabilization.md",
+        "tasks/067-ai-doctest-survivor-assistance.md",
+        "docs/ROADMAP.md",
+        "docs/DOCTEST_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+        ".agents/workflows/task-plan.md",
+        "docs/FAILURE_MODES.md",
+        "schemas/report.v1.schema.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/schemas.v1.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig"
+      ]
+    },
+    {
       "id": "000",
+      "order": "000.1",
       "title": "Project Bootstrap",
       "file": "tasks/000-project-bootstrap.md",
       "phase": 0,
@@ -688,7 +726,14 @@
         "tasks/057-*.md",
         "tasks/058-*.md",
         "tasks/059-*.md",
-        "tasks/060-*.md"
+        "tasks/060-*.md",
+        "tasks/061-*.md",
+        "tasks/062-*.md",
+        "tasks/063-*.md",
+        "tasks/064-*.md",
+        "tasks/065-*.md",
+        "tasks/066-*.md",
+        "tasks/067-*.md"
       ],
       "forbidden_files": [
         "src/**",

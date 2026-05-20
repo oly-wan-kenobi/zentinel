@@ -255,3 +255,10 @@ Each failure mode has:
 - *Code/status.* `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 - *Invariants stressed.* I-004, I-016.
 - *Required test surface.* Doctest survivor AI CLI survivor-ref resolution test.
+
+**F-035. Internal reportable tool error**
+- *Phase.* Internal.
+- *Expected outcome.* Report v1 emits `run.status = "internal_error"` only with closed deterministic `run.error` evidence, or fails before emitting a public report when that evidence cannot be constructed.
+- *Code/status.* `ZNTL_INTERNAL_INVARIANT`, `internal_error`.
+- *Invariants stressed.* I-001, I-014.
+- *Required test surface.* Report schema contract test for internal-error reports.

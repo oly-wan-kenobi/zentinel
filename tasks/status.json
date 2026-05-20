@@ -2,12 +2,14 @@
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
   "next_task": "000",
-  "completed_tasks": [],
+  "completed_tasks": [
+    "068"
+  ],
   "blocked_tasks": [],
     "last_validation": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
-        "notes": "Validator passed after resolving follow-up contract findings: task 061 can edit docs/DOCTEST_SPEC.md, mutation-aware doctest reports define summary.mutation/case.mutation/ds survivor refs, task 055 and task 067 split doctest AI context schema ownership, doctest AI evidence objects are closed, and F-033 no longer routes to task 025; task count is 68. Python validator compilation, JSON syntax checks, JSON fence checks, and git diff --check passed."
+        "notes": "Validator passed after completing task 068 preimplementation contract alignment: task 025 covers tasks 061-067, Roadmap Phase 2 treats preview mutators as backlog, doctest mutation summaries and survivor AI context shapes are exact, pre-041 pipeline artifact wording is aligned, and report internal_error has deterministic run.error schema ownership; task count is 69. Python validator compilation, JSON syntax checks, JSON fence checks, changed-file scope check, and git diff --check passed."
   },
   "history": [
     {
@@ -99,6 +101,11 @@
             "event": "doctest_mutation_and_ai_contract_findings_resolved",
             "task": null,
             "notes": "Resolved follow-up findings from deep analysis and the external agent: task 061 now owns docs/DOCTEST_SPEC.md alongside the doctest report schema, ds_ survivor refs have deterministic derivation and resolution rules, task 055 creates only non-survivor doctest AI context flows while task 067 adds explain_doctest_survivor, doctest AI evidence variants define closed nested properties, and F-033 is deferred to explicit preview backlog instead of the administrative audit task."
+        },
+        {
+            "event": "preimplementation_contract_alignment_completed",
+            "task": "068",
+            "notes": "Completed task 068 before project bootstrap: aligned task 025 scope with inserted tasks 061-067, made preview mutators explicit backlog in the roadmap, clarified doctest mutation summary partitions and survivor AI source_case/mutation_case evidence, aligned pre-041 pipeline artifact wording, and defined report internal_error run.error schema/test ownership."
         }
     ]
 }

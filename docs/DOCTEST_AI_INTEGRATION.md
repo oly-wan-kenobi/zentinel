@@ -124,6 +124,8 @@ Required top-level fields:
 | `kind` | Exact doctest report case kind: `zig_compile_pass`, `zig_test`, `zig_compile_fail`, `cli`, `config`, `config_fail`, `json_expected`, `text_output`, or `mutation`. |
 | `status` | Deterministic status from the report or extraction. |
 
+For `explain_doctest_survivor`, the top-level `doctest` object is the selected mutation-aware report case and must have `kind = "mutation"` and `status = "survived"`. Metadata for the original preflight doctest case lives in `evidence.source_case`; agents must not overload one `case` object to mean both the original passing doctest and the survived mutation entry.
+
 `doctest` fields for docs-target flows such as `suggest_doctest` and `suggest_missing_doctests`:
 
 | Field | Rule |
@@ -144,7 +146,7 @@ Required top-level fields:
 | `suggest_doctest` | `docs_target` | `target_file`, `heading_context`, `docs_metadata`, and nullable `report_summary`. |
 | `review_snapshot` | `snapshot_diff` | `snapshot` copied from `case.result.snapshot`, selected `case_status`, and no AI-computed match result. |
 | `suggest_missing_doctests` | `missing_doctests` | Deterministic public-docs metadata and `candidates` with `file`, `heading`, `reason`, and `missing_kind`. |
-| `explain_doctest_survivor` | `doctest_survivor` | `survivor_ref`, selected case metadata, `mutated_diff`, `operator`, and deterministic runner evidence from the mutation-aware doctest report. |
+| `explain_doctest_survivor` | `doctest_survivor` | `survivor_ref`, `source_case`, selected `mutation_case`, `mutated_diff`, `operator`, and deterministic runner evidence from the mutation-aware doctest report. |
 
 Closed evidence object rules:
 
@@ -154,7 +156,7 @@ Closed evidence object rules:
 | `docs_target` | `kind`, `target_file`, `heading_context`, `docs_metadata`, `report_summary` | `report_summary` is `null` when no report context is supplied. |
 | `snapshot_diff` | `kind`, `case_status`, `snapshot` | None. `snapshot` is copied exactly from `case.result.snapshot`. |
 | `missing_doctests` | `kind`, `docs`, `candidates` | `candidate.line_hint` may be `null`. |
-| `doctest_survivor` | `kind`, `survivor_ref`, `case`, `mutant_id`, `mutated_diff`, `operator`, `operator_stability`, `backend`, `backend_stability`, `runner_evidence` | Deferred to task `067`; not accepted by the task `055` schema. |
+| `doctest_survivor` | `kind`, `survivor_ref`, `source_case`, `mutation_case`, `mutant_id`, `mutated_diff`, `operator`, `operator_stability`, `backend`, `backend_stability`, `runner_evidence` | Deferred to task `067`; not accepted by the task `055` schema. |
 
 `docs_metadata` is a closed object with:
 
@@ -171,7 +173,7 @@ Closed evidence object rules:
 
 `missing_doctests.docs` entries are closed objects with `file`, `public`, `has_doctests`, and `executable_case_count`. `missing_doctests.candidates` entries are closed objects with `file`, `heading`, `line_hint`, `reason`, and `missing_kind`, where `missing_kind` is one of `cli`, `config`, `report`, `mutation`, or `zig_test`.
 
-The deferred `doctest_survivor.case` object reuses the closed case-based doctest metadata shape above: `id`, `file`, `line_start`, `line_end`, `source_ref`, `block_refs`, `kind`, and `status`. The deferred `doctest_survivor.runner_evidence` object is copied from `case.mutation.runner_evidence` in the selected mutation-aware doctest report. It is closed and contains `status`, `command`, `exit_code`, `timed_out`, `stdout_excerpt`, `stderr_excerpt`, `failure_summary`, and `skip_reason`.
+The deferred `doctest_survivor.source_case` and `doctest_survivor.mutation_case` objects both reuse the closed case-based doctest metadata shape above: `id`, `file`, `line_start`, `line_end`, `source_ref`, `block_refs`, `kind`, and `status`. `source_case` describes the original ordinary doctest case referenced by `case.mutation.doctest_case_id`; it must not use `kind = "mutation"`. `mutation_case` describes the selected mutation-aware report entry; it must use `kind = "mutation"` and `status = "survived"`. The deferred `doctest_survivor.runner_evidence` object is copied from `case.mutation.runner_evidence` in the selected mutation-aware doctest report. It is closed and contains `status`, `command`, `exit_code`, `timed_out`, `stdout_excerpt`, `stderr_excerpt`, `failure_summary`, and `skip_reason`.
 
 Minimal evidence examples:
 
@@ -192,7 +194,7 @@ Minimal evidence examples:
 ```
 
 ```json
-{ "kind": "doctest_survivor", "survivor_ref": "ds_01hr7p6h0v2fj3drdzt9k2a0xe", "case": { "id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe", "file": "docs/MUTATOR_SPEC.md", "line_start": 120, "line_end": 132, "source_ref": "docs/MUTATOR_SPEC.md:120:range-boundary", "block_refs": ["docs/MUTATOR_SPEC.md:120:range-boundary"], "kind": "zig_test", "status": "passed" }, "mutant_id": "m_01hr7p6h0v2fj3drdzt9k2a0xe", "mutated_diff": ["- try expect(idx < len);", "+ try expect(idx <= len);"], "operator": "comparison_boundary", "operator_stability": "stable", "backend": "ast", "backend_stability": "stable", "runner_evidence": { "status": "survived", "command": { "original": "zig test src/doctest.zig", "argv": ["zig", "test", "src/doctest.zig"], "cwd": "<project>", "environment_policy": "minimal", "shell": false }, "exit_code": 0, "timed_out": false, "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "", "skip_reason": null } }
+{ "kind": "doctest_survivor", "survivor_ref": "ds_01hr7p6h0v2fj3drdzt9k2a0xe", "source_case": { "id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe", "file": "docs/MUTATOR_SPEC.md", "line_start": 120, "line_end": 132, "source_ref": "docs/MUTATOR_SPEC.md:120:range-boundary", "block_refs": ["docs/MUTATOR_SPEC.md:120:range-boundary"], "kind": "zig_test", "status": "passed" }, "mutation_case": { "id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe", "file": "docs/MUTATOR_SPEC.md", "line_start": 120, "line_end": 132, "source_ref": "docs/MUTATOR_SPEC.md:120:range-boundary", "block_refs": ["docs/MUTATOR_SPEC.md:120:range-boundary"], "kind": "mutation", "status": "survived" }, "mutant_id": "m_01hr7p6h0v2fj3drdzt9k2a0xe", "mutated_diff": ["- try expect(idx < len);", "+ try expect(idx <= len);"], "operator": "comparison_boundary", "operator_stability": "stable", "backend": "ast", "backend_stability": "stable", "runner_evidence": { "status": "survived", "command": { "original": "zig test src/doctest.zig", "argv": ["zig", "test", "src/doctest.zig"], "cwd": "<project>", "environment_policy": "minimal", "shell": false }, "exit_code": 0, "timed_out": false, "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "", "skip_reason": null } }
 ```
 
 The schema must set `additionalProperties: false` for top-level objects and nested objects unless a nested object is explicitly documented as an open map. The context must contain only:

@@ -26,7 +26,9 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 ## Completion Log
 
-No implementation tasks have been completed yet.
+| Task | Date completed | Files changed | Tests added | Tests run | Deterministic behavior affected | Dogfooding implication | Known follow-ups |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 068 Preimplementation Contract Alignment | 2026-05-20 | Task metadata, contract docs, report schema, and matching gap registry rows. | None; docs/schema contract alignment used existing validator and syntax checks. | `python3 scripts/validate_task_system.py`; `python3 -m py_compile scripts/validate_task_system.py`; JSON syntax checks for edited JSON files; Markdown JSON fence parse; `git diff --check`. | No runtime behavior exists yet; report and doctest contracts clarified for future deterministic implementations. | Removes ambiguity before dogfoodable behavior exists; no dogfood run expected. | None predefined. |
 
 ## Consistency Record
 
@@ -46,6 +48,7 @@ No implementation tasks have been completed yet.
 | 2026-05-20 | Applied doctest AI/report contract refinements: prompt requests now have registered context-schema ownership for mutation and doctest flows, `doctest review-snapshot` is a user-facing CLI subcommand, doctest AI context/suggestion/snapshot schemas have exact targets, doctest report v1 has concrete report/failure fields, doctest AI output persistence is advisory-only, and public-doc doctest coverage includes `docs/DOCTEST_AI_INTEGRATION.md`. | `python3 scripts/validate_task_system.py` passed with 67 tasks; JSON syntax checks and `git diff --check` passed. |
 | 2026-05-20 | Hardened runtime and doctest AI contracts from the latest analysis: `compiler_crash` is a distinct deterministic status, Zig cache reuse and concurrent workspaces are isolated, allocator mutators are bounded to injected target wrappers, doctest case kinds and snapshot evidence are exact, gap-registry row updates have a narrow exception, and task 067 covers `zentinel doctest explain-survivor`. | `python3 scripts/validate_task_system.py` passed with 68 tasks; Python validator compilation, JSON syntax checks, and `git diff --check` passed. |
 | 2026-05-20 | Resolved the latest external-agent and deep-analysis findings: task 061 can edit `docs/DOCTEST_SPEC.md`, mutation-aware doctest reports have exact `summary.mutation`, `case.mutation`, and `ds_...` survivor-ref contracts, task 055/067 doctest AI schema ownership is split, doctest AI evidence objects are closed, and F-033 no longer points to the administrative backlog audit task. | `python3 scripts/validate_task_system.py` passed with 68 tasks; Python validator compilation, JSON syntax checks, JSON fence checks, and `git diff --check` passed. |
+| 2026-05-20 | Completed preimplementation contract alignment task 068: task 025 now covers inserted tasks 061-067, Roadmap Phase 2 treats preview mutators as backlog, doctest mutation summaries and survivor AI context shapes are exact, pre-041 pipeline artifact wording is aligned, and report `internal_error` has deterministic `run.error` schema ownership. | `python3 scripts/validate_task_system.py` passed with 69 tasks; Python validator compilation, edited JSON syntax checks, Markdown JSON fence checks, changed-file scope check, and `git diff --check` passed. |
 
 ## Blockers
 

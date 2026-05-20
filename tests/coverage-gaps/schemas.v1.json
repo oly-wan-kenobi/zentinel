@@ -3,7 +3,7 @@
   "source": "docs/SCHEMA_REGISTRY.md",
   "mode": "regression_only",
   "entries": [
-    { "version": "zentinel.report.v1", "file": "schemas/report.v1.schema.json", "covered": false, "tests": [], "deferred_to": "tasks/006-report-schema.md", "notes": "Report schema writer tests land with report schema task, including distinct backend_stability and operator_stability coverage." },
+    { "version": "zentinel.report.v1", "file": "schemas/report.v1.schema.json", "covered": false, "tests": [], "deferred_to": "tasks/006-report-schema.md", "notes": "Report schema writer tests land with report schema task, including internal_error run.error shape plus distinct backend_stability and operator_stability coverage." },
     { "version": "zentinel.ai.prompt.v1", "file": "schemas/ai.prompt.v1.schema.json", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "AI prompt request schema tests land with advisory commands before prompts are emitted as machine-readable artifacts." },
     { "version": "zentinel.ai.context.v1", "file": "schemas/ai.context.v1.schema.json", "covered": false, "tests": [], "deferred_to": "tasks/053-ai-provider-and-context.md", "notes": "AI context tests land with provider/context task, including complete nested objects and distinct backend/operator stability coverage." },
     { "version": "zentinel.ai.explain.response.v1", "file": "schemas/ai.explain.response.v1.schema.json", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "AI explain response tests land with advisory commands, including the shared doctest classification labels reused by task 055." },

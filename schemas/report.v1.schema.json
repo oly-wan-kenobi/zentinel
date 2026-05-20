@@ -69,17 +69,71 @@
         },
         "required": ["baseline"]
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "run": {
+            "properties": {
+              "status": { "const": "internal_error" }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["run"]
+      },
+      "then": {
+        "properties": {
+          "run": {
+            "properties": {
+              "error": { "$ref": "#/$defs/run_error" }
+            },
+            "required": ["error"]
+          }
+        },
+        "required": ["run"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "run": {
+            "properties": {
+              "status": { "enum": ["completed", "baseline_failed"] }
+            },
+            "required": ["status"]
+          }
+        },
+        "required": ["run"]
+      },
+      "then": {
+        "properties": {
+          "run": {
+            "properties": {
+              "error": { "type": "null" }
+            },
+            "required": ["error"]
+          }
+        },
+        "required": ["run"]
+      }
     }
   ],
   "properties": {
     "schema_version": { "const": "zentinel.report.v1" },
     "run": {
       "type": "object",
-      "required": ["id", "status", "zentinel_version", "zig_version", "command", "config_hash", "project_root", "started_at", "duration_ms"],
+      "required": ["id", "status", "error", "zentinel_version", "zig_version", "command", "config_hash", "project_root", "started_at", "duration_ms"],
       "additionalProperties": false,
       "properties": {
         "id": { "type": "string", "pattern": "^run_[A-Za-z0-9]+$" },
         "status": { "enum": ["completed", "baseline_failed", "internal_error"] },
+        "error": {
+          "anyOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/run_error" }
+          ]
+        },
         "zentinel_version": { "type": "string" },
         "zig_version": { "type": "string" },
         "command": { "type": "string" },
@@ -93,11 +147,17 @@
       "type": "object",
       "required": ["status", "commands"],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_run" } }, "required": ["status"] },
+          "then": { "properties": { "commands": { "maxItems": 0 } } },
+          "else": { "properties": { "commands": { "minItems": 1 } } }
+        }
+      ],
       "properties": {
-        "status": { "enum": ["passed", "failed"] },
+        "status": { "enum": ["passed", "failed", "not_run"] },
         "commands": {
           "type": "array",
-          "minItems": 1,
           "items": { "$ref": "#/$defs/baseline_command_result" }
         }
       }
@@ -169,6 +229,21 @@
         "mode": { "enum": ["disabled", "metadata_only", "read_write"] },
         "hits": { "type": "integer", "minimum": 0 },
         "misses": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "run_error": {
+      "type": "object",
+      "required": ["code", "message", "phase"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "pattern": "^ZNTL_[A-Z0-9_]+$" },
+        "message": { "type": "string", "minLength": 1 },
+        "phase": { "enum": ["internal", "report", "backend", "mutator", "sandbox", "runner", "cache", "task"] },
+        "details": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "string", "maxLength": 512 }
+        }
       }
     },
     "baseline_command_result": {
