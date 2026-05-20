@@ -172,7 +172,7 @@
       "title": "Prebootstrap Sequencing and Contract Cleanup",
       "file": "tasks/072-prebootstrap-sequencing-and-contract-cleanup.md",
       "phase": 0,
-      "state": "active",
+      "state": "complete",
       "dependencies": [
         "071"
       ],

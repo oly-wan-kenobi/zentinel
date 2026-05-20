@@ -1,18 +1,19 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "072",
-  "next_task": "072",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
     "070",
-    "071"
+    "071",
+    "072"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 071 agent contract finalization: orchestrator complexity routing mirrors the escalation policy, task 063 baseline pipeline schema ownership is explicit, Zig build artifact ignores exist, stale untracked-baseline wording is rejected, and task 000 is the next dependency-ready task. Python validator compilation, JSON syntax checks, and git diff --check passed."
+    "notes": "Validator passed after completing task 072 prebootstrap sequencing and contract cleanup: direct previous non-superseded dependency guardrail is enforced, task 064 depends on task 062, task 000 names task 072 as its prerequisite, and roadmap/harness/invariant wording is aligned. Python validator compilation, JSON syntax checks, and git diff --check passed."
   },
   "history": [
     {
@@ -144,6 +145,11 @@
       "event": "prebootstrap_sequencing_and_contract_cleanup_started",
       "task": "072",
       "notes": "Inserted task 072 at execution order 000.0.3 before project bootstrap to resolve the task 064 dependency-ordering risk, harness/report wording drift, roadmap scaffold wording, and stale invariant handoff wording."
+    },
+    {
+      "event": "prebootstrap_sequencing_and_contract_cleanup_completed",
+      "task": "072",
+      "notes": "Completed task 072 before project bootstrap. Added a validator guardrail requiring each non-superseded task to directly depend on its immediate execution-order predecessor, fixed task 064 to depend on task 062, synced task 000's guard with task 072, and aligned harness, roadmap, and invariant gap wording."
     }
   ]
 }
