@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "092",
-  "next_task": "092",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
@@ -25,14 +25,15 @@
     "088",
     "089",
     "090",
-    "091"
+    "091",
+    "092"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 091 analysis risk cleanup; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 092 agent readiness follow-up hardening; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -379,6 +380,21 @@
       },
       "dogfooding_implication": "Future implementation agents see the current pinned Zig policy and full pre-bootstrap hardening range before starting bootstrap.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "092",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for status blocked-task detail schema, task 030 doctest fixture evidence, post-041 handoff role coverage, canonical Implementation Reviewer wording, experimental backend report-schema alignment, and stale latest-stable backend wording.",
+      "implementation_summary": "Inserted and completed task 092 before bootstrap, added validator guardrails for queue/status shape and active-task diff scope, clarified doctest fixture presence evidence, made handoff names deterministic for every emitting role, defined tests_added as cumulative task-level evidence, aligned Implementation Reviewer wording, and kept ZIR/AIR diagnostics out of report v1.",
+      "files_changed": ["task metadata", "validator guardrails", "status schema", "doctest task contract", "handoff and pipeline docs", "Codex agent role summary", "backend docs", "backend experiment tasks", "report format docs"],
+      "tests_added": ["Structural validator guardrails for doctest fixture evidence, handoff role coverage, canonical reviewer wording, experimental backend report-schema alignment, pinned Zig backend wording, task-state schema shape, completed-task sync, extra Markdown queue rows, blocked-state details, and active-task changed-file scope."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "python3 -m json.tool on edited JSON files", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 092 agent readiness follow-up hardening."
+      },
+      "dogfooding_implication": "Future implementation agents start bootstrap with stricter task-state validation, closed report-v1 backend contracts, deterministic pipeline handoff names, and executable doctest fixture guardrails.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -711,6 +727,11 @@
       "event": "agent_readiness_follow_up_hardening_started",
       "task": "092",
       "notes": "Inserted and activated task 092 at execution order 000.0.22 before project bootstrap to close the latest read-only analysis findings around doctest fixture evidence, handoff contracts, experimental backend diagnostics, pinned Zig wording, and validator blind spots."
+    },
+    {
+      "event": "agent_readiness_follow_up_hardening_completed",
+      "task": "092",
+      "notes": "Completed task 092 before project bootstrap. Validator guardrails now cover task 030 doctest fixture evidence, full post-041 handoff role coverage, cumulative tests_added semantics, Implementation Reviewer terminology, experimental backend report-schema alignment, pinned Zig backend wording, strict task-state shape, completed-task sync, Markdown queue drift, blocked-state details, and active-task changed-file scope."
     }
   ]
 }
