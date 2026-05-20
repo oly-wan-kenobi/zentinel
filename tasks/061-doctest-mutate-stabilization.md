@@ -37,7 +37,7 @@ Stabilize `zentinel doctest --mutate` from fixture experiment into a documented,
 
 - Add a failing stabilization test proving `doctest --mutate` rejects non-opt-in documentation.
 - Add a failing deterministic report snapshot for killed, survived, skipped, and invalid documentation mutants.
-- Add a failing schema-validation test for the `zentinel doctest --mutate` `case.kind = "mutation"` extension, including the rule that top-level `summary.total` counts only preflight non-mutation doctest cases, `summary.mutation.total` counts only mutation cases, `case.mutation`, deterministic `ds_...` survivor-ref derivation, and closed `runner_evidence` fields from `docs/DOCTEST_SPEC.md`.
+- Add a failing schema-validation test for the `zentinel doctest --mutate` `case.kind = "mutation"` extension, including the rule that top-level `summary.total` counts only preflight non-mutation doctest cases, `summary.mutation.total` counts only mutation cases, `case.id = "dm_..."` for mutation entries, `case.mutation`, deterministic `ds_...` survivor-ref derivation, and closed `runner_evidence` fields from `docs/DOCTEST_SPEC.md`.
 - Add a failing repeatability test proving identical mutation-aware report inputs produce the same non-null `survivor_ref`, and that killed, skipped, invalid, compile-error, compiler-crash, and timeout documentation mutants do not receive survivor refs.
 - Add a failing test that normal doctest failure prevents mutation-aware execution for that case.
 - Run `zig build test`.
@@ -46,7 +46,7 @@ Stabilize `zentinel doctest --mutate` from fixture experiment into a documented,
 ## Acceptance criteria
 
 - Mutation-aware doctests are documented as opt-in and deterministic.
-- Documentation mutant reports use stable `m_...`, `dt_...`, and `ds_...` identities plus canonical ordering.
+- Documentation mutant reports use stable `m_...`, `dt_...`, `dm_...`, and `ds_...` identities plus canonical ordering.
 - `docs/DOCTEST_SPEC.md` and `schemas/doctest.report.v1.schema.json` agree on the exact mutation-aware report extension.
 - Normal doctest failure always blocks mutation-aware execution for the affected case.
 - `python3 scripts/validate_task_system.py` passes.

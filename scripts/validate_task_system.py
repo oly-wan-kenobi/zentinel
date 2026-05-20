@@ -789,6 +789,7 @@ def validate_doctest_identity_contracts(errors: list[str]) -> None:
         ]),
         ("docs/GLOSSARY.md", [
             "Duplicate unlabeled identical cases",
+            "Doctest mutation case ID",
             "case anchor line",
         ]),
         ("tasks/032-doctest-extraction.md", [
@@ -807,22 +808,28 @@ def validate_doctest_identity_contracts(errors: list[str]) -> None:
             "docs/DOCTEST_SPEC.md",
             "summary.mutation",
             "case.mutation",
+            "dm_...",
             "ds_...",
             "survivor_ref",
         ]),
         ("tasks/067-ai-doctest-survivor-assistance.md", [
             "schema-extension test",
             "case.mutation.runner_evidence",
+            "dm_...",
             "does not resolve killed, skipped, invalid, compile-error, compiler-crash, or timeout",
         ]),
         ("docs/DOCTEST_SPEC.md", [
             "`zentinel.doctest.report.v1` is the exact schema target",
             "case.advisory.ai",
             "Failure report rules",
+            "Doctest Mutation Entry IDs",
             "Doctest Survivor Refs",
             "case.mutation",
             "summary.mutation",
+            "dm_...",
+            "canonical_mutation_case_bytes",
             "canonical_survivor_bytes",
+            "Mutation-aware case entries must not reuse the ordinary `dt_...` value in `case.id`",
         ]),
         ("docs/DOCTEST_AI_INTEGRATION.md", [
             "case_failure",

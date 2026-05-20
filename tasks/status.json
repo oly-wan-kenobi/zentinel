@@ -10,13 +10,14 @@
     "072",
     "073",
     "074",
-    "075"
+    "075",
+    "076"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 075 mutation gate availability policy: docs now define task 043 as the mutation-gate availability cutover, allow only a pre-gate unavailable skip reason before that cutover, and make the gate mandatory for mutation-testable work after it exists. Python validator compilation passed."
+    "notes": "Validator passed after completing task 076 doctest mutation entry identity: mutation-aware doctest report entries now use dm_ case IDs, dt_ remains the original source case ID, and ds_ remains survivor-only. Python validator compilation passed."
   },
   "history": [
     {
@@ -183,6 +184,16 @@
       "event": "mutation_gate_availability_policy_completed",
       "task": "075",
       "notes": "Completed task 075 before project bootstrap. Added the task 043 mutation-gate availability cutover, the pre-gate unavailable skip reason, post-cutover mandatory wording for mutation-testable tasks, and a validator guardrail."
+    },
+    {
+      "event": "doctest_mutation_entry_identity_started",
+      "task": "076",
+      "notes": "Inserted task 076 at execution order 000.0.7 before project bootstrap to define durable dm_ mutation-aware doctest entry IDs separate from dt_ source case IDs and ds_ survivor refs."
+    },
+    {
+      "event": "doctest_mutation_entry_identity_completed",
+      "task": "076",
+      "notes": "Completed task 076 before project bootstrap. Added dm_ mutation-aware doctest entry IDs, kept dt_ source case IDs under case.mutation.doctest_case_id, preserved ds_ as survivor-only, updated task 061/067 requirements, and added a validator guardrail."
     }
   ]
 }

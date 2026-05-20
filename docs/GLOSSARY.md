@@ -40,6 +40,8 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Doctest case ref**: A CLI selector for one doctest case. It may be a durable doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:label]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, not secondary expectation blocks, and are not durable handoff identifiers.
 
+**Doctest mutation case ID**: A durable deterministic ID for one mutation-aware doctest report entry, formatted with the `dm_` prefix. It identifies killed, survived, skipped, invalid, compile-error, compiler-crash, and timeout documentation mutants and is separate from the original ordinary `dt_...` doctest case ID and the survivor-only `ds_...` ref.
+
 **Doctest survivor ref**: A durable selector for one survived mutation-aware doctest entry, formatted with the `ds_` prefix. It is derived from stable doctest case ID, shared mutant ID, operator, documentation path, source ref, and normalized mutated diff. It is scoped to survived documentation mutants in `zentinel doctest --mutate` reports and is consumed by `zentinel doctest explain-survivor`.
 
 **Equivalent risk**: Metadata saying a mutant may be semantically equivalent or may require a stronger test to distinguish. It is not a reason to suppress the mutant unless a deterministic equivalent filter is documented and tested.

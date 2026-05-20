@@ -290,6 +290,32 @@ Each case has a canonical anchor line. The anchor line is the first executable o
 
 Source refs have the form `docs/path.md:line[:label]`. The `line` component resolves only against the case anchor line. They are accepted by CLI selectors such as `--case <case-ref>` and `doctest explain <case-ref>` when they resolve to exactly one case in the current extraction or selected doctest report. A line pointing only to a secondary expectation block must fail with a case-ref diagnostic instead of guessing the producer case. Reports must store durable `id` values, the anchor `source_ref`, and may also store secondary `block_refs`, source location fields, and labels for display.
 
+### Doctest Mutation Entry IDs
+
+Mutation-aware doctest entry IDs use the `dm_...` prefix. They are durable IDs for individual `case.kind = "mutation"` report entries across killed, survived, skipped, invalid, compile-error, compiler-crash, and timeout outcomes.
+
+For mutation-aware entries, `case.id` is a durable `dm_...` ID. The original ordinary doctest case remains available as `case.mutation.doctest_case_id = "dt_..."`. Mutation-aware entries must not reuse the ordinary `dt_...` value in `case.id`, because one ordinary doctest case may produce multiple documentation mutants and non-survived entries have `case.mutation.survivor_ref = null`.
+
+The deterministic derivation is:
+
+```text
+dm_ + first_26_chars(lowercase_unpadded_crockford_base32(sha256(canonical_mutation_case_bytes)))
+```
+
+`canonical_mutation_case_bytes` is UTF-8 text with `\n` separators and this exact field order:
+
+```text
+zentinel.doctest_mutation_case.v1
+doctest_case_id
+mutant_id
+operator
+doc_file
+source_ref
+normalized_mutated_diff
+```
+
+The derivation must not include display order, wall-clock time, absolute paths, command output, result duration, result status, or AI output. `normalized_mutated_diff` uses the same normalization rules as survivor refs. A mutation-aware doctest report must not contain duplicate `dm_...` case IDs.
+
 ### Doctest Survivor Refs
 
 Mutation-aware doctest survivor refs use the `ds_` prefix. They are durable selectors for survived documentation mutants inside a selected `zentinel doctest --mutate` report and are consumed by `zentinel doctest explain-survivor <survivor-ref>`.
@@ -403,7 +429,7 @@ Report field rules:
 | `run.status` | `completed`, `failed`, or `internal_error`. |
 | `summary` | For normal `zentinel doctest`, counts only non-mutation entries in `cases` and includes every ordinary doctest status key; `total` equals the sum of ordinary status-count fields. For `zentinel doctest --mutate`, this same top-level summary still counts only preflight non-mutation doctest entries, while mutation entries are counted only in `summary.mutation`. |
 | `cases` | Sorted by project-relative file path, anchor line, block index, and durable case ID. |
-| `case.id` | Durable `dt_...` ID. |
+| `case.id` | Durable `dt_...` ID for ordinary non-mutation cases; durable `dm_...` ID for mutation-aware entries where `case.kind = "mutation"`. |
 | `case.source_ref` | Anchor-line source ref for selectors. |
 | `case.block_refs` | All grouped block refs, including secondary expectation blocks. |
 | `case.kind` | One of the exact values from the Doctest Case Kind Enum. |
@@ -496,7 +522,7 @@ invalid
 | `stdout_excerpt`, `stderr_excerpt`, `failure_summary` | Bounded normalized excerpts. |
 | `skip_reason` | Stable skip reason string for skipped mutation entries; otherwise `null`. |
 
-Mutation-aware case entries must reuse the ordinary case identity fields (`id`, `file`, `source_ref`, `block_refs`, `line_start`, and `line_end`) so selectors and AI evidence can join normal doctest results to documentation mutants without line-number-derived IDs.
+Mutation-aware case entries must not reuse the ordinary `dt_...` value in `case.id`. They must copy the ordinary case location fields (`file`, `source_ref`, `block_refs`, `line_start`, and `line_end`) and preserve the original ordinary case ID in `case.mutation.doctest_case_id` so selectors and AI evidence can join normal doctest results to documentation mutants without line-number-derived IDs.
 
 ## Invalid Doctests
 

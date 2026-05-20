@@ -29,6 +29,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.4 | `tasks/073-agent-protocol-readiness-order.md` | complete | 0 |
 | 000.0.5 | `tasks/074-same-file-exclusion-sequencing.md` | complete | 0 |
 | 000.0.6 | `tasks/075-mutation-gate-availability-policy.md` | complete | 0 |
+| 000.0.7 | `tasks/076-doctest-mutation-entry-identity.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
