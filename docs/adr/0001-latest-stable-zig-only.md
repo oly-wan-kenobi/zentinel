@@ -1,6 +1,6 @@
 # ADR-0001: Support latest stable Zig only
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0007
 **Date:** 2026-05-19
 
 ## Context

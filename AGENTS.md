@@ -35,7 +35,7 @@ For behavior changes, also read:
 - Write failing tests before implementation.
 - Modify only files allowed by the active task, except task-control state updates performed by the Task Queue Manager, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts after task `041` is complete.
 - Preserve deterministic core behavior.
-- Support only latest stable Zig.
+- Support only pinned Zig `0.16.0` for this zentinel version.
 - Keep AST as the stable default backend.
 - Treat ZIR and AIR as experimental only.
 - Never use AI output to determine mutation correctness.

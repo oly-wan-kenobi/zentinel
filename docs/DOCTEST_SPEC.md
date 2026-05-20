@@ -355,7 +355,7 @@ Minimal valid JSON shape:
     "id": "doctest_run_01hr7pc9qdyj2f3d7z7me3x1rk",
     "status": "completed",
     "zentinel_version": "0.1.0",
-    "zig_version": "latest-stable",
+    "zig_version": "0.16.0",
     "command": "zentinel doctest --file docs/CLI_SPEC.md --format json",
     "project_root": "<project>",
     "started_at": "<normalized>",

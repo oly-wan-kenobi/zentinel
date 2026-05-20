@@ -33,7 +33,7 @@ Implement deterministic execution of baseline test commands before mutant execut
 
 ## Required tests
 
-- Add failing tests for passing command, failing command, timeout command, and captured output normalization.
+- Add failing tests for passing command, failing command with `ZNTL_RUNNER_COMMAND_FAILED`, timeout command, and captured output normalization.
 - Add a failing classification test proving baseline timeout maps to `run.status = baseline_failed` semantics rather than an internal error or mutant timeout.
 - Add a failing test that command order follows config order.
 - Add a failing reuse/regression test proving runner execution uses the same parsed argv shape already validated by `zentinel check`.

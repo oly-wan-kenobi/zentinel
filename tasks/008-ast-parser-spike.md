@@ -54,7 +54,7 @@ Introduce a minimal AST/source parsing adapter for Zig files that can locate syn
 
 ## Suggested implementation approach
 
-1. Prefer Zig standard library parser support if available in the latest stable release.
+1. Prefer Zig standard library parser support if available in pinned Zig `0.16.0`.
 2. Keep adapter wrapped so future parser changes do not leak across modules.
 3. Write fixtures with small source snippets.
 4. Avoid building a custom parser unless no stable alternative exists.

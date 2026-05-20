@@ -55,7 +55,7 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 ## Suggested implementation approach
 
 1. Gate all ZIR behavior behind config and CLI opt-in.
-2. Use latest stable Zig public APIs where possible.
+2. Use pinned Zig `0.16.0` public APIs where possible.
 3. Skip candidates when source mapping is not exact.
 4. Document version coupling in `docs/ZIR_BACKEND.md`.
 

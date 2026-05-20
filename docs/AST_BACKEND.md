@@ -13,7 +13,7 @@ The AST backend parses Zig source, identifies syntactic mutation candidates, map
 | Default status | Enabled by default once Phase 1 is complete. |
 | Report stability | Stable fields and operator names. |
 | Source mapping | Required for every mutant. |
-| Zig version coupling | Coupled to latest stable Zig syntax only. |
+| Zig version coupling | Coupled to pinned Zig `0.16.0` syntax only. |
 | Failure mode | Clear diagnostic; no silent candidate loss. |
 
 ## Architecture

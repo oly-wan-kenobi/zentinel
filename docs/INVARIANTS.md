@@ -60,10 +60,10 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Enforcement.* Config validation tests and backend selection tests.
 - *Failure mode.* Default runs become version-fragile or emit unstable source spans.
 
-**I-006.** zentinel supports only the latest stable Zig release for a given zentinel version.
-- *Rationale.* Supporting old Zig versions multiplies parser, semantic, and fixture ambiguity.
+**I-006.** zentinel supports exactly Zig `0.16.0` for this zentinel version.
+- *Rationale.* Supporting multiple Zig versions multiplies parser, semantic, and fixture ambiguity; pinning one version keeps autonomous implementation reproducible.
 - *Status.* documented.
-- *Enforcement.* Zig version validation tests.
+- *Enforcement.* Zig version validation tests and ADR-0007.
 - *Failure mode.* Agents implement compatibility branches that are not tested or documented.
 
 ## Mutation and Sandbox

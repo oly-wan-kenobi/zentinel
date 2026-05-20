@@ -33,6 +33,8 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 11. Add or update follow-up tasks when needed.
 12. Run `python3 scripts/validate_task_system.py`.
 
+A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
+
 ## Task States
 
 Allowed task states:

@@ -4,6 +4,8 @@ zentinel development is TDD-first. Every task that changes behavior must begin w
 
 In the AI-agent pipeline, test authorship and implementation are separate responsibilities whenever the task is normal risk or higher. The Test Author creates failing evidence, the Test Reviewer confirms that the evidence matches the task contract, and only then may the Implementer change production behavior.
 
+A successful `python3 scripts/validate_task_system.py` run is not product proof. It checks task-system consistency and registered governance guardrails; it does not replace the active task's failing evidence, targeted tests, snapshots, doctests, schemas, semantic validators, or dogfood runs.
+
 ## Required Workflow
 
 1. Read the active task file and referenced docs.

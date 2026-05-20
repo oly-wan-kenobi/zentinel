@@ -78,7 +78,7 @@ Deliver stable AST mutators for:
 - integer literal boundaries
 - loop and range boundaries
 
-Preview mutators documented in `docs/MUTATOR_SPEC.md`, including allocator failure paths, comptime branch or value mutation, `defer_remove`, and safety or `unreachable` transformations, are design targets and backlog candidates. They are not required minimum-product implementation unless a later task explicitly names the preview operator in its title or acceptance criteria.
+Preview mutators documented in `docs/MUTATOR_SPEC.md`, including allocator failure paths, comptime branch or value mutation, `defer_remove`, and safety or `unreachable` transformations, are design targets and backlog candidates. End-to-end completion excludes preview mutator implementation. They are not required minimum-product implementation unless a later task explicitly names the preview operator in its title or acceptance criteria.
 
 Exit criteria:
 
@@ -145,7 +145,7 @@ Deliver:
 - ZIR candidate generation prototype
 - AIR candidate generation prototype
 - source mapping diagnostics
-- compatibility guards for latest stable Zig internals
+- compatibility guards for pinned Zig `0.16.0` internals
 - backend parity tests against AST fixtures where applicable
 - experimental semantic checks for mutation-aware doctest examples where source mapping is exact
 

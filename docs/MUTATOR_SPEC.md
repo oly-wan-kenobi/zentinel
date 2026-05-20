@@ -32,7 +32,7 @@ All mutators must not:
 | preview | Available behind explicit config and fixture coverage. |
 | experimental | Backend or semantics are not stable; never enabled by default. |
 
-Preview operators are documented design targets, not minimum-product implementation tasks. A stable task may add fixtures that protect a preview operator's future contract, but it must not implement or enable a preview operator unless the task title or acceptance criteria names that operator explicitly.
+Preview operators are documented design targets, not minimum-product implementation tasks. End-to-end completion excludes preview mutator implementation. A stable task may add fixtures that protect a preview operator's future contract, but it must not implement or enable a preview operator unless the task title or acceptance criteria names that operator explicitly.
 
 ## Operator Catalog
 

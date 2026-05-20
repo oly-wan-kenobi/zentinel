@@ -4,9 +4,9 @@ zentinel exists to understand Zig-specific behavior. This document defines seman
 
 ## Supported Zig Version
 
-zentinel supports only the latest stable Zig version. See `docs/ZIG_VERSION_POLICY.md`.
+zentinel supports exactly Zig `0.16.0` for this zentinel version. See `docs/ZIG_VERSION_POLICY.md`.
 
-No compatibility shims may be added for older Zig releases unless the policy changes.
+No compatibility shims may be added for other Zig releases unless the policy changes.
 
 ## Same-File Tests
 

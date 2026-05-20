@@ -27,7 +27,7 @@ Each failure mode has:
 
 **F-002. Unsupported Zig version**
 - *Phase.* Zig version.
-- *Expected outcome.* Clear diagnostic explaining latest-stable policy.
+- *Expected outcome.* Clear diagnostic explaining the pinned Zig `0.16.0` policy.
 - *Code/status.* `ZNTL_ZIG_UNSUPPORTED_VERSION`.
 - *Invariants stressed.* I-006.
 - *Required test surface.* Version-policy test with stubbed older version.
@@ -262,3 +262,66 @@ Each failure mode has:
 - *Code/status.* `ZNTL_INTERNAL_INVARIANT`, `internal_error`.
 - *Invariants stressed.* I-001, I-014.
 - *Required test surface.* Report schema contract test for internal-error reports.
+
+**F-036. Unknown CLI command**
+- *Phase.* CLI.
+- *Expected outcome.* Command dispatch fails as a usage error without running mutation, doctest, config, runner, or AI behavior.
+- *Code/status.* `ZNTL_CLI_UNKNOWN_COMMAND`.
+- *Invariants stressed.* I-014.
+- *Required test surface.* CLI shell dispatch test.
+
+**F-037. Known CLI command not implemented**
+- *Phase.* CLI.
+- *Expected outcome.* A recognized roadmap command that is not implemented in the current phase fails as a usage error and names that it is not yet available.
+- *Code/status.* `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED`.
+- *Invariants stressed.* I-014.
+- *Required test surface.* CLI shell dispatch test for a known future command.
+
+**F-038. Invalid CLI option**
+- *Phase.* CLI.
+- *Expected outcome.* Unknown, duplicated, misplaced, or missing-value options fail before command execution.
+- *Code/status.* `ZNTL_CLI_INVALID_OPTION`.
+- *Invariants stressed.* I-014.
+- *Required test surface.* CLI option parser tests for global and command-owned options.
+
+**F-039. Config path not found**
+- *Phase.* Config.
+- *Expected outcome.* Config loading fails before defaults or command validation are applied.
+- *Code/status.* `ZNTL_CONFIG_NOT_FOUND`.
+- *Invariants stressed.* I-014.
+- *Required test surface.* Check-command config path fixture.
+
+**F-040. Config invalid value**
+- *Phase.* Config.
+- *Expected outcome.* Config validation rejects the value with section/key context and does not silently normalize unsupported data.
+- *Code/status.* `ZNTL_CONFIG_INVALID_VALUE`.
+- *Invariants stressed.* I-005, I-014.
+- *Required test surface.* Config parser validation fixture.
+
+**F-041. Config command syntax rejected**
+- *Phase.* Config.
+- *Expected outcome.* Configured command strings that require shell semantics are rejected before execution.
+- *Code/status.* `ZNTL_CONFIG_INVALID_COMMAND`.
+- *Invariants stressed.* I-001, I-014.
+- *Required test surface.* Shared command parser and `zentinel check` integration tests.
+
+**F-042. Runner command failed in baseline context**
+- *Phase.* Runner.
+- *Expected outcome.* A non-mutant baseline command failure is recorded as deterministic baseline failure evidence and does not start mutant execution.
+- *Code/status.* `ZNTL_RUNNER_COMMAND_FAILED`.
+- *Invariants stressed.* I-001, I-014.
+- *Required test surface.* Baseline runner failing-command fixture.
+
+**F-043. Doctest unsupported executable tag**
+- *Phase.* Doctest.
+- *Expected outcome.* Executable doctest fences with unsupported tags produce deterministic parser diagnostics; ordinary documentation fences remain documentation-only.
+- *Code/status.* `ZNTL_DOCTEST_UNSUPPORTED_TAG`.
+- *Invariants stressed.* I-016.
+- *Required test surface.* Doctest parser fixture.
+
+**F-044. Doctest CLI command rejected**
+- *Phase.* Doctest.
+- *Expected outcome.* CLI doctest examples that invoke commands outside the doctest allowlist are rejected before execution.
+- *Code/status.* `ZNTL_DOCTEST_COMMAND_REJECTED`.
+- *Invariants stressed.* I-001, I-016.
+- *Required test surface.* Doctest runner CLI allowlist fixture.

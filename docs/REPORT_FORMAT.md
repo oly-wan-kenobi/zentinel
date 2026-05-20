@@ -23,7 +23,7 @@ JSON is the canonical report format.
     "status": "completed",
     "error": null,
     "zentinel_version": "0.1.0",
-    "zig_version": "latest-stable",
+    "zig_version": "0.16.0",
     "command": "zentinel run",
     "config_hash": "sha256:4b7d8e3f0a2c9b1d6e5f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5",
     "project_root": "<project>",

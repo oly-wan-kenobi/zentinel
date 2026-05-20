@@ -64,7 +64,9 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Oracle**: A source of truth for pass/fail or kill/survive classification. In zentinel, only deterministic command evidence is an oracle. AI is never an oracle.
 
-**Preview mutator**: A mutator documented in `docs/MUTATOR_SPEC.md` but not enabled by default.
+**Pinned Zig version**: The only Zig compiler version supported by one zentinel release. For this zentinel version the pin is Zig `0.16.0`.
+
+**Preview mutator**: A mutator documented in `docs/MUTATOR_SPEC.md` but not enabled by default. Preview mutators are not part of end-to-end minimum-product completion unless a future task explicitly names the operator.
 
 **Protected dogfood scope**: The subset of zentinel dogfood runs whose invalid mutants, nondeterminism, or survivor regressions block completion once dogfood gating exists.
 

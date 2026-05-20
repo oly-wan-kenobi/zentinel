@@ -219,7 +219,7 @@ Doctest cases may choose the command through block type, not arbitrary prose.
 
 Rules:
 
-- latest stable Zig only
+- pinned Zig `0.16.0` only
 - compiler output is captured and bounded
 - compile failures are expected only for `zig compile_fail`
 - optimization mode defaults to `Debug`

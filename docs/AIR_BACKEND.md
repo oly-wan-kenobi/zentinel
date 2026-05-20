@@ -97,6 +97,6 @@ AIR tests must cover:
 2. Exact source mapping proof fixtures.
 3. Mode comparison experiments.
 4. Typed mutator parity with AST.
-5. Stabilization review after multiple latest-stable Zig releases.
+5. Stabilization review after multiple deliberate Zig pin updates.
 
 AIR cannot become a default backend until it is as trustworthy as AST for source mapping and report reproducibility.

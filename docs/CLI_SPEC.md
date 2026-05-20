@@ -93,7 +93,7 @@ Output:
 
 ```text
 zentinel 0.1.0
-zig latest-stable
+zig 0.16.0
 ```
 
 If Zig is not available, `version` still prints zentinel version and reports Zig discovery failure on stderr with exit code `0` only if Zig is not required by the command.

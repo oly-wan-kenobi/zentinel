@@ -43,7 +43,7 @@
       "covered": false,
       "tests": [],
       "deferred_to": "tasks/005-version-policy.md",
-      "notes": "Latest-stable Zig checks land with Zig version policy."
+      "notes": "Pinned Zig 0.16.0 checks land with Zig version policy."
     },
     {
       "number": "I-007",

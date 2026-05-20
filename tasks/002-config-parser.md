@@ -41,7 +41,7 @@ Implement parsing and validation for `zentinel.toml` according to `docs/CONFIG_S
 - Add a failing test for minimal config parsing.
 - Add a failing parser test for tables, strings, booleans, integers, arrays of strings, and comments.
 - Add a failing parse-error test for unsupported TOML syntax outside the documented subset.
-- Add failing validation tests for unknown keys, empty test commands, invalid mode, and experimental backend misuse.
+- Add failing validation tests for unknown keys, empty test commands, invalid mode, invalid value diagnostics with `ZNTL_CONFIG_INVALID_VALUE`, and experimental backend misuse.
 - Add failing validation tests for negative timeouts, `baseline_required = false`, undefined mutator names, output directory outside project root, and non-positive `run.jobs`.
 - Add a failing deterministic expansion test for mutator special values `phase1`, `phase2`, and `all_stable`.
 - Add a failing path normalization test.

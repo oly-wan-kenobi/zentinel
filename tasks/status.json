@@ -23,13 +23,14 @@
     "086",
     "087",
     "088",
-    "089"
+    "089",
+    "090"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 089 Zig version verification blocker policy; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 090 contract traceability and scope hardening; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -346,6 +347,21 @@
       },
       "dogfooding_implication": "Future dogfood and CI must use source-verified Zig version policy instead of guessed local toolchain state.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "090",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for missing public diagnostic failure-mode traces, moving latest-stable Zig policy, missing validator-as-product-proof warnings, preview mutator end-to-end scope wording, and missing ADR-0007.",
+      "implementation_summary": "Added task 090 before bootstrap, traced all public ZNTL error codes through failure modes and gap rows, pinned Zig 0.16.0 across policy/docs/tasks, superseded ADR-0001 with ADR-0007, hardened validator scope/TDD wording, and clarified that preview mutators are outside minimum end-to-end scope.",
+      "files_changed": ["task metadata", "validator guardrails", "Zig policy docs", "ADR records", "diagnostic docs", "failure-mode gap rows", "TDD and agent protocol docs", "preview mutator scope docs", "row-scoped invariant gap row"],
+      "tests_added": ["Structural validator guardrails for public diagnostic traceability, Zig 0.16.0 pinning, task-specific failing evidence, and preview mutator scope."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "jq empty task/gap JSON files", "public error-code traceability scan", "zig version"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 090 contract traceability and scope hardening."
+      },
+      "dogfooding_implication": "Future dogfood and release tasks now use a pinned Zig 0.16.0 contract, complete public diagnostic traces, task-specific product evidence, and stable-mutator-only minimum scope.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -653,6 +669,16 @@
       "event": "zig_version_verification_blocker_policy_completed",
       "task": "089",
       "notes": "Completed task 089 before project bootstrap. Task 005 and docs/ZIG_VERSION_POLICY.md now require a prerequisite blocker task instead of guessing when official latest-stable Zig verification is unavailable."
+    },
+    {
+      "event": "contract_traceability_and_scope_hardening_started",
+      "task": "090",
+      "notes": "Inserted task 090 at execution order 000.0.20 before project bootstrap to close public diagnostic traceability, pin Zig 0.16.0, harden validator scope, and clarify preview mutator release scope."
+    },
+    {
+      "event": "contract_traceability_and_scope_hardening_completed",
+      "task": "090",
+      "notes": "Completed task 090 before project bootstrap. Public ZNTL diagnostics now trace to failure modes, Zig is pinned to 0.16.0, validator success is not product proof, and preview mutators are outside end-to-end minimum-product scope unless explicitly tasked."
     }
   ]
 }

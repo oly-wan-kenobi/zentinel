@@ -51,7 +51,7 @@ Do not replace any registered context with a schema-version-only placeholder in 
     "project": {
       "name": "example",
       "root_label": "<project>",
-      "zig_version": "latest-stable",
+      "zig_version": "0.16.0",
       "zentinel_version": "0.1.0"
     },
     "mutant": {

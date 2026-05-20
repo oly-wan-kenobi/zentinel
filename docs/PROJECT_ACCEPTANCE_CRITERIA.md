@@ -60,7 +60,7 @@ Stable completion requires:
 - `integer_literal_boundary`
 - `loop_boundary`
 
-Preview mutators may exist but are not required for the minimum complete product.
+Preview mutators may exist but are not required for the minimum complete product. End-to-end completion excludes preview mutator implementation. A preview operator becomes implementation scope only when a future task explicitly names that operator in its title or acceptance criteria.
 
 ## Required Reports
 

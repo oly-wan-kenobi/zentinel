@@ -20,7 +20,7 @@ This example is a minimal valid payload shape. Do not use empty placeholder obje
   "project": {
     "name": "example",
     "root_label": "<project>",
-    "zig_version": "latest-stable",
+    "zig_version": "0.16.0",
     "zentinel_version": "0.1.0"
   },
   "mutant": {

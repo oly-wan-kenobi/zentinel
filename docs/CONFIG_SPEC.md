@@ -51,7 +51,7 @@ include = ["src/**/*.zig"]
 exclude = [".zig-cache/**", "zig-out/**", "test/**"]
 
 [zig]
-version = "latest-stable"
+version = "0.16.0"
 modes = ["Debug"]
 
 [backend]
@@ -110,7 +110,7 @@ The default exclude list is exact for v1. Agents must not silently add or remove
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `version` | string | `latest-stable` | Only accepted policy value for normal use. |
+| `version` | string | `0.16.0` | Only accepted policy value for this zentinel version. |
 | `modes` | list(enum) | `["Debug"]` | Zig optimization/safety modes to execute. |
 
 Allowed modes:

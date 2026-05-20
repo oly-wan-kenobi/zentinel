@@ -26,7 +26,7 @@ It must do that with deterministic execution, precise source mapping, actionable
 | Principle | Requirement |
 | --- | --- |
 | Zig-native first | Use Zig's syntax, build model, testing conventions, and compiler behavior as the design center. |
-| Latest stable Zig only | Support only the current latest stable Zig release. Older Zig versions are not compatibility targets. |
+| Pinned Zig 0.16.0 only | Support exactly Zig `0.16.0` for this zentinel version. Other Zig versions are not compatibility targets until a future ADR changes the pin. |
 | Deterministic core | Mutation generation, execution, result classification, IDs, reports, and cache keys must be reproducible. |
 | TDD-first development | Every behavior begins with a failing test or fixture before implementation. |
 | Phased delivery | Stable AST-based capability ships before experimental compiler IR backends. |
@@ -102,7 +102,7 @@ zentinel is not:
 - a source formatter
 - a multi-language mutation framework
 - an AI system that decides whether tests are correct
-- a compatibility layer for old Zig releases
+- a compatibility layer for Zig versions other than the pinned supported version
 
 ## Long-Term Direction
 

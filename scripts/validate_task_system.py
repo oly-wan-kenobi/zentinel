@@ -59,7 +59,10 @@ ORDER_RE = re.compile(r"^[0-9]{3}(?:\.[0-9]+)*$")
 QUEUE_ROW_RE = re.compile(r"^\| ([0-9]{3}(?:\.[0-9]+)*) \| `([^`]+)` \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
 INVARIANT_RE = re.compile(r"^\*\*(I-[0-9]{3})\.", re.MULTILINE)
 FAILURE_MODE_RE = re.compile(r"^\*\*(F-[0-9]{3})\.", re.MULTILINE)
+ERROR_CODE_RE = re.compile(r"`(ZNTL_[A-Z0-9_]+)`")
 ADR_INDEX_RE = re.compile(r"^\| (ADR-[0-9]{4}) \| \[[^\]]+\]\(([^)]+)\) \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
+
+PINNED_ZIG_VERSION = "0.16.0"
 
 TASK_CONTROL_FILES = {
     "tasks/QUEUE.md",
@@ -1665,12 +1668,11 @@ def validate_analysis_findings_closure_contracts(tasks: list[dict[str, object]],
             for task_control_file in sorted(TASK_CONTROL_FILES):
                 require(task_control_file in allowed, errors, f"task 000 must explicitly allow task-control file {task_control_file}")
 
-    require("<detected-version>" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md diagnostic example must use <detected-version>")
-    require("unsupported Zig version: 0.14.0" not in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must not hard-code a Zig version in diagnostics")
-    require("official latest stable Zig release from the Zig project release source" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must require official latest-stable source verification")
-    require("A local `zig version` result alone is not enough" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must reject local-version-only inference")
-    require("official latest stable Zig release source" in task005_text, errors, "tasks/005-version-policy.md must require official latest-stable source verification")
-    require("A local `zig version` result alone is not enough" in task005_text, errors, "tasks/005-version-policy.md must reject local-version-only inference")
+    require("<detected-version>" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md diagnostic example must include <detected-version>")
+    require(PINNED_ZIG_VERSION in version_policy_text, errors, f"docs/ZIG_VERSION_POLICY.md must pin Zig {PINNED_ZIG_VERSION}")
+    require("No live latest-stable lookup is required for task `005`." in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must remove task 005 live latest-stable lookup")
+    require(PINNED_ZIG_VERSION in task005_text, errors, f"tasks/005-version-policy.md must pin Zig {PINNED_ZIG_VERSION}")
+    require("No live latest-stable lookup is required." in task005_text, errors, "tasks/005-version-policy.md must remove live latest-stable lookup")
 
     for task in tasks:
         task_id = task.get("id")
@@ -1726,21 +1728,19 @@ def validate_agent_tooling_contract_hardening_contracts(errors: list[str]) -> No
         ],
         "docs/ZIG_VERSION_POLICY.md": [
             "durable verification evidence",
-            "official release source consulted",
-            "official latest stable version",
+            "pinned supported Zig version",
+            "0.16.0",
             "local `zig version`",
             "match or mismatch result",
-            "If network access or the official release source is unavailable",
-            "insert a prerequisite task instead of guessing",
+            "No live latest-stable lookup is required for task `005`.",
         ],
         "tasks/005-version-policy.md": [
             "durable verification evidence",
-            "official release source consulted",
-            "official latest stable version",
+            "pinned supported Zig version",
+            "0.16.0",
             "local `zig version`",
             "match or mismatch result",
-            "If network access or the official release source is unavailable",
-            "insert a prerequisite task instead of guessing",
+            "No live latest-stable lookup is required.",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -1751,6 +1751,175 @@ def validate_agent_tooling_contract_hardening_contracts(errors: list[str]) -> No
         text = path.read_text(encoding="utf-8")
         for phrase in phrases:
             require(phrase in text, errors, f"{rel} must contain agent-tooling contract phrase '{phrase}'")
+
+
+def validate_contract_traceability_and_scope_hardening_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 090 contracts so future agents do not reintroduce analysis blockers."""
+    error_codes_path = ROOT / "docs" / "ERROR_CODES.md"
+    failure_modes_path = ROOT / "docs" / "FAILURE_MODES.md"
+    for path in [error_codes_path, failure_modes_path]:
+        require(path.is_file(), errors, f"missing contract hardening file {path.relative_to(ROOT)}")
+    if error_codes_path.is_file() and failure_modes_path.is_file():
+        error_text = error_codes_path.read_text(encoding="utf-8")
+        failure_text = failure_modes_path.read_text(encoding="utf-8")
+        for code in sorted(set(ERROR_CODE_RE.findall(error_text))):
+            require(code in failure_text, errors, f"docs/FAILURE_MODES.md must trace public error code {code}")
+        require(
+            "not the pinned supported Zig version for this zentinel release" in error_text,
+            errors,
+            "docs/ERROR_CODES.md must describe unsupported Zig as pinned-version mismatch",
+        )
+
+    required_phrases = {
+        "AGENTS.md": [
+            "Support only pinned Zig `0.16.0` for this zentinel version.",
+        ],
+        "docs/VISION.md": [
+            "Pinned Zig 0.16.0 only",
+        ],
+        "docs/NON_GOALS.md": [
+            "Zig versions other than the pinned supported version. [never]",
+            "Preview mutator implementation in the minimum complete product. [not v1]",
+        ],
+        "docs/INVARIANTS.md": [
+            f"**I-006.** zentinel supports exactly Zig `{PINNED_ZIG_VERSION}` for this zentinel version.",
+        ],
+        "docs/ZIG_VERSION_POLICY.md": [
+            f"zentinel pins Zig `{PINNED_ZIG_VERSION}` for this zentinel version.",
+            "No live latest-stable lookup is required for task `005`.",
+        ],
+        "tasks/005-version-policy.md": [
+            f"pinned supported Zig version `{PINNED_ZIG_VERSION}`",
+            "No live latest-stable lookup is required.",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            'version = "0.16.0"',
+            "| `version` | string | `0.16.0` |",
+        ],
+        "docs/CLI_SPEC.md": [
+            "zig 0.16.0",
+        ],
+        "docs/ZIG_SEMANTICS.md": [
+            "zentinel supports exactly Zig `0.16.0` for this zentinel version.",
+        ],
+        "docs/TDD_POLICY.md": [
+            "A successful `python3 scripts/validate_task_system.py` run is not product proof.",
+            "does not replace the active task's failing evidence",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "validator pass is not product proof",
+            "does not replace task-specific failing evidence",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "validator pass is not product proof",
+            "does not replace task-specific failing evidence",
+        ],
+        "docs/MUTATOR_SPEC.md": [
+            "End-to-end completion excludes preview mutator implementation.",
+        ],
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md": [
+            "End-to-end completion excludes preview mutator implementation.",
+        ],
+        "docs/ROADMAP.md": [
+            "End-to-end completion excludes preview mutator implementation.",
+        ],
+        "docs/adr/README.md": [
+            "ADR-0007",
+            "Pin Zig 0.16.0 for this zentinel version",
+        ],
+        "docs/adr/0001-latest-stable-zig-only.md": [
+            "Superseded by ADR-0007",
+        ],
+        "docs/adr/0007-pin-zig-0-16-0.md": [
+            "# ADR-0007: Pin Zig 0.16.0 for this zentinel version",
+            f"Zig `{PINNED_ZIG_VERSION}`",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing contract hardening file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain contract hardening phrase '{phrase}'")
+
+    forbidden_phrases = {
+        "AGENTS.md": [
+            "Support only latest stable Zig.",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            'version = "latest-stable"',
+            "| `version` | string | `latest-stable` |",
+        ],
+        "docs/CLI_SPEC.md": [
+            "zig latest-stable",
+        ],
+        "docs/ZIG_SEMANTICS.md": [
+            "supports only the latest stable Zig version",
+        ],
+        "docs/ZIG_VERSION_POLICY.md": [
+            "Current latest stable Zig release",
+            "official latest stable Zig release",
+            "intentionally tracks latest stable Zig",
+        ],
+        "tasks/005-version-policy.md": [
+            "official latest stable Zig",
+            "A local `zig version` result alone is not enough",
+            "latest-stable selection",
+        ],
+        "docs/VISION.md": [
+            "Latest stable Zig only",
+        ],
+        "docs/NON_GOALS.md": [
+            "targets only the latest stable Zig release",
+        ],
+        "docs/INVARIANTS.md": [
+            "latest stable Zig release",
+        ],
+    }
+    for rel, phrases in forbidden_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing stale contract hardening file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale contract hardening phrase '{phrase}'")
+
+    gap_path = GAP_REGISTRY_DIR / "mutators.v1.json"
+    if gap_path.is_file():
+        data = load_json(gap_path, errors)
+        entries = data.get("entries") if isinstance(data, dict) else None
+        if isinstance(entries, list):
+            for entry in entries:
+                if not isinstance(entry, dict) or entry.get("stability") != "preview":
+                    continue
+                require(
+                    entry.get("deferred_to") == "preview backlog after minimum complete product",
+                    errors,
+                    f"preview mutator {entry.get('operator')} must defer to preview backlog after minimum complete product",
+                )
+
+    for task in tasks:
+        if task.get("state") not in {"queued", "active"}:
+            continue
+        file_value = task.get("file")
+        if not isinstance(file_value, str):
+            continue
+        path = ROOT / file_value
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        required_tests = section_bullets(text, "Required tests")
+        failing_bullets = [item for item in required_tests if "failing" in item.lower()]
+        non_validator_failing = [item for item in failing_bullets if "validate_task_system.py" not in item]
+        structural_task = "structural validator guardrail" in text or "This is a conventions task." in text
+        require(
+            bool(non_validator_failing) or structural_task,
+            errors,
+            f"{file_value} must require task-specific failing evidence or explicitly identify itself as a structural guardrail/conventions task",
+        )
 
 
 def validate_adr_system(errors: list[str]) -> None:
@@ -1931,6 +2100,7 @@ def main() -> int:
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)
+    validate_contract_traceability_and_scope_hardening_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

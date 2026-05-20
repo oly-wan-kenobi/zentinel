@@ -41,7 +41,7 @@ INTERNAL
 | `ZNTL_CONFIG_INVALID_COMMAND` | Config | Configured test command cannot be parsed by zentinel's shell-free command grammar. |
 | `ZNTL_CONFIG_EXPERIMENTAL_BACKEND` | Config | ZIR/AIR selected without explicit experimental opt-in. |
 | `ZNTL_ZIG_NOT_FOUND` | Zig version | Zig executable could not be found. |
-| `ZNTL_ZIG_UNSUPPORTED_VERSION` | Zig version | Discovered Zig version is not latest stable for this zentinel release. |
+| `ZNTL_ZIG_UNSUPPORTED_VERSION` | Zig version | Discovered Zig version is not the pinned supported Zig version for this zentinel release. |
 | `ZNTL_PROJECT_NO_SOURCES` | Project model | Include/exclude rules produce no source files. |
 | `ZNTL_BACKEND_PARSE_ERROR` | Backend | Source could not be parsed or tokenized. |
 | `ZNTL_BACKEND_SOURCE_MAPPING_FAILED` | Backend | Backend candidate lacks exact source mapping. |

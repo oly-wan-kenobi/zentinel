@@ -42,6 +42,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.17 | `tasks/087-dogfood-release-gate-sequencing.md` | complete | 0 |
 | 000.0.18 | `tasks/088-ai-input-report-option-clarity.md` | complete | 0 |
 | 000.0.19 | `tasks/089-zig-version-verification-blocker-policy.md` | complete | 0 |
+| 000.0.20 | `tasks/090-contract-traceability-and-scope-hardening.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |

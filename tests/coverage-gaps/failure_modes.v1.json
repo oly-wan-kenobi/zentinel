@@ -37,6 +37,15 @@
     { "number": "F-032", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Compiler crash classification fixture." },
     { "number": "F-033", "covered": false, "tests": [], "deferred_to": "preview backlog after minimum complete product", "notes": "Allocator mutator remains preview/backlog until a future task explicitly names allocator_failure_path and includes wrapper-sandbox source and fixture coverage." },
     { "number": "F-034", "covered": false, "tests": [], "deferred_to": "tasks/067-ai-doctest-survivor-assistance.md", "notes": "Doctest survivor AI survivor-ref resolution test." },
-    { "number": "F-035", "covered": false, "tests": [], "deferred_to": "tasks/006-report-schema.md", "notes": "Report schema internal_error run.error contract test." }
+    { "number": "F-035", "covered": false, "tests": [], "deferred_to": "tasks/006-report-schema.md", "notes": "Report schema internal_error run.error contract test." },
+    { "number": "F-036", "covered": false, "tests": [], "deferred_to": "tasks/001-cli-shell.md", "notes": "Unknown CLI command diagnostic test." },
+    { "number": "F-037", "covered": false, "tests": [], "deferred_to": "tasks/001-cli-shell.md", "notes": "Known future command not-implemented diagnostic test." },
+    { "number": "F-038", "covered": false, "tests": [], "deferred_to": "tasks/001-cli-shell.md", "notes": "Initial global/command invalid option diagnostic test; later task 005 extends global option ownership." },
+    { "number": "F-039", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Check-command missing config path fixture." },
+    { "number": "F-040", "covered": false, "tests": [], "deferred_to": "tasks/002-config-parser.md", "notes": "Config invalid value validation fixture." },
+    { "number": "F-041", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Shared command parser and check-command invalid command syntax tests." },
+    { "number": "F-042", "covered": false, "tests": [], "deferred_to": "tasks/014-baseline-runner.md", "notes": "Baseline runner failing-command evidence fixture." },
+    { "number": "F-043", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Unsupported executable doctest tag diagnostic fixture." },
+    { "number": "F-044", "covered": false, "tests": [], "deferred_to": "tasks/033-doctest-runner.md", "notes": "Doctest CLI allowlist command-rejection fixture." }
   ]
 }

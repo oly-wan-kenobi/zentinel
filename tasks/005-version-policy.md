@@ -4,12 +4,12 @@ Sequential guard: start this task only after task 004 is complete in `tasks/STAT
 
 ## Goal
 
-Implement latest-stable Zig version detection and the `zentinel check` command.
+Implement pinned Zig `0.16.0` version detection and the `zentinel check` command.
 
 ## Scope
 
 - Add version discovery abstraction.
-- Compare discovered Zig version against zentinel's supported latest-stable constant.
+- Compare discovered Zig version against zentinel's pinned supported Zig version `0.16.0`.
 - Surface deterministic diagnostics.
 - Add `zentinel check` for config, Zig version, path, test command, and report output validation.
 - Add the shared test-command parser in `src/command.zig` and validate configured test command strings without executing them.
@@ -40,14 +40,14 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 
 ## Required tests
 
-- Add failing tests for supported version, unsupported old version, malformed version, and missing Zig executable diagnostic.
+- Add failing tests for supported version `0.16.0`, unsupported older/newer stable version, malformed version, and missing Zig executable diagnostic.
 - Add a failing snapshot for unsupported-version wording.
 - Add failing pure parser tests for quoted argv fields, unmatched quotes, empty argv, unsupported escapes, rejected metacharacters, rejected environment assignment, rejected variable expansion, and rejected command chaining before wiring `zentinel check`.
-- Add failing CLI tests for `zentinel check` success, invalid config, unsupported Zig version, invalid include/exclude paths, invalid test command syntax with `ZNTL_CONFIG_INVALID_COMMAND`, and invalid report output directory.
+- Add failing CLI tests for `zentinel check` success, invalid config, missing config path with `ZNTL_CONFIG_NOT_FOUND`, unsupported Zig version, invalid include/exclude paths, invalid test command syntax with `ZNTL_CONFIG_INVALID_COMMAND`, and invalid report output directory.
 - Add failing CLI tests that `--config <path>` and `--root <path>` parse before command dispatch for `zentinel check`, and that unowned global options still fail with `ZNTL_CLI_INVALID_OPTION`.
 - Add a failing test that `zentinel check` does not execute configured test commands.
-- Record durable verification evidence for latest-stable selection: official release source consulted, official latest stable version, local `zig version`, and match or mismatch result.
-- If network access or the official release source is unavailable, mark this task blocked and insert a prerequisite task instead of guessing the latest stable Zig version.
+- Record durable verification evidence for the pinned supported Zig version: pinned supported Zig version `0.16.0`, local `zig version`, and match or mismatch result.
+- No live latest-stable lookup is required.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
@@ -63,11 +63,10 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 - `zentinel check` does not generate mutants, patch source, or execute test commands.
 - Unsupported versions fail before mutation work begins.
 - Diagnostics include detected version and required policy.
-- The compiled-in supported Zig version is stored in one version-policy module after confirming the official latest stable Zig release source and checking that the implementation environment's `zig version` matches it.
-- Task status or release metadata records durable verification evidence for official release source consulted, official latest stable version, local `zig version`, and match or mismatch result.
-- A local `zig version` result alone is not enough to choose the supported version.
-- If network access or the official release source is unavailable, the task is blocked with a concrete prerequisite task instead of guessing or relying on local toolchain state.
-- `docs/ZIG_VERSION_POLICY.md` remains version-agnostic and does not hard-code a stale latest-stable number in examples.
+- The compiled-in supported Zig version is stored in one version-policy module and set to `0.16.0`.
+- Task status or release metadata records durable verification evidence for the pinned supported Zig version, local `zig version`, and match or mismatch result.
+- The local `zig version` result verifies the environment against the documented pin; it does not choose the supported version.
+- Unsupported versions fail with diagnostics that name the detected version and required `0.16.0` policy.
 
 ## Non-goals
 
