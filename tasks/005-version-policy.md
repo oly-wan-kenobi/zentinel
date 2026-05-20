@@ -62,6 +62,7 @@ Implement latest-stable Zig version detection and the `zentinel check` command.
 - Unsupported versions fail before mutation work begins.
 - Diagnostics include detected version and required policy.
 - The compiled-in supported Zig version is stored in one version-policy module after confirming the official latest stable Zig release source and checking that the implementation environment's `zig version` matches it.
+- A local `zig version` result alone is not enough to choose the supported version.
 - `docs/ZIG_VERSION_POLICY.md` remains version-agnostic and does not hard-code a stale latest-stable number in examples.
 
 ## Non-goals

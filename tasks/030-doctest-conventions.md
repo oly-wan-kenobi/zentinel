@@ -38,7 +38,7 @@ Introduce doctest authoring conventions into the repository without implementing
 - Add documentation examples that future doctest extraction tests can target.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - No executable property tests yet.
 - Document the future properties: extraction order, case ID stability, and block classification determinism.

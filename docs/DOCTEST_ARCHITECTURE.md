@@ -119,7 +119,7 @@ Doctest parsing is Markdown-fence aware, not a full Markdown renderer.
 
 Rules:
 
-- only triple-backtick and quadruple-backtick fenced blocks are recognized
+- Supported doctest fences use exactly three or four backticks.
 - the opening fence info string is split into language plus tags
 - indentation outside fences is ignored
 - fenced content is preserved exactly before normalization

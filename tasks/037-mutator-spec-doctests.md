@@ -39,7 +39,7 @@ Make mutator specification examples executable as before/after doctest contracts
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Before/after pair IDs are stable.
 - Transformation matching is independent of unrelated prose.

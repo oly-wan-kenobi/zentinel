@@ -37,6 +37,19 @@ REQUIRED_TASK_SECTIONS = [
     "## Follow-up tasks",
 ]
 
+PROPERTY_GATE_TASK_IDS = {f"{task_id:03d}" for task_id in range(30, 50)}
+DOCTEST_GATE_TASK_IDS = {f"{task_id:03d}" for task_id in range(40, 50)}
+CANONICAL_GATE_SECTIONS = [
+    "Required property tests",
+    "Required doctests",
+    "Mutation testing requirements",
+]
+LEGACY_GATE_HEADINGS = [
+    "## Property tests required",
+    "## Doctests required",
+    "## Mutation tests required",
+]
+
 TASK_ID_RE = re.compile(r"^[0-9]{3}$")
 TASK_FILE_RE = re.compile(r"^tasks/[0-9]{3}-.+\.md$")
 TASK_REF_RE = re.compile(r"`((?:tasks/)?[0-9]{3}-[^`]+\.md)`")
@@ -462,6 +475,13 @@ def section_bullets(text: str, heading: str) -> list[str]:
             item = item[1:-1]
         bullets.append(item)
     return bullets
+
+
+def section_body(text: str, heading: str) -> str:
+    match = re.search(rf"^## {re.escape(heading)}\n\n(?P<body>.*?)(?=\n## |\Z)", text, flags=re.MULTILINE | re.DOTALL)
+    if match is None:
+        return ""
+    return match.group("body").strip()
 
 
 def follow_up_refs(text: str) -> list[str]:
@@ -1512,6 +1532,68 @@ def validate_markdown_table_shapes(errors: list[str]) -> None:
             )
 
 
+def validate_analysis_findings_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    arch_path = ROOT / "docs" / "DOCTEST_ARCHITECTURE.md"
+    block_path = ROOT / "docs" / "DOCTEST_BLOCK_FORMATS.md"
+    task031_path = ROOT / "tasks" / "031-doctest-parser.md"
+    version_policy_path = ROOT / "docs" / "ZIG_VERSION_POLICY.md"
+    task005_path = ROOT / "tasks" / "005-version-policy.md"
+    required_fence_phrase = "Supported doctest fences use exactly three or four backticks."
+
+    for path in [arch_path, block_path, task031_path, version_policy_path, task005_path]:
+        require(path.is_file(), errors, f"missing analysis-closure contract file {path.relative_to(ROOT)}")
+    if not all(path.is_file() for path in [arch_path, block_path, task031_path, version_policy_path, task005_path]):
+        return
+
+    arch_text = arch_path.read_text(encoding="utf-8")
+    block_text = block_path.read_text(encoding="utf-8")
+    task031_text = task031_path.read_text(encoding="utf-8")
+    version_policy_text = version_policy_path.read_text(encoding="utf-8")
+    task005_text = task005_path.read_text(encoding="utf-8")
+
+    require(required_fence_phrase in arch_text, errors, "docs/DOCTEST_ARCHITECTURE.md must define exact supported doctest fence lengths")
+    require(required_fence_phrase in block_text, errors, "docs/DOCTEST_BLOCK_FORMATS.md must define exact supported doctest fence lengths")
+    require("opening and closing fence lengths must match Markdown rules" not in block_text, errors, "docs/DOCTEST_BLOCK_FORMATS.md must not leave fence length to generic Markdown rules")
+    require("five-backtick" in task031_text and "documentation-only" in task031_text, errors, "tasks/031-doctest-parser.md must test unsupported five-backtick fences as documentation-only")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task000 = task_by_id.get("000")
+    require(isinstance(task000, dict), errors, "task 000 must exist for task-control scope validation")
+    if isinstance(task000, dict):
+        allowed = task000.get("allowed_files")
+        require(isinstance(allowed, list), errors, "task 000 allowed_files must be an array")
+        if isinstance(allowed, list):
+            for task_control_file in sorted(TASK_CONTROL_FILES):
+                require(task_control_file in allowed, errors, f"task 000 must explicitly allow task-control file {task_control_file}")
+
+    require("<detected-version>" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md diagnostic example must use <detected-version>")
+    require("unsupported Zig version: 0.14.0" not in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must not hard-code a Zig version in diagnostics")
+    require("official latest stable Zig release from the Zig project release source" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must require official latest-stable source verification")
+    require("A local `zig version` result alone is not enough" in version_policy_text, errors, "docs/ZIG_VERSION_POLICY.md must reject local-version-only inference")
+    require("official latest stable Zig release source" in task005_text, errors, "tasks/005-version-policy.md must require official latest-stable source verification")
+    require("A local `zig version` result alone is not enough" in task005_text, errors, "tasks/005-version-policy.md must reject local-version-only inference")
+
+    for task in tasks:
+        task_id = task.get("id")
+        file_value = task.get("file")
+        if not isinstance(task_id, str) or not isinstance(file_value, str):
+            continue
+        path = ROOT / file_value
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for heading in LEGACY_GATE_HEADINGS:
+            legacy_heading = re.search(rf"^{re.escape(heading)}$", text, flags=re.MULTILINE)
+            require(legacy_heading is None, errors, f"{file_value} must use canonical gate heading instead of {heading}")
+        if task_id in PROPERTY_GATE_TASK_IDS:
+            require("## Required property tests" in text, errors, f"{file_value} must include canonical Required property tests section")
+        if task_id in DOCTEST_GATE_TASK_IDS:
+            require("## Required doctests" in text, errors, f"{file_value} must include canonical Required doctests section")
+        for heading in CANONICAL_GATE_SECTIONS:
+            if f"## {heading}" in text:
+                require(bool(section_body(text, heading)), errors, f"{file_value} section {heading!r} must not be empty")
+
+
 def validate_adr_system(errors: list[str]) -> None:
     readme = ADR_DIR / "README.md"
     require(readme.is_file(), errors, "docs/adr/README.md is missing")
@@ -1685,6 +1767,7 @@ def main() -> int:
     validate_agent_contract_finalization_contracts(status, errors)
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
+    validate_analysis_findings_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

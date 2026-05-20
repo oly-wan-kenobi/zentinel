@@ -22,6 +22,8 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - `src/main.zig`
 - `test/bootstrap_test.zig`
 - `test/bootstrap_discovery_test.zig`
+- `tasks/QUEUE.md`
+- `tasks/queue.json`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 

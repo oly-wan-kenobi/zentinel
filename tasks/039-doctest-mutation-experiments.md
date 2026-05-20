@@ -42,7 +42,7 @@ Prototype `zentinel doctest --mutate` for fixture documentation without stabiliz
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Doctest mutation report ordering is stable.
 - Worker count, if configurable, does not alter IDs or report order.

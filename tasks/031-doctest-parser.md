@@ -37,10 +37,11 @@ Implement the Markdown fenced-block parser for doctest blocks.
 - Add a failing parser test for one supported block before implementation.
 - Add failing tests for line-number preservation, raw content preservation, and unsupported executable tag diagnostics using `ZNTL_DOCTEST_UNSUPPORTED_TAG`.
 - Add a failing test for quadruple-backtick fenced blocks containing nested triple-backtick examples.
+- Add a failing test that five-backtick fences are treated as documentation-only until a future task extends parser support.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Parser output is deterministic across repeated parses of the same file.
 - Re-serializing block metadata for comparison does not depend on map iteration.

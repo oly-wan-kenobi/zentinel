@@ -42,7 +42,7 @@ The version check must:
 Example diagnostic:
 
 ```text
-unsupported Zig version: 0.14.0
+unsupported Zig version: <detected-version>
 zentinel requires latest stable Zig <supported-version>
 install the supported Zig version or use a matching zentinel release
 ```

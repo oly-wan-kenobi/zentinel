@@ -46,7 +46,7 @@ Wire `zentinel doctest` for CLI documentation examples and dogfood the CLI spec.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - `--file` selection preserves case ordering.
 - `--case` selection is stable for durable case IDs and anchor-line source-ref selectors.

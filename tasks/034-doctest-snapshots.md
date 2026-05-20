@@ -43,7 +43,7 @@ Implement doctest output normalization and snapshot matching for text, JSON, and
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Normalization is idempotent.
 - JSON object key order does not affect semantic JSON matching.

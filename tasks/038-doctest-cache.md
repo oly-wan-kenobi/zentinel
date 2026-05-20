@@ -38,7 +38,7 @@ Add deterministic cache keys and cache metadata for doctest extraction and execu
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Cache key construction is deterministic across repeated runs.
 - Cache keys are collision-resistant over the documented input tuple.

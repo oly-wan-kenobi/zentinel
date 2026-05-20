@@ -41,7 +41,7 @@ Implement deterministic doctest case extraction and planning from parsed blocks.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Case ordering is stable for repeated extraction.
 - Case IDs change when grouped block content or explicit case labels change.

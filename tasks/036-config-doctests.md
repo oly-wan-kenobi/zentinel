@@ -37,7 +37,7 @@ Dogfood config documentation examples through normal doctest execution.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Config doctest normalization produces stable project-relative paths.
 - Equivalent config snippets with reordered independent sections produce equivalent normalized config when the config parser permits it.

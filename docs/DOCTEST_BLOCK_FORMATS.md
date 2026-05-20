@@ -24,7 +24,9 @@ Unknown tags are invalid unless a future task updates this document.
 ## Common Extraction Rules
 
 - fenced blocks must use backticks
-- opening and closing fence lengths must match Markdown rules
+- Supported doctest fences use exactly three or four backticks.
+- opening and closing doctest fences must use the same supported length
+- longer backtick fences are documentation-only until a future task explicitly extends parser support
 - content is preserved exactly before normalization
 - block line numbers are 1-based
 - cases are sorted by file path, line start, and block index

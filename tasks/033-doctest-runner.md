@@ -41,7 +41,7 @@ Implement normal doctest execution for Zig, CLI, and config cases without mutati
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 
-## Property tests required
+## Required property tests
 
 - Workspace generation path is stable for the same case hash.
 - Original repository files remain unchanged after execution.
