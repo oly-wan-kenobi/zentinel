@@ -653,6 +653,40 @@
       ]
     },
     {
+      "id": "087",
+      "order": "000.0.17",
+      "title": "Dogfood Release Gate Sequencing",
+      "file": "tasks/087-dogfood-release-gate-sequencing.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "086"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/087-dogfood-release-gate-sequencing.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/058-safety-mode-matrix.md",
+        "tasks/059-initial-dogfood-ci.md",
+        "tasks/085-final-dogfood-release-gate.md",
+        "tasks/060-release-acceptance-verification.md",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -660,7 +694,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "086"
+        "087"
       ],
       "allowed_files": [
         "build.zig",
@@ -2364,8 +2398,8 @@
     {
       "id": "059",
       "order": "059",
-      "title": "Production Dogfood CI",
-      "file": "tasks/059-production-dogfood-ci.md",
+      "title": "Initial Dogfood CI",
+      "file": "tasks/059-initial-dogfood-ci.md",
       "phase": 7,
       "state": "queued",
       "dependencies": [
@@ -2564,6 +2598,36 @@
       ]
     },
     {
+      "id": "085",
+      "order": "059.8",
+      "title": "Final Dogfood Release Gate",
+      "file": "tasks/085-final-dogfood-release-gate.md",
+      "phase": 7,
+      "state": "queued",
+      "dependencies": [
+        "067"
+      ],
+      "allowed_files": [
+        "zentinel.dogfood.toml",
+        "scripts/**",
+        "docs/CI_STRATEGY.md",
+        "docs/DOGFOODING.md",
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md",
+        "test/release_dogfood_gate_test.zig",
+        "test/fixtures/dogfood/**",
+        "test/fixtures/release/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/zir_backend.zig",
+        "src/air_backend.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
       "id": "060",
       "order": "060",
       "title": "Release Acceptance Verification",
@@ -2571,7 +2635,7 @@
       "phase": 7,
       "state": "queued",
       "dependencies": [
-        "067"
+        "085"
       ],
       "allowed_files": [
         "docs/PROJECT_ACCEPTANCE_CRITERIA.md",

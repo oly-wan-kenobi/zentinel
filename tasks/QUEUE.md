@@ -39,6 +39,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.14 | `tasks/083-agent-tooling-contract-hardening.md` | complete | 0 |
 | 000.0.15 | `tasks/084-agent-contract-cutover-closure.md` | complete | 0 |
 | 000.0.16 | `tasks/086-validator-scope-and-report-semantic-clarity.md` | complete | 0 |
+| 000.0.17 | `tasks/087-dogfood-release-gate-sequencing.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
@@ -99,13 +100,14 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 056 | `tasks/056-zir-backend-experiment.md` | queued | 5 |
 | 057 | `tasks/057-air-backend-experiment.md` | queued | 5 |
 | 058 | `tasks/058-safety-mode-matrix.md` | queued | 6 |
-| 059 | `tasks/059-production-dogfood-ci.md` | queued | 7 |
+| 059 | `tasks/059-initial-dogfood-ci.md` | queued | 7 |
 | 059.1 | `tasks/061-doctest-mutate-stabilization.md` | queued | 2 |
 | 059.2 | `tasks/062-property-generator-infrastructure.md` | queued | 1 |
 | 059.4 | `tasks/064-pipeline-artifact-ci-integration.md` | queued | 7 |
 | 059.5 | `tasks/065-failure-recovery-validator.md` | queued | 0 |
 | 059.6 | `tasks/066-public-docs-doctest-coverage.md` | queued | 1 |
 | 059.7 | `tasks/067-ai-doctest-survivor-assistance.md` | queued | 4 |
+| 059.8 | `tasks/085-final-dogfood-release-gate.md` | queued | 7 |
 | 060 | `tasks/060-release-acceptance-verification.md` | queued | 7 |
 
 ## Reordering Policy

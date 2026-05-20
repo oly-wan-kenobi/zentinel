@@ -71,4 +71,4 @@ Mode-aware fixtures prepare release dogfood for safety-sensitive code.
 
 ## Follow-up tasks
 
-- `tasks/059-production-dogfood-ci.md`
+- `tasks/059-initial-dogfood-ci.md`

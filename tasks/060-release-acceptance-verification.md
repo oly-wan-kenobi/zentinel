@@ -1,6 +1,6 @@
 # 060 Release Acceptance Verification
 
-Sequential guard: start this task only after task 067 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 085 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Verify final project acceptance criteria and release readiness contracts.
 
 ## Scope
 
-- Check commands, schemas, docs, reports, dogfood, CI, and backend stability against project acceptance criteria.
+- Check commands, schemas, docs, reports, final dogfood gate evidence, CI, and backend stability against project acceptance criteria.
 - Add release acceptance fixtures or scripts.
 - If release blockers are found, insert the smallest prerequisite task or tasks before this release gate using the Task Queue Manager task-control exception, mark this task blocked, and resume only after those prerequisites complete.
 - Do not implement product behavior in this task.
@@ -35,11 +35,12 @@ Verify final project acceptance criteria and release readiness contracts.
 - Add a failing release acceptance check before completing the checklist.
 - Run `python3 scripts/validate_task_system.py`.
 - Run `zig build test`.
-- Run all available dogfood, doctest, schema, and CI-equivalent checks.
+- Run all available dogfood, doctest, schema, and CI-equivalent checks, including final release dogfood evidence from task `085`.
 
 ## Acceptance criteria
 
 - Every item in `docs/PROJECT_ACCEPTANCE_CRITERIA.md` is satisfied. If not, this task is blocked with concrete prerequisite task metadata.
+- Final dogfood gate evidence from task `085` exists and satisfies the dogfood acceptance criteria.
 - Schemas validate generated reports.
 - Docs match public CLI/config/report behavior.
 - AST remains stable default and experimental backends remain opt-in.

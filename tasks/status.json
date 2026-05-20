@@ -20,13 +20,14 @@
     "082",
     "083",
     "084",
-    "086"
+    "086",
+    "087"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 086 validator scope and report semantic clarity; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 087 dogfood release gate sequencing; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -297,6 +298,21 @@
         "notes": "Validator passed after task 086 validator scope and report semantic clarity."
       },
       "dogfooding_implication": "Prevents future dogfood and report work from treating governance validation as behavioral proof.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "087",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because task 059 still used production dogfood wording and task 085 final release dogfood gate did not exist.",
+      "implementation_summary": "Renamed task 059 as initial dogfood CI, added queued task 085 as the final dogfood release gate before task 060, updated release acceptance dependency, and added validator guardrails for the sequence.",
+      "files_changed": ["task metadata", "task 000 guard", "task 058 follow-up", "task 059 rename and scope", "task 085 final dogfood gate", "task 060 dependency", "F-025 gap row", "validator guardrails"],
+      "tests_added": ["Structural validator guardrails for dogfood release-gate sequencing."],
+      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 087 dogfood release gate sequencing."
+      },
+      "dogfooding_implication": "Initial advisory dogfood CI and the final release dogfood gate are now separate queued tasks.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
@@ -575,6 +591,16 @@
       "event": "validator_scope_and_report_semantic_clarity_completed",
       "task": "086",
       "notes": "Completed task 086 before project bootstrap. The agent guide and status handoff now say the validator checks task-system consistency, not product semantic correctness, and task 006 owns derived report semantic invariants."
+    },
+    {
+      "event": "dogfood_release_gate_sequencing_started",
+      "task": "087",
+      "notes": "Inserted task 087 at execution order 000.0.17 before project bootstrap to split initial dogfood CI from the final release dogfood gate."
+    },
+    {
+      "event": "dogfood_release_gate_sequencing_completed",
+      "task": "087",
+      "notes": "Completed task 087 before project bootstrap. Task 059 is now initial advisory dogfood CI, task 085 is the final dogfood release gate before task 060, and release acceptance depends on task 085."
     }
   ]
 }

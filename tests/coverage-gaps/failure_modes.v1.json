@@ -27,7 +27,7 @@
     { "number": "F-022", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Invalid doctest block parser test." },
     { "number": "F-023", "covered": false, "tests": [], "deferred_to": "tasks/034-doctest-snapshots.md", "notes": "Doctest output mismatch test." },
     { "number": "F-024", "covered": true, "tests": ["scripts/validate_task_system.py"], "deferred_to": null, "notes": "Task metadata validation exists." },
-    { "number": "F-025", "covered": false, "tests": [], "deferred_to": "tasks/059-production-dogfood-ci.md", "notes": "Repeated report comparison in dogfood CI." },
+    { "number": "F-025", "covered": false, "tests": [], "deferred_to": "tasks/059-initial-dogfood-ci.md", "notes": "Repeated report comparison in initial dogfood CI." },
     { "number": "F-026", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "AI provider-not-allowed CLI test." },
     { "number": "F-027", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Mutation AI missing report-path test." },
     { "number": "F-028", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Mutation AI target resolution test." },

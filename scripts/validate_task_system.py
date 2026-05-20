@@ -1542,6 +1542,43 @@ def validate_validator_scope_clarity_contracts(errors: list[str]) -> None:
             require(phrase in text, errors, f"{rel} must contain validator scope contract phrase '{phrase}'")
 
 
+def validate_dogfood_release_gate_sequence_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_by_id = {task.get("id"): task for task in tasks}
+    task059 = task_by_id.get("059")
+    task085 = task_by_id.get("085")
+    task060 = task_by_id.get("060")
+
+    require(not (ROOT / "tasks" / "059-production-dogfood-ci.md").exists(), errors, "task 059 must be renamed away from production dogfood wording")
+
+    require(isinstance(task059, dict), errors, "task 059 must exist")
+    if isinstance(task059, dict):
+        require(task059.get("title") == "Initial Dogfood CI", errors, "task 059 title must be Initial Dogfood CI")
+        require(task059.get("file") == "tasks/059-initial-dogfood-ci.md", errors, "task 059 file must be tasks/059-initial-dogfood-ci.md")
+
+    require(isinstance(task085, dict), errors, "task 085 final release dogfood gate must exist")
+    if isinstance(task085, dict):
+        require(task085.get("title") == "Final Dogfood Release Gate", errors, "task 085 title must be Final Dogfood Release Gate")
+        require(task085.get("file") == "tasks/085-final-dogfood-release-gate.md", errors, "task 085 file must be tasks/085-final-dogfood-release-gate.md")
+        deps = task085.get("dependencies")
+        require(isinstance(deps, list) and "067" in deps, errors, "task 085 must depend on task 067")
+
+    if isinstance(task085, dict) and isinstance(task060, dict):
+        require(order_key(task_order(task085)) < order_key(task_order(task060)), errors, "task 085 must execute before release acceptance task 060")
+        deps060 = task060.get("dependencies")
+        require(isinstance(deps060, list) and "085" in deps060, errors, "task 060 must depend on final dogfood gate task 085")
+
+    task059_path = ROOT / "tasks" / "059-initial-dogfood-ci.md"
+    task085_path = ROOT / "tasks" / "085-final-dogfood-release-gate.md"
+    if task059_path.is_file():
+        text059 = task059_path.read_text(encoding="utf-8")
+        require("initial advisory dogfood" in text059, errors, "task 059 must describe initial advisory dogfood")
+        require("not the final release dogfood gate" in text059, errors, "task 059 must state it is not the final release dogfood gate")
+    if task085_path.is_file():
+        text085 = task085_path.read_text(encoding="utf-8")
+        require("final release dogfood gate" in text085, errors, "task 085 must describe the final release dogfood gate")
+        require("after tasks `061`, `062`, `064`, `065`, `066`, and `067`" in text085, errors, "task 085 must name the late hardening tasks it follows")
+
+
 def unescaped_pipe_count(line: str) -> int:
     count = 0
     escaped = False
@@ -1881,6 +1918,7 @@ def main() -> int:
     validate_task_lifecycle_contracts(errors)
     validate_agent_contract_cutover_closure_contracts(errors)
     validate_validator_scope_clarity_contracts(errors)
+    validate_dogfood_release_gate_sequence_contracts(tasks, errors)
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)
