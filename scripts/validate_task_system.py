@@ -1930,11 +1930,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `091`",
-            "Task `091` completed at execution order `000.0.21` before project bootstrap.",
+            "pre-bootstrap hardening tasks `071` through `092`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `091` is complete",
+            "after task `092` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -1950,6 +1949,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
         "tasks/STATUS.md": [
             "pre-bootstrap hardening tasks `071` through `089`",
             "pre-bootstrap hardening tasks `071` through `090`",
+            "pre-bootstrap hardening tasks `071` through `091`",
         ],
     }
     for rel, phrases in forbidden_phrases.items():

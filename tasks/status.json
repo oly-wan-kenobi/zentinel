@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "092",
+  "next_task": "092",
   "completed_tasks": [
     "068",
     "069",
@@ -28,6 +28,7 @@
     "091"
   ],
   "blocked_tasks": [],
+  "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
@@ -705,6 +706,11 @@
       "event": "analysis_risk_cleanup_completed",
       "task": "091",
       "notes": "Completed task 091 before project bootstrap. ADR-0001 now identifies itself as a historical superseded record, status handoff wording names pre-bootstrap hardening through task 091, and task 000 follows task 091."
+    },
+    {
+      "event": "agent_readiness_follow_up_hardening_started",
+      "task": "092",
+      "notes": "Inserted and activated task 092 at execution order 000.0.22 before project bootstrap to close the latest read-only analysis findings around doctest fixture evidence, handoff contracts, experimental backend diagnostics, pinned Zig wording, and validator blind spots."
     }
   ]
 }

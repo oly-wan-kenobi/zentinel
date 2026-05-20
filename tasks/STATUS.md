@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/092-agent-readiness-follow-up-hardening.md` |
+| Next task | `tasks/092-agent-readiness-follow-up-hardening.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -20,7 +20,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Date | 2026-05-19 |
-| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `091`. |
+| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `092`. |
 | Implementation code changed | none |
 | Verification run | Required file presence scan; governance file scan; ADR index scan; gap registry scan; task section completeness scan; Markdown/JSON task scope sync; follow-up reference sync; schema registry coverage; generated legacy-name and unfinished-marker scan; JSON parse checks; `python3 scripts/validate_task_system.py` |
 | Dogfooding status | policy documented; no dogfood implementation exists yet |
@@ -85,10 +85,10 @@ The next agent should run `python3 scripts/validate_task_system.py`, start with 
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
-Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, final dogfood gate task `085`, plus pre-bootstrap hardening tasks `071` through `091`, placed by execution order before project bootstrap.
+Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, final dogfood gate task `085`, plus pre-bootstrap hardening tasks `071` through `092`, placed by execution order before project bootstrap.
 
 Codex-specific operating profiles are available under `.agents/`. Use `.agents/README.md`, `.agents/ORCHESTRATOR.md`, `.agents/roles/`, and `.agents/workflows/` for role dispatch and workflow execution. Do not add `.claude/` to this repository.
 
 The repository scaffold has been prepared as the baseline project state. Future agents should still use the task queue, status files, and explicit handoff notes as the durable source of truth, but `git status` may be used to detect changes made after the baseline is tracked.
 
-Task `091` completed at execution order `000.0.21` before project bootstrap. Future agents should start with `tasks/000-project-bootstrap.md`.
+Task `092` is active at execution order `000.0.22` before project bootstrap to close the latest analysis findings. Future agents should finish `tasks/092-agent-readiness-follow-up-hardening.md` before starting `tasks/000-project-bootstrap.md`.

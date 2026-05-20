@@ -847,6 +847,48 @@
     ]
   },
   {
+    "id": "092",
+    "order": "000.0.22",
+    "title": "Agent Readiness Follow-up Hardening",
+    "file": "tasks/092-agent-readiness-follow-up-hardening.md",
+    "phase": 0,
+    "state": "active",
+    "dependencies": [
+      "091"
+    ],
+    "allowed_files": [
+      "tasks/QUEUE.md",
+      "tasks/queue.json",
+      "tasks/STATUS.md",
+      "tasks/status.json",
+      "tasks/092-agent-readiness-follow-up-hardening.md",
+      "tasks/000-project-bootstrap.md",
+      "tasks/030-doctest-conventions.md",
+      "tasks/041-handoff-artifacts.md",
+      "tasks/056-zir-backend-experiment.md",
+      "tasks/057-air-backend-experiment.md",
+      "tasks/schema/status.v1.schema.json",
+      "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+      "docs/HANDOFF_CONTRACTS.md",
+      "docs/PIPELINE_ARTIFACTS.md",
+      ".agents/README.md",
+      "docs/AST_BACKEND.md",
+      "docs/ZIR_BACKEND.md",
+      "docs/AIR_BACKEND.md",
+      "docs/REPORT_FORMAT.md",
+      "scripts/validate_task_system.py"
+    ],
+    "forbidden_files": [
+      "src/**",
+      "build.zig",
+      "build.zig.zon",
+      "test/**/*.zig",
+      "schemas/report.v1.schema.json",
+      "docs/MUTATOR_SPEC.md",
+      ".claude/**"
+    ]
+  },
+  {
     "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -854,7 +896,7 @@
       "phase": 0,
       "state": "queued",
     "dependencies": [
-      "091"
+      "092"
     ],
       "allowed_files": [
         "build.zig",
