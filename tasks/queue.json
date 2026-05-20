@@ -167,6 +167,39 @@
       ]
     },
     {
+      "id": "072",
+      "order": "000.0.3",
+      "title": "Prebootstrap Sequencing and Contract Cleanup",
+      "file": "tasks/072-prebootstrap-sequencing-and-contract-cleanup.md",
+      "phase": 0,
+      "state": "active",
+      "dependencies": [
+        "071"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/064-pipeline-artifact-ci-integration.md",
+        "tasks/072-prebootstrap-sequencing-and-contract-cleanup.md",
+        "tasks/000-project-bootstrap.md",
+        "scripts/validate_task_system.py",
+        "docs/HARNESS.md",
+        "docs/ROADMAP.md",
+        "tests/coverage-gaps/invariants.v1.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        "docs/MUTATOR_SPEC.md",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -174,7 +207,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "071"
+        "072"
       ],
       "allowed_files": [
         "build.zig",

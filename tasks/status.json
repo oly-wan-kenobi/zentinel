@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "072",
+  "next_task": "072",
   "completed_tasks": [
     "068",
     "069",
@@ -139,6 +139,11 @@
       "event": "agent_contract_finalization_completed",
       "task": "071",
       "notes": "Completed task 071 before project bootstrap. Added validator guardrails and aligned Codex orchestrator routing with the escalation policy, clarified task 063 baseline pipeline schema ownership with later task refinements, added root Zig build artifact ignore rules, and removed stale untracked-baseline status wording."
+    },
+    {
+      "event": "prebootstrap_sequencing_and_contract_cleanup_started",
+      "task": "072",
+      "notes": "Inserted task 072 at execution order 000.0.3 before project bootstrap to resolve the task 064 dependency-ordering risk, harness/report wording drift, roadmap scaffold wording, and stale invariant handoff wording."
     }
   ]
 }
