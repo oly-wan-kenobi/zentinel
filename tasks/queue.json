@@ -40,13 +40,59 @@
       ]
     },
     {
+      "id": "069",
+      "order": "000.0",
+      "title": "Agent Readiness Contract Closure",
+      "file": "tasks/069-agent-readiness-contract-closure.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "068"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/002-config-parser.md",
+        "tasks/006-report-schema.md",
+        "tasks/014-baseline-runner.md",
+        "tasks/016-minimal-run-command.md",
+        "tasks/018-report-renderers.md",
+        "tasks/021-cache-key-design.md",
+        "tasks/034-doctest-snapshots.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/050-parallel-worker-pool.md",
+        "tasks/058-safety-mode-matrix.md",
+        "tasks/063-pipeline-metadata-validator.md",
+        "tasks/069-agent-readiness-contract-closure.md",
+        "docs/CLI_SPEC.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/DOCTEST_ARCHITECTURE.md",
+        ".agents/roles/mutation-agent.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/MUTATOR_SPEC.md"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
       "file": "tasks/000-project-bootstrap.md",
       "phase": 0,
       "state": "queued",
-      "dependencies": [],
+      "dependencies": [
+        "069"
+      ],
       "allowed_files": [
         "build.zig",
         "build.zig.zon",
@@ -122,12 +168,12 @@
       "dependencies": [
         "002"
       ],
-        "allowed_files": [
-          "test/support/**",
-          "test/harness_test.zig",
-          "test/*_test.zig",
-          "test/fixtures/harness/test_discovery/**",
-          "build.zig",
+      "allowed_files": [
+        "test/support/**",
+        "test/harness_test.zig",
+        "test/*_test.zig",
+        "test/fixtures/harness/test_discovery/**",
+        "build.zig",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],
@@ -169,10 +215,10 @@
       "dependencies": [
         "004"
       ],
-        "allowed_files": [
-          "src/zig_version.zig",
-          "src/command.zig",
-          "src/check_command.zig",
+      "allowed_files": [
+        "src/zig_version.zig",
+        "src/command.zig",
+        "src/check_command.zig",
         "src/config.zig",
         "src/cli.zig",
         "src/main.zig",
@@ -508,10 +554,12 @@
         "src/report.zig",
         "src/cli.zig",
         "src/main.zig",
+        "src/run_command.zig",
         "src/report_text.zig",
         "src/report_jsonl.zig",
         "src/report_junit.zig",
         "test/report_renderers_test.zig",
+        "test/run_command_test.zig",
         "test/snapshots/report_*.txt",
         "test/snapshots/report_*.json",
         "test/snapshots/report_*.jsonl",
@@ -587,9 +635,12 @@
       "allowed_files": [
         "src/cache.zig",
         "src/config.zig",
+        "src/cli.zig",
+        "src/run_command.zig",
         "src/mutant.zig",
         "src/runner.zig",
         "test/cache_key_test.zig",
+        "test/run_command_test.zig",
         "test/snapshots/cache_metadata.json",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -1175,13 +1226,45 @@
       ]
     },
     {
+      "id": "063",
+      "order": "041.1",
+      "title": "Pipeline Metadata Validator",
+      "file": "tasks/063-pipeline-metadata-validator.md",
+      "phase": 0,
+      "state": "queued",
+      "dependencies": [
+        "041"
+      ],
+      "allowed_files": [
+        "scripts/validate_task_system.py",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/HANDOFF_CONTRACTS.md",
+        "docs/AGENT_CONTEXT_PACKETS.md",
+        "schemas/pipeline.handoff.v1.schema.json",
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "schemas/pipeline.verification.v1.schema.json",
+        "schemas/pipeline.escalation.v1.schema.json",
+        "test/fixtures/pipeline/metadata_validator/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "test/**/*.zig",
+        "build.zig",
+        "docs/MUTATOR_SPEC.md",
+        "docs/DOCTEST_*.md"
+      ]
+    },
+    {
       "id": "042",
       "title": "Context Packet System",
       "file": "tasks/042-context-packet-system.md",
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "041"
+        "063"
       ],
       "allowed_files": [
         "docs/AGENT_CONTEXT_PACKETS.md",
@@ -1405,7 +1488,10 @@
         "src/mutant_runner.zig",
         "src/report.zig",
         "src/config.zig",
+        "src/cli.zig",
+        "src/run_command.zig",
         "test/worker_pool_test.zig",
+        "test/run_command_test.zig",
         "test/fixtures/worker_pool/**",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -1627,8 +1713,11 @@
         "src/runner.zig",
         "src/report.zig",
         "src/config.zig",
+        "src/cli.zig",
+        "src/run_command.zig",
         "docs/ZIG_SEMANTICS.md",
         "test/safety_mode_matrix_test.zig",
+        "test/run_command_test.zig",
         "test/fixtures/safety_modes/**",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -1719,38 +1808,6 @@
         "src/zir_backend.zig",
         "src/air_backend.zig",
         "docs/MUTATOR_SPEC.md"
-      ]
-    },
-    {
-      "id": "063",
-      "order": "059.3",
-      "title": "Pipeline Metadata Validator",
-      "file": "tasks/063-pipeline-metadata-validator.md",
-      "phase": 0,
-      "state": "queued",
-      "dependencies": [
-        "062"
-      ],
-      "allowed_files": [
-        "scripts/validate_task_system.py",
-        "docs/PIPELINE_ARTIFACTS.md",
-        "docs/HANDOFF_CONTRACTS.md",
-        "docs/AGENT_CONTEXT_PACKETS.md",
-        "schemas/pipeline.handoff.v1.schema.json",
-        "schemas/pipeline.context.v1.schema.json",
-        "schemas/pipeline.stale_context.v1.schema.json",
-        "schemas/pipeline.verification.v1.schema.json",
-        "schemas/pipeline.escalation.v1.schema.json",
-        "test/fixtures/pipeline/metadata_validator/**",
-        "tasks/STATUS.md",
-        "tasks/status.json"
-      ],
-      "forbidden_files": [
-        "src/**",
-        "test/**/*.zig",
-        "build.zig",
-        "docs/MUTATOR_SPEC.md",
-        "docs/DOCTEST_*.md"
       ]
     },
     {

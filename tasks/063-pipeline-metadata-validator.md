@@ -1,6 +1,6 @@
 # 063 Pipeline Metadata Validator
 
-Sequential guard: start this task only after task 062 is complete in `tasks/STATUS.md`. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task 041 is complete in `tasks/STATUS.md`. This task runs immediately after task 041 so later pipeline tasks rely on validator-backed JSON artifacts.
 
 ## Goal
 
@@ -9,6 +9,7 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 ## Scope
 
 - Extend validation for pipeline artifact directories after task 041.
+- Execute immediately after task 041, before context-packet, mutation-gate, verification, recovery, or CI pipeline tasks consume JSON handoff artifacts.
 - Validate required JSON handoffs, context packets, stale-context markers, escalation records, and verification records when present.
 - Implement a project-owned schema subset validator for pipeline artifacts: `schema_version`, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership.
 - Reject Markdown-only handoffs after the JSON handoff cutover.
@@ -50,6 +51,7 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 ## Acceptance criteria
 
 - Pipeline artifact validation is deterministic and task-scoped.
+- Pipeline metadata validation is in place immediately after task 041 introduces durable handoff artifacts.
 - Validator documentation states the supported schema subset and does not imply full Draft 2020-12 support.
 - JSON handoffs are required after task 041 for non-trivial tasks.
 - Wrong-task artifact paths are rejected.

@@ -93,6 +93,8 @@ All deterministic fields outside observation metadata must match for the same re
 
 `summary` counts only entries in `mutants`. For `run.status = baseline_failed`, `baseline.status` is `failed`, `mutants` is empty unless a future schema explicitly supports partial execution, and all summary counts are zero.
 
+Baseline command timeout is a baseline failure. If any baseline command records `status = "timeout"`, the report must use `run.status = "baseline_failed"`, `baseline.status = "failed"`, preserve the timed-out command evidence with `timed_out = true` and `exit_code = null`, omit mutant execution, and keep every summary count at zero. The CLI exit code remains `3` because mutation execution is blocked by the baseline.
+
 `run.error` is required in every report. For `run.status = completed` and `run.status = baseline_failed`, it is `null`. For `run.status = internal_error`, it is a closed object with required `code`, `message`, and `phase` fields plus an optional bounded `details` array of strings. The `code` must be a stable documented error code such as `ZNTL_INTERNAL_INVARIANT`; generic internal-error text without a stable code violates D-302. `run.error` must be derived from deterministic tool evidence and must not contain AI-generated explanation.
 
 For `run.status = internal_error`, `mutants` may be empty or may contain a deterministic partial prefix that still validates as ordinary mutant entries. `summary` counts only the `mutants` entries present in the report. If the internal error occurs before baseline command evidence exists, `baseline.status` is `not_run` and `baseline.commands` is empty. Otherwise, `baseline.status` remains the observed deterministic baseline state.

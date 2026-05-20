@@ -22,6 +22,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | Order | Task | Status | Phase |
 | --- | --- | --- | --- |
 | 000 | `tasks/068-preimplementation-contract-alignment.md` | complete | 0 |
+| 000.0 | `tasks/069-agent-readiness-contract-closure.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
@@ -64,6 +65,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 039 | `tasks/039-doctest-mutation-experiments.md` | queued | 2 |
 | 040 | `tasks/040-agent-pipeline-foundation.md` | queued | 0 |
 | 041 | `tasks/041-handoff-artifacts.md` | queued | 0 |
+| 041.1 | `tasks/063-pipeline-metadata-validator.md` | queued | 0 |
 | 042 | `tasks/042-context-packet-system.md` | queued | 0 |
 | 043 | `tasks/043-mutation-gate.md` | queued | 1 |
 | 044 | `tasks/044-property-test-policy.md` | queued | 1 |
@@ -84,7 +86,6 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 059 | `tasks/059-production-dogfood-ci.md` | queued | 7 |
 | 059.1 | `tasks/061-doctest-mutate-stabilization.md` | queued | 2 |
 | 059.2 | `tasks/062-property-generator-infrastructure.md` | queued | 1 |
-| 059.3 | `tasks/063-pipeline-metadata-validator.md` | queued | 0 |
 | 059.4 | `tasks/064-pipeline-artifact-ci-integration.md` | queued | 7 |
 | 059.5 | `tasks/065-failure-recovery-validator.md` | queued | 0 |
 | 059.6 | `tasks/066-public-docs-doctest-coverage.md` | queued | 1 |

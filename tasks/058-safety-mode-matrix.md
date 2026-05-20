@@ -9,6 +9,7 @@ Implement safety and optimization mode matrix execution and reporting.
 ## Scope
 
 - Run configured modes per mutant.
+- Support `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` as a single-invocation override of configured `zig.modes`.
 - Distinguish safety-mode effects from test failures.
 - Add deterministic mode-matrix report fields.
 - Support mode-aware doctest examples where available.
@@ -19,8 +20,11 @@ Implement safety and optimization mode matrix execution and reporting.
 - `src/runner.zig`
 - `src/report.zig`
 - `src/config.zig`
+- `src/cli.zig`
+- `src/run_command.zig`
 - `docs/ZIG_SEMANTICS.md`
 - `test/safety_mode_matrix_test.zig`
+- `test/run_command_test.zig`
 - `test/fixtures/safety_modes/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -34,6 +38,7 @@ Implement safety and optimization mode matrix execution and reporting.
 ## Required tests
 
 - Add a failing config test for mode selection.
+- Add a failing run-command test for `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` override parsing and validation.
 - Add a failing report test for mode-specific outcomes.
 - Add a failing fixture for Debug versus ReleaseFast behavior.
 - Run `zig build test`.
@@ -42,6 +47,7 @@ Implement safety and optimization mode matrix execution and reporting.
 ## Acceptance criteria
 
 - Mode matrix output is deterministic.
+- `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` is implemented as an explicit override and invalid modes are rejected deterministically.
 - Reports distinguish mode effects from normal test failures.
 - CI can limit modes by config.
 - `python3 scripts/validate_task_system.py` passes.

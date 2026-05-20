@@ -918,6 +918,104 @@ def validate_runtime_safety_contracts(errors: list[str]) -> None:
             require(phrase in text, errors, f"{rel} must contain runtime safety phrase '{phrase}'")
 
 
+def validate_agent_readiness_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+
+    def task_allows(task_id: str, required_files: list[str]) -> None:
+        task = task_by_id.get(task_id)
+        require(task is not None, errors, f"task {task_id} must exist for agent-readiness validation")
+        if task is None:
+            return
+        allowed = task.get("allowed_files")
+        for file_path in required_files:
+            require(isinstance(allowed, list) and file_path in allowed, errors, f"task {task_id} must allow {file_path}")
+
+    required_phrases = {
+        "docs/CLI_SPEC.md": [
+            "## Run Option Ownership",
+            "`--operator <name>` | `tasks/016-minimal-run-command.md`",
+            "`--mutant <id>` | `tasks/016-minimal-run-command.md`",
+            "`--fail-on-survivors` | `tasks/016-minimal-run-command.md`",
+            "`--output <path>` | `tasks/016-minimal-run-command.md`",
+            "`--no-cache` | `tasks/021-cache-key-design.md`",
+            "`--jobs <n>` | `tasks/050-parallel-worker-pool.md`",
+            "`--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | `tasks/058-safety-mode-matrix.md`",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "## Run Section",
+            "`jobs` | integer | `1`",
+            "worker count",
+            "non-positive worker counts",
+        ],
+        "tasks/002-config-parser.md": [
+            "`phase1`, `phase2`, and `all_stable`",
+            "negative timeouts",
+            "`baseline_required = false`",
+            "undefined mutator names",
+            "output directory outside project root",
+            "`run.jobs`",
+        ],
+        "tasks/014-baseline-runner.md": [
+            "baseline timeout maps to `run.status = baseline_failed`",
+        ],
+        "tasks/016-minimal-run-command.md": [
+            "`--operator <name>`",
+            "`--mutant <id>`",
+            "`--fail-on-survivors`",
+            "`--output <path>`",
+        ],
+        "tasks/021-cache-key-design.md": [
+            "`--no-cache`",
+        ],
+        "tasks/034-doctest-snapshots.md": [
+            "regex text",
+            "JSON unordered",
+        ],
+        "tasks/050-parallel-worker-pool.md": [
+            "`--jobs <n>`",
+            "`run.jobs`",
+        ],
+        "tasks/058-safety-mode-matrix.md": [
+            "`--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>`",
+        ],
+        "tasks/063-pipeline-metadata-validator.md": [
+            "immediately after task 041",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "Baseline command timeout is a baseline failure",
+        ],
+        "docs/DOCTEST_ARCHITECTURE.md": [
+            "regex",
+            "json_subset",
+            "json_unordered",
+        ],
+        ".agents/roles/mutation-agent.md": [
+            "compiler_crash",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing agent-readiness contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain agent-readiness phrase '{phrase}'")
+
+    task_allows("018", ["src/run_command.zig", "test/run_command_test.zig"])
+    task_allows("021", ["src/cli.zig", "src/run_command.zig", "test/run_command_test.zig"])
+    task_allows("050", ["src/cli.zig", "src/run_command.zig", "test/run_command_test.zig"])
+    task_allows("058", ["src/cli.zig", "src/run_command.zig", "test/run_command_test.zig"])
+
+    task063 = task_by_id.get("063")
+    require(task063 is not None and task_order(task063) == "041.1", errors, "task 063 must execute immediately after task 041")
+    if task063 is not None:
+        require(task063.get("dependencies") == ["041"], errors, "task 063 must depend only on task 041")
+    task042 = task_by_id.get("042")
+    if task042 is not None:
+        require("063" in task042.get("dependencies", []), errors, "task 042 must depend on task 063 so post-041 artifacts are validator-backed")
+
+
 def validate_task_lifecycle_contracts(errors: list[str]) -> None:
     path = ROOT / "docs" / "TASK_LIFECYCLE.md"
     require(path.is_file(), errors, "docs/TASK_LIFECYCLE.md is missing")
@@ -1143,6 +1241,7 @@ def main() -> int:
     validate_doctest_identity_contracts(errors)
     validate_ai_contracts(errors)
     validate_runtime_safety_contracts(errors)
+    validate_agent_readiness_contracts(tasks, errors)
     validate_task_lifecycle_contracts(errors)
     validate_markdown_table_shapes(errors)
     validate_adr_system(errors)

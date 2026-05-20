@@ -1,6 +1,6 @@
 # 042 Context Packet System
 
-Sequential guard: Start this task only after task `041` is complete and `tasks/status.json` names `042` as the next queued task.
+Sequential guard: Start this task only after task `063` is complete and `tasks/status.json` names `042` as the next queued task.
 
 ## Goal
 

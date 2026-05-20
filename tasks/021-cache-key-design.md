@@ -11,15 +11,19 @@ Implement deterministic cache key construction and cache metadata without enabli
 - Define cache key inputs.
 - Hash source content, config, Zig version, backend, operator, mode, command, and Zig cache namespace metadata when it can affect observable command behavior.
 - Add cache metadata serialization.
+- Add run-command `--no-cache` parsing and normalized cache diagnostics for disabled zentinel result-cache behavior.
 - Keep cache reads disabled for mutation results until a later task validates reuse.
 
 ## Files allowed to modify
 
 - `src/cache.zig`
 - `src/config.zig`
+- `src/cli.zig`
+- `src/run_command.zig`
 - `src/mutant.zig`
 - `src/runner.zig`
 - `test/cache_key_test.zig`
+- `test/run_command_test.zig`
 - `test/snapshots/cache_metadata.json`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -34,6 +38,7 @@ Implement deterministic cache key construction and cache metadata without enabli
 
 - Add failing tests for cache key stability.
 - Add failing tests that changing source, config, Zig version, mode, command, or Zig cache namespace metadata changes the key.
+- Add a failing run-command test that `--no-cache` disables zentinel result-cache reads and writes for the invocation without disabling required Zig build-cache isolation metadata.
 - Add a failing metadata serialization snapshot.
 - Run `zig build test`.
 
@@ -41,6 +46,7 @@ Implement deterministic cache key construction and cache metadata without enabli
 
 - Cache keys include all inputs listed in `docs/PERFORMANCE_STRATEGY.md`.
 - Cache metadata distinguishes zentinel result cache keys from Zig build-cache reuse metadata.
+- `--no-cache` is parsed by the run command and reflected only in cache diagnostics or cache policy, not in mutant correctness.
 - Keys are stable across repeated runs.
 - Cache metadata is deterministic.
 - No stale result reuse is possible because result reads remain disabled or guarded.

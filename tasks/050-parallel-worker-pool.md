@@ -9,7 +9,7 @@ Implement deterministic parallel mutant execution without changing report orderi
 ## Scope
 
 - Add a bounded worker pool.
-- Run mutants concurrently when `--jobs` or config allows it.
+- Run mutants concurrently when `--jobs <n>` or normalized `run.jobs` allows it.
 - Preserve canonical report ordering independent of worker count.
 - Add deterministic scheduling evidence.
 
@@ -19,7 +19,10 @@ Implement deterministic parallel mutant execution without changing report orderi
 - `src/mutant_runner.zig`
 - `src/report.zig`
 - `src/config.zig`
+- `src/cli.zig`
+- `src/run_command.zig`
 - `test/worker_pool_test.zig`
+- `test/run_command_test.zig`
 - `test/fixtures/worker_pool/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -34,6 +37,8 @@ Implement deterministic parallel mutant execution without changing report orderi
 ## Required tests
 
 - Add a failing test proving worker count does not change report ordering or IDs.
+- Add a failing run-command test proving `--jobs <n>` overrides normalized `run.jobs`, rejects non-positive values, and remains bounded.
+- Add a failing config integration test proving normalized `run.jobs` greater than `1` enables the worker pool instead of being rejected after this task.
 - Add a failing test proving concurrent workers use dedicated writable workspace, local `.zig-cache`, and `zig-out` paths and cannot clobber another worker's temporary build artifacts.
 - Add a failing test for worker error propagation.
 - Run `zig build test`.
@@ -42,6 +47,7 @@ Implement deterministic parallel mutant execution without changing report orderi
 ## Acceptance criteria
 
 - Serial and parallel runs produce equivalent reports except normalized durations.
+- `--jobs <n>` and `run.jobs` are both implemented by this task and choose only worker count, not report ordering or mutation semantics.
 - Parallel runs never share writable workspaces, local build caches, output directories, or scratch artifact paths between active workers.
 - Worker failures are deterministic and visible.
 - Default behavior remains conservative.

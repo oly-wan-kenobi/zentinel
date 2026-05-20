@@ -33,6 +33,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Add a failing test for sorted mutant entries.
 - Add a failing schema test that a report has a run-level `status`, a `baseline` object, and mutant summary counts derived only from `mutants`.
 - Add a failing schema test that `run.status = baseline_failed` requires `baseline.status = failed`, zero summary counts, and an empty `mutants` array.
+- Add a failing schema test that a baseline command with `status = "timeout"` is valid only under the baseline failure shape with `run.status = baseline_failed`, `baseline.status = failed`, `timed_out = true`, `exit_code = null`, empty `mutants`, and zero summary counts.
 - Add a failing schema test that `run.status = completed` requires `baseline.status = passed`.
 - Add a failing schema test that `run.status = internal_error` requires a closed `run.error` object with stable `code`, `message`, and `phase`, allows an empty or schema-valid partial `mutants` array, and keeps summary counts derived only from present `mutants`.
 - Add a failing schema test that `run.error` is `null` for `completed` and `baseline_failed`, and that `baseline.status = not_run` with empty `baseline.commands` is accepted only for `internal_error` before baseline command evidence exists.

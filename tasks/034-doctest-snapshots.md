@@ -37,7 +37,7 @@ Implement doctest output normalization and snapshot matching for text, JSON, and
 
 ## Required tests
 
-- Add failing tests for exact text, contains text, JSON exact, JSON subset, and diagnostic matching.
+- Add failing tests for exact text, contains text, regex text, JSON exact, JSON subset, JSON unordered, and diagnostic matching.
 - Add failing tests for path, duration, run ID, and temp directory normalization.
 - Add a failing mismatch diagnostic snapshot using `ZNTL_DOCTEST_SNAPSHOT_MISMATCH`.
 - Run `zig build test`.

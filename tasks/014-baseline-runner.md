@@ -12,7 +12,7 @@ Implement deterministic execution of baseline test commands before mutant execut
 - Reuse the shared command parser from `src/command.zig` to turn configured command strings into argv according to `docs/CONFIG_SPEC.md`.
 - Capture stdout, stderr, exit code, and timeout status.
 - Record original command text, parsed argv, cwd, environment policy, and shell flag in command results.
-- Classify baseline pass/fail.
+- Classify baseline pass/fail, including the rule that baseline timeout maps to `run.status = baseline_failed` when report/run-command layers consume the result.
 - Avoid mutation-specific behavior.
 
 ## Files allowed to modify
@@ -34,6 +34,7 @@ Implement deterministic execution of baseline test commands before mutant execut
 ## Required tests
 
 - Add failing tests for passing command, failing command, timeout command, and captured output normalization.
+- Add a failing classification test proving baseline timeout maps to `run.status = baseline_failed` semantics rather than an internal error or mutant timeout.
 - Add a failing test that command order follows config order.
 - Add a failing reuse/regression test proving runner execution uses the same parsed argv shape already validated by `zentinel check`.
 - Keep command-parser coverage for quoted argv fields and rejected shell syntax in the shared parser tests from task 005; add runner-level regression coverage only if integration can drift.
@@ -44,6 +45,7 @@ Implement deterministic execution of baseline test commands before mutant execut
 ## Acceptance criteria
 
 - Baseline runner classifies pass, fail, and timeout deterministically.
+- Timeout is represented as deterministic baseline failure evidence for the report writer and run command.
 - Configured command strings are executed as parsed argv, not through a shell.
 - Command results expose the structured evidence required by `docs/REPORT_FORMAT.md` and `docs/SANDBOX_SECURITY.md`.
 - Output excerpts are bounded and normalized for reports.

@@ -166,6 +166,23 @@ Useful options:
 --no-cache
 ```
 
+## Run Option Ownership
+
+`zentinel run` option implementation is intentionally split across tasks. A documented option must not be silently ignored before its owner task lands; command dispatch must reject not-yet-owned run options deterministically with exit code `2`.
+
+| Option | Owner task | Notes |
+| --- | --- | --- |
+| `--config <path>` | `tasks/016-minimal-run-command.md` | Reuses the shared config-path parser introduced by task `005`. |
+| `--operator <name>` | `tasks/016-minimal-run-command.md` | Filters Phase 1 candidates to one documented operator. |
+| `--mutant <id>` | `tasks/016-minimal-run-command.md` | Runs one durable mutant ID after candidate generation. |
+| `--fail-on-survivors` | `tasks/016-minimal-run-command.md` | Changes the run command exit code to `1` when survivors are present; JUnit survivor-failure rendering is expanded by task `018`. |
+| `--report <text|json>` | `tasks/016-minimal-run-command.md` | Phase 1 run output supports text and canonical JSON. |
+| `--report <jsonl|junit>` | `tasks/018-report-renderers.md` | Report-renderer task adds streaming JSONL and JUnit. |
+| `--output <path>` | `tasks/016-minimal-run-command.md` | Writes the selected run report under the configured or explicit output path. |
+| `--no-cache` | `tasks/021-cache-key-design.md` | Disables zentinel result-cache reads and writes for the invocation; Zig build-cache isolation remains governed by runner and worker tasks. |
+| `--jobs <n>` | `tasks/050-parallel-worker-pool.md` | Overrides normalized `run.jobs` for the invocation. |
+| `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | `tasks/058-safety-mode-matrix.md` | Overrides configured `zig.modes` for a single-mode run. |
+
 Default text output emphasizes survivors and diagnostics, not percentages.
 
 ## AI Commands

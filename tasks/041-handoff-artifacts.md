@@ -77,5 +77,6 @@ Future dogfood runs will archive these artifacts for survivor triage and release
 
 ## Follow-up tasks
 
+- `063-pipeline-metadata-validator.md`
 - `042-context-packet-system.md`
 - `046-verification-pipeline.md`

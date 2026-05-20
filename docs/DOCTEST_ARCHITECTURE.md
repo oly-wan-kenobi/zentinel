@@ -243,7 +243,10 @@ Snapshot match modes:
 | --- | --- |
 | exact | normalized output must match exactly |
 | contains | normalized output must contain expected lines in order |
+| regex | normalized text output must match the documented regular expression |
 | json | normalized JSON semantic comparison |
+| json_subset | normalized JSON must contain the expected object or array subset |
+| json_unordered | normalized JSON arrays or object entries may match without source-order significance where the block format permits it |
 | diagnostic | compiler diagnostic comparison with normalized paths/lines |
 
 Default:

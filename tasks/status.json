@@ -3,13 +3,14 @@
   "active_task": null,
   "next_task": "000",
   "completed_tasks": [
-    "068"
+    "068",
+    "069"
   ],
   "blocked_tasks": [],
-    "last_validation": {
-        "command": "python3 scripts/validate_task_system.py",
-        "status": "passed",
-        "notes": "Validator passed after completing task 068 preimplementation contract alignment: task 025 covers tasks 061-067, Roadmap Phase 2 treats preview mutators as backlog, doctest mutation summaries and survivor AI context shapes are exact, pre-041 pipeline artifact wording is aligned, and report internal_error has deterministic run.error schema ownership; task count is 69. Python validator compilation, JSON syntax checks, JSON fence checks, changed-file scope check, and git diff --check passed."
+  "last_validation": {
+    "command": "python3 scripts/validate_task_system.py",
+    "status": "passed",
+    "notes": "Validator passed after completing task 069 agent-readiness contract closure: run-option ownership is explicit and allowed-file backed; config worker-count and validation coverage is owned; mutation-agent compiler_crash wording is aligned; baseline timeout report semantics are defined; pipeline metadata validation now executes immediately after task 041; doctest snapshot modes are synchronized; task count is 70. Python validator compilation, JSON syntax checks, Markdown JSON fence checks, stale-contract scan, and git diff --check passed."
   },
   "history": [
     {
@@ -67,45 +68,55 @@
       "task": null,
       "notes": "Resolved another deep-analysis pass: pipeline artifacts now have a task-scoped exception, JSON handoffs are canonical, schema ownership is validator-checked, doctest and AI examples are schema-valid, report command evidence is stricter, baseline skipping is reserved, cache diagnostics are reserved under diagnostics.cache, CLI option ownership is explicit, and prose-only follow-ups became concrete queued tasks 061-066."
     },
-        {
-            "event": "execution_order_and_evidence_contracts_refined",
-            "task": null,
-            "notes": "Applied follow-up fixes from deep analysis: task execution order now supports inserted prerequisites without renumbering stable IDs, release acceptance is the final non-superseded order task, report and AI context schemas share per-command result evidence, doctest diagnostics own documented error codes, Zig version policy examples avoid stale release numbers, and pipeline verification artifacts include report.json."
-        },
-        {
-            "event": "product_choice_and_contract_refinements_applied",
-            "task": null,
-            "notes": "Applied the doctest AI product decision and deep-analysis fixes: user-facing doctest AI CLI subcommands, doctest --mutate output format ownership, AI report/provider/ref semantics, report run-level schema conditionals, lifecycle state split, dependency-ready agent wording, escaped mutator tables, standard-library schema subset scope for pipeline metadata, and validator guardrails for these contracts."
-        },
-        {
-            "event": "case_ref_and_ai_contract_refinements_applied",
-            "task": null,
-            "notes": "Applied another deep-analysis fix set before implementation: doctest case refs now distinguish durable dt_ IDs from source selectors, doctest suggest can run without a report, doctest explain reuses the AI explain response schema, AI/doctest failure codes are specific, config exclude defaults are exact, display_id is report-local, test selection preserves config command order, roadmap and acceptance criteria include doctest AI CLI subcommands, task 006 evidence wording matches quiet command examples, and task 016 allows run-command JSON snapshots."
-        },
-        {
-            "event": "doctest_ai_contract_followups_and_baseline_prepared",
-            "task": null,
-            "notes": "Applied follow-up contract fixes: duplicate unlabeled identical doctest cases are invalid instead of receiving occurrence IDs, source refs resolve only anchor lines with secondary block_refs retained for diagnostics, the shared AI explain response enum includes doctest classifications, AI/doctest failures have failure-mode and gap-registry rows, remote AI config and CLI override errors are explicitly separated, AI redaction defaults are exact, and validator guardrails preserve these contracts."
-        },
-        {
-            "event": "doctest_ai_report_contracts_refined",
-            "task": null,
-            "notes": "Applied doctest AI/report contract refinements: ai.prompt.v1 context ownership now separates mutation and doctest context schemas, task 055 may update the prompt schema for doctest context, doctest review-snapshot is a first-class CLI subcommand, doctest AI context/suggest/snapshot response schema targets are exact, doctest.report.v1 has concrete run/summary/case/evidence/failure fields, doctest AI output is not persisted by default, and docs/DOCTEST_AI_INTEGRATION.md is included in public-doc doctest coverage."
-        },
-        {
-            "event": "runtime_and_doctest_ai_contracts_hardened",
-            "task": null,
-            "notes": "Resolved deep-analysis and external-agent findings: added compiler_crash as a distinct deterministic status, tightened Zig build-cache and parallel workspace isolation, constrained allocator mutators to injected target allocator wrappers, made doctest report case kinds and snapshot evidence exact, documented row-scoped gap-registry updates, and inserted task 067 for user-facing doctest survivor AI CLI assistance before release acceptance."
-        },
-        {
-            "event": "doctest_mutation_and_ai_contract_findings_resolved",
-            "task": null,
-            "notes": "Resolved follow-up findings from deep analysis and the external agent: task 061 now owns docs/DOCTEST_SPEC.md alongside the doctest report schema, ds_ survivor refs have deterministic derivation and resolution rules, task 055 creates only non-survivor doctest AI context flows while task 067 adds explain_doctest_survivor, doctest AI evidence variants define closed nested properties, and F-033 is deferred to explicit preview backlog instead of the administrative audit task."
-        },
-        {
-            "event": "preimplementation_contract_alignment_completed",
-            "task": "068",
-            "notes": "Completed task 068 before project bootstrap: aligned task 025 scope with inserted tasks 061-067, made preview mutators explicit backlog in the roadmap, clarified doctest mutation summary partitions and survivor AI source_case/mutation_case evidence, aligned pre-041 pipeline artifact wording, and defined report internal_error run.error schema/test ownership."
-        }
-    ]
+    {
+      "event": "execution_order_and_evidence_contracts_refined",
+      "task": null,
+      "notes": "Applied follow-up fixes from deep analysis: task execution order now supports inserted prerequisites without renumbering stable IDs, release acceptance is the final non-superseded order task, report and AI context schemas share per-command result evidence, doctest diagnostics own documented error codes, Zig version policy examples avoid stale release numbers, and pipeline verification artifacts include report.json."
+    },
+    {
+      "event": "product_choice_and_contract_refinements_applied",
+      "task": null,
+      "notes": "Applied the doctest AI product decision and deep-analysis fixes: user-facing doctest AI CLI subcommands, doctest --mutate output format ownership, AI report/provider/ref semantics, report run-level schema conditionals, lifecycle state split, dependency-ready agent wording, escaped mutator tables, standard-library schema subset scope for pipeline metadata, and validator guardrails for these contracts."
+    },
+    {
+      "event": "case_ref_and_ai_contract_refinements_applied",
+      "task": null,
+      "notes": "Applied another deep-analysis fix set before implementation: doctest case refs now distinguish durable dt_ IDs from source selectors, doctest suggest can run without a report, doctest explain reuses the AI explain response schema, AI/doctest failure codes are specific, config exclude defaults are exact, display_id is report-local, test selection preserves config command order, roadmap and acceptance criteria include doctest AI CLI subcommands, task 006 evidence wording matches quiet command examples, and task 016 allows run-command JSON snapshots."
+    },
+    {
+      "event": "doctest_ai_contract_followups_and_baseline_prepared",
+      "task": null,
+      "notes": "Applied follow-up contract fixes: duplicate unlabeled identical doctest cases are invalid instead of receiving occurrence IDs, source refs resolve only anchor lines with secondary block_refs retained for diagnostics, the shared AI explain response enum includes doctest classifications, AI/doctest failures have failure-mode and gap-registry rows, remote AI config and CLI override errors are explicitly separated, AI redaction defaults are exact, and validator guardrails preserve these contracts."
+    },
+    {
+      "event": "doctest_ai_report_contracts_refined",
+      "task": null,
+      "notes": "Applied doctest AI/report contract refinements: ai.prompt.v1 context ownership now separates mutation and doctest context schemas, task 055 may update the prompt schema for doctest context, doctest review-snapshot is a first-class CLI subcommand, doctest AI context/suggest/snapshot response schema targets are exact, doctest.report.v1 has concrete run/summary/case/evidence/failure fields, doctest AI output is not persisted by default, and docs/DOCTEST_AI_INTEGRATION.md is included in public-doc doctest coverage."
+    },
+    {
+      "event": "runtime_and_doctest_ai_contracts_hardened",
+      "task": null,
+      "notes": "Resolved deep-analysis and external-agent findings: added compiler_crash as a distinct deterministic status, tightened Zig build-cache and parallel workspace isolation, constrained allocator mutators to injected target allocator wrappers, made doctest report case kinds and snapshot evidence exact, documented row-scoped gap-registry updates, and inserted task 067 for user-facing doctest survivor AI CLI assistance before release acceptance."
+    },
+    {
+      "event": "doctest_mutation_and_ai_contract_findings_resolved",
+      "task": null,
+      "notes": "Resolved follow-up findings from deep analysis and the external agent: task 061 now owns docs/DOCTEST_SPEC.md alongside the doctest report schema, ds_ survivor refs have deterministic derivation and resolution rules, task 055 creates only non-survivor doctest AI context flows while task 067 adds explain_doctest_survivor, doctest AI evidence variants define closed nested properties, and F-033 is deferred to explicit preview backlog instead of the administrative audit task."
+    },
+    {
+      "event": "preimplementation_contract_alignment_completed",
+      "task": "068",
+      "notes": "Completed task 068 before project bootstrap: aligned task 025 scope with inserted tasks 061-067, made preview mutators explicit backlog in the roadmap, clarified doctest mutation summary partitions and survivor AI source_case/mutation_case evidence, aligned pre-041 pipeline artifact wording, and defined report internal_error run.error schema/test ownership."
+    },
+    {
+      "event": "agent_readiness_contract_closure_started",
+      "task": "069",
+      "notes": "Inserted task 069 at execution order 000.0 before project bootstrap to resolve CLI, config, mutation-agent, baseline-timeout, pipeline-validator, and doctest snapshot contract inconsistencies."
+    },
+    {
+      "event": "agent_readiness_contract_closure_completed",
+      "task": "069",
+      "notes": "Completed task 069 before project bootstrap. Added validator guardrails and aligned CLI run-option ownership, config run.jobs/validation coverage, mutation-agent compiler_crash wording, baseline timeout semantics, pipeline metadata validator ordering, and doctest snapshot match modes."
+    }
+  ]
 }

@@ -12,6 +12,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - Validate Zig version.
 - Run baseline tests.
 - Generate Phase 1 AST candidates.
+- Support Phase 1 run options `--operator <name>`, `--mutant <id>`, `--fail-on-survivors`, `--report <text|json>`, and `--output <path>`.
 - Execute mutants serially.
 - Write JSON report and text summary.
 
@@ -42,7 +43,10 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - Add a failing end-to-end fixture test for one killed mutant.
 - Add a failing end-to-end fixture test for one survived mutant.
 - Add a failing test for baseline failure exit behavior.
+- Add failing CLI tests for `--operator <name>` filtering, `--mutant <id>` single-mutant selection, `--fail-on-survivors` exit code `1`, and `--output <path>` report writing.
+- Add a failing CLI test proving `run.jobs > 1` is rejected before task 050 instead of being silently ignored.
 - Add a failing JSON report snapshot proving baseline failure sets `run.status = baseline_failed`, records baseline command evidence, emits no mutant result with `baseline_failed`, and leaves summary counts at zero.
+- Add a failing JSON report snapshot proving baseline timeout maps to `run.status = baseline_failed`, `baseline.status = failed`, timed-out baseline command evidence, empty `mutants`, and zero summary counts.
 - Add a failing JSON report snapshot proving a completed run sets `run.status = completed`, includes deterministic mutant entries, and derives summary counts from those entries.
 - Run `zig build test`.
 
@@ -51,6 +55,9 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - `zentinel run` works for small fixture projects.
 - Reports include deterministic mutant entries and summary counts.
 - Baseline failure stops mutant execution and is represented as a run-level status with structured baseline command evidence.
+- Baseline timeout follows the same run-level baseline failure path and exits with code `3`.
+- `--fail-on-survivors` changes only process exit status, not deterministic report fields.
+- `--operator <name>`, `--mutant <id>`, and `--output <path>` are implemented by the run command rather than left as documented-only options.
 - Output remains concise and survivor-focused.
 
 ## Non-goals

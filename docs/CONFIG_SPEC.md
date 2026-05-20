@@ -74,6 +74,9 @@ selection = "same_file_then_package"
 timeout_ms = 30000
 baseline_required = true
 
+[run]
+jobs = 1
+
 [cache]
 enabled = true
 directory = ".zig-cache/zentinel"
@@ -202,6 +205,16 @@ Rejected shell metacharacters are invalid even when quoted or escaped. The goal 
 
 `baseline_required = false` is reserved for a future cache-backed baseline-skip policy. Until a later ADR or task defines the required fresh-cache proof and report schema, config validation must reject `false` with `ZNTL_CONFIG_INVALID_VALUE`. Report v1 writers must run the baseline or emit `run.status = "baseline_failed"` when it fails.
 
+## Run Section
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `jobs` | integer | `1` | Maximum zentinel worker count for mutation execution. |
+
+`jobs = 1` is the deterministic serial default. Values greater than `1` request bounded parallel mutation execution once task `050` implements the worker pool. Before task `050`, `zentinel run` must reject `run.jobs > 1` instead of silently ignoring the worker count. The command-line `--jobs <n>` option overrides normalized `run.jobs` only for the current invocation after task `050`.
+
+Config validation must reject non-positive worker counts with `ZNTL_CONFIG_INVALID_VALUE`.
+
 ## Cache Section
 
 | Key | Type | Default | Meaning |
@@ -243,6 +256,7 @@ Config validation must reject:
 - `ai.provider = "remote"` unless `ai.remote_allowed = true`, reported as `ZNTL_CONFIG_INVALID_VALUE`
 - output directory outside project root unless explicitly allowed by future policy
 - mutator names not defined in `MUTATOR_SPEC.md`
+- non-positive worker counts
 
 Validation errors should include the config path and key.
 

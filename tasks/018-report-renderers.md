@@ -13,16 +13,19 @@ Complete Phase 1 report rendering for text, JSON, JSONL, and the first CI-friend
 - Ensure JSON report remains canonical.
 - Add JSONL output for streaming-compatible consumers.
 - Add the JUnit-compatible summary defined by `docs/REPORT_FORMAT.md` without broad CI integration.
+- Extend `--report` handling for `jsonl` and `junit`; preserve task 016 ownership of `--fail-on-survivors` process exit behavior while rendering strict survivor failures for JUnit.
 
 ## Files allowed to modify
 
 - `src/report.zig`
 - `src/cli.zig`
 - `src/main.zig`
+- `src/run_command.zig`
 - `src/report_text.zig`
 - `src/report_jsonl.zig`
 - `src/report_junit.zig`
 - `test/report_renderers_test.zig`
+- `test/run_command_test.zig`
 - `test/snapshots/report_*.txt`
 - `test/snapshots/report_*.json`
 - `test/snapshots/report_*.jsonl`
@@ -46,6 +49,7 @@ Complete Phase 1 report rendering for text, JSON, JSONL, and the first CI-friend
 - Add a failing JUnit property test for structured command evidence under `result.commands[*]` (`command.original`, `command.argv`, `command.cwd`, `command.environment_policy`, `command.shell`, `phase`, `status`, `skip_reason`).
 - Add failing schema compatibility test for JSON.
 - Add failing test that summary counts are derived, not manually trusted.
+- Add failing CLI tests that `--report jsonl` and `--report junit` route to the new renderers without changing canonical JSON report data.
 - Add failing CLI tests that `--verbose` and `--quiet` parse according to `docs/CLI_SPEC.md` without changing deterministic JSON fields or hiding errors.
 - Run `zig build test`.
 

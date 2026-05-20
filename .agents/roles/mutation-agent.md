@@ -15,7 +15,7 @@ Use this role when the task requires mutation testing or changes mutation-testab
 
 - run configured mutation checks
 - preserve deterministic mutation reports
-- classify raw outcomes as killed, survived, compile_error, timeout, skipped, or invalid
+- classify raw outcomes as killed, survived, compile_error, compiler_crash, timeout, skipped, or invalid
 - report command evidence
 
 ## Forbidden
