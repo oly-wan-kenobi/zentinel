@@ -326,6 +326,36 @@
       ]
     },
     {
+      "id": "077",
+      "order": "000.0.8",
+      "title": "Backlog Audit Task Creation Scope",
+      "file": "tasks/077-backlog-audit-task-creation-scope.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "076"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/077-backlog-audit-task-creation-scope.md",
+        "tasks/000-project-bootstrap.md",
+        "tasks/025-autonomous-backlog-audit.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "docs/**",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -333,7 +363,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "076"
+        "077"
       ],
       "allowed_files": [
         "build.zig",
@@ -988,6 +1018,7 @@
         "tasks/queue.json",
         "tasks/STATUS.md",
         "tasks/status.json",
+        "tasks/[0-9][0-9][0-9]-*.md",
         "tasks/026-*.md",
         "tasks/027-*.md",
         "tasks/028-*.md",

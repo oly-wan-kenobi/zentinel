@@ -11,6 +11,7 @@ Audit and refine the complete end-to-end implementation backlog now present in t
 - Verify that sequential task files still exist for every remaining item needed to satisfy `docs/PROJECT_ACCEPTANCE_CRITERIA.md`.
 - Maintain coverage for remaining Phase 2 stable mutators, Phase 3 performance, Phase 4 AI assistance, Phase 5 ZIR/AIR experiments, Phase 6 safety mode intelligence, Phase 7 dogfooding expansion, CI, release readiness, and final acceptance verification.
 - Update `tasks/QUEUE.md` and `tasks/queue.json` only when the audit finds a concrete missing or stale task.
+- Create the next unused task file under `tasks/[0-9][0-9][0-9]-*.md` only when the audit finds a concrete missing task that cannot be represented by updating an existing queued task.
 - Keep tasks small enough for one autonomous agent session each.
 - Preserve machine-checkable task state and validator compatibility.
 
@@ -20,6 +21,7 @@ Audit and refine the complete end-to-end implementation backlog now present in t
 - `tasks/queue.json`
 - `tasks/STATUS.md`
 - `tasks/status.json`
+- `tasks/[0-9][0-9][0-9]-*.md`
 - `tasks/026-*.md`
 - `tasks/027-*.md`
 - `tasks/028-*.md`
@@ -99,7 +101,7 @@ Audit and refine the complete end-to-end implementation backlog now present in t
 ## Suggested implementation approach
 
 1. Compare the queued backlog against `docs/ROADMAP.md` and `docs/PROJECT_ACCEPTANCE_CRITERIA.md`.
-2. Add or adjust only the narrowest missing task when a coverage gap is found.
+2. Add or adjust only the narrowest missing task when a coverage gap is found; if creating new work, use the next unused task file and synchronize Markdown and JSON task state.
 3. Preserve performance and AI tasks after stable deterministic execution tasks.
 4. Keep experimental ZIR/AIR tasks explicitly opt-in and after stable AST behavior.
 5. Preserve the final release-readiness and project acceptance verification task.

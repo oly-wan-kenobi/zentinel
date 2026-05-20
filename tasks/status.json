@@ -11,13 +11,14 @@
     "073",
     "074",
     "075",
-    "076"
+    "076",
+    "077"
   ],
   "blocked_tasks": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 076 doctest mutation entry identity: mutation-aware doctest report entries now use dm_ case IDs, dt_ remains the original source case ID, and ds_ remains survivor-only. Python validator compilation passed."
+    "notes": "Validator passed after completing task 077 backlog audit task creation scope: task 025 may now create next-unused task files only for concrete missing audit gaps, and the validator enforces that allowance. Python validator compilation passed."
   },
   "history": [
     {
@@ -194,6 +195,16 @@
       "event": "doctest_mutation_entry_identity_completed",
       "task": "076",
       "notes": "Completed task 076 before project bootstrap. Added dm_ mutation-aware doctest entry IDs, kept dt_ source case IDs under case.mutation.doctest_case_id, preserved ds_ as survivor-only, updated task 061/067 requirements, and added a validator guardrail."
+    },
+    {
+      "event": "backlog_audit_task_creation_scope_started",
+      "task": "077",
+      "notes": "Inserted task 077 at execution order 000.0.8 before project bootstrap to clarify task 025's authority to create next-unused task files when the audit finds concrete missing backlog work."
+    },
+    {
+      "event": "backlog_audit_task_creation_scope_completed",
+      "task": "077",
+      "notes": "Completed task 077 before project bootstrap. Task 025 now allows tasks/[0-9][0-9][0-9]-*.md only for concrete missing audit tasks and the validator enforces the scope."
     }
   ]
 }

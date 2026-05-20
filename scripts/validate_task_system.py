@@ -1147,6 +1147,16 @@ def validate_preimplementation_blocker_contracts(tasks: list[dict[str, object]],
             "task 000 must allow a bootstrap discovery test so future top-level tests are included by zig build test",
         )
 
+    task025 = task_by_id.get("025")
+    require(task025 is not None, errors, "task 025 must exist for backlog audit scope validation")
+    if isinstance(task025, dict):
+        allowed = task025.get("allowed_files")
+        require(
+            isinstance(allowed, list) and "tasks/[0-9][0-9][0-9]-*.md" in allowed,
+            errors,
+            "task 025 must allow next-unused task markdown creation when backlog audit finds a concrete gap",
+        )
+
     required_phrases = {
         "tasks/000-project-bootstrap.md": [
             "top-level `test/*_test.zig`",
@@ -1203,6 +1213,11 @@ def validate_preimplementation_blocker_contracts(tasks: list[dict[str, object]],
         ],
         "tasks/STATUS.md": [
             "tasks `061` through `070`",
+        ],
+        "tasks/025-autonomous-backlog-audit.md": [
+            "tasks/[0-9][0-9][0-9]-*.md",
+            "next unused task file",
+            "concrete missing task",
         ],
     }
     for rel, phrases in required_phrases.items():
