@@ -78,4 +78,4 @@ Sequential locking keeps dogfood reports attributable to exactly one active task
 
 ## Follow-up tasks
 
-- `048-failure-recovery.md`
+- `tasks/048-failure-recovery.md`

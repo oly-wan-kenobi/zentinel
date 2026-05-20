@@ -80,5 +80,5 @@ This task prepares later dogfooding of the development process. It does not run 
 
 ## Follow-up tasks
 
-- `041-handoff-artifacts.md`
-- `042-context-packet-system.md`
+- `tasks/041-handoff-artifacts.md`
+- `tasks/042-context-packet-system.md`

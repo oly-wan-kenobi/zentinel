@@ -79,5 +79,5 @@ This task defines the verification order that later dogfood tasks must follow be
 
 ## Follow-up tasks
 
-- `047-sequential-task-locking.md`
-- `048-failure-recovery.md`
+- `tasks/047-sequential-task-locking.md`
+- `tasks/048-failure-recovery.md`

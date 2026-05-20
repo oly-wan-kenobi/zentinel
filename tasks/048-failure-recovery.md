@@ -77,5 +77,5 @@ Dogfood failures must route through this policy so survivors, flaky checks, and 
 
 ## Follow-up tasks
 
-- `049-pipeline-escalation.md`
+- `tasks/049-pipeline-escalation.md`
 - `tasks/065-failure-recovery-validator.md`

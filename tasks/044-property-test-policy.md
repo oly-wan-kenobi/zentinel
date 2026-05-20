@@ -76,5 +76,5 @@ Property tests will become required for zentinel's own deterministic surfaces be
 
 ## Follow-up tasks
 
-- `046-verification-pipeline.md`
+- `tasks/046-verification-pipeline.md`
 - `tasks/062-property-generator-infrastructure.md`

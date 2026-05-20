@@ -79,5 +79,5 @@ This gate becomes mandatory for future zentinel dogfood tasks that change mutato
 
 ## Follow-up tasks
 
-- `046-verification-pipeline.md`
-- `048-failure-recovery.md`
+- `tasks/046-verification-pipeline.md`
+- `tasks/048-failure-recovery.md`

@@ -76,5 +76,5 @@ This task defines when zentinel's own CLI, config, report, mutator, and AI docs 
 
 ## Follow-up tasks
 
-- `046-verification-pipeline.md`
+- `tasks/046-verification-pipeline.md`
 - `tasks/066-public-docs-doctest-coverage.md`

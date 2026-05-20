@@ -79,5 +79,5 @@ Context packets will eventually be archived for zentinel's own tasks so later ag
 
 ## Follow-up tasks
 
-- `043-mutation-gate.md`
-- `047-sequential-task-locking.md`
+- `tasks/043-mutation-gate.md`
+- `tasks/047-sequential-task-locking.md`
