@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/097-autonomous-agent-contract-closure.md` |
+| Next task | `tasks/097-autonomous-agent-contract-closure.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -20,7 +20,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Date | 2026-05-19 |
-| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `096`. |
+| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `097`. |
 | Implementation code changed | none |
 | Verification run | Required file presence scan; governance file scan; ADR index scan; gap registry scan; task section completeness scan; Markdown/JSON task scope sync; follow-up reference sync; schema registry coverage; generated legacy-name and unfinished-marker scan; JSON parse checks; `python3 scripts/validate_task_system.py` |
 | Dogfooding status | policy documented; no dogfood implementation exists yet |

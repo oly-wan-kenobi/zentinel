@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "097",
+  "next_task": "097",
   "completed_tasks": [
     "068",
     "069",
@@ -37,7 +37,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 096 audit finding contract closure; task 000 is next."
+    "notes": "Validator passed after activating task 097 autonomous agent contract closure; task 097 is current."
   },
   "completion_evidence": [
     {
@@ -975,6 +975,11 @@
       "event": "audit_finding_contract_closure_completed",
       "task": "096",
       "notes": "Completed task 096 before project bootstrap. Validator guardrails and contracts now enforce generated same-file preflight evidence, full-task-list pipeline artifact exceptions, Planner role coverage, AI prompt failure_kind examples, AI context excerpt bounds, follow-up timing, queued terminology, high-risk routing, internal_error report semantics, CLI output bounds, and mode-matrix compatibility."
+    },
+    {
+      "event": "autonomous_agent_contract_closure_started",
+      "task": "097",
+      "notes": "Inserted and activated task 097 at execution order 000.0.27 before project bootstrap to close remaining autonomous-agent contract findings around report preflight evidence, pipeline schema cutovers, blocker metadata, TDD proof wording, skipped reasons, contract-edit ownership, experimental backend opt-in, doctest internal_error evidence, and workflow validation gaps."
     }
   ]
 }
