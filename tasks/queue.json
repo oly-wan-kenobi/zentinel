@@ -950,7 +950,7 @@
       "title": "Agent Readiness Validator Closure",
       "file": "tasks/094-agent-readiness-validator-closure.md",
       "phase": 0,
-      "state": "active",
+      "state": "complete",
       "dependencies": [
         "093"
       ],

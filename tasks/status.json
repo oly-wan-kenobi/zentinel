@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "094",
-  "next_task": "094",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
@@ -27,14 +27,15 @@
     "090",
     "091",
     "092",
-    "093"
+    "093",
+    "094"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-      "notes": "Validator passed before activating task 094 agent readiness validator closure; task 094 is the current active pre-bootstrap hardening task."
+    "notes": "Validator passed after completing task 094 agent readiness validator closure; task 000 is next."
   },
   "completion_evidence": [
     {
@@ -411,6 +412,66 @@
       },
       "dogfooding_implication": "Future dogfood and bootstrap work starts after active-scope validation ordering, typed blocker records, and deterministic classifier/backend-version rules are validator-backed.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "094",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for lifecycle stage wording, blocked-prerequisite recovery, completion scope evidence, task 058 report-schema scope, failure_kind classification, phase2/impact_graph staging, sandbox output bounds, backend_version public-schema omission, doctest AI stubs, and plain zig doctest expectations.",
+      "implementation_summary": "Inserted task 094 before bootstrap, added validator guardrails for completed-task scope evidence and remaining readiness contracts, aligned lifecycle/routing/gap/status docs, updated report/status schemas, clarified staged product contracts, and adjusted future task scopes and required tests.",
+      "files_changed": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/094-agent-readiness-validator-closure.md",
+        "scripts/validate_task_system.py",
+        "tasks/schema/status.v1.schema.json",
+        "schemas/report.v1.schema.json",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/GAP_REGISTRIES.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/MUTATOR_SPEC.md",
+        "docs/TEST_SELECTION.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SANDBOX_SECURITY.md",
+        "docs/AI_PROMPT_CONTRACTS.md",
+        "docs/DOCTEST_BLOCK_FORMATS.md",
+        "docs/DOCTEST_ARCHITECTURE.md",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "docs/INTERNAL_API_CONTRACTS.md",
+        "tasks/015-mutant-runner.md",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/051-fail-fast-impact-analysis.md",
+        "tasks/055-ai-doctest-assistance.md",
+        "tasks/058-safety-mode-matrix.md",
+        "tasks/067-ai-doctest-survivor-assistance.md"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": ["Structural validator guardrails for completed-task scope evidence, blocked-task prerequisite recovery, lifecycle/routing contracts, safety-mode report ownership, command failure_kind classification, staged mutator/test-selection options, sandbox evidence bounds, backend_version visibility, doctest AI stubs, and plain zig doctest expectations."],
+      "tests_run": [
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 094 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 094 was active",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "python3 -m json.tool tasks/queue.json tasks/schema/status.v1.schema.json schemas/report.v1.schema.json",
+        "git diff --check",
+        "python3 scripts/validate_task_system.py after completing task 094"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 094 completion and task 000 became next."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after validator-backed completion scope evidence, blocker recovery, report evidence, option staging, doctest AI, and public/internal schema boundaries.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -758,6 +819,11 @@
       "event": "agent_enforcement_closure_completed",
       "task": "093",
       "notes": "Completed task 093 before project bootstrap. Validator guardrails, status schema, docs, and queued task requirements now enforce active-before-complete scope validation, typed blocked-task metadata, stricter completion evidence, doctest/source-ref semantics, classifier authority, backend_version identity, gap registry closure, property evidence cutovers, and post-041 artifact references."
+    },
+    {
+      "event": "agent_readiness_validator_closure_completed",
+      "task": "094",
+      "notes": "Completed task 094 before project bootstrap. Validator guardrails and contracts now cover completed-task scope evidence, blocked prerequisite recovery, lifecycle stage wording, safety-mode report ownership, failure_kind evidence, phase2 and impact_graph staging, sandbox evidence bounds, backend_version visibility, doctest AI stubs, and plain zig doctest expectations."
     }
   ]
 }
