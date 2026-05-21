@@ -26,7 +26,7 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 4. If no task is active, select the first dependency-ready queued task from `tasks/queue.json` by execution order. Every task entry in `tasks/queue.json` contains an explicit `order` key.
 5. Read the selected or active task file and required docs from `AGENTS.md` before changing implementation files.
 6. When starting a queued task, mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.
-7. Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active. Run `python3 scripts/validate_task_system.py` immediately after marking it `active`.
+7. Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active.
 8. Write the smallest failing test or fixture.
 9. Run the targeted test and capture the expected failure.
 10. Implement the smallest passing change.

@@ -1314,6 +1314,39 @@
       ]
     },
     {
+      "id": "100",
+      "order": "000.0.30",
+      "title": "Clean Handoff Lifecycle Closure",
+      "file": "tasks/100-clean-handoff-lifecycle-closure.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "099"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/100-clean-handoff-lifecycle-closure.md",
+        ".agents/workflows/task-done.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "build/**",
+        "zig-out/**",
+        "test/**/*.zig",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1321,7 +1354,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "099"
+        "100"
       ],
       "allowed_files": [
         "build.zig",

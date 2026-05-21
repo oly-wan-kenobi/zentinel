@@ -905,7 +905,9 @@ def validate_clean_handoff_baseline(
         require(current_sha == sha256, errors, f"status clean_handoff_baseline file {path} does not match recorded sha256")
 
     raw_changed = changed_files_against_head(errors)
-    if raw_changed and isinstance(source_commit, str):
+    if not raw_changed:
+        fail(errors, "status clean_handoff_baseline must be null when the worktree is clean")
+    elif isinstance(source_commit, str):
         require(source_commit == current_head_commit(errors), errors, "status clean_handoff_baseline.source_commit must match current HEAD while dirty files are baselined")
 
 
@@ -2513,10 +2515,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `098`",
+            "pre-bootstrap hardening tasks `071` through `100`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `098` is complete",
+            "after task `100` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3346,7 +3348,7 @@ def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, o
         ],
         "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
             "If a task is already active, resume that active task instead of selecting another task.",
-            "Run `python3 scripts/validate_task_system.py` immediately after marking it `active`",
+            "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active.",
             "The inserted prerequisite task must depend on the immediately previous non-superseded execution-order task",
             '"blocked_task_details": [',
         ],
@@ -3487,7 +3489,7 @@ def validate_agent_implementation_blocker_closure_contracts(tasks: list[dict[str
         ],
         ".agents/workflows/task-done.md": [
             "clean handoff boundary",
-            "Before activating a different task, either commit the completed task changes or record a validator-readable clean baseline",
+            "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         ".agents/workflows/task-plan.md": [
             "After task `041`, activate the task, write `artifacts/pipeline/<task-id>/locks/active-task-lock.json`, write the first context packet, then run `python3 scripts/validate_task_system.py` before dispatching role work.",
@@ -3724,7 +3726,56 @@ def validate_handoff_baseline_and_contract_drift_closure_contracts(
     task000 = task_by_id.get("000")
     if isinstance(task000, dict):
         deps = task000.get("dependencies")
-        require(isinstance(deps, list) and "099" in deps, errors, "task 000 must depend on task 099")
+        require(isinstance(deps, list) and "100" in deps, errors, "task 000 must depend on task 100")
+
+
+def validate_clean_handoff_lifecycle_closure_contracts(
+    tasks: list[dict[str, object]],
+    status: object,
+    errors: list[str],
+) -> None:
+    """Guard task 100's clean-handoff lifecycle closure."""
+
+    required_phrases = {
+        "docs/AGENT_GUIDE.md": [
+            "After completed-task changes are committed, `clean_handoff_baseline` must be cleared to `null`",
+            "A non-null clean handoff baseline is only valid for uncommitted prior-task files carried forward from the recorded `source_commit`",
+        ],
+        ".agents/workflows/task-done.md": [
+            "After committing completed-task changes, clear `clean_handoff_baseline` to `null`",
+            "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
+        ],
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `100`",
+            "Task `100` completed at execution order `000.0.30` before project bootstrap.",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "row-scoped gap registry exception",
+            "pipeline schema rows",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 100 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 100 phrase {phrase!r}")
+
+    protocol = ROOT / "docs" / "AUTONOMOUS_AGENT_PROTOCOL.md"
+    if protocol.is_file():
+        text = protocol.read_text(encoding="utf-8")
+        phrase = "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active."
+        require(text.count(phrase) == 1, errors, "docs/AUTONOMOUS_AGENT_PROTOCOL.md must contain the pre-041 active validator sentence exactly once")
+
+    require(isinstance(status, dict) and status.get("clean_handoff_baseline") is None, errors, "status clean_handoff_baseline must be null after committed task 099 handoff")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "100" in deps, errors, "task 000 must depend on task 100 after clean handoff lifecycle closure")
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -3808,6 +3859,7 @@ def main() -> int:
     validate_autonomous_agent_contract_closure_contracts(tasks, errors)
     validate_agent_implementation_blocker_closure_contracts(tasks, errors)
     validate_handoff_baseline_and_contract_drift_closure_contracts(tasks, status, errors)
+    validate_clean_handoff_lifecycle_closure_contracts(tasks, status, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

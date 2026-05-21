@@ -33,69 +33,17 @@
     "096",
     "097",
     "098",
-    "099"
+    "099",
+    "100"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 099 handoff baseline and contract drift closure; task 000 is next."
+    "notes": "Validator passed after completing task 100 clean handoff lifecycle closure; task 000 is next."
   },
-  "clean_handoff_baseline": {
-    "task": "099",
-    "source_commit": "e0ff01229a530efd994b2c0ec6b024bd27f27be4",
-    "files": [
-      { "path": ".agents/ORCHESTRATOR.md", "sha256": "ea4aa27784f58bddc38ac71c4cbc9f161ae97fdffa60a5f8764b33bd5930a6e6" },
-      { "path": ".agents/README.md", "sha256": "902eb15e4fed2085929205f38b00b2cd8139458f2568f4b5195e3891c4e7e8d5" },
-      { "path": ".agents/roles/contract-editor.md", "sha256": "607c39540501b87d9b754d79e4c39f7e539450109889bc228a301fe57e55b1f5" },
-      { "path": ".agents/workflows/task-done.md", "sha256": "78a38f52b28a32e23e1f70205a3c4231b0c600036d3708176e1955b5ec6f3e21" },
-      { "path": ".agents/workflows/task-plan.md", "sha256": "870b24c5cfc8f1f4ba63a8300152bb2ac080eeb2babf4335d7a0b5796a6a7718" },
-      { "path": "docs/AGENT_CONTEXT_PACKETS.md", "sha256": "7fd5867cf6aa5e7c8675c7b36921b785dec4b66358a21b1225b4b3d9e61c66c8" },
-      { "path": "docs/AGENT_GUIDE.md", "sha256": "8d2f0c08a316986eec41dc01646bcae0e260783a5485ffc8974f4b418ae954cf" },
-      { "path": "docs/AGENT_PIPELINE_ARCHITECTURE.md", "sha256": "364dc3df590253e68d020dbac377df29d60bb0a984aaeebc8d7a0800e0308c9a" },
-      { "path": "docs/AIR_BACKEND.md", "sha256": "d89fde061b016f9e67876c96b436f748a60cc6390f20851b0df692514560e2e2" },
-      { "path": "docs/AI_CONTEXT_SCHEMA.md", "sha256": "235f7da360fd62e3e006b980f084a05215632590aacee54af25619be2bd4c024" },
-      { "path": "docs/AUTONOMOUS_AGENT_PROTOCOL.md", "sha256": "21a28b21d93ac0644536ac12d24ec3464b0788819f43f67ee024170d563d7759" },
-      { "path": "docs/CI_STRATEGY.md", "sha256": "251898b05ed527eb1929ff3962b67a8828b61d8e009ce853fc3d8c53cb820ce7" },
-      { "path": "docs/CLI_SPEC.md", "sha256": "c162cc02a984eac1f8ab4d6f9baa194ceebb3ab5fc017558bdc80dcf7a2a6bbe" },
-      { "path": "docs/DOCTEST_AI_INTEGRATION.md", "sha256": "ba5fcad1d3b2e2bd53fdca1f5eb898b0c66d84829ac8edd83ad500b2450074b3" },
-      { "path": "docs/DOCTEST_MUTATION_STRATEGY.md", "sha256": "8883091270ed82c7c4a8374fafa4ad919f16286f0ec20b56ed5d3639b366d3f1" },
-      { "path": "docs/DOGFOODING.md", "sha256": "4e99f542d78c3435ce094a4a0aa1f3bb8a6bae653f75f95be4c5afb8394645da" },
-      { "path": "docs/GAP_REGISTRIES.md", "sha256": "384fd9af5d2fa5c1a5fe0b348f616ef3fd2d56f30130e055ff27c95e1225f01d" },
-      { "path": "docs/HANDOFF_CONTRACTS.md", "sha256": "73c3f06400f12658e467147c41963d82906b5b9ee265c92f754b0b9c1d4c64d8" },
-      { "path": "docs/INVARIANTS.md", "sha256": "7bda1e8c187d74472b0b22ec76cd73cbce3603fd02692193f3393885c5b5f1b7" },
-      { "path": "docs/MUTATOR_SPEC.md", "sha256": "fb1bd9817d492d48f88d793d125079390a426be82b7d6ba6d0e3ad91482da0d7" },
-      { "path": "docs/ORCHESTRATION_SPEC.md", "sha256": "e1a0d6aba0d9d453b4953ae50884f489fc917034f414b114bdaf5cffdcc8ba94" },
-      { "path": "docs/PIPELINE_ARTIFACTS.md", "sha256": "4c025b22c773d4de0d02057ba60179deeffc960b13544f7bea99b21e9a00fe8c" },
-      { "path": "docs/PROJECT_ACCEPTANCE_CRITERIA.md", "sha256": "dd683f13cd1e97201ecb98b7d7cb704342253f5f62e71b532a8cdd8917d56ed4" },
-      { "path": "docs/REPORT_FORMAT.md", "sha256": "e91c2a078c74bedefb0a5cb3bc3f5b9e491814445d4c0f174a5b4e81b0f90d38" },
-      { "path": "docs/SANDBOX_SECURITY.md", "sha256": "ad0442dbe8d5f4bb1bfe016fe0ac78bb47cbfcb58ca4e5423e94457ab5d3709f" },
-      { "path": "docs/SEQUENTIAL_EXECUTION_POLICY.md", "sha256": "716faa31797c195dc08c2e6d4a70cb3751e50acfdfd03f2b0d7db4b8bbd0ca96" },
-      { "path": "docs/TDD_POLICY.md", "sha256": "d73970d97ca2021b86396801870f93108a3c73f77773e63dd51652768757d3d8" },
-      { "path": "docs/ZIR_BACKEND.md", "sha256": "b00043e71bf7e3a138c28622681435e945e9dbca7fdc13df8a0b1830a1ca0786" },
-      { "path": "schemas/ai.context.v1.schema.json", "sha256": "42045b56d4e9dbcaa8443dcd1cc60f4f8832504b047e31ce0ec01928a80e6fab" },
-      { "path": "scripts/validate_task_system.py", "sha256": "e928bf0b2e133eeec7a51bf87ee90189aa630c093ec184d74c4db33db055eaa6" },
-      { "path": "tasks/000-project-bootstrap.md", "sha256": "d8e5f3682a2082c65d4e1adbe1c2fdb3125a5acbcde705b067ca27639163f164" },
-      { "path": "tasks/001-cli-shell.md", "sha256": "e42a5afadfce85cabb8e4da5440c643f9778fe4c8ba021e1b965f8325916bdc9" },
-      { "path": "tasks/006-report-schema.md", "sha256": "229150b4bb74146d073b2c0e5dc5e9f1d2d4009fc30fbacd84ceb2bf7b5969cd" },
-      { "path": "tasks/039-doctest-mutation-experiments.md", "sha256": "0b51ead7359e2334a911c016fdde5bc03fcba72fc4e7f0315f3747f8cea65dec" },
-      { "path": "tasks/040-agent-pipeline-foundation.md", "sha256": "8a8fb91d600add54cb5037f687b8f20ef4b1921d534043d9b3da4840fe9ddf0e" },
-      { "path": "tasks/041-handoff-artifacts.md", "sha256": "0fda1717b66ad0794afb0119751ab2ada00e5f21ca6a15f982e15f93d8ffa2b0" },
-      { "path": "tasks/053-ai-provider-and-context.md", "sha256": "ba6810165724e690eb3c051404e0b6297ae598252f638b0a4afffbb0e783333e" },
-      { "path": "tasks/056-zir-backend-experiment.md", "sha256": "9df3105829282b0f388b4d9309202ae76020fa1f2ed8ce865c2c66f435ef3516" },
-      { "path": "tasks/057-air-backend-experiment.md", "sha256": "566977622b5eef307a30ac67fe4cad8b570abcc1e8fb9e06cdf51a8bc1f8b6e4" },
-      { "path": "tasks/061-doctest-mutate-stabilization.md", "sha256": "892340c47f133d2b9581a9c23ca26eef88f04518753868506e52ee2c6aaab89b" },
-      { "path": "tasks/063-pipeline-metadata-validator.md", "sha256": "229c7294a3dcebeaa23112e2ad14fb96adf565017fb4148170d6768d0b870b0c" },
-      { "path": "tasks/085-final-dogfood-release-gate.md", "sha256": "29775bd7181f9ffba003a5557446e58019484603b8ea167c425982f889526413" },
-      { "path": "tasks/098-agent-implementation-blocker-closure.md", "sha256": "a4c15866d4cd137bf2a9613186cf4542d6fb7583227e93287173e548071da209" },
-      { "path": "tasks/099-handoff-baseline-and-contract-drift-closure.md", "sha256": "eeb38c100e36c76a1a576443d2e99eccddd179294cc32bba5a8a2bb2aee989d1" },
-      { "path": "tasks/schema/status.v1.schema.json", "sha256": "cec6a2da52aa4b26bb8116d2aa322ed93326f63562c8f55acf06de36afce4f82" },
-      { "path": "tests/coverage-gaps/invariants.v1.json", "sha256": "e441f582a9399cef46e486306599c8448502f6143abb88907e22a0f3e5a08773" },
-      { "path": "tests/coverage-gaps/schemas.v1.json", "sha256": "58cf982982c2d20bc0c379054a069dd182aa5705b498dee860eb03275842eb96" }
-    ],
-    "notes": "Task-control files are structurally validated separately; non-task-control dirty files are pinned by SHA-256 for the next task handoff."
-  },
+  "clean_handoff_baseline": null,
   "completion_evidence": [
     {
       "task": "068",
@@ -910,6 +858,52 @@
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
       ]
+    },
+    {
+      "task": "100",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new task 100 guardrails for committed-handoff baseline lifecycle wording in docs/AGENT_GUIDE.md and .agents/workflows/task-done.md, and for task 041 row-scoped pipeline schema gap-registry reminders.",
+      "implementation_summary": "Inserted and completed task 100 before bootstrap, cleared the stale committed clean_handoff_baseline, made non-null clean handoff baselines invalid when the worktree is clean, updated task 000 to depend on task 100, documented that baselines are only for uncommitted carried-forward files and must be cleared after commit, removed duplicated pre-041 validator wording, and clarified task 041 coverage-gap row handling for pipeline schema rows.",
+      "files_changed": [
+        ".agents/workflows/task-done.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/100-clean-handoff-lifecycle-closure.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for clean-worktree baseline nullability, clean handoff lifecycle docs, task 041 pipeline schema gap-row reminders, protocol duplicate wording, and task 000 dependency on task 100."
+      ],
+      "tests_run": [
+        "Post-activation python3 scripts/validate_task_system.py initially failed on stale hard-coded task 099 guardrails as expected after inserting task 100",
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 100 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 100 was active after fixes",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json",
+        "git diff --check",
+        "Initial complete-state python3 scripts/validate_task_system.py failed on task 100 active-state handoff wording and the guardrail was corrected",
+        "python3 scripts/validate_task_system.py after completing task 100"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 100 was active after clean-handoff lifecycle guardrails and contract fixes."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after committed-handoff baseline lifecycle rules are validator-backed. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     }
   ],
   "history": [
@@ -1312,6 +1306,16 @@
       "event": "handoff_baseline_and_contract_drift_closure_completed",
       "task": "099",
       "notes": "Completed task 099 before project bootstrap. Validator guardrails and contracts now enforce clean_handoff_baseline metadata, baseline-aware dirty-file scope checks, post-041 startup ordering, report invalid evidence, CLI version boundaries, semantic mutator filtering, experimental backend diagnostics, and mutation-aware doctest runner evidence."
+    },
+    {
+      "event": "clean_handoff_lifecycle_closure_started",
+      "task": "100",
+      "notes": "Inserted and activated task 100 at execution order 000.0.30 before project bootstrap to clear the stale committed clean-handoff baseline, enforce clean-worktree baseline nullability, and close remaining agent-facing lifecycle drift."
+    },
+    {
+      "event": "clean_handoff_lifecycle_closure_completed",
+      "task": "100",
+      "notes": "Completed task 100 before project bootstrap. Validator guardrails and contracts now enforce committed clean worktrees with clean_handoff_baseline null, baseline lifecycle wording after commits, task 041 row-scoped pipeline schema gap-row reminders, task 000 dependency on task 100, and single pre-041 validator startup wording."
     }
   ]
 }

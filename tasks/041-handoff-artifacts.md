@@ -49,6 +49,7 @@ Define and validate the persistent handoff artifact structure used between pipel
 - Add a failing schema or fixture validation case before adding or changing the handoff schema.
 - Add baseline fixture coverage under `test/fixtures/pipeline/handoff/**`, `test/fixtures/pipeline/active_lock/**`, `test/fixtures/pipeline/context/**`, `test/fixtures/pipeline/stale_context/**`, `test/fixtures/pipeline/verification/**`, and `test/fixtures/pipeline/escalation/**` for every baseline pipeline schema this task creates.
 - Add a standard-library-only fixture sanity check before relying on project-owned schema validation.
+- When this task covers baseline pipeline schema rows, update only the matching rows under `tests/coverage-gaps/*.v1.json` through the row-scoped gap registry exception.
 - If project-owned schema validation tooling does not exist yet, use a deterministic external schema or fixture validation command and record the exact command in completion evidence.
 - Run `python3 scripts/validate_task_system.py`.
 - If schema validation tooling exists, validate a passing and failing handoff artifact fixture.
@@ -74,6 +75,7 @@ No mutation run is required unless schema validation code is changed. If code is
 - Document that tests_added is cumulative task-level evidence; role-local test changes are documented in the role-specific content or command evidence.
 - Machine-readable JSON handoffs are documented as the canonical artifact with required and optional fields.
 - Baseline context, stale-context, verification, and escalation schemas exist with the minimal fields already documented by current contracts; later tasks refine them without weakening the baseline.
+- Matching pipeline schema rows in the gap registries are updated when coverage changes; unrelated registry rows remain untouched.
 - Artifact names are deterministic and task-scoped.
 - `python3 scripts/validate_task_system.py` passes.
 

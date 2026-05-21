@@ -56,6 +56,8 @@ The clean handoff boundary is mandatory before a different task is activated. Be
 
 When a clean baseline is recorded without a commit, `tasks/status.json` must set `clean_handoff_baseline` to the completed task id, source commit, and a per-file SHA-256 entry for every non-task-control dirty file carried forward. Task-control files are validated structurally by the task-system validator. Active and inactive scope validation may ignore only unchanged files explicitly covered by the current clean handoff baseline; any unbaselined file, deleted baselined file, or baselined file whose hash changes is treated as current-task drift.
 
+A non-null clean handoff baseline is only valid for uncommitted prior-task files carried forward from the recorded `source_commit`. After completed-task changes are committed, `clean_handoff_baseline` must be cleared to `null` before activating another task; a committed clean worktree must not retain stale baseline metadata.
+
 ## Agent Pipeline
 
 Codex role profiles and workflow runbooks live under `.agents/`. The `docs/` files define stable project contracts; `.agents/` defines how Codex agents operate against those contracts.
