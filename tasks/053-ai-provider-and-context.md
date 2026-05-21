@@ -37,7 +37,7 @@ Implement deterministic AI provider plumbing, privacy redaction, and AI context 
 - Add a failing schema validation or snapshot test for AI context.
 - Add a failing test that rejects an AI context missing required nested mutant, result, source, test, or operator fields.
 - Add a failing test that result context uses the structured mutant command-results array from the report schema, rejects legacy single-`command` or `test_command`-only payloads, rejects empty `argv[0]`, requires deterministic `skip_reason` values for skipped command entries and result-level `skip_reason` for skipped mutant results, and allows only `environment_policy = "minimal"` in v1.
-- Add a failing schema validation test proving stdout_excerpt and stderr_excerpt are capped at 4096 characters.
+- Add a failing output-bound test proving stdout_excerpt and stderr_excerpt are capped at 4096 UTF-8 bytes on a safe character boundary before schema validation.
 - Add a failing test that rejects `preview` as a backend stability while accepting it as an operator stability when explicitly represented.
 - Add a failing test for redaction failure closing the AI flow.
 - Add a failing config normalization test proving omitted `ai.redact_patterns` expands to `["(?i)api[_-]?key", "(?i)token"]`.
@@ -51,7 +51,7 @@ Implement deterministic AI provider plumbing, privacy redaction, and AI context 
 - AI context validates against the schema.
 - The schema enforces the documented nested object shapes instead of accepting generic objects.
 - AI context preserves command evidence as original command, parsed argv, cwd, environment policy, shell flag, mutant phase, command status, exit evidence, and skip reason.
-- AI context stdout_excerpt and stderr_excerpt are capped at 4096 characters.
+- AI context stdout_excerpt and stderr_excerpt are capped at 4096 UTF-8 bytes on a safe character boundary; schema `maxLength` remains a secondary structural guard.
 - AI context uses `backend_stability` for backend maturity and `operator_stability` for mutator maturity.
 - Stub provider is deterministic.
 - Remote providers remain disabled unless explicitly allowed. Persisted config that selects `provider = "remote"` with `remote_allowed = false` fails config validation; CLI overrides that request remote while config disallows it are owned by task 054 and fail with `ZNTL_AI_PROVIDER_NOT_ALLOWED`.

@@ -118,6 +118,14 @@ BLOCKED_EDIT_STATES = {"no_edits", "task_control_only", "reverted", "preserved_b
 LAST_VALIDATION_FIELDS = {"command", "status", "notes"}
 LAST_VALIDATION_STATUSES = {"not_run", "passed", "failed"}
 COMPLETION_SCOPE_CUTOVER_ORDER = "000.0.24"
+BOOTSTRAP_START_TASK_ID = "000"
+CHRONOLOGY_PROOF_TASK_ID = "063"
+PRE_063_CHRONOLOGY_LABELS = [
+    "failing_command:",
+    "failing_output_excerpt:",
+    "implementation_started_after_failure:",
+    "passing_command:",
+]
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
 GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
@@ -572,6 +580,8 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             if isinstance(task, dict) and order_key(task_order(task)) >= order_key(COMPLETION_SCOPE_CUTOVER_ORDER):
                 all_tasks = list(task_by_id.values())
                 validate_completion_scope_evidence(entry, task, index, all_tasks, errors)
+            if isinstance(task, dict) and requires_pre063_chronology_labels(task, task_by_id):
+                validate_pre063_chronology_labels(entry, task_id, index, errors)
 
     completed_ids = [task_id for task_id in completed if isinstance(task_id, str)]
     for task_id in completed_ids:
@@ -621,6 +631,54 @@ def validate_completion_scope_evidence(entry: dict[str, object], task: dict[str,
                 require(isinstance(gap_rows, dict) and isinstance(gap_rows.get(path), list) and bool(gap_rows.get(path)), errors, f"completion_evidence entry {index} gap registry file {path} must list changed row ids")
             continue
         require(path_matches_any(path, allowed_files), errors, f"completion_evidence entry {index} file {path} is outside task {task_id} allowed_files")
+
+
+def requires_pre063_chronology_labels(task: dict[str, object], task_by_id: dict[str, dict[str, object]]) -> bool:
+    """Require structured chronology labels for behavior-changing tasks before artifact timestamp proof exists."""
+    task_000 = task_by_id.get(BOOTSTRAP_START_TASK_ID)
+    task_063 = task_by_id.get(CHRONOLOGY_PROOF_TASK_ID)
+    if not isinstance(task_000, dict) or not isinstance(task_063, dict):
+        return False
+
+    current_order = order_key(task_order(task))
+    if current_order < order_key(task_order(task_000)) or current_order >= order_key(task_order(task_063)):
+        return False
+
+    allowed = task.get("allowed_files")
+    if not isinstance(allowed, list):
+        return False
+
+    behavior_prefixes = ("src/", "test/", "scripts/", "schemas/")
+    behavior_files = {"build.zig", "build.zig.zon"}
+    for pattern in allowed:
+        if not isinstance(pattern, str):
+            continue
+        if pattern in behavior_files or pattern.startswith(behavior_prefixes):
+            return True
+    return False
+
+
+def validate_pre063_chronology_labels(entry: dict[str, object], task_id: str, index: int, errors: list[str]) -> None:
+    text_parts: list[str] = []
+    for field in ["failing_evidence", "implementation_summary", "dogfooding_implication"]:
+        value = entry.get(field)
+        if isinstance(value, str):
+            text_parts.append(value)
+    for field in ["tests_added", "tests_run", "follow_up_tasks"]:
+        value = entry.get(field)
+        if isinstance(value, list):
+            text_parts.extend(item for item in value if isinstance(item, str))
+    validator = entry.get("validator_result")
+    if isinstance(validator, dict):
+        text_parts.extend(item for item in validator.values() if isinstance(item, str))
+
+    combined = "\n".join(text_parts)
+    for label in PRE_063_CHRONOLOGY_LABELS:
+        require(
+            label in combined,
+            errors,
+            f"completion_evidence entry {index} for pre-063 behavior-changing task {task_id} must include structured chronology label {label!r}",
+        )
 
 
 def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
@@ -2515,10 +2573,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `102`",
+            "pre-bootstrap hardening tasks `071` through `103`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `102` and task `101` are complete",
+            "after task `103` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3241,7 +3299,7 @@ def validate_audit_finding_contract_closure_contracts(tasks: list[dict[str, obje
             '"failure_kind": "none"',
         ],
         "docs/AI_CONTEXT_SCHEMA.md": [
-            "`stdout_excerpt` and `stderr_excerpt` are capped at 4096 characters",
+            "`stdout_excerpt` and `stderr_excerpt` are capped at 4096 UTF-8 bytes",
         ],
         "docs/REPORT_FORMAT.md": [
             'semantic validator must reject `baseline.status = "not_run"` with non-empty `mutants`',
@@ -3266,7 +3324,7 @@ def validate_audit_finding_contract_closure_contracts(tasks: list[dict[str, obje
             "Use both specialized roles only when both triggers apply",
         ],
         "tasks/053-ai-provider-and-context.md": [
-            "stdout_excerpt and stderr_excerpt are capped at 4096 characters",
+            "stdout_excerpt and stderr_excerpt are capped at 4096 UTF-8 bytes",
         ],
         "tasks/054-ai-advisory-commands.md": [
             "prompt examples include command `failure_kind`",
@@ -3492,7 +3550,7 @@ def validate_agent_implementation_blocker_closure_contracts(tasks: list[dict[str
             "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         ".agents/workflows/task-plan.md": [
-            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+            "After task `041`, create `artifacts/pipeline/<task-id>/locks/active-task-lock.json` and the first context packet, then run `python3 scripts/validate_task_system.py`.",
         ],
         "docs/TDD_POLICY.md": [
             "Mechanical chronology proof for I-019 starts at task `063` when pipeline artifact validation can check role timestamps.",
@@ -3641,7 +3699,7 @@ def validate_handoff_baseline_and_contract_drift_closure_contracts(
         ],
         ".agents/workflows/task-plan.md": [
             "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active.",
-            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+            "After task `041`, create `artifacts/pipeline/<task-id>/locks/active-task-lock.json` and the first context packet, then run `python3 scripts/validate_task_system.py`.",
         ],
         ".agents/workflows/task-done.md": [
             "clean_handoff_baseline",
@@ -3750,7 +3808,7 @@ def validate_clean_handoff_lifecycle_closure_contracts(
             "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `102`",
+            "pre-bootstrap hardening tasks `071` through `103`",
             "Task `100` completed at execution order `000.0.30` before project bootstrap.",
         ],
         "tasks/041-handoff-artifacts.md": [
@@ -3821,10 +3879,10 @@ def validate_version_command_and_evidence_closure_contracts(tasks: list[dict[str
             "`zentinel check` exits `2` for missing or unsupported Zig",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `102` and task `101` are complete",
+            "after task `103` is complete",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `102`",
+            "pre-bootstrap hardening tasks `071` through `103`",
         ],
     }
 
@@ -3866,21 +3924,22 @@ def validate_agent_workflow_cleanup_contracts(
     if task_plan.is_file():
         text = task_plan.read_text(encoding="utf-8")
         pre_041_phrase = "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active."
-        post_041_phrase = "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts."
+        post_041_phrase = "After task `041`, create `artifacts/pipeline/<task-id>/locks/active-task-lock.json` and the first context packet, then run `python3 scripts/validate_task_system.py`."
         require(text.count(pre_041_phrase) == 1, errors, ".agents/workflows/task-plan.md must contain one canonical pre-041 active-validator sentence")
         require("Run `python3 scripts/validate_task_system.py` immediately after activation." not in text, errors, ".agents/workflows/task-plan.md must not contain duplicate generic activation-validator wording")
         require(text.count(post_041_phrase) == 1, errors, ".agents/workflows/task-plan.md must contain one canonical post-041 activation-order sentence")
+        require("After task `041`, mark the task active, create the active-lock artifact, create the first context packet" not in text, errors, ".agents/workflows/task-plan.md must not repeat task activation in post-041 branch prose")
         require("After task `041`, activate the task, write `artifacts/pipeline/<task-id>/locks/active-task-lock.json`, write the first context packet" not in text, errors, ".agents/workflows/task-plan.md must not contain duplicate post-041 activation-order wording")
     else:
         fail(errors, "missing task 102 contract file .agents/workflows/task-plan.md")
 
     required_phrases = {
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `102`",
+            "pre-bootstrap hardening tasks `071` through `103`",
             "Task `102`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `102` and task `101` are complete",
+            "after task `103` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3900,7 +3959,7 @@ def validate_agent_workflow_cleanup_contracts(
     task000 = task_by_id.get("000")
     if isinstance(task000, dict):
         deps = task000.get("dependencies")
-        require(isinstance(deps, list) and "101" in deps and "102" in deps, errors, "task 000 must depend on task 101 and task 102")
+        require(isinstance(deps, list) and "101" in deps and "102" in deps and "103" in deps, errors, "task 000 must depend on task 101, task 102, and task 103")
 
     if not isinstance(status, dict):
         return
@@ -3921,6 +3980,82 @@ def validate_agent_workflow_cleanup_contracts(
         notes = validator_result.get("notes") if isinstance(validator_result, dict) else None
         require(isinstance(notes, str) and "active-state validation passed before completion" in notes, errors, "task 101 validator_result.notes must mention active-state validation before completion")
         require(isinstance(notes, str) and "complete-state validation passed after completion" in notes, errors, "task 101 validator_result.notes must mention complete-state validation after completion")
+
+
+def validate_contract_ambiguity_cleanup_contracts(
+    tasks: list[dict[str, object]],
+    status: object,
+    errors: list[str],
+) -> None:
+    """Guard task 103's contract-ambiguity cleanup."""
+
+    required_phrases = {
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `103`",
+            "Task `103`",
+        ],
+        "tasks/000-project-bootstrap.md": [
+            "after task `103` is complete",
+        ],
+        "tasks/002-config-parser.md": [
+            "Task `002` validates that `test.commands` is present, non-empty, and contains non-empty string values only.",
+            "It must not implement shell/argv command syntax parsing.",
+            "Command syntax validation and `src/command.zig` are owned by task `005`.",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "Before task `005`, config parsing validates that `test.commands` is a non-empty list of non-empty strings.",
+            "Full command grammar validation begins when task `005` introduces `src/command.zig`.",
+        ],
+        "docs/AI_CONTEXT_SCHEMA.md": [
+            "4096 UTF-8 bytes",
+            "safe character boundary",
+        ],
+        "docs/SCHEMA_REGISTRY.md": [
+            "JSON Schema `maxLength: 4096` is a secondary structural guard",
+            "canonical output excerpt bound is 4096 UTF-8 bytes",
+        ],
+        ".agents/workflows/task-plan.md": [
+            "After task `041`, create `artifacts/pipeline/<task-id>/locks/active-task-lock.json` and the first context packet, then run `python3 scripts/validate_task_system.py`.",
+        ],
+    }
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 103 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 103 phrase {phrase!r}")
+
+    task_plan = ROOT / ".agents" / "workflows" / "task-plan.md"
+    if task_plan.is_file():
+        text = task_plan.read_text(encoding="utf-8")
+        require("After task `041`, mark the task active, create the active-lock artifact, create the first context packet" not in text, errors, ".agents/workflows/task-plan.md must not repeat task activation in post-041 branch prose")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task103 = task_by_id.get("103")
+    if isinstance(task103, dict):
+        deps = task103.get("dependencies")
+        require(isinstance(deps, list) and "102" in deps, errors, "task 103 must depend on task 102")
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "103" in deps, errors, "task 000 must depend on task 103")
+
+    if isinstance(status, dict) and isinstance(task103, dict) and task103.get("state") == "complete":
+        completion_evidence = status.get("completion_evidence")
+        task103_evidence = None
+        if isinstance(completion_evidence, list):
+            task103_evidence = next(
+                (
+                    entry
+                    for entry in completion_evidence
+                    if isinstance(entry, dict) and entry.get("task") == "103"
+                ),
+                None,
+            )
+        require(isinstance(task103_evidence, dict), errors, "task 103 completion_evidence must exist")
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -4007,6 +4142,7 @@ def main() -> int:
     validate_clean_handoff_lifecycle_closure_contracts(tasks, status, errors)
     validate_version_command_and_evidence_closure_contracts(tasks, errors)
     validate_agent_workflow_cleanup_contracts(tasks, status, errors)
+    validate_contract_ambiguity_cleanup_contracts(tasks, status, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

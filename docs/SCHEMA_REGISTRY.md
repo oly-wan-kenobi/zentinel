@@ -33,6 +33,7 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 - Breaking changes require a new schema version.
 - Additive optional fields may remain in the same version if they do not affect deterministic semantics.
 - Deterministic result fields may not be moved under advisory or AI-owned fields.
+- JSON Schema `maxLength: 4096` is a secondary structural guard for command output excerpts. The canonical output excerpt bound is 4096 UTF-8 bytes before JSON emission; implementations must truncate on a safe character boundary before schema validation.
 
 ## Validation
 

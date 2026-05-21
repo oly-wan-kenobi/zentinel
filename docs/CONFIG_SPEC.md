@@ -168,6 +168,8 @@ Expansion must be deterministic and tested.
 
 Command strings are parsed by zentinel into argv without invoking a shell. The shared parser belongs to the deterministic core module `src/command.zig`; `zentinel check` validates with it, and the runner executes exactly the argv shape it returns.
 
+Before task `005`, config parsing validates that `test.commands` is a non-empty list of non-empty strings. Full command grammar validation begins when task `005` introduces `src/command.zig`. Task `002` must preserve command strings after shape validation rather than implementing a second parser.
+
 Before task `051`, `impact_graph` is rejected until task `051` completes; config validation must fail `test.selection = "impact_graph"` with `ZNTL_CONFIG_INVALID_VALUE` rather than silently downgrading to `same_file_then_package`.
 
 The shared command parser accepts this grammar:

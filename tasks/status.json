@@ -36,14 +36,15 @@
     "099",
     "100",
     "101",
-    "102"
+    "102",
+    "103"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed while task 102 was active after agent workflow cleanup guardrails were satisfied; complete-state validation passed after task 102 completion."
+    "notes": "Validator passed while task 103 was active after contract ambiguity cleanup guardrails were satisfied; complete-state validation passed after task 103 completion."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -996,6 +997,53 @@
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
       ]
+    },
+    {
+      "task": "103",
+      "failing_evidence": "failing_command: python3 scripts/validate_task_system.py. failing_output_excerpt: after adding task 103 guardrails, the validator failed on status wording through task 103, task-plan post-041 activation wording, task 002 command-parser ownership phrases, docs/CONFIG_SPEC task 005 parser boundary phrases, docs/AI_CONTEXT_SCHEMA UTF-8 byte bound wording, and docs/SCHEMA_REGISTRY schema maxLength caveat wording.",
+      "implementation_summary": "implementation_started_after_failure: true. Inserted and completed task 103 before bootstrap, clarified task 002 versus task 005 command-parser ownership, canonicalized output excerpt bounds as 4096 UTF-8 bytes with schema maxLength as a secondary guard, updated task-plan activation branching, updated future AI-context task requirements, added pre-063 structured chronology evidence validation for behavior-changing tasks after bootstrap starts, and made task 000 depend on task 103.",
+      "files_changed": [
+        ".agents/workflows/task-plan.md",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/002-config-parser.md",
+        "tasks/053-ai-provider-and-context.md",
+        "tasks/103-contract-ambiguity-cleanup.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for task 002/task 005 command-parser ownership, UTF-8 byte output excerpt bounds, schema maxLength caveat wording, task-plan activation branching, task 103/000 dependency ordering, and pre-063 structured chronology labels for future behavior-changing tasks."
+      ],
+      "tests_run": [
+        "Post-activation python3 scripts/validate_task_system.py failed on task 000 missing dependency 103 as expected after inserting task 103",
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 103 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 103 was active after fixes",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json",
+        "git diff --check",
+        "passing_command: python3 scripts/validate_task_system.py after completing task 103"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task 103 active-state validation passed before completion after contract ambiguity cleanup guardrails were satisfied; complete-state validation passed after completion."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after command-parser ownership, output-bound semantics, task-plan activation, and pre-063 evidence guardrails are validator-backed. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     }
   ],
   "history": [
@@ -1428,6 +1476,16 @@
       "event": "agent_workflow_cleanup_completed",
       "task": "102",
       "notes": "Completed task 102 before project bootstrap. Validator guardrails and contracts now enforce deduplicated task-plan activation wording, explicit task 101 active-state and complete-state validation evidence, task 102/000 dependency ordering, and pre-bootstrap hardening status wording through task 102."
+    },
+    {
+      "event": "contract_ambiguity_cleanup_started",
+      "task": "103",
+      "notes": "Inserted and activated task 103 at execution order 000.0.33 before project bootstrap to clarify command-parser ownership, output excerpt bounds, task-plan activation wording, and pre-063 chronology evidence guardrails."
+    },
+    {
+      "event": "contract_ambiguity_cleanup_completed",
+      "task": "103",
+      "notes": "Completed task 103 before project bootstrap. Validator guardrails and contracts now enforce task 002/task 005 command-parser ownership, canonical UTF-8 byte output excerpt bounds, deduplicated task-plan activation branching, task 103/000 dependency ordering, and pre-063 structured chronology evidence labels for future behavior-changing tasks."
     }
   ]
 }

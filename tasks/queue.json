@@ -1414,6 +1414,40 @@
       ]
     },
     {
+      "id": "103",
+      "order": "000.0.33",
+      "title": "Contract Ambiguity Cleanup",
+      "file": "tasks/103-contract-ambiguity-cleanup.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "102"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/002-config-parser.md",
+        "tasks/053-ai-provider-and-context.md",
+        "tasks/103-contract-ambiguity-cleanup.md",
+        ".agents/workflows/task-plan.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1422,7 +1456,8 @@
       "state": "queued",
       "dependencies": [
         "101",
-        "102"
+        "102",
+        "103"
       ],
       "allowed_files": [
         "build.zig",

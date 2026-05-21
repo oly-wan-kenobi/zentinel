@@ -13,6 +13,7 @@ Implement parsing and validation for `zentinel.toml` according to `docs/CONFIG_S
 - Apply documented defaults.
 - Reject unknown keys and invalid values.
 - Normalize project-relative paths.
+- Task `002` validates that `test.commands` is present, non-empty, and contains non-empty string values only. It must not implement shell/argv command syntax parsing. Command syntax validation and `src/command.zig` are owned by task `005`.
 - Parse `[run]` settings including `run.jobs`.
 - Keep experimental backends disabled unless explicitly opted in.
 - Implement config-aware `zentinel init --test-command <command>` and `zentinel init --backend <ast>` output after parser validation exists.
