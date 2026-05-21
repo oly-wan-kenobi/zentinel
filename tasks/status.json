@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "094",
+  "next_task": "094",
   "completed_tasks": [
     "068",
     "069",
@@ -34,7 +34,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 093 agent enforcement closure; task 000 is the next dependency-ready queued task."
+      "notes": "Validator passed before activating task 094 agent readiness validator closure; task 094 is the current active pre-bootstrap hardening task."
   },
   "completion_evidence": [
     {

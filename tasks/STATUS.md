@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/094-agent-readiness-validator-closure.md` |
+| Next task | `tasks/094-agent-readiness-validator-closure.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -83,7 +83,7 @@ No known blockers.
 
 ## Handoff Notes
 
-The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change. The validator checks task-system consistency, not product semantic correctness; product behavior still requires the active task's failing tests and verification gates.
+The current active task is `tasks/094-agent-readiness-validator-closure.md`, inserted before project bootstrap to close validator and contract gaps found by the four-lane read-only analysis. After it completes, the next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change. The validator checks task-system consistency, not product semantic correctness; product behavior still requires the active task's failing tests and verification gates.
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
