@@ -17,12 +17,12 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 | Doctest AI explain response v1 | Reuses `schemas/ai.explain.response.v1.schema.json`; doctest classifications are included in that shared enum | Doctest AI |
 | Doctest AI suggest response v1 | Future `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | Future `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |
-| Pipeline handoff v1 | Future `schemas/pipeline.handoff.v1.schema.json` | Agent pipeline |
-| Pipeline active lock v1 | Future `schemas/pipeline.active_lock.v1.schema.json` | Agent pipeline |
-| Pipeline context packet v1 | Future `schemas/pipeline.context.v1.schema.json` | Agent pipeline |
-| Pipeline stale context v1 | Future `schemas/pipeline.stale_context.v1.schema.json` | Agent pipeline |
-| Pipeline verification v1 | Future `schemas/pipeline.verification.v1.schema.json` | Agent pipeline |
-| Pipeline escalation v1 | Future `schemas/pipeline.escalation.v1.schema.json` | Agent pipeline |
+| Pipeline handoff v1 | Future `schemas/pipeline.handoff.v1.schema.json` | Agent pipeline; task `041` creates the baseline |
+| Pipeline active lock v1 | Future `schemas/pipeline.active_lock.v1.schema.json` | Agent pipeline; task `041` creates the baseline |
+| Pipeline context packet v1 | Future `schemas/pipeline.context.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `042` refines context semantics |
+| Pipeline stale context v1 | Future `schemas/pipeline.stale_context.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `042` refines stale-context semantics |
+| Pipeline verification v1 | Future `schemas/pipeline.verification.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `046` refines verification semantics |
+| Pipeline escalation v1 | Future `schemas/pipeline.escalation.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `049` refines escalation semantics |
 | Task queue v1 | `tasks/schema/queue.v1.schema.json` | Task system |
 | Task status v1 | `tasks/schema/status.v1.schema.json` | Task system |
 
@@ -44,7 +44,7 @@ python3 scripts/validate_task_system.py
 
 Future implementation tasks should add schema validation for reports and AI contracts in Zig tests. Until then, schema files serve as exact implementation targets.
 
-Task `tasks/063-pipeline-metadata-validator.md` creates baseline pipeline schema files for post-041 context, stale-context, verification, and escalation artifacts so the validator has concrete contracts before those artifact types are emitted; it consumes the handoff and active-lock schemas created by task `041`. Those baseline files define the minimal subset required for deterministic validation; tasks `042`, `046`, and `049` refine role-specific fields and fixtures for context packets, verification records, and escalation records without weakening the baseline validation guarantees.
+Task `tasks/041-handoff-artifacts.md` creates the baseline pipeline handoff, active-lock, context, stale-context, verification, and escalation schema files. Task `tasks/063-pipeline-metadata-validator.md` consumes those baseline files when implementing deterministic validation. Those baseline files define the minimal subset required for deterministic validation; tasks `042`, `046`, and `049` refine role-specific fields and fixtures for context packets, verification records, and escalation records without weakening the baseline validation guarantees.
 
 Pipeline metadata validation is intentionally standard-library-only. Task `tasks/063-pipeline-metadata-validator.md` implements a project-owned schema subset validator for pipeline artifacts: schema version checks, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership. Full Draft 2020-12 validation, including arbitrary conditional and reference traversal, requires an explicit future dependency decision.
 

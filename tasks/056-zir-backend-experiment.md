@@ -19,8 +19,11 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 - `src/backends/**`
 - `src/mutant.zig`
 - `src/config.zig`
+- `src/cli.zig`
 - `docs/ZIR_BACKEND.md`
+- `docs/CLI_SPEC.md`
 - `test/zir_backend_test.zig`
+- `test/cli_backend_experiment_test.zig`
 - `test/fixtures/zir_backend/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -34,6 +37,7 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 ## Required tests
 
 - Add a failing config test proving ZIR requires explicit opt-in.
+- Add a failing CLI test proving `list-mutants --backend zir` is rejected before task `056` lands and accepted only by this task's explicit experimental opt-in.
 - Add a failing ZIR source-mapping fixture test.
 - Add a failing parity test for an AST-compatible operator where practical.
 - Run `zig build test`.
@@ -42,6 +46,7 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 ## Acceptance criteria
 
 - AST remains the default backend.
+- `list-mutants --backend zir` is implemented as an experimental opt-in and does not affect stable AST defaults.
 - ZIR reports identify `backend` and `backend_stability` using report v1 fields only.
 - Unsupported ZIR cases produce out-of-report diagnostics, not schema-invalid report fields or silent misreports.
 - `python3 scripts/validate_task_system.py` passes.

@@ -166,7 +166,8 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
       "stdout_excerpt": "",
       "stderr_excerpt": "",
       "failure_summary": ""
-    }
+    },
+    "skip_reason": null
   },
   "test_selection": {
     "strategy": "same_file",
@@ -180,6 +181,7 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
     "commands": [
       "zig test src/range.zig"
     ],
+    "preflight_commands": [],
     "fallback_used": false
   },
   "advisory": {
@@ -203,7 +205,7 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
 | `skipped` | Mutant was not executed for a deterministic documented reason. |
 | `invalid` | zentinel generated an invalid patch or violated a backend contract. |
 
-Each mutant result must name the deterministic classifier source in existing evidence fields. Runner-owned statuses use structured command evidence; `invalid` uses patch, sandbox, or backend contract evidence; `skipped` uses a deterministic skip reason. Report v1 must not add an open classifier field or use AI text to classify correctness.
+Each mutant result must name the deterministic classifier source in existing evidence fields. Runner-owned statuses use structured command evidence; `invalid` uses patch, sandbox, or backend contract evidence; `skipped` uses a deterministic skip reason. `result.skip_reason` is required and non-null when `result.status = "skipped"`; all other result statuses set `result.skip_reason = null`. Report v1 must not add an open classifier field or use AI text to classify correctness.
 
 Baseline failure is a run-level state (`run.status = baseline_failed`), not a mutant result status.
 
@@ -232,6 +234,14 @@ Each command result records `phase`, `status`, `exit_code`, `timed_out`, `failur
 A baseline compiler crash uses `status = "compiler_crash"`, `failure_kind = "compiler_crash"`, and `run.status = "baseline_failed"`. zentinel treats abnormal Zig termination during baseline as deterministic baseline failure evidence, not as an internal zentinel error.
 
 Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and stderr excerpts are each limited to 4096 bytes after normalization.
+
+## Selection Preflight Evidence
+
+`test_selection.preflight_commands` is the canonical report location for generated selected-command preflight evidence. It is required and may be an empty array when every selected command came from the configured baseline command set.
+
+Generated same-file commands that were not part of `baseline.commands` must appear in `test_selection.preflight_commands` before they can classify a mutant. Each preflight entry uses the shared structured command object with `phase = "selection_preflight"` and records deterministic status, exit code, timeout flag, failure kind, duration, bounded evidence, and `skip_reason = null`. A generated selected command may classify a mutant only when its corresponding preflight entry has `status = "passed"` and `failure_kind = "none"`.
+
+If generated-command preflight fails, times out, or crashes the compiler, the mutant result must be `skipped`, `result.skip_reason` must name the deterministic preflight failure reason, and the failed preflight evidence remains in `test_selection.preflight_commands`.
 
 ## Stability Fields
 

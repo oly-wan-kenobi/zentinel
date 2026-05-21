@@ -35,6 +35,8 @@ zig test src/range.zig
 
 Generated same-file selected commands are authorized generated selected test commands, not arbitrary AI or shell output. A generated selected command must pass an unmutated preflight before it can classify a mutant. If the command was not part of the baseline command set, zentinel first runs it against the unmodified project, records that preflight evidence, and uses the command for mutant classification only if the preflight passes.
 
+Report writers must copy generated-command preflight evidence into `test_selection.preflight_commands`. Configured baseline commands may leave that array empty; generated commands must have a matching `phase = "selection_preflight"` preflight entry before their mutant command evidence can affect `result.status`.
+
 Same-file test bodies are not mutation targets by default.
 
 ## Build Tests
@@ -78,6 +80,29 @@ Each mutant report must include:
     ],
     "commands": [
       "zig test src/range.zig"
+    ],
+    "preflight_commands": [
+      {
+        "command": {
+          "original": "zig test src/range.zig",
+          "argv": ["zig", "test", "src/range.zig"],
+          "cwd": "<project>",
+          "environment_policy": "minimal",
+          "shell": false
+        },
+        "phase": "selection_preflight",
+        "status": "passed",
+        "exit_code": 0,
+        "timed_out": false,
+        "failure_kind": "none",
+        "duration_ms": 0,
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "",
+          "failure_summary": ""
+        },
+        "skip_reason": null
+      }
     ],
     "fallback_used": false
   }

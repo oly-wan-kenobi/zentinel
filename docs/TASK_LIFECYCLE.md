@@ -88,4 +88,25 @@ Blocked task record must include:
 
 Normal missing prerequisites should be converted into tasks without asking a human.
 
-When a prerequisite task is inserted, the blocked task stays `blocked` until that prerequisite is complete. After the prerequisite task completes, the blocked task returns to `queued`, clears the blocked-task detail entry, and is selected again only through the normal dependency-ready queue order.
+When a prerequisite task is inserted, the blocked task stays `blocked` until that prerequisite is complete. The inserted prerequisite task must depend on the immediately previous non-superseded execution-order task, and the originally blocked task must depend on the inserted prerequisite. After the prerequisite task completes, the blocked task returns to `queued`, clears the blocked-task detail entry, and is selected again only through the normal dependency-ready queue order.
+
+Machine-readable blocked records use this exact shape in `tasks/status.json`:
+
+```json
+{
+  "blocked_task_details": [
+    {
+      "task": "043",
+      "reason": "Mutation gate cannot run until prerequisite report schema work exists.",
+      "blocker_type": "missing_prerequisite",
+      "evidence": "Required schema field is not owned by any earlier task.",
+      "attempted_recovery": "Inserted prerequisite task with the next unused task ID.",
+      "prerequisite_task": "098",
+      "required_prerequisite_task": "098",
+      "requires_user_input": false,
+      "edits_state": "task_control_only",
+      "notes": "Return blocked task to queued after prerequisite completes."
+    }
+  ]
+}
+```

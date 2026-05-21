@@ -1128,6 +1128,9 @@
         "tasks/035-cli-doctests.md",
         "tasks/040-agent-pipeline-foundation.md",
         "tasks/041-handoff-artifacts.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/046-verification-pipeline.md",
+        "tasks/049-pipeline-escalation.md",
         "tasks/056-zir-backend-experiment.md",
         "tasks/057-air-backend-experiment.md",
         "tasks/063-pipeline-metadata-validator.md",
@@ -1140,6 +1143,7 @@
         "docs/CLI_SPEC.md",
         "docs/CONFIG_SPEC.md",
         "docs/DOCTEST_SPEC.md",
+        "docs/INVARIANTS.md",
         "docs/ORCHESTRATION_SPEC.md",
         "docs/PIPELINE_ARTIFACTS.md",
         "docs/PIPELINE_ESCALATION_POLICY.md",
@@ -1158,7 +1162,8 @@
         ".agents/workflows/task-done.md",
         ".agents/workflows/task-plan.md",
         "schemas/report.v1.schema.json",
-        "scripts/validate_task_system.py"
+        "scripts/validate_task_system.py",
+        "tests/coverage-gaps/schemas.v1.json"
       ],
       "forbidden_files": [
         "src/**",
@@ -2349,6 +2354,10 @@
         "docs/AGENT_GUIDE.md",
         "schemas/pipeline.handoff.v1.schema.json",
         "schemas/pipeline.active_lock.v1.schema.json",
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "schemas/pipeline.verification.v1.schema.json",
+        "schemas/pipeline.escalation.v1.schema.json",
         "test/fixtures/pipeline/handoff/**",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -2377,10 +2386,6 @@
         "docs/HANDOFF_CONTRACTS.md",
         "docs/AGENT_CONTEXT_PACKETS.md",
         "schemas/pipeline.handoff.v1.schema.json",
-        "schemas/pipeline.context.v1.schema.json",
-        "schemas/pipeline.stale_context.v1.schema.json",
-        "schemas/pipeline.verification.v1.schema.json",
-        "schemas/pipeline.escalation.v1.schema.json",
         "test/fixtures/pipeline/metadata_validator/**",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -2814,8 +2819,11 @@
         "src/backends/**",
         "src/mutant.zig",
         "src/config.zig",
+        "src/cli.zig",
         "docs/ZIR_BACKEND.md",
+        "docs/CLI_SPEC.md",
         "test/zir_backend_test.zig",
+        "test/cli_backend_experiment_test.zig",
         "test/fixtures/zir_backend/**",
         "tasks/STATUS.md",
         "tasks/status.json"
@@ -2841,8 +2849,11 @@
         "src/backends/**",
         "src/mutant.zig",
         "src/config.zig",
+        "src/cli.zig",
         "docs/AIR_BACKEND.md",
+        "docs/CLI_SPEC.md",
         "test/air_backend_test.zig",
+        "test/cli_backend_experiment_test.zig",
         "test/fixtures/air_backend/**",
         "tasks/STATUS.md",
         "tasks/status.json"

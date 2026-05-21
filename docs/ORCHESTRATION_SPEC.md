@@ -29,11 +29,12 @@ Before task `041`, context packets and handoffs are recorded in task status or c
 4. Build context packets.
 5. Run Test Author.
 6. Run Test Reviewer.
-7. Run Implementer only after tests are approved.
-8. Run Implementation Reviewer.
-9. Run property, doctest, and mutation agents as required.
-10. Run Verifier.
-11. Update queue/status and artifacts.
+7. Run Contract Editor before implementation when public contracts, schemas, ADRs, task-system contracts, or architecture docs change.
+8. Run Implementer only after tests and contract edits are approved for implementation.
+9. Run Implementation Reviewer.
+10. Run property, doctest, and mutation agents as required.
+11. Run Verifier.
+12. Update queue/status and artifacts.
 
 ## State Ownership
 
@@ -73,4 +74,4 @@ Subagents must:
 
 The Orchestrator chooses the highest applicable class.
 
-Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it. Architecture tasks that edit contracts route through Planner or Phase Planner for the edit step and Architecture Reviewer for review.
+Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it. Architecture tasks that edit contracts route through Planner or Phase Planner for planning, Contract Editor for the edit step, and Architecture Reviewer for review. Public contract changes route through Contract Editor before review.

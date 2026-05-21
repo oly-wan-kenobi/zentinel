@@ -139,7 +139,7 @@ zir
 air
 ```
 
-`zir` and `air` are rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag.
+`zir` and `air` are rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag. The experimental CLI backend flag is `list-mutants --backend <zir|air>` and is owned by tasks `056` and `057`.
 
 ## Mutators Section
 

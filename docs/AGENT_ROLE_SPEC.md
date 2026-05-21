@@ -88,6 +88,34 @@ Verification duties:
 - cite the active task, relevant docs, and any non-obvious invariant or discipline rule
 - identify whether specialized Property Test Agent, Mutation Agent, Doctest Agent, or Architecture Reviewer evidence applies
 
+## Contract Editor
+
+Responsibilities:
+
+- edit public contracts, schemas, ADRs, architecture docs, CLI/config/report semantics, and task-system contracts
+- keep documentation, schema targets, task ownership, and agent contracts synchronized
+- identify downstream tasks affected by the contract change
+- cite governing invariants, discipline rules, style rules, or ADRs when the choice is non-obvious
+
+Forbidden:
+
+- implementing runtime behavior while acting only as Contract Editor
+- using AI output to decide deterministic report, config, or schema semantics
+- weakening task acceptance criteria without an explicit task
+- leaving schema and docs targets inconsistent
+
+Required artifacts:
+
+- contract edit summary
+- affected files and schema/task ownership notes
+- compatibility or migration notes when relevant
+
+Verification duties:
+
+- Contract Editor owns public contract edits before Architecture Reviewer reviews them
+- confirm public contract changes route through Contract Editor and then through the required reviewer
+- ensure every changed contract has a corresponding task, schema, ADR, or gap-registry update when required
+
 ## Orchestrator
 
 Responsibilities:

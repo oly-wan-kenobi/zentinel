@@ -28,6 +28,9 @@ Close the remaining repository-contract inconsistencies that could cause autonom
 - `tasks/035-cli-doctests.md`
 - `tasks/040-agent-pipeline-foundation.md`
 - `tasks/041-handoff-artifacts.md`
+- `tasks/042-context-packet-system.md`
+- `tasks/046-verification-pipeline.md`
+- `tasks/049-pipeline-escalation.md`
 - `tasks/056-zir-backend-experiment.md`
 - `tasks/057-air-backend-experiment.md`
 - `tasks/063-pipeline-metadata-validator.md`
@@ -40,6 +43,7 @@ Close the remaining repository-contract inconsistencies that could cause autonom
 - `docs/CLI_SPEC.md`
 - `docs/CONFIG_SPEC.md`
 - `docs/DOCTEST_SPEC.md`
+- `docs/INVARIANTS.md`
 - `docs/ORCHESTRATION_SPEC.md`
 - `docs/PIPELINE_ARTIFACTS.md`
 - `docs/PIPELINE_ESCALATION_POLICY.md`
@@ -59,6 +63,7 @@ Close the remaining repository-contract inconsistencies that could cause autonom
 - `.agents/workflows/task-plan.md`
 - `schemas/report.v1.schema.json`
 - `scripts/validate_task_system.py`
+- `tests/coverage-gaps/schemas.v1.json`
 
 ## Files forbidden to modify
 

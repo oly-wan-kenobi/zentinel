@@ -22,18 +22,20 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 
 1. Run `python3 scripts/validate_task_system.py`.
 2. Read `tasks/status.json`.
-3. If no task is active, select the first dependency-ready queued task from `tasks/queue.json` by execution order. Every task entry in `tasks/queue.json` contains an explicit `order` key.
-4. Read the selected task file and required docs from `AGENTS.md` before marking it active.
-5. Mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.
-6. Write the smallest failing test or fixture.
-7. Run the targeted test and capture the expected failure.
-8. Implement the smallest passing change.
-9. Run targeted and broader relevant tests.
-10. Record completion evidence while the task remains current.
-11. Add or update follow-up tasks when needed while the task remains current.
-12. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`.
-13. Update task state to `complete` with evidence in all task-control files.
-14. Run `python3 scripts/validate_task_system.py` again after the complete-state transition.
+3. If a task is already active, resume that active task instead of selecting another task.
+4. If no task is active, select the first dependency-ready queued task from `tasks/queue.json` by execution order. Every task entry in `tasks/queue.json` contains an explicit `order` key.
+5. Read the selected or active task file and required docs from `AGENTS.md` before changing implementation files.
+6. When starting a queued task, mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.
+7. Run `python3 scripts/validate_task_system.py` immediately after marking it `active`.
+8. Write the smallest failing test or fixture.
+9. Run the targeted test and capture the expected failure.
+10. Implement the smallest passing change.
+11. Run targeted and broader relevant tests.
+12. Record completion evidence while the task remains current.
+13. Add or update follow-up tasks when needed while the task remains current.
+14. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`.
+15. Update task state to `complete` with evidence in all task-control files.
+16. Run `python3 scripts/validate_task_system.py` again after the complete-state transition.
 
 A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
 
@@ -69,6 +71,8 @@ The Task Queue Manager may edit `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STA
 
 This exception is only for task-control state. It does not allow product roles to expand implementation scope, change acceptance criteria, or hide missing prerequisite work. New prerequisite tasks use the next unused three-digit ID and an `order` key that places them before the blocked task; existing task IDs remain stable.
 
+The inserted prerequisite task must depend on the immediately previous non-superseded execution-order task, and the blocked task must depend on the inserted prerequisite.
+
 ## Pipeline Artifact Exception
 
 After task `041` is complete, pipeline roles may write audit artifacts under `artifacts/pipeline/<active-task-id>/**` without listing that path in each active task. The exception is task-scoped and applies only to context packets, JSON handoffs, reviews, verification reports, mutation/property/doctest evidence, and decision records defined by `docs/PIPELINE_ARTIFACTS.md`.
@@ -98,6 +102,27 @@ Use this decision table:
 | Test failure from prior completed task | Create a regression-fix task before continuing. |
 
 When a missing prerequisite is inserted, keep the originally blocked task in `blocked` until the prerequisite task completes. After the prerequisite task completes, the blocked task returns to `queued` and waits for normal dependency-ready selection by execution order; it must not jump directly to `active`. A blocked record whose required prerequisite is already complete is invalid because completed prerequisites cannot leave the blocked task in `blocked`.
+
+Blocked task records must use this machine-readable shape:
+
+```json
+{
+  "blocked_task_details": [
+    {
+      "task": "043",
+      "reason": "Mutation gate cannot run until prerequisite report schema work exists.",
+      "blocker_type": "missing_prerequisite",
+      "evidence": "Required schema field is not owned by any earlier task.",
+      "attempted_recovery": "Inserted prerequisite task with the next unused task ID.",
+      "prerequisite_task": "098",
+      "required_prerequisite_task": "098",
+      "requires_user_input": false,
+      "edits_state": "task_control_only",
+      "notes": "Return blocked task to queued after prerequisite completes."
+    }
+  ]
+}
+```
 
 ## AskUserQuestion Use
 

@@ -24,6 +24,7 @@ Roadmap + Specs
   -> Orchestrator
   -> Test Author
   -> Test Reviewer
+  -> Contract Editor
   -> Implementer
   -> Implementation Reviewer
   -> Mutation Agent
@@ -55,6 +56,7 @@ Before task `041`, context packets and handoffs are recorded in task status or c
 | Phase Planner | Phase decomposition, task sizing, dependency shape. | Task execution. |
 | Task Queue Manager | Queue state, active lock, completion transitions. | Code review. |
 | Orchestrator | Context packets, subagent routing, escalation decisions. | Direct implementation unless no subagent path exists. |
+| Contract Editor | Public contract changes, schema/docs alignment, ADR/task-scope ownership notes. | Runtime implementation. |
 | Subagents | Role-specific artifacts and bounded edits. | Queue state ownership. |
 | Verifier | Final command evidence and reproducibility check. | Changing implementation to pass tests. |
 
@@ -92,11 +94,13 @@ The Verifier checks:
 | Normal task | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier. |
 | High-risk task | Normal pipeline plus Property Test Agent or Mutation Agent as applicable. |
 | Compiler-internal task | High-risk pipeline plus Architecture Reviewer and stricter source-mapping review. |
-| Architecture task | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. |
+| Architecture task | Phase Planner, Contract Editor, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. |
 
 The Orchestrator classifies task complexity before spawning subagents.
 
 Use both specialized roles only when both triggers apply.
+
+Public contract changes route through Contract Editor before Architecture Reviewer or Implementation Reviewer approval. This keeps the authoring role separate from the review role for schema, CLI, config, report, ADR, task-system, and architecture contracts.
 
 ## Canonical Mutation-Aware Flow
 

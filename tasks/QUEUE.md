@@ -15,7 +15,7 @@ This queue is the human-readable source of truth for sequential AI-agent work. T
 
 ## Prerequisite Insertion
 
-When a blocked task needs a missing prerequisite, assign the new task the next unused three-digit ID, give it an `order` key before the blocked task, and update dependencies so the blocked task depends on the prerequisite. Do not renumber existing task files. Keep `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` synchronized and run the validator before implementation resumes.
+When a blocked task needs a missing prerequisite, assign the new task the next unused three-digit ID, give it an `order` key before the blocked task, make the inserted prerequisite depend on the immediately previous non-superseded execution-order task, and update dependencies so the blocked task depends on the prerequisite. Do not renumber existing task files. Keep `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` synchronized and run the validator before implementation resumes.
 
 ## Queue
 

@@ -12,7 +12,7 @@ Finalize complexity escalation rules so each task class receives the correct pip
 - Define low-risk, normal, high-risk, compiler-internal, and architecture task classes.
 - Define escalation triggers from failed tests, survivors, source mapping changes, public contract changes, and performance regressions.
 - Ensure escalation policy is referenced from the agent guide and orchestration spec.
-- This task must refine the baseline escalation schema created by task `063` with final escalation outcomes, triggers, and monotonic gate evidence.
+- This task must refine the baseline escalation schema created by task `041` with final escalation outcomes, triggers, and monotonic gate evidence.
 
 ## Files allowed to modify
 

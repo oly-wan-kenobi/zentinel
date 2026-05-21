@@ -429,6 +429,7 @@ Report field rules:
 | --- | --- |
 | `schema_version` | Constant `zentinel.doctest.report.v1`. |
 | `run.status` | `completed`, `failed`, or `internal_error`. |
+| `run.error` | `run.error` is required and null for `completed` or `failed`; for `internal_error` it is a closed object with required `code`, `message`, and `phase`, optional bounded `details`, and no AI-generated explanation. |
 | `summary` | For normal `zentinel doctest`, counts only non-mutation entries in `cases` and includes every ordinary doctest status key; `total` equals the sum of ordinary status-count fields. For `zentinel doctest --mutate`, this same top-level summary still counts only preflight non-mutation doctest entries, while mutation entries are counted only in `summary.mutation`. |
 | `cases` | Sorted by project-relative file path, anchor line, block index, and durable case ID. |
 | `case.id` | Durable `dt_...` ID for ordinary non-mutation cases; durable `dm_...` ID for mutation-aware entries where `case.kind = "mutation"`. |

@@ -85,6 +85,8 @@ The artifact records:
 
 The active lock artifact is evidence that the task-control files, context packet, and pipeline artifact directory all name the same active task. It does not replace `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, or `tasks/STATUS.md`; those synchronized task files remain the canonical queue state.
 
+Task `041` creates baseline schemas for handoffs, active locks, context packets, stale-context markers, verification records, and escalation records. The first post-`041` pipeline task may use those baseline schemas immediately; later tasks refine role-specific fields without removing the required baseline fields.
+
 ## Retention Policy
 
 - Keep artifacts for completed tasks that affect public contracts, mutation semantics, reports, cache, runner, doctests, or AI contracts.

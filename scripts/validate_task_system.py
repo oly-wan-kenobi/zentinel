@@ -136,6 +136,7 @@ REQUIRED_AGENT_FILES = [
     ".agents/roles/phase-planner.md",
     ".agents/roles/task-queue-manager.md",
     ".agents/roles/planner.md",
+    ".agents/roles/contract-editor.md",
     ".agents/roles/test-author.md",
     ".agents/roles/test-reviewer.md",
     ".agents/roles/implementer.md",
@@ -1158,8 +1159,8 @@ def validate_protocol_startup_order(errors: list[str]) -> None:
     """Guard the read-before-active startup contract for autonomous agents."""
     expected_phrases = {
         "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
-            "Read the selected task file and required docs from `AGENTS.md` before marking it active.",
-            "Mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.",
+            "Read the selected or active task file and required docs from `AGENTS.md` before changing implementation files.",
+            "When starting a queued task, mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.",
         ],
         "docs/AGENT_GUIDE.md": [
             "reading the selected task file and required docs from `AGENTS.md`",
@@ -1857,7 +1858,7 @@ def validate_agent_contract_finalization_contracts(status: object, errors: list[
             "| Normal | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier |",
             "| High-risk | Normal roles plus Property Test Agent or Mutation Agent as applicable |",
             "| Compiler-internal | High-risk roles plus Architecture Reviewer |",
-            "| Architecture | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |",
+            "| Architecture | Phase Planner, Contract Editor, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |",
         ]
         require("mirrors `docs/PIPELINE_ESCALATION_POLICY.md`" in text, errors, ".agents/ORCHESTRATOR.md must state complexity routing mirrors the escalation policy")
         for row in required_rows:
@@ -1871,16 +1872,16 @@ def validate_agent_contract_finalization_contracts(status: object, errors: list[
             "tasks `042`, `046`, and `049` refine",
         ],
         "tasks/042-context-packet-system.md": [
-            "refine the baseline context and stale-context schemas created by task `063`",
+            "refine the baseline context and stale-context schemas created by task `041`",
         ],
         "tasks/046-verification-pipeline.md": [
-            "refine the baseline verification schema created by task `063`",
+            "refine the baseline verification schema created by task `041`",
         ],
         "tasks/049-pipeline-escalation.md": [
-            "refine the baseline escalation schema created by task `063`",
+            "refine the baseline escalation schema created by task `041`",
         ],
         "docs/SCHEMA_REGISTRY.md": [
-            "Task `tasks/063-pipeline-metadata-validator.md` creates baseline pipeline schema files",
+            "Task `tasks/041-handoff-artifacts.md` creates the baseline pipeline handoff, active-lock, context, stale-context, verification, and escalation schema files.",
             "tasks `042`, `046`, and `049` refine role-specific fields",
         ],
     }
@@ -1910,7 +1911,7 @@ def validate_agent_contract_finalization_contracts(status: object, errors: list[
                 require(isinstance(entry, dict), errors, f"schemas.v1.json missing pipeline schema row {version}")
                 if not isinstance(entry, dict):
                     continue
-                require(entry.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, f"schemas.v1.json {version} must defer baseline schema validation to task 063")
+                require(entry.get("deferred_to") == "tasks/041-handoff-artifacts.md", errors, f"schemas.v1.json {version} must defer baseline schema creation to task 041")
                 notes = entry.get("notes")
                 require(isinstance(notes, str) and "baseline schema" in notes and later_task in notes, errors, f"schemas.v1.json {version} notes must name baseline schema ownership and later refinement task {later_task}")
 
@@ -2833,7 +2834,7 @@ def validate_agent_readiness_validator_closure_contracts(tasks: list[dict[str, o
         ],
         "docs/ORCHESTRATION_SPEC.md": [
             "Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it",
-            "Architecture tasks that edit contracts route through Planner or Phase Planner for the edit step and Architecture Reviewer for review",
+            "Architecture tasks that edit contracts route through Planner or Phase Planner for planning, Contract Editor for the edit step, and Architecture Reviewer for review",
         ],
         "docs/PIPELINE_ESCALATION_POLICY.md": [
             "Architecture contract edits still need an explicit editing role before Architecture Reviewer",
@@ -3228,19 +3229,19 @@ def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, o
         ],
         ".agents/ORCHESTRATOR.md": [
             "Contract Editor",
-            "public contract changes route through Contract Editor",
+            "Public contract changes route through Contract Editor",
         ],
         "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
             "Contract Editor",
-            "public contract changes route through Contract Editor",
+            "Public contract changes route through Contract Editor",
         ],
         "docs/ORCHESTRATION_SPEC.md": [
             "Contract Editor",
-            "public contract changes route through Contract Editor",
+            "Public contract changes route through Contract Editor",
         ],
         "docs/PIPELINE_ESCALATION_POLICY.md": [
             "Contract Editor",
-            "public contract changes route through Contract Editor",
+            "Public contract changes route through Contract Editor",
         ],
         "docs/CLI_SPEC.md": [
             "`list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`.",

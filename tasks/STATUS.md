@@ -10,7 +10,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Next task | `tasks/097-autonomous-agent-contract-closure.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
-| TDD-first policy | enforced |
+| TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |
 | Deterministic core policy | enforced |
 | AI authority over correctness | forbidden |
 | Validator scope | task-system consistency, not product semantic correctness |

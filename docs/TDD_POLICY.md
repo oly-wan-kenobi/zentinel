@@ -8,6 +8,8 @@ A successful `python3 scripts/validate_task_system.py` run is not product proof.
 
 Completion evidence must name the failing evidence, tests added, tests run, and a passed task-system validator result. `tests_added` may be empty only for a no-behavior-change task that explicitly records why no new structural guardrail was added.
 
+Current mechanical checks verify recorded evidence fields and role handoffs; they do not independently prove chronological order until pipeline artifact validation covers role timestamps. Agents and reviewers must still enforce D-400 and I-019 as mandatory discipline before that later artifact-level validation exists.
+
 ## Required Workflow
 
 1. Read the active task file and referenced docs.

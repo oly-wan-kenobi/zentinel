@@ -53,6 +53,7 @@ Add specialized roles when required by task scope:
 - `Property Test Agent` for invariant-heavy behavior.
 - `Doctest Agent` for public documentation examples.
 - `Mutation Agent` and `Mutation Triage Agent` for mutation-testable behavior.
+- `Contract Editor` for public schema, CLI, config, report, ADR, task-system, or architecture contract edits. Public contract changes route through Contract Editor before review.
 - `Architecture Reviewer` for architecture, public schema, backend, safety, or ADR changes.
 - `Phase Planner` only for backlog or phase decomposition.
 
@@ -66,7 +67,7 @@ This table mirrors `docs/PIPELINE_ESCALATION_POLICY.md`. Task Queue Manager and 
 | Normal | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier |
 | High-risk | Normal roles plus Property Test Agent or Mutation Agent as applicable |
 | Compiler-internal | High-risk roles plus Architecture Reviewer |
-| Architecture | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |
+| Architecture | Phase Planner, Contract Editor, Architecture Reviewer, Test Reviewer for executable contracts, Verifier |
 
 When in doubt, choose the higher-risk route.
 

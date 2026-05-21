@@ -12,6 +12,7 @@ Define and validate the persistent handoff artifact structure used between pipel
 - Define JSON artifact fields for each pipeline role and optional Markdown companion summaries.
 - Specify artifact naming, retention, traceability, and reproducibility rules.
 - Define the active lock artifact path `locks/active-task-lock.json` and its required fields.
+- Create the baseline pipeline handoff, active-lock, context, stale-context, verification, and escalation schema files so the first post-`041` pipeline task has concrete schema targets.
 - Add schema documentation only; do not implement a runtime writer.
 
 ## Files allowed to modify
@@ -22,6 +23,10 @@ Define and validate the persistent handoff artifact structure used between pipel
 - `docs/AGENT_GUIDE.md`
 - `schemas/pipeline.handoff.v1.schema.json`
 - `schemas/pipeline.active_lock.v1.schema.json`
+- `schemas/pipeline.context.v1.schema.json`
+- `schemas/pipeline.stale_context.v1.schema.json`
+- `schemas/pipeline.verification.v1.schema.json`
+- `schemas/pipeline.escalation.v1.schema.json`
 - `test/fixtures/pipeline/handoff/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -61,6 +66,7 @@ No mutation run is required unless schema validation code is changed. If code is
 - Artifact fields include files changed, tests added, commands executed, risks, assumptions, mutation results, and next-step instructions.
 - Document that tests_added is cumulative task-level evidence; role-local test changes are documented in the role-specific content or command evidence.
 - Machine-readable JSON handoffs are documented as the canonical artifact with required and optional fields.
+- Baseline context, stale-context, verification, and escalation schemas exist with the minimal fields already documented by current contracts; later tasks refine them without weakening the baseline.
 - Artifact names are deterministic and task-scoped.
 - `python3 scripts/validate_task_system.py` passes.
 

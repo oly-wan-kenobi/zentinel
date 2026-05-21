@@ -16,6 +16,7 @@ Do not add `.claude/` to this repository. zentinel is developed by Codex, and ag
     phase-planner.md
     task-queue-manager.md
     planner.md
+    contract-editor.md
     test-author.md
     test-reviewer.md
     implementer.md
@@ -82,6 +83,7 @@ When only one Codex agent is available, preserve the same logical separation by 
 | Phase Planner | phase or backlog decomposition is needed | bounded task plan and dependency shape |
 | Task Queue Manager Start | a task is selected or resumed | synchronized active-task Markdown and JSON task state |
 | Planner | task is selected for work | concrete implementation plan and risk notes |
+| Contract Editor | public contracts, schemas, ADRs, or architecture docs change | coherent contract edit and downstream ownership notes |
 | Test Author | task plan is ready | failing tests, fixtures, doctests, or property cases |
 | Test Reviewer | tests have been authored | approval or required test fixes |
 | Implementer | tests are approved | scoped implementation that passes approved tests |

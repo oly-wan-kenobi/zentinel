@@ -12,7 +12,7 @@ Specify the final verification pipeline that decides whether a task has enough e
 - Define required order for unit tests, property tests, doctests, mutation checks, dogfood checks, snapshot checks, performance checks, and task-system validation.
 - Define fail-fast behavior and report generation.
 - Connect verification artifacts to task status updates.
-- This task must refine the baseline verification schema created by task `063` with the final verifier fields and fixture expectations.
+- This task must refine the baseline verification schema created by task `041` with the final verifier fields and fixture expectations.
 
 ## Files allowed to modify
 

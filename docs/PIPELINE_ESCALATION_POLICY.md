@@ -12,13 +12,13 @@ Each task receives the highest applicable class.
 | Normal | Single-module behavior with clear contract and local tests. | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier. | Unit/fixture tests; snapshots when output changes. |
 | High-risk | Shared models, reports, runner, cache, mutation classification, public schemas. | Normal roles plus Property Test Agent or Mutation Agent as applicable. | Unit tests, property tests for invariants, mutation gate when mutation-testable. |
 | Compiler-internal | AST/ZIR/AIR, source mapping, Zig version coupling, compile-error classification, safety modes. | High-risk roles plus Architecture Reviewer. | Source mapping fixtures, property tests, mutation gate, architecture review. |
-| Architecture | Roadmap, public contracts, task system, module boundaries, backend stability. | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. | Contract validation, task-system validation, doctest readiness for public examples. |
+| Architecture | Roadmap, public contracts, task system, module boundaries, backend stability. | Phase Planner, Contract Editor, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. | Contract validation, task-system validation, doctest readiness for public examples. |
 
 Required gates are monotonic. Escalating a task may add gates, but must not remove gates required by a lower class.
 
 For high-risk work, add Property Test Agent or Mutation Agent as applicable to the risk trigger. Use both specialized roles only when both triggers apply.
 
-Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the task is docs-only or metadata-only, introduces no public contract change, and has a task-system or targeted file check that would fail for the intended mistake. Architecture contract edits still need an explicit editing role before Architecture Reviewer; the reviewer validates the contract change and must not be the only role that authored it.
+Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the task is docs-only or metadata-only, introduces no public contract change, and has a task-system or targeted file check that would fail for the intended mistake. Architecture contract edits still need an explicit editing role before Architecture Reviewer. Public contract changes route through Contract Editor, and the reviewer validates the contract change without being the only role that authored it.
 
 ## Trigger Matrix
 
@@ -27,7 +27,7 @@ Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the 
 | Repeated test failure | Implementation Reviewer and Test Reviewer joint review. |
 | Survivor after retry limit | Mutation Triage Agent then Architecture Reviewer if semantic. |
 | Nondeterministic output | Verifier blocks completion and creates determinism task. |
-| Public contract ambiguity | Architecture Reviewer updates contract task. |
+| Public contract ambiguity | Contract Editor drafts the contract update, then Architecture Reviewer reviews it. |
 | Dependency request | Apply `docs/DEPENDENCY_POLICY.md`. |
 | Compiler internal risk | Architecture Reviewer required. |
 | Security boundary uncertainty | Apply `docs/SANDBOX_SECURITY.md`; ask user only if policy is insufficient. |

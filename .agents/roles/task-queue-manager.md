@@ -15,6 +15,7 @@ Use this role for task state transitions and queue/status synchronization.
 ## Responsibilities
 
 - select the first dependency-ready queued task by execution order
+- resume the existing active task instead of selecting a different task when one is active
 - ensure at most one task is active pending completion
 - synchronize Markdown and JSON state
 - reject out-of-order execution

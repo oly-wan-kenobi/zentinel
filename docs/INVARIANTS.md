@@ -153,7 +153,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 **I-019.** Behavior changes start with failing evidence before implementation.
 - *Rationale.* Tests specify intended behavior and keep agents from validating their own assumptions after the fact.
 - *Status.* documented.
-- *Enforcement.* Task files, handoffs, and reviewer/verifier checks.
+- *Enforcement.* Task files, handoffs, and reviewer/verifier checks. Current machine checks verify required evidence fields and role handoffs, but do not independently prove chronology until pipeline artifact validation covers role timestamps.
 - *Failure mode.* Implementation and tests encode the same unreviewed mistake.
 
 **I-020.** Follow-up implementation work is captured as concrete task metadata, not prose-only notes.

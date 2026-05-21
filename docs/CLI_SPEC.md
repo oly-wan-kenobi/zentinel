@@ -148,6 +148,8 @@ Useful options:
 
 Experimental backends require explicit opt-in.
 
+`list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`. Before those tasks land, `list-mutants --backend <zir|air>` must fail deterministically as a known experimental option that is not yet implemented, while `--backend ast` remains the stable path owned by the initial `list-mutants` work.
+
 ## `run`
 
 Runs mutation testing.
