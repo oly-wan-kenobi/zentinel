@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/096-audit-finding-contract-closure.md` |
+| Next task | `tasks/096-audit-finding-contract-closure.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -20,7 +20,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Date | 2026-05-19 |
-| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `095`. |
+| Scope | Repository documentation, governance contracts, sequential task files, doctest plans, AI-agent pipeline policies, and end-to-end backlog through release acceptance populated, including inserted tasks `061` through `070` and `085`, plus pre-bootstrap hardening tasks `071` through `096`. |
 | Implementation code changed | none |
 | Verification run | Required file presence scan; governance file scan; ADR index scan; gap registry scan; task section completeness scan; Markdown/JSON task scope sync; follow-up reference sync; schema registry coverage; generated legacy-name and unfinished-marker scan; JSON parse checks; `python3 scripts/validate_task_system.py` |
 | Dogfooding status | policy documented; no dogfood implementation exists yet |
@@ -89,7 +89,7 @@ No task is active. The next agent should run `python3 scripts/validate_task_syst
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
-Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, final dogfood gate task `085`, plus pre-bootstrap hardening tasks `071` through `095`, placed by execution order before project bootstrap. The historical pre-bootstrap hardening tasks `071` through `094` were completed before the final task `095` autonomous-agent contract repair pass.
+Pipeline architecture specs are available under `docs/AGENT_PIPELINE_ARCHITECTURE.md`, `docs/AGENT_ROLE_SPEC.md`, `docs/HANDOFF_CONTRACTS.md`, `docs/AGENT_CONTEXT_PACKETS.md`, `docs/VERIFICATION_PIPELINE.md`, and related policy files. Pipeline hardening tasks `040` through `049` are queued after the doctest task block, with additional inserted prerequisite and follow-up tasks `061` through `070`, final dogfood gate task `085`, plus pre-bootstrap hardening tasks `071` through `096`, placed by execution order before project bootstrap. The historical hardening range through task `095` was completed before the final task `096` audit finding contract closure pass.
 
 Codex-specific operating profiles are available under `.agents/`. Use `.agents/README.md`, `.agents/ORCHESTRATOR.md`, `.agents/roles/`, and `.agents/workflows/` for role dispatch and workflow execution. Do not add `.claude/` to this repository.
 

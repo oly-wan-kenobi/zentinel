@@ -1057,6 +1057,58 @@
       ]
     },
     {
+      "id": "096",
+      "order": "000.0.26",
+      "title": "Audit Finding Contract Closure",
+      "file": "tasks/096-audit-finding-contract-closure.md",
+      "phase": 0,
+      "state": "active",
+      "dependencies": [
+        "095"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/006-report-schema.md",
+        "tasks/016-minimal-run-command.md",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/040-agent-pipeline-foundation.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/049-pipeline-escalation.md",
+        "tasks/053-ai-provider-and-context.md",
+        "tasks/054-ai-advisory-commands.md",
+        "tasks/058-safety-mode-matrix.md",
+        "tasks/096-audit-finding-contract-closure.md",
+        "docs/ARCHITECTURE.md",
+        "docs/TEST_SELECTION.md",
+        "docs/SANDBOX_SECURITY.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md",
+        "docs/AI_PROMPT_CONTRACTS.md",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/CLI_SPEC.md",
+        "docs/CONFIG_SPEC.md",
+        "schemas/ai.context.v1.schema.json",
+        "schemas/report.v1.schema.json",
+        "scripts/validate_task_system.py",
+        "tests/coverage-gaps/schemas.v1.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1064,7 +1116,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "095"
+        "096"
       ],
       "allowed_files": [
         "build.zig",
