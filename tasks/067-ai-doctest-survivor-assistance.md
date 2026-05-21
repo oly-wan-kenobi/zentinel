@@ -44,7 +44,7 @@ Expose advisory-only AI explanation for mutation-aware doctest survivors after s
 - Add a failing schema-extension test proving `schemas/ai.doctest.context.v1.schema.json` adds `flow = "explain_doctest_survivor"` and evidence `kind = "doctest_survivor"` without weakening the task `055` non-survivor variants.
 - Add a failing context schema fixture proving the flow is `explain_doctest_survivor`, top-level `doctest.kind = "mutation"`, evidence `kind` is `doctest_survivor`, and evidence includes `ds_...` survivor ref, `source_case` metadata for the original ordinary doctest, `mutation_case` metadata with the survived report entry's `dm_...` case ID, `m_...` mutant ID, mutated diff, operator, backend stability, and deterministic runner evidence copied from `case.mutation.runner_evidence`.
 - Add a failing resolution test proving `<survivor-ref>` matches only non-null `case.mutation.survivor_ref` values in the selected mutation-aware doctest report and does not resolve killed, skipped, invalid, compile-error, compiler-crash, or timeout documentation mutants.
-- Add a failing stub-provider output snapshot using doctest-specific classification labels from `zentinel.ai.explain.response.v1`.
+- Add a failing stub-provider output snapshot for the survivor flow using doctest-specific classification labels from `zentinel.ai.explain.response.v1`.
 - Add a failing test proving the command does not change survivor status, doctest report files, or expected output blocks.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.

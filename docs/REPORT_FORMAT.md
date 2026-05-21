@@ -45,6 +45,7 @@ JSON is the canonical report format.
         "status": "passed",
         "exit_code": 0,
         "timed_out": false,
+        "failure_kind": "none",
         "duration_ms": 0,
         "evidence": {
           "stdout_excerpt": "",
@@ -149,6 +150,7 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
         "status": "passed",
         "exit_code": 0,
         "timed_out": false,
+        "failure_kind": "none",
         "duration_ms": 15,
         "evidence": {
           "stdout_excerpt": "",
@@ -223,13 +225,21 @@ Every command recorded in `baseline.commands` or a mutant `result.commands` must
 
 `original` is the configured or selected command text for diagnosis. `argv` is the parsed execution shape from `src/command.zig`; `argv[0]` must be non-empty. Stable Phase 1 execution must set `environment_policy` to `minimal` and `shell` to `false`.
 
-Each command result records `phase`, `status`, `exit_code`, `timed_out`, `duration_ms`, bounded evidence, and `skip_reason`. Entries under `baseline.commands` must use `phase = "baseline"` and cannot be skipped in report v1. Entries under mutant `result.commands` must use `phase = "mutant"`. Mutant fail-fast records commands that were not executed with `status = "skipped"` and a non-empty deterministic `skip_reason`; executed commands use `skip_reason = null`.
+Each command result records `phase`, `status`, `exit_code`, `timed_out`, `failure_kind`, `duration_ms`, bounded evidence, and `skip_reason`. Entries under `baseline.commands` must use `phase = "baseline"` and cannot be skipped in report v1. Entries under mutant `result.commands` must use `phase = "mutant"`. Mutant fail-fast records commands that were not executed with `status = "skipped"` and a non-empty deterministic `skip_reason`; executed commands use `skip_reason = null`.
+
+`failure_kind` distinguishes `compile_error` from test assertion failure when a command exits non-zero. It is `none` for passed commands, `compile_error` for normal Zig compile diagnostics, `test_failure` for failed tests/assertions after compilation succeeds, `compiler_crash` for abnormal compiler termination, `timeout` for timed-out commands, and `skipped` for deterministic fail-fast skips. AI output must not populate or override this field.
+
+Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and stderr excerpts are each limited to 4096 bytes after normalization.
 
 ## Stability Fields
 
 `backend_stability` describes the backend that produced the mutant. Valid values are `stable` and `experimental`; the AST backend is stable, while ZIR and AIR are experimental until promoted by a future ADR and release criteria.
 
+`backend_version` is intentionally omitted from report v1 public mutant entries. It remains internal identity/cache evidence and must not be added to report v1 without a schema-versioned report change.
+
 report v1 has no backend-specific diagnostics namespace. Experimental ZIR/AIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
+
+The `mode` field is single-valued until safety-mode matrix work lands; mode-matrix reporting is owned by task `058`.
 
 `operator_stability` describes the mutator operator. Valid values are `stable`, `preview`, and `experimental` as defined by `docs/MUTATOR_SPEC.md`. Preview operators may appear only when explicitly enabled by config or task scope; they are never part of the default stable minimum product.
 

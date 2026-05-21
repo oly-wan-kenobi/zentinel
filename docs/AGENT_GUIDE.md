@@ -26,9 +26,11 @@ This repository is designed for sequential AI-agent development. Agents must pre
 ## Task Lifecycle
 
 ```text
-queued -> active -> implemented -> verified -> complete
-                       └──── blocked
+queued -> active -> complete
+          └──── blocked
 ```
+
+Implementation and verification progress is recorded as evidence or pipeline artifact stages while the task remains active. Run final active-scope validation while the task is active, then complete in one task-control transition.
 
 An agent starts work by:
 

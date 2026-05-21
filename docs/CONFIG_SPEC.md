@@ -155,6 +155,8 @@ all_stable
 
 Expansion must be deterministic and tested.
 
+`phase2` expands only to stable Phase 2 operators. Preview Phase 2 operators remain opt-in by exact operator name after their owning task adds fixture coverage, and `all_stable` means every stable operator whose owning implementation task is complete.
+
 ## Test Section
 
 | Key | Type | Default | Meaning |
@@ -165,6 +167,8 @@ Expansion must be deterministic and tested.
 | `baseline_required` | bool | `true` | Reserved baseline policy flag; report v1 requires baselines to run. |
 
 Command strings are parsed by zentinel into argv without invoking a shell. The shared parser belongs to the deterministic core module `src/command.zig`; `zentinel check` validates with it, and the runner executes exactly the argv shape it returns.
+
+Before task `051`, `impact_graph` is rejected until task `051` completes; config validation must fail `test.selection = "impact_graph"` with `ZNTL_CONFIG_INVALID_VALUE` rather than silently downgrading to `same_file_then_package`.
 
 The shared command parser accepts this grammar:
 

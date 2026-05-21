@@ -22,7 +22,9 @@ Implement safety and optimization mode matrix execution and reporting.
 - `src/config.zig`
 - `src/cli.zig`
 - `src/run_command.zig`
+- `docs/REPORT_FORMAT.md`
 - `docs/ZIG_SEMANTICS.md`
+- `schemas/report.v1.schema.json`
 - `test/safety_mode_matrix_test.zig`
 - `test/run_command_test.zig`
 - `test/fixtures/safety_modes/**`
@@ -40,6 +42,7 @@ Implement safety and optimization mode matrix execution and reporting.
 - Add a failing config test for mode selection.
 - Add a failing run-command test for `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` override parsing and validation.
 - Add a failing report test for mode-specific outcomes.
+- Add a failing schema/doc test proving mode-matrix report fields are documented in `docs/REPORT_FORMAT.md` and represented in `schemas/report.v1.schema.json`.
 - Add a failing fixture for Debug versus ReleaseFast behavior.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.

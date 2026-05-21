@@ -35,6 +35,7 @@ Run selected test commands against one patched mutant sandbox and classify the m
 
 - Add failing tests for killed, survived, compile_error, compiler_crash, timeout, and invalid patch cases.
 - Add a failing test proving abnormal Zig compiler termination is classified as `compiler_crash`, not `compile_error`, `invalid`, or `internal_error`.
+- Add a failing test for `failure_kind = "compile_error"` versus `failure_kind = "test_failure"` so command evidence cannot collapse compiler diagnostics and assertion failures into one non-zero exit bucket.
 - Add a failing test that fail-fast per mutant records skipped commands.
 - Add a failing test that mutant results preserve the structured command evidence emitted by the runner without falling back to a display-only command string.
 - Run `zig build test`.

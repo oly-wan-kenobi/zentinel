@@ -55,6 +55,7 @@ Execution:
 Matching:
 
 - success is exit code `0`
+- Plain `zig` compile-pass blocks must not consume `text output`; use `zig test` or `bash cli` when expected output is part of the example.
 
 ## `zig test`
 

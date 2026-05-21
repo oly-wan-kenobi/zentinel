@@ -108,6 +108,11 @@ BLOCKED_TASK_DETAIL_FIELDS = {
     "edits_state",
     "notes",
 }
+BLOCKER_TYPES = {"missing_prerequisite", "scope_gap", "external_input", "spec_ambiguity", "prior_task_regression"}
+BLOCKED_EDIT_STATES = {"no_edits", "task_control_only", "reverted", "preserved_behind_tests"}
+LAST_VALIDATION_FIELDS = {"command", "status", "notes"}
+LAST_VALIDATION_STATUSES = {"not_run", "passed", "failed"}
+COMPLETION_SCOPE_CUTOVER_ORDER = "000.0.24"
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
 GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
@@ -426,7 +431,18 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
                 require(prerequisite_task == required_prerequisite_task, errors, f"blocked_task_details entry {index} prerequisite_task and required_prerequisite_task must match")
             for field in ["blocker_type", "evidence", "attempted_recovery", "edits_state"]:
                 require(isinstance(detail.get(field), str) and bool(detail.get(field, "").strip()), errors, f"blocked_task_details entry {index} {field} must be non-empty")
+            blocker_type = detail.get("blocker_type")
+            require(blocker_type in BLOCKER_TYPES, errors, f"blocked_task_details entry {index} blocker_type must be a known enum value")
+            edits_state = detail.get("edits_state")
+            require(edits_state in BLOCKED_EDIT_STATES, errors, f"blocked_task_details entry {index} edits_state must be a known enum value")
             require(isinstance(detail.get("requires_user_input"), bool), errors, f"blocked_task_details entry {index} requires_user_input must be boolean")
+            requires_user_input = detail.get("requires_user_input")
+            if requires_user_input is False:
+                require(isinstance(required_prerequisite_task, str), errors, f"blocked_task_details entry {index} required_prerequisite_task must be set unless user input is required")
+            if isinstance(required_prerequisite_task, str):
+                prerequisite = task_by_id.get(required_prerequisite_task)
+                if isinstance(prerequisite, dict) and prerequisite.get("state") == "complete":
+                    fail(errors, f"blocked_task_details entry {index} prerequisite {required_prerequisite_task} is complete; blocked task must return to queued")
             notes = detail.get("notes")
             require(isinstance(notes, str) and bool(notes.strip()), errors, f"blocked_task_details entry {index} notes must be non-empty")
 
@@ -459,7 +475,13 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
     expected_next = current_states[0] if current_states else (ready_ids[0] if ready_ids else None)
     require(next_task == expected_next, errors, f"status next_task must be current in-progress task or first dependency-ready queued task {expected_next!r}")
 
-    require(isinstance(status.get("last_validation"), dict), errors, "status last_validation must be an object")
+    last_validation = status.get("last_validation")
+    require(isinstance(last_validation, dict), errors, "status last_validation must be an object")
+    if isinstance(last_validation, dict):
+        require(set(last_validation) == LAST_VALIDATION_FIELDS, errors, "status last_validation must contain command, status, and notes")
+        require(isinstance(last_validation.get("command"), str) and bool(last_validation.get("command")), errors, "status last_validation.command must be non-empty")
+        require(last_validation.get("status") in LAST_VALIDATION_STATUSES, errors, "status last_validation.status must be a known enum value")
+        require(isinstance(last_validation.get("notes"), str) and bool(last_validation.get("notes")), errors, "status last_validation.notes must be non-empty")
     require(isinstance(status.get("history"), list), errors, "status history must be an array")
     validate_completion_evidence(status, task_by_id, errors)
 
@@ -482,7 +504,7 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
         "dogfooding_implication",
         "follow_up_tasks",
     }
-    optional_fields = {"artifacts"}
+    optional_fields = {"artifacts", "gap_registry_rows_changed", "task_control_changes"}
     evidence_by_task: dict[str, dict[str, object]] = {}
     for index, entry in enumerate(evidence):
         require(isinstance(entry, dict), errors, f"completion_evidence entry {index} must be an object")
@@ -508,6 +530,16 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             require(isinstance(entry.get(field), list) and all(isinstance(item, str) and item for item in entry.get(field, [])), errors, f"completion_evidence entry {index} field {field} must be a string array")
         if "artifacts" in entry:
             require(isinstance(entry.get("artifacts"), list) and all(isinstance(item, str) and item for item in entry.get("artifacts", [])), errors, f"completion_evidence entry {index} field artifacts must be a string array")
+        gap_rows = entry.get("gap_registry_rows_changed")
+        if gap_rows is not None:
+            require(isinstance(gap_rows, dict), errors, f"completion_evidence entry {index} gap_registry_rows_changed must be an object")
+            if isinstance(gap_rows, dict):
+                for registry_path, rows in gap_rows.items():
+                    require(isinstance(registry_path, str) and re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", registry_path) is not None, errors, f"completion_evidence entry {index} gap_registry_rows_changed key must be a gap registry path")
+                    require(isinstance(rows, list) and all(isinstance(row, str) and row for row in rows), errors, f"completion_evidence entry {index} gap_registry_rows_changed rows for {registry_path!r} must be a non-empty string array")
+        task_control_changes = entry.get("task_control_changes")
+        if task_control_changes is not None:
+            require(isinstance(task_control_changes, list) and all(isinstance(item, str) and item for item in task_control_changes), errors, f"completion_evidence entry {index} task_control_changes must be a string array")
         tests_run = entry.get("tests_run")
         require(isinstance(tests_run, list) and any(isinstance(item, str) and "python3 scripts/validate_task_system.py" in item for item in tests_run), errors, f"completion_evidence entry {index} tests_run must include python3 scripts/validate_task_system.py")
         tests_added = entry.get("tests_added")
@@ -528,6 +560,11 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             require(validator.get("status") == "passed", errors, f"completion_evidence entry {index} validator_result.status must be passed")
             require(isinstance(validator.get("notes"), str) and bool(validator.get("notes")), errors, f"completion_evidence entry {index} validator_result.notes must be non-empty")
 
+        if isinstance(task_id, str):
+            task = task_by_id.get(task_id)
+            if isinstance(task, dict) and order_key(task_order(task)) >= order_key(COMPLETION_SCOPE_CUTOVER_ORDER):
+                validate_completion_scope_evidence(entry, task, index, errors)
+
     completed_ids = [task_id for task_id in completed if isinstance(task_id, str)]
     for task_id in completed_ids:
         require(task_id in evidence_by_task, errors, f"completed task {task_id} missing completion_evidence entry")
@@ -539,6 +576,43 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             task = task_by_id.get(task_id)
             if isinstance(task, dict) and order_key(task_order(task)) > order_041:
                 require("artifacts" in entry, errors, f"post-041 completion_evidence for task {task_id} must include artifacts")
+                artifacts = entry.get("artifacts")
+                if isinstance(artifacts, list):
+                    for artifact in artifacts:
+                        if not isinstance(artifact, str):
+                            continue
+                        require(artifact.startswith(f"artifacts/pipeline/{task_id}/"), errors, f"post-041 artifact {artifact} must live under artifacts/pipeline/{task_id}/")
+                        require((ROOT / artifact).exists(), errors, f"post-041 artifact {artifact} must exist")
+
+
+def validate_completion_scope_evidence(entry: dict[str, object], task: dict[str, object], index: int, errors: list[str]) -> None:
+    task_id = task.get("id")
+    allowed_files = task.get("allowed_files")
+    forbidden_files = task.get("forbidden_files")
+    files_changed = entry.get("files_changed")
+    if not isinstance(task_id, str) or not isinstance(files_changed, list):
+        return
+
+    for path in files_changed:
+        if not isinstance(path, str):
+            continue
+        require(
+            not path.startswith("/") and not path.startswith("task "),
+            errors,
+            f"completion_evidence entry {index} files_changed must use concrete project-relative paths after task 094: {path!r}",
+        )
+        if path_matches_any(path, forbidden_files):
+            fail(errors, f"completion_evidence entry {index} file {path} is forbidden by task {task_id}")
+            continue
+        if is_global_scope_exception(path, task_id, [task]):
+            if path in TASK_CONTROL_FILES:
+                task_control_changes = entry.get("task_control_changes")
+                require(isinstance(task_control_changes, list) and path in task_control_changes, errors, f"completion_evidence entry {index} task-control file {path} must be listed in task_control_changes")
+            if re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", path):
+                gap_rows = entry.get("gap_registry_rows_changed")
+                require(isinstance(gap_rows, dict) and isinstance(gap_rows.get(path), list) and bool(gap_rows.get(path)), errors, f"completion_evidence entry {index} gap registry file {path} must list changed row ids")
+            continue
+        require(path_matches_any(path, allowed_files), errors, f"completion_evidence entry {index} file {path} is outside task {task_id} allowed_files")
 
 
 def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
@@ -2581,6 +2655,102 @@ def validate_gap_registry_deferred_task_closure(tasks: list[dict[str, object]], 
             )
 
 
+def validate_agent_readiness_validator_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard the final pre-bootstrap autonomous-agent readiness fixes from task 094."""
+    required_phrases = {
+        "docs/TASK_LIFECYCLE.md": [
+            "`implemented` and `verified` are pipeline artifact stages, not task-control states",
+            "Task-control state transitions are `queued -> active -> complete`",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "`implemented` and `verified` are reserved for pipeline artifact stages",
+            "completed prerequisites cannot leave the blocked task in `blocked`",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "Run final active-scope validation while the task is active, then complete in one task-control transition",
+        ],
+        "docs/ORCHESTRATION_SPEC.md": [
+            "Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it",
+            "Architecture tasks that edit contracts route through Planner or Phase Planner for the edit step and Architecture Reviewer for review",
+        ],
+        "docs/PIPELINE_ESCALATION_POLICY.md": [
+            "Architecture contract edits still need an explicit editing role before Architecture Reviewer",
+        ],
+        "docs/GAP_REGISTRIES.md": [
+            "`completion_evidence.gap_registry_rows_changed` must list each changed registry path and row id",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "`phase2` expands only to stable Phase 2 operators",
+            "`impact_graph` is rejected until task `051` completes",
+        ],
+        "docs/MUTATOR_SPEC.md": [
+            "`phase2` means stable Phase 2 operators only",
+        ],
+        "docs/TEST_SELECTION.md": [
+            "Before task `051`, `impact_graph` is not available and must be rejected by config validation",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "`failure_kind` distinguishes `compile_error` from test assertion failure",
+            "`backend_version` is intentionally omitted from report v1 public mutant entries",
+            "mode-matrix reporting is owned by task `058`",
+        ],
+        "docs/SANDBOX_SECURITY.md": [
+            "The default minimal environment allowlist is exactly",
+            "Command output excerpts are bounded to 4096 bytes per stream",
+        ],
+        "docs/AI_PROMPT_CONTRACTS.md": [
+            "Doctest stub provider mappings",
+            "review_snapshot -> zentinel.ai.doctest.snapshot_review.response.v1",
+        ],
+        "docs/DOCTEST_BLOCK_FORMATS.md": [
+            "Plain `zig` compile-pass blocks must not consume `text output`",
+        ],
+        "docs/DOCTEST_ARCHITECTURE.md": [
+            "`zig` followed by `text output` is invalid",
+        ],
+        "docs/AI_CONTEXT_SCHEMA.md": [
+            "`backend_version` is intentionally omitted from AI context v1",
+        ],
+        "docs/INTERNAL_API_CONTRACTS.md": [
+            "`backend_version` remains internal and is not emitted in report v1 or AI context v1",
+        ],
+        "tasks/015-mutant-runner.md": [
+            "Add a failing test for `failure_kind = \"compile_error\"` versus `failure_kind = \"test_failure\"`",
+        ],
+        "tasks/020-test-selection-same-file.md": [
+            "Reject `impact_graph` before task `051`",
+        ],
+        "tasks/051-fail-fast-impact-analysis.md": [
+            "task `051` is the first task allowed to accept `impact_graph`",
+        ],
+        "tasks/055-ai-doctest-assistance.md": [
+            "Add failing stub-provider snapshots for every task-owned doctest AI flow",
+        ],
+        "tasks/058-safety-mode-matrix.md": [
+            "schemas/report.v1.schema.json",
+            "docs/REPORT_FORMAT.md",
+        ],
+        "tasks/067-ai-doctest-survivor-assistance.md": [
+            "Add a failing stub-provider output snapshot for the survivor flow",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 094 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 094 contract phrase {phrase!r}")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task058 = task_by_id.get("058")
+    if isinstance(task058, dict):
+        allowed = task058.get("allowed_files")
+        require(isinstance(allowed, list) and "schemas/report.v1.schema.json" in allowed, errors, "task 058 must allow schemas/report.v1.schema.json")
+        require(isinstance(allowed, list) and "docs/REPORT_FORMAT.md" in allowed, errors, "task 058 must allow docs/REPORT_FORMAT.md")
+
+
 def invariant_numbers(errors: list[str]) -> list[str]:
     path = ROOT / "docs" / "INVARIANTS.md"
     if not path.is_file():
@@ -2654,6 +2824,7 @@ def main() -> int:
     validate_analysis_risk_cleanup_contracts(errors)
     validate_analysis_followup_hardening_contracts(tasks, errors)
     validate_agent_enforcement_closure_contracts(tasks, errors)
+    validate_agent_readiness_validator_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

@@ -47,6 +47,8 @@ When selection cannot prove a narrower command, it must fall back to configured 
 
 ## Impact Graph
 
+Before task `051`, `impact_graph` is not available and must be rejected by config validation. Agents must not accept it as an alias for `same_file_then_package` or silently fall back to all tests.
+
 The future impact graph may use:
 
 - source imports

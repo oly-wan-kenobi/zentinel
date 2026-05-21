@@ -68,3 +68,5 @@ Subagents must:
 | Architecture | Roadmap, public contracts, task system, or module boundaries. |
 
 The Orchestrator chooses the highest applicable class.
+
+Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it. Architecture tasks that edit contracts route through Planner or Phase Planner for the edit step and Architecture Reviewer for review.

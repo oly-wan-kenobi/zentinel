@@ -34,6 +34,8 @@ All mutators must not:
 
 Preview operators are documented design targets, not minimum-product implementation tasks. End-to-end completion excludes preview mutator implementation. A stable task may add fixtures that protect a preview operator's future contract, but it must not implement or enable a preview operator unless the task title or acceptance criteria names that operator explicitly.
 
+For config expansion, `phase2` means stable Phase 2 operators only. Preview Phase 2 entries in the catalog are design targets and do not become enabled through `phase2` or `all_stable` until a later task promotes them to stable.
+
 ## Operator Catalog
 
 | Operator | Phase | Stability | Summary |

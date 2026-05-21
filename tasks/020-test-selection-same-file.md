@@ -36,6 +36,7 @@ Implement the default `same_file_then_package` test selection strategy.
 - Add a failing test for same-file test selection.
 - Add a failing test for fallback to configured commands.
 - Add a failing test for deterministic selected test ordering.
+- Reject `impact_graph` before task `051` with a failing config-validation test instead of downgrading it to `same_file_then_package`.
 - Add a failing report snapshot showing selection metadata with required `strategy`, `selected`, `commands`, and `fallback_used` fields and no unknown fields.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.

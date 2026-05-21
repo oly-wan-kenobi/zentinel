@@ -42,3 +42,4 @@ An uncovered row whose `deferred_to` points to a complete task is invalid unless
 - Do not set `covered` to `true` for prose-only evidence.
 - Do not delete uncovered rows to make the registry look better.
 - Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a row-scoped task exception: update only the matching row or newly required row for the active task's contract change unless the active task explicitly allows broader registry maintenance.
+- When a completion changes a gap registry through the row-scoped exception, `completion_evidence.gap_registry_rows_changed` must list each changed registry path and row id so the validator can distinguish narrow row updates from broad registry cleanup.

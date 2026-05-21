@@ -47,7 +47,7 @@ Add advisory-only AI assistance for doctest failures, snapshots, and missing exe
 - Add a failing schema-validation test proving task `055` rejects `flow = "explain_doctest_survivor"` and evidence `kind = "doctest_survivor"` until task `067` extends the schema after task `061`.
 - Add failing schema-validation tests for doctest explanation, suggestion, and snapshot-review response payloads. Doctest explanation responses reuse `schemas/ai.explain.response.v1.schema.json` and must use its doctest-specific classification labels.
 - Add a failing test that AI suggestions cannot update expected output automatically.
-- Add a failing stub-provider doctest assistance test.
+- Add failing stub-provider snapshots for every task-owned doctest AI flow.
 - Add failing CLI tests for `zentinel doctest explain <case-ref>` with a selected report, the default report path, missing reports using `ZNTL_AI_REPORT_NOT_FOUND`, unknown case refs using `ZNTL_DOCTEST_CASE_NOT_FOUND`, durable `dt_...` IDs, and source-ref selectors.
 - Add failing CLI tests for `zentinel doctest suggest <doc-path>` with the stub provider, no report present, optional `--input-report` context, invalid docs paths using `ZNTL_DOCTEST_DOC_NOT_FOUND`, and proof that suggestions do not edit docs.
 - Add failing CLI tests for `zentinel doctest review-snapshot <case-ref>` with a selected report, the default report path, missing reports using `ZNTL_AI_REPORT_NOT_FOUND`, unknown case refs using `ZNTL_DOCTEST_CASE_NOT_FOUND`, exact `case.result.snapshot` input evidence, and proof that snapshot review does not update expected output.

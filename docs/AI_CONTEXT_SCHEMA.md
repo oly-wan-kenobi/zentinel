@@ -63,6 +63,7 @@ This example is a minimal valid payload shape. Do not use empty placeholder obje
         "status": "passed",
         "exit_code": 0,
         "timed_out": false,
+        "failure_kind": "none",
         "duration_ms_normalized": "<duration>",
         "evidence": {
           "stdout_excerpt": "",
@@ -167,6 +168,8 @@ review_tests
 
 `id` is the canonical mutant reference. `display_id` is included only for human-readable correlation with the selected report and must not be treated as durable. `backend_stability` describes only the backend (`stable` or `experimental`). `operator_stability` describes the mutator operator (`stable`, `preview`, or `experimental`) and follows `docs/MUTATOR_SPEC.md`.
 
+`backend_version` is intentionally omitted from AI context v1. It is internal identity/cache evidence and must not be sent to AI providers without a versioned schema change.
+
 ## Result Object
 
 ```json
@@ -186,6 +189,7 @@ review_tests
       "status": "passed",
       "exit_code": 0,
       "timed_out": false,
+      "failure_kind": "none",
       "duration_ms_normalized": "<duration>",
       "evidence": {
         "stdout_excerpt": "",
@@ -219,7 +223,7 @@ invalid
 
 AI receives status as read-only evidence.
 
-The `commands` array mirrors mutant command results from the canonical report schema with snapshot-normalized durations. Each entry includes the original display command, parsed argv with non-empty `argv[0]`, normalized cwd label, `environment_policy: "minimal"`, `shell: false`, `phase: "mutant"`, command status, exit evidence, and `skip_reason`. AI mutant context uses `phase: "mutant"` because baseline failures are represented at report run level instead of as mutant results.
+The `commands` array mirrors mutant command results from the canonical report schema with snapshot-normalized durations. Each entry includes the original display command, parsed argv with non-empty `argv[0]`, normalized cwd label, `environment_policy: "minimal"`, `shell: false`, `phase: "mutant"`, command status, `failure_kind`, exit evidence, and `skip_reason`. AI mutant context uses `phase: "mutant"` because baseline failures are represented at report run level instead of as mutant results.
 
 ## Source Context
 

@@ -27,6 +27,20 @@ Task `054` owns mutation prompt requests and must require embedded `zentinel.ai.
 
 Do not replace any registered context with a schema-version-only placeholder in fixtures, snapshots, or provider tests. A writer must not emit a prompt using a context schema until the matching schema file exists and validation passes.
 
+## Doctest Response Schema Routing
+
+Doctest AI flows must name closed response schemas:
+
+```text
+explain_doctest_failure -> zentinel.ai.explain.response.v1
+suggest_doctest -> zentinel.ai.doctest.suggest.response.v1
+review_snapshot -> zentinel.ai.doctest.snapshot_review.response.v1
+suggest_missing_doctests -> zentinel.ai.doctest.suggest.response.v1
+explain_doctest_survivor -> zentinel.ai.explain.response.v1
+```
+
+Task `055` owns the first four mappings and must snapshot them with the stub provider. Task `067` owns the survivor mapping after task `061` provides mutation-aware doctest report evidence.
+
 ## Common Request
 
 ```json
@@ -285,3 +299,13 @@ otherwise -> unclear
 ```
 
 The stub provider must be sufficient for snapshot tests of AI command output.
+
+Doctest stub provider mappings are also deterministic and flow-owned:
+
+```text
+explain_doctest_failure + case_failure -> doctest_output_mismatch
+suggest_doctest + docs_target -> one bounded suggestion for an executable doctest
+review_snapshot + snapshot_diff -> snapshot-review response using zentinel.ai.doctest.snapshot_review.response.v1
+suggest_missing_doctests + missing_doctests -> one bounded suggestion for the target doc
+explain_doctest_survivor + doctest_survivor -> doctest_survivor_missing_assertion
+```

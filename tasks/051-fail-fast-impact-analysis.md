@@ -10,6 +10,7 @@ Implement fail-fast and deterministic test impact analysis for mutation runs.
 
 - Add fail-fast behavior for baseline and configured mutant classes.
 - Refine same-file and package impact analysis.
+- Accept and implement `test.selection = "impact_graph"`; task `051` is the first task allowed to accept `impact_graph`.
 - Record skipped or shortened execution with deterministic reasons.
 
 ## Files allowed to modify

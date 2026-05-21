@@ -39,31 +39,27 @@ A validator pass is not product proof and does not replace task-specific failing
 
 ## Task States
 
-Allowed task states:
+Normal task-control transitions are:
 
 ```text
 queued
 active
-blocked
-implemented
-verified
 complete
-superseded
 ```
 
-State meanings:
+`blocked` is a recoverable side path and `superseded` is terminal. `implemented` and `verified` are reserved for pipeline artifact stages, not normal task-control states. Older schema and validator compatibility may still recognize those names so an interrupted repository can be repaired, but new agents must record implementation and verification progress in pipeline artifacts or completion evidence while keeping the task `active` until it becomes `complete`.
+
+Task-control state meanings:
 
 | State | Meaning |
 | --- | --- |
 | `queued` | Ready but not started. |
 | `active` | The single task currently being worked. |
 | `blocked` | Cannot continue until a prerequisite task is inserted or a required input is obtained. |
-| `implemented` | Code changes exist and targeted tests pass, but full verification has not finished. |
-| `verified` | Required tests and validation passed; final status update still pending. |
 | `complete` | Task is done and state files are updated. |
 | `superseded` | Replaced by another task with an explicit reason. |
 
-Only one task may be `active`, `implemented`, or `verified` pending completion at a time.
+Only one task may be `active`, `implemented`, or `verified` pending completion at a time. `implemented` and `verified` in that sentence are compatibility states that must be collapsed back to `active` or advanced to `complete` before normal work continues.
 
 ## Task-Control File Exception
 
@@ -99,7 +95,7 @@ Use this decision table:
 | Pinned Zig `0.16.0` API uncertainty | Prefer public Zig `0.16.0` APIs; add adapter tests; document fallback. |
 | Test failure from prior completed task | Create a regression-fix task before continuing. |
 
-When a missing prerequisite is inserted, keep the originally blocked task in `blocked` until the prerequisite task completes. After the prerequisite task completes, the blocked task returns to `queued` and waits for normal dependency-ready selection by execution order; it must not jump directly to `active`.
+When a missing prerequisite is inserted, keep the originally blocked task in `blocked` until the prerequisite task completes. After the prerequisite task completes, the blocked task returns to `queued` and waits for normal dependency-ready selection by execution order; it must not jump directly to `active`. A blocked record whose required prerequisite is already complete is invalid because completed prerequisites cannot leave the blocked task in `blocked`.
 
 ## AskUserQuestion Use
 

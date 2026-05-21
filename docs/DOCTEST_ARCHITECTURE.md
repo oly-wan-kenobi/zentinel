@@ -146,10 +146,13 @@ Standalone executable blocks:
 
 Paired expectation blocks:
 
-- `zig` followed by `text output`
+- `zig compile_fail` followed by `text output`
+- `zig test` followed by `text output`
 - `bash cli` followed by `text output`
 - command block followed by `json expected`
 - `toml config` followed by config validation expectation
+
+`zig` followed by `text output` is invalid because plain compile-pass snippets have no stable stdout/stderr contract.
 
 Mutation-spec blocks:
 

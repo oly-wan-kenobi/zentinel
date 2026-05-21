@@ -110,7 +110,13 @@ Default runner environment must be minimal and deterministic:
 - omit secrets from reports
 - never include full environment in AI context
 
+The default minimal environment allowlist is exactly `PATH`, `HOME`, `TMPDIR`, `ZIG_GLOBAL_CACHE_DIR`, `ZIG_LOCAL_CACHE_DIR`, `LC_ALL`, and `LANG`. If a variable is absent on the host, zentinel omits it rather than synthesizing a host-specific value; if locale variables are present, stable snapshots normalize them to `C`.
+
 Future config may allow explicit environment variables, but default behavior should be conservative.
+
+## Output Bounds
+
+Command output excerpts are bounded to 4096 bytes per stream. The bound applies independently to normalized stdout and stderr excerpts before report writing or AI context construction. Full unbounded command output must not be persisted in report v1 or sent to AI providers.
 
 ## AI Security Boundary
 

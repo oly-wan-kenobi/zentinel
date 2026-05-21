@@ -157,6 +157,7 @@ Rules:
 - durable `id` is hash-derived
 - `display_id` is assigned after canonical sorting for report rendering and is stable only within that report
 - `backend_version` is the deterministic backend contract string used for identity and cache keys, for example `ast.v1.zig-0.16.0`
+- `backend_version` remains internal and is not emitted in report v1 or AI context v1
 - `backend_stability` is `stable` or `experimental`; `operator_stability` is `stable`, `preview`, or `experimental`
 - `replacement` is exact source text for AST-backed mutants
 - one mutant contains exactly one source change
@@ -175,6 +176,7 @@ phase
 status
 exit_code
 timed_out
+failure_kind
 stdout_excerpt
 stderr_excerpt
 duration_ms
@@ -187,6 +189,7 @@ Rules:
 - durations are normalized in snapshots
 - `shell` is `false` for stable configured command execution
 - `argv` is produced only by `src/command.zig`
+- `failure_kind` distinguishes compile errors, assertion/test failures, compiler crashes, timeouts, skips, and successful commands
 - command order follows config/test selection order
 - baseline command results cannot be skipped in report v1
 - skipped mutant command results carry a deterministic non-empty `skip_reason`

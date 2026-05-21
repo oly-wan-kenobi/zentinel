@@ -16,6 +16,8 @@ Each task receives the highest applicable class.
 
 Required gates are monotonic. Escalating a task may add gates, but must not remove gates required by a lower class.
 
+Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the task is docs-only or metadata-only, introduces no public contract change, and has a task-system or targeted file check that would fail for the intended mistake. Architecture contract edits still need an explicit editing role before Architecture Reviewer; the reviewer validates the contract change and must not be the only role that authored it.
+
 ## Trigger Matrix
 
 | Trigger | Escalation |

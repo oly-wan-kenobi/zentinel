@@ -215,8 +215,8 @@
       "required": ["stdout_excerpt", "stderr_excerpt", "failure_summary"],
       "additionalProperties": false,
       "properties": {
-        "stdout_excerpt": { "type": "string" },
-        "stderr_excerpt": { "type": "string" },
+        "stdout_excerpt": { "type": "string", "maxLength": 4096 },
+        "stderr_excerpt": { "type": "string", "maxLength": 4096 },
         "failure_summary": { "type": "string" }
       }
     },
@@ -248,14 +248,29 @@
     },
     "baseline_command_result": {
       "type": "object",
-      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms", "evidence", "skip_reason"],
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "failure_kind", "duration_ms", "evidence", "skip_reason"],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "passed" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "none" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "enum": ["compile_error", "test_failure"] } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "timeout" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "timeout" } } }
+        }
+      ],
       "properties": {
         "command": { "$ref": "#/$defs/command_evidence" },
         "phase": { "const": "baseline" },
         "status": { "enum": ["passed", "failed", "timeout"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
+        "failure_kind": { "enum": ["none", "compile_error", "test_failure", "timeout"] },
         "duration_ms": { "type": "integer", "minimum": 0 },
         "evidence": { "$ref": "#/$defs/evidence" },
         "skip_reason": { "type": "null" }
@@ -263,13 +278,33 @@
     },
     "mutant_command_result": {
       "type": "object",
-      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms", "evidence", "skip_reason"],
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "failure_kind", "duration_ms", "evidence", "skip_reason"],
       "additionalProperties": false,
       "allOf": [
         {
           "if": { "properties": { "status": { "const": "skipped" } }, "required": ["status"] },
           "then": { "properties": { "skip_reason": { "type": "string", "minLength": 1 } } },
           "else": { "properties": { "skip_reason": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "passed" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "none" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "enum": ["compile_error", "test_failure"] } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "compiler_crash" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "compiler_crash" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "timeout" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "timeout" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "skipped" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "skipped" } } }
         }
       ],
       "properties": {
@@ -278,6 +313,7 @@
         "status": { "enum": ["passed", "failed", "compiler_crash", "timeout", "skipped"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
+        "failure_kind": { "enum": ["none", "compile_error", "test_failure", "compiler_crash", "timeout", "skipped"] },
         "duration_ms": { "type": "integer", "minimum": 0 },
         "evidence": { "$ref": "#/$defs/evidence" },
         "skip_reason": { "type": ["string", "null"] }
