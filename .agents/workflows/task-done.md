@@ -11,6 +11,7 @@ Use this workflow only after Verifier reports green.
 5. Update `tasks/STATUS.md`.
 6. Update `tasks/queue.json` and `tasks/QUEUE.md`; then mark the task `complete`.
 7. Run `python3 scripts/validate_task_system.py` again after the complete-state transition to prove synchronized queue/status state.
+8. Establish the clean handoff boundary before any different task is activated. Before activating a different task, either commit the completed task changes or record a validator-readable clean baseline by setting `clean_handoff_baseline` with the completed task id, source commit, and per-file SHA-256 entries for non-task-control dirty files that make prior task changes explicit to active-scope validation.
 
 ## Output
 

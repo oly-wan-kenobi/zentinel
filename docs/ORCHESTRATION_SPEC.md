@@ -75,3 +75,5 @@ Subagents must:
 The Orchestrator chooses the highest applicable class.
 
 Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when `docs/PIPELINE_ESCALATION_POLICY.md` allows it. Architecture tasks that edit contracts route through Planner or Phase Planner for planning, Contract Editor for the edit step, and Architecture Reviewer for review. Public contract changes route through Contract Editor before review.
+
+Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.

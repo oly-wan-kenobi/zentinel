@@ -96,6 +96,8 @@ zentinel 0.1.0
 zig 0.16.0
 ```
 
+Until task `005` is complete, task `001` treats version output as policy-only; task `001` prints the configured zentinel version and Zig policy label but must not own moving Zig discovery behavior.
+
 If Zig is not available, `version` still prints zentinel version and reports Zig discovery failure on stderr with exit code `0` only if Zig is not required by the command.
 
 ## `init`

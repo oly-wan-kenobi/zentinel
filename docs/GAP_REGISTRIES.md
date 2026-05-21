@@ -35,6 +35,8 @@ Each row has:
 
 An uncovered row whose `deferred_to` points to a complete task is invalid unless the row is explicitly marked superseded. Once the owning task completes, the row must either become covered with executable evidence, move to a still-queued concrete owner, or document supersession.
 
+I-019 chronology coverage must defer to the pipeline metadata validator rather than a wording-preservation task. Structural guardrails may preserve TDD wording before that cutover, but only role timestamp validation can close the mechanical chronology gap.
+
 ## Agent Rules
 
 - When adding a new invariant, failure mode, stable mutator, or schema contract, update the matching registry in the same task.

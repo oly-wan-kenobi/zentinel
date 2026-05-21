@@ -11,7 +11,7 @@ Run the final release dogfood gate after tasks `061`, `062`, `064`, `065`, `066`
 - Run fixture dogfood, selected internal module dogfood, public-doc doctest dogfood, and mutation-aware doctest dogfood required by the completed feature set.
 - Compare deterministic repeated dogfood reports after normalizing observation metadata.
 - Verify `scripts/ci.sh` includes the dogfood, artifact, recovery, public-doc doctest, and doctest survivor AI gates that exist by this point.
-- Archive or reference final dogfood JSON reports under stable artifact paths.
+- Archive or reference final dogfood JSON reports under `artifacts/pipeline/085/dogfood/`. `zig-out` runtime outputs are not the canonical archive.
 - Record survivor, invalid-mutant, schema, recovery, and artifact validation evidence before release acceptance.
 
 ## Files allowed to modify

@@ -37,6 +37,7 @@ Implement the Phase 0 CLI shell for `--help`, `version`, and `init` without muta
 
 - Add failing snapshot tests for help output before implementing rendering.
 - Add a failing test for `version` output.
+- Add a failing test that documents this boundary: Until task `005` is complete, task `001` treats version output as policy-only and does not own moving Zig discovery behavior.
 - Add a failing test for `init` refusing to overwrite an existing config.
 - Add a failing test for `init --force` overwriting an existing config with the deterministic default template.
 - Add a failing test that a known future command such as `run` returns `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED`.
@@ -50,6 +51,7 @@ Implement the Phase 0 CLI shell for `--help`, `version`, and `init` without muta
 
 - `zentinel --help` is deterministic.
 - `zentinel version` prints zentinel version and Zig policy label without requiring mutation components.
+- Until task `005` is complete, task `001` treats version output as policy-only; version-policy discovery and compatibility behavior lands in task `005`.
 - `zentinel init` writes a valid default config.
 - `zentinel init --force` overwrites only `zentinel.toml` and writes the same deterministic default config.
 - Known future commands return a deterministic not-implemented usage failure.

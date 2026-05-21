@@ -80,9 +80,11 @@ End-to-end completion requires:
 
 - fixture dogfood command
 - selected internal module dogfood command
-- archived dogfood JSON report
+- archived dogfood JSON report under `artifacts/pipeline/<task-id>/dogfood/`
 - deterministic repeated dogfood report comparison
 - no invalid mutants in stable dogfood scope
+
+Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/` before release acceptance.
 
 Dogfood gating must focus on deterministic regressions and reviewed survivor changes, not a single global mutation score.
 

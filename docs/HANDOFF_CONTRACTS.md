@@ -2,6 +2,8 @@
 
 Every pipeline step emits a structured handoff artifact. Handoffs prevent context drift and allow fresh agents to continue work without implicit memory.
 
+Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry. Chat history is never the durable handoff.
+
 ## Canonical JSON Handoff
 
 The JSON handoff is the canonical machine-readable artifact. Markdown handoffs are optional summaries and must not be the only durable handoff after task `041` is complete.

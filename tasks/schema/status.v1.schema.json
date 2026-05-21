@@ -12,6 +12,7 @@
     "blocked_task_details",
     "last_validation",
     "completion_evidence",
+    "clean_handoff_baseline",
     "history"
   ],
   "additionalProperties": false,
@@ -211,6 +212,43 @@
               "type": "string"
             }
           }
+        }
+      }
+    },
+    "clean_handoff_baseline": {
+      "type": ["object", "null"],
+      "required": ["task", "source_commit", "files", "notes"],
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "type": "string",
+          "pattern": "^[0-9]{3}$"
+        },
+        "source_commit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

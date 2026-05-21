@@ -139,8 +139,8 @@
       "number": "I-019",
       "covered": false,
       "tests": [],
-      "deferred_to": "tasks/040-agent-pipeline-foundation.md",
-      "notes": "Pipeline handoffs will record failing evidence before implementation."
+      "deferred_to": "tasks/063-pipeline-metadata-validator.md",
+      "notes": "Pipeline artifact role timestamps will prove failing evidence was recorded before implementation."
     },
     {
       "number": "I-020",

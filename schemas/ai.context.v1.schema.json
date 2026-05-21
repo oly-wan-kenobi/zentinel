@@ -72,8 +72,15 @@
     },
     "result": {
       "type": "object",
-      "required": ["status", "mode", "commands", "phase", "duration_ms_normalized", "evidence"],
+      "required": ["status", "mode", "commands", "phase", "duration_ms_normalized", "evidence", "skip_reason"],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "skipped" } }, "required": ["status"] },
+          "then": { "properties": { "skip_reason": { "type": "string", "minLength": 1 } } },
+          "else": { "properties": { "skip_reason": { "type": "null" } } }
+        }
+      ],
       "properties": {
         "status": { "enum": ["killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"] },
         "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
@@ -83,7 +90,8 @@
         },
         "phase": { "const": "mutant" },
         "duration_ms_normalized": { "const": "<duration>" },
-        "evidence": { "$ref": "#/$defs/evidence" }
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "skip_reason": { "type": ["string", "null"] }
       }
     },
     "mutant_command_result": {

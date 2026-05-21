@@ -137,6 +137,8 @@ Dogfood reports should answer:
 
 Dogfood reports should not center on a single percentage.
 
+Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.
+
 ## Pipeline Dogfooding
 
 The AI-agent pipeline must dogfood zentinel's verification model as soon as the supporting features exist.

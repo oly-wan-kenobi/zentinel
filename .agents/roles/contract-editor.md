@@ -35,3 +35,5 @@ Use this role when a task changes public contracts, schema targets, ADRs, archit
 - risks or compatibility assumptions
 
 Contract Editor owns public contract edits. Architecture Reviewer reviews the resulting architecture boundary; it must not be the only role that authored the contract change.
+
+When public contract changes define or change expected behavior, Contract Editor runs before Test Author so tests target the approved contract. When no public contract edit is required, Test Author still creates failing evidence before implementation.

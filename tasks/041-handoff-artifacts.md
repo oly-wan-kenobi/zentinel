@@ -28,6 +28,11 @@ Define and validate the persistent handoff artifact structure used between pipel
 - `schemas/pipeline.verification.v1.schema.json`
 - `schemas/pipeline.escalation.v1.schema.json`
 - `test/fixtures/pipeline/handoff/**`
+- `test/fixtures/pipeline/active_lock/**`
+- `test/fixtures/pipeline/context/**`
+- `test/fixtures/pipeline/stale_context/**`
+- `test/fixtures/pipeline/verification/**`
+- `test/fixtures/pipeline/escalation/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 
@@ -42,6 +47,8 @@ Define and validate the persistent handoff artifact structure used between pipel
 ## Required tests
 
 - Add a failing schema or fixture validation case before adding or changing the handoff schema.
+- Add baseline fixture coverage under `test/fixtures/pipeline/handoff/**`, `test/fixtures/pipeline/active_lock/**`, `test/fixtures/pipeline/context/**`, `test/fixtures/pipeline/stale_context/**`, `test/fixtures/pipeline/verification/**`, and `test/fixtures/pipeline/escalation/**` for every baseline pipeline schema this task creates.
+- Add a standard-library-only fixture sanity check before relying on project-owned schema validation.
 - If project-owned schema validation tooling does not exist yet, use a deterministic external schema or fixture validation command and record the exact command in completion evidence.
 - Run `python3 scripts/validate_task_system.py`.
 - If schema validation tooling exists, validate a passing and failing handoff artifact fixture.

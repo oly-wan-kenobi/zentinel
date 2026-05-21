@@ -205,7 +205,7 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
 | `skipped` | Mutant was not executed for a deterministic documented reason. |
 | `invalid` | zentinel generated an invalid patch or violated a backend contract. |
 
-Each mutant result must name the deterministic classifier source in existing evidence fields. Runner-owned statuses use structured command evidence; `invalid` uses patch, sandbox, or backend contract evidence; `skipped` uses a deterministic skip reason. `result.skip_reason` is required and non-null when `result.status = "skipped"`; all other result statuses set `result.skip_reason = null`. Report v1 must not add an open classifier field or use AI text to classify correctness.
+Each mutant result must name the deterministic classifier source in existing evidence fields. Runner-owned statuses use structured command evidence; `invalid` uses patch, sandbox, or backend contract evidence; `skipped` uses a deterministic skip reason. For `invalid`, `failure_summary` starts with one of `patch:`, `sandbox:`, or `backend:`. `result.skip_reason` is required and non-null when `result.status = "skipped"`; all other result statuses set `result.skip_reason = null`. Report v1 must not add an open classifier field or use AI text to classify correctness.
 
 Baseline failure is a run-level state (`run.status = baseline_failed`), not a mutant result status.
 

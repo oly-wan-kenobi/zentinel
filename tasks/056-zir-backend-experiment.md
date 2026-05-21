@@ -39,6 +39,7 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 - Add a failing config test proving ZIR requires explicit opt-in.
 - Add a failing CLI test proving `list-mutants --backend zir` is rejected before task `056` lands and accepted only by this task's explicit experimental opt-in.
 - Add a failing ZIR source-mapping fixture test.
+- Add a failing diagnostic artifact test proving unsupported ZIR evidence is written under `artifacts/pipeline/<task-id>/experimental-backend-diagnostics/`.
 - Add a failing parity test for an AST-compatible operator where practical.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
@@ -49,6 +50,7 @@ Implement an explicitly opt-in ZIR backend experiment with source-mapping diagno
 - `list-mutants --backend zir` is implemented as an experimental opt-in and does not affect stable AST defaults.
 - ZIR reports identify `backend` and `backend_stability` using report v1 fields only.
 - Unsupported ZIR cases produce out-of-report diagnostics, not schema-invalid report fields or silent misreports.
+- Unsupported ZIR cases write task-scoped diagnostics under `artifacts/pipeline/<task-id>/experimental-backend-diagnostics/`.
 - `python3 scripts/validate_task_system.py` passes.
 
 ## Non-goals

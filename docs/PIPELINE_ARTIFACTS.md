@@ -21,6 +21,7 @@ doctest/
 mutation/
 verification/
 decisions/
+dogfood/
 ```
 
 ## Naming Conventions
@@ -85,11 +86,16 @@ The artifact records:
 
 The active lock artifact is evidence that the task-control files, context packet, and pipeline artifact directory all name the same active task. It does not replace `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, or `tasks/STATUS.md`; those synchronized task files remain the canonical queue state.
 
+After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts. The active-lock artifact path is `artifacts/pipeline/<task-id>/locks/active-task-lock.json`.
+
+After task `041`, activation order is: mark the task active in task-control files, create `locks/active-task-lock.json`, create the first role context packet, then run `python3 scripts/validate_task_system.py` before role work starts.
+
 Task `041` creates baseline schemas for handoffs, active locks, context packets, stale-context markers, verification records, and escalation records. The first post-`041` pipeline task may use those baseline schemas immediately; later tasks refine role-specific fields without removing the required baseline fields.
 
 ## Retention Policy
 
 - Keep artifacts for completed tasks that affect public contracts, mutation semantics, reports, cache, runner, doctests, or AI contracts.
+- Final dogfood release archives live under `artifacts/pipeline/<task-id>/dogfood/`; runtime output paths such as `zig-out/zentinel/dogfood.json` are inputs to archive, not the canonical retained location.
 - Low-risk docs-only artifacts may be summarized in status after completion.
 - Do not store secrets, raw home paths, or full temp workspaces.
 

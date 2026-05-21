@@ -57,6 +57,8 @@ Add specialized roles when required by task scope:
 - `Architecture Reviewer` for architecture, public schema, backend, safety, or ADR changes.
 - `Phase Planner` only for backlog or phase decomposition.
 
+Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.
+
 ## Complexity Routing
 
 This table mirrors `docs/PIPELINE_ESCALATION_POLICY.md`. Task Queue Manager and Planner steps still run when required by the task lifecycle or dispatch flow, but the class-specific minimum roles below must not drift from the escalation policy.

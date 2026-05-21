@@ -26,7 +26,7 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 4. If no task is active, select the first dependency-ready queued task from `tasks/queue.json` by execution order. Every task entry in `tasks/queue.json` contains an explicit `order` key.
 5. Read the selected or active task file and required docs from `AGENTS.md` before changing implementation files.
 6. When starting a queued task, mark it `active` in `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.
-7. Run `python3 scripts/validate_task_system.py` immediately after marking it `active`.
+7. Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active. Run `python3 scripts/validate_task_system.py` immediately after marking it `active`.
 8. Write the smallest failing test or fixture.
 9. Run the targeted test and capture the expected failure.
 10. Implement the smallest passing change.
@@ -38,6 +38,10 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 16. Run `python3 scripts/validate_task_system.py` again after the complete-state transition.
 
 A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
+
+The clean handoff boundary is part of the standard loop. Before activating a different task, the Task Queue Manager must either commit the completed task changes or record a validator-readable clean baseline that makes prior task changes explicit to active-scope validation. Agents must not activate a new task while treating prior-task dirty files as hidden state.
+
+After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.
 
 ## Task States
 

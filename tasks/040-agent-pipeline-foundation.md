@@ -38,7 +38,7 @@ Establish the repository-visible foundation for the AI-agent task pipeline witho
 ## Required tests
 
 - Add a failing documentation-contract check or validator fixture first if terminology cannot be verified by the existing validator.
-- Add a failing structural guardrail proving I-019 TDD-first wording is preserved before updating the invariant gap row.
+- Add a failing structural guardrail proving I-019 TDD-first wording is preserved. Preserve I-019 wording but do not mark I-019 covered; mechanical chronology proof is deferred to task `063`.
 - Run `python3 scripts/validate_task_system.py`.
 - Run a text search proving no new pipeline doc uses unsupported role names.
 

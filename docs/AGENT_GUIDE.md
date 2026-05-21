@@ -52,6 +52,10 @@ An agent completes work by:
 
 After completion, the validator checks the actual dirty file set against the latest completion evidence. This makes the complete-state validator a backstop for omitted or out-of-scope files, but it does not replace the required active-scope validation.
 
+The clean handoff boundary is mandatory before a different task is activated. Before activating a different task, the Task Queue Manager must either commit the completed task changes or record a validator-readable clean baseline that makes prior task changes explicit to active-scope validation. A fresh agent must not treat uncommitted prior-task edits as invisible background state for the next task.
+
+When a clean baseline is recorded without a commit, `tasks/status.json` must set `clean_handoff_baseline` to the completed task id, source commit, and a per-file SHA-256 entry for every non-task-control dirty file carried forward. Task-control files are validated structurally by the task-system validator. Active and inactive scope validation may ignore only unchanged files explicitly covered by the current clean handoff baseline; any unbaselined file, deleted baselined file, or baselined file whose hash changes is treated as current-task drift.
+
 ## Agent Pipeline
 
 Codex role profiles and workflow runbooks live under `.agents/`. The `docs/` files define stable project contracts; `.agents/` defines how Codex agents operate against those contracts.
@@ -208,7 +212,7 @@ A good handoff lets the next agent work without re-investigating:
 - required handoff fields match `docs/HANDOFF_CONTRACTS.md`
 - context packet references are current and scoped to the active task
 
-Pipeline handoff artifacts should be written under `artifacts/pipeline/<task-id>/` once that artifact directory is introduced. Until then, agents must include the same fields in `tasks/STATUS.md` or the task completion summary. `tasks/status.json` records the narrower machine-checkable `completion_evidence` subset so fresh agents can verify completion gates without parsing all Markdown prose.
+Pipeline handoff artifacts should be written under `artifacts/pipeline/<task-id>/` once that artifact directory is introduced. Until then, agents must include the same fields in `tasks/STATUS.md` or the task completion summary. `tasks/status.json` records the narrower machine-checkable `completion_evidence` subset so fresh agents can verify completion gates without parsing all Markdown prose. Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry.
 
 Pre-artifact completion summaries must include:
 

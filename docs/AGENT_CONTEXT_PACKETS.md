@@ -2,6 +2,8 @@
 
 Context packets are the only required input for fresh stateless subagents.
 
+After task `041`, the first context packet must exist before post-activation validation dispatches role work. The active lock artifact points at that packet so a fresh subagent can verify it is operating on the current task state.
+
 ## Packet Contents
 
 ```json

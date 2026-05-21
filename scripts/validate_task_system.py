@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import fnmatch
+import hashlib
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,6 +59,7 @@ TASK_FILE_RE = re.compile(r"^tasks/[0-9]{3}-.+\.md$")
 TASK_REF_RE = re.compile(r"`((?:tasks/)?[0-9]{3}-[^`]+\.md)`")
 NO_FOLLOW_UP_RE = re.compile(r"^None predefined\.")
 ORDER_RE = re.compile(r"^[0-9]{3}(?:\.[0-9]+)*$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 QUEUE_ROW_RE = re.compile(r"^\| ([0-9]{3}(?:\.[0-9]+)*) \| `([^`]+)` \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
 INVARIANT_RE = re.compile(r"^\*\*(I-[0-9]{3})\.", re.MULTILINE)
 FAILURE_MODE_RE = re.compile(r"^\*\*(F-[0-9]{3})\.", re.MULTILINE)
@@ -94,8 +96,11 @@ STATUS_TOP_LEVEL_FIELDS = {
     "blocked_task_details",
     "last_validation",
     "completion_evidence",
+    "clean_handoff_baseline",
     "history",
 }
+CLEAN_HANDOFF_BASELINE_FIELDS = {"task", "source_commit", "files", "notes"}
+CLEAN_HANDOFF_BASELINE_FILE_FIELDS = {"path", "sha256"}
 BLOCKED_TASK_DETAIL_FIELDS = {
     "task",
     "reason",
@@ -359,6 +364,7 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
 
     task_ids = [task["id"] for task in tasks if isinstance(task.get("id"), str)]
     task_by_id = {task["id"]: task for task in tasks if isinstance(task.get("id"), str)}
+    validate_clean_handoff_baseline(status, task_by_id, errors)
 
     active_states = [task["id"] for task in tasks if task.get("state") == "active"]
     current_states = active_states
@@ -790,6 +796,119 @@ def validate_markdown_status(status: object, tasks: list[dict[str, object]], err
             require(isinstance(next_task, str) and (next_task in next_value or (isinstance(expected_file, str) and expected_file in next_value)), errors, "tasks/STATUS.md Next task must match status.json next_task")
 
 
+def git_stdout(args: list[str], errors: list[str], action: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(errors, f"git {' '.join(args)} failed while {action}: {result.stderr.strip()}")
+        return ""
+    return result.stdout.strip()
+
+
+def current_head_commit(errors: list[str]) -> str:
+    return git_stdout(["rev-parse", "HEAD"], errors, "checking the clean handoff baseline source commit")
+
+
+def is_project_relative_path(path: str) -> bool:
+    posix_path = PurePosixPath(path)
+    return bool(path) and not posix_path.is_absolute() and ".." not in posix_path.parts
+
+
+def file_sha256(path: str) -> str | None:
+    full_path = ROOT / path
+    try:
+        return hashlib.sha256(full_path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def clean_handoff_baseline_file_hashes(status: object) -> dict[str, str]:
+    if not isinstance(status, dict):
+        return {}
+    baseline = status.get("clean_handoff_baseline")
+    if not isinstance(baseline, dict):
+        return {}
+    files = baseline.get("files")
+    if not isinstance(files, list):
+        return {}
+
+    hashes: dict[str, str] = {}
+    for entry in files:
+        if not isinstance(entry, dict):
+            continue
+        path = entry.get("path")
+        sha256 = entry.get("sha256")
+        if isinstance(path, str) and isinstance(sha256, str) and SHA256_RE.match(sha256):
+            hashes[path] = sha256
+    return hashes
+
+
+def validate_clean_handoff_baseline(
+    status: dict[str, object],
+    task_by_id: dict[str, dict[str, object]],
+    errors: list[str],
+) -> None:
+    baseline = status.get("clean_handoff_baseline")
+    if baseline is None:
+        return
+    require(isinstance(baseline, dict), errors, "status clean_handoff_baseline must be null or an object")
+    if not isinstance(baseline, dict):
+        return
+
+    keys = set(baseline)
+    for field in sorted(CLEAN_HANDOFF_BASELINE_FIELDS - keys):
+        fail(errors, f"status clean_handoff_baseline missing field {field}")
+    for field in sorted(keys - CLEAN_HANDOFF_BASELINE_FIELDS):
+        fail(errors, f"status clean_handoff_baseline contains unknown field {field}")
+
+    task_id = baseline.get("task")
+    require(isinstance(task_id, str) and task_id in task_by_id, errors, "status clean_handoff_baseline.task must be a known task id")
+    if isinstance(task_id, str) and task_id in task_by_id:
+        require(task_by_id[task_id].get("state") == "complete", errors, "status clean_handoff_baseline.task must reference a complete task")
+
+    source_commit = baseline.get("source_commit")
+    require(isinstance(source_commit, str) and bool(source_commit.strip()), errors, "status clean_handoff_baseline.source_commit must be non-empty")
+    notes = baseline.get("notes")
+    require(isinstance(notes, str) and bool(notes.strip()), errors, "status clean_handoff_baseline.notes must be non-empty")
+
+    files = baseline.get("files")
+    require(isinstance(files, list), errors, "status clean_handoff_baseline.files must be an array")
+    if not isinstance(files, list):
+        return
+
+    seen_paths: set[str] = set()
+    for index, entry in enumerate(files):
+        require(isinstance(entry, dict), errors, f"status clean_handoff_baseline.files[{index}] must be an object")
+        if not isinstance(entry, dict):
+            continue
+        entry_keys = set(entry)
+        for field in sorted(CLEAN_HANDOFF_BASELINE_FILE_FIELDS - entry_keys):
+            fail(errors, f"status clean_handoff_baseline.files[{index}] missing field {field}")
+        for field in sorted(entry_keys - CLEAN_HANDOFF_BASELINE_FILE_FIELDS):
+            fail(errors, f"status clean_handoff_baseline.files[{index}] contains unknown field {field}")
+
+        path = entry.get("path")
+        sha256 = entry.get("sha256")
+        require(isinstance(path, str) and is_project_relative_path(path), errors, f"status clean_handoff_baseline.files[{index}].path must be project-relative")
+        require(isinstance(sha256, str) and SHA256_RE.match(sha256) is not None, errors, f"status clean_handoff_baseline.files[{index}].sha256 must be a lowercase SHA-256 hex digest")
+        if not isinstance(path, str) or not isinstance(sha256, str):
+            continue
+        require(path not in seen_paths, errors, f"status clean_handoff_baseline duplicates file {path}")
+        seen_paths.add(path)
+        current_sha = file_sha256(path)
+        require(current_sha == sha256, errors, f"status clean_handoff_baseline file {path} does not match recorded sha256")
+
+    raw_changed = changed_files_against_head(errors)
+    if raw_changed and isinstance(source_commit, str):
+        require(source_commit == current_head_commit(errors), errors, "status clean_handoff_baseline.source_commit must match current HEAD while dirty files are baselined")
+
+
 def path_matches(path: str, pattern: str) -> bool:
     return path == pattern or fnmatch.fnmatchcase(path, pattern)
 
@@ -816,6 +935,18 @@ def changed_files_against_head(errors: list[str]) -> list[str]:
     changed = git_names(["diff", "--name-only", "HEAD", "--"])
     changed.update(git_names(["ls-files", "--others", "--exclude-standard"]))
     return sorted(changed)
+
+
+def changed_files_since_clean_handoff(status: object, errors: list[str]) -> list[str]:
+    baseline_hashes = clean_handoff_baseline_file_hashes(status)
+    changed: list[str] = []
+    for path in changed_files_against_head(errors):
+        if path in TASK_CONTROL_FILES:
+            continue
+        if baseline_hashes.get(path) == file_sha256(path):
+            continue
+        changed.append(path)
+    return changed
 
 
 def file_text_at_head(path: str) -> str | None:
@@ -922,7 +1053,7 @@ def validate_active_task_changed_file_scope(status: object, tasks: list[dict[str
 
     allowed_files = active_task.get("allowed_files")
     forbidden_files = active_task.get("forbidden_files")
-    for path in changed_files_against_head(errors):
+    for path in changed_files_since_clean_handoff(status, errors):
         if path_matches_any(path, forbidden_files):
             fail(errors, f"changed file {path} is forbidden by active task {active_task_id}")
             continue
@@ -938,7 +1069,7 @@ def validate_inactive_changed_file_scope(status: object, tasks: list[dict[str, o
     if isinstance(status.get("active_task"), str):
         return
 
-    changed = changed_files_against_head(errors)
+    changed = changed_files_since_clean_handoff(status, errors)
     if not changed:
         return
 
@@ -970,7 +1101,7 @@ def validate_inactive_gap_registry_row_scope(status: object, errors: list[str]) 
 
     dirty_registries = [
         path
-        for path in changed_files_against_head(errors)
+        for path in changed_files_since_clean_handoff(status, errors)
         if re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", path)
     ]
     if not dirty_registries:
@@ -1023,8 +1154,14 @@ def validate_schema_files(errors: list[str]) -> None:
                 properties = schema.get("properties")
                 require(isinstance(required_fields, list) and "completion_evidence" in required_fields, errors, "status schema must require completion_evidence")
                 require(isinstance(properties, dict) and "completion_evidence" in properties, errors, "status schema must define completion_evidence")
+                require(isinstance(required_fields, list) and "clean_handoff_baseline" in required_fields, errors, "status schema must require clean_handoff_baseline")
+                require(isinstance(properties, dict) and "clean_handoff_baseline" in properties, errors, "status schema must define clean_handoff_baseline")
                 require(isinstance(required_fields, list) and "blocked_task_details" in required_fields, errors, "status schema must require blocked_task_details")
                 require(isinstance(properties, dict) and "blocked_task_details" in properties, errors, "status schema must define blocked_task_details")
+                baseline_schema = properties.get("clean_handoff_baseline") if isinstance(properties, dict) else None
+                baseline_text = json.dumps(baseline_schema, sort_keys=True)
+                require("sha256" in baseline_text, errors, "status schema clean_handoff_baseline must record sha256 values")
+                require("source_commit" in baseline_text, errors, "status schema clean_handoff_baseline must record source_commit")
                 blocked_schema = properties.get("blocked_task_details") if isinstance(properties, dict) else None
                 blocked_item = blocked_schema.get("items") if isinstance(blocked_schema, dict) else None
                 blocked_required = blocked_item.get("required") if isinstance(blocked_item, dict) else None
@@ -2376,10 +2513,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `097`",
+            "pre-bootstrap hardening tasks `071` through `098`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `097` is complete",
+            "after task `098` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -2399,6 +2536,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "pre-bootstrap hardening tasks `071` through `092`",
             "pre-bootstrap hardening tasks `071` through `095`",
             "pre-bootstrap hardening tasks `071` through `096`",
+            "pre-bootstrap hardening tasks `071` through `097`",
         ],
     }
     for rel, phrases in forbidden_phrases.items():
@@ -3294,14 +3432,12 @@ def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, o
             require(isinstance(allowed, list) and rel in allowed, errors, f"task 041 must own baseline pipeline schema file {rel}")
     task063 = task_by_id.get("063")
     if isinstance(task063, dict):
-        allowed = task063.get("allowed_files")
-        for rel in [
-            "schemas/pipeline.context.v1.schema.json",
-            "schemas/pipeline.stale_context.v1.schema.json",
-            "schemas/pipeline.verification.v1.schema.json",
-            "schemas/pipeline.escalation.v1.schema.json",
-        ]:
-            require(not (isinstance(allowed, list) and rel in allowed), errors, f"task 063 must not create baseline pipeline schema file {rel}")
+        task063_text = (ROOT / "tasks" / "063-pipeline-metadata-validator.md").read_text(encoding="utf-8")
+        require(
+            "not create them" in task063_text,
+            errors,
+            "task 063 must keep baseline pipeline schema creation owned by task 041",
+        )
     for task_id, cli_file, test_file in [
         ("056", "src/cli.zig", "test/cli_backend_experiment_test.zig"),
         ("057", "src/cli.zig", "test/cli_backend_experiment_test.zig"),
@@ -3331,6 +3467,264 @@ def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, o
         require(isinstance(selection_required, list) and "preflight_commands" in selection_required, errors, "report test_selection must require preflight_commands")
         require(isinstance(selection_properties, dict) and "preflight_commands" in selection_properties, errors, "report test_selection must define preflight_commands")
         require(isinstance(defs, dict) and "selection_preflight_command_result" in defs, errors, "report schema must define selection_preflight_command_result")
+
+
+def validate_agent_implementation_blocker_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 098's final implementation-blocker closures against drift."""
+
+    required_phrases = {
+        "docs/AGENT_GUIDE.md": [
+            "clean handoff boundary",
+            "Before activating a different task, the Task Queue Manager must either commit the completed task changes or record a validator-readable clean baseline",
+            "Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry.",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "clean handoff boundary",
+            "Before activating a different task, the Task Queue Manager must either commit the completed task changes or record a validator-readable clean baseline",
+        ],
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md": [
+            "A different task must not be activated across uncommitted prior-task changes unless a validator-readable clean handoff baseline is recorded.",
+        ],
+        ".agents/workflows/task-done.md": [
+            "clean handoff boundary",
+            "Before activating a different task, either commit the completed task changes or record a validator-readable clean baseline",
+        ],
+        ".agents/workflows/task-plan.md": [
+            "After task `041`, activate the task, write `artifacts/pipeline/<task-id>/locks/active-task-lock.json`, write the first context packet, then run `python3 scripts/validate_task_system.py` before dispatching role work.",
+        ],
+        "docs/TDD_POLICY.md": [
+            "Mechanical chronology proof for I-019 starts at task `063` when pipeline artifact validation can check role timestamps.",
+        ],
+        "docs/INVARIANTS.md": [
+            "Mechanical chronology proof starts at task `063` when pipeline artifact validation can check role timestamps.",
+        ],
+        "docs/GAP_REGISTRIES.md": [
+            "I-019 chronology coverage must defer to the pipeline metadata validator rather than a wording-preservation task.",
+        ],
+        "tasks/040-agent-pipeline-foundation.md": [
+            "Preserve I-019 wording but do not mark I-019 covered",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "test/fixtures/pipeline/active_lock/**",
+            "test/fixtures/pipeline/context/**",
+            "test/fixtures/pipeline/stale_context/**",
+            "test/fixtures/pipeline/verification/**",
+            "test/fixtures/pipeline/escalation/**",
+        ],
+        "tasks/063-pipeline-metadata-validator.md": [
+            "validate I-019 chronology by checking pipeline artifact role timestamps",
+            "may tighten schema validation or fixtures across all baseline pipeline schemas but must not create them",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "After task `041`, activation order is: mark the task active in task-control files, create `locks/active-task-lock.json`, create the first role context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+            "artifacts/pipeline/<task-id>/dogfood/",
+        ],
+        "docs/AGENT_CONTEXT_PACKETS.md": [
+            "After task `041`, the first context packet must exist before post-activation validation dispatches role work.",
+        ],
+        "docs/AI_CONTEXT_SCHEMA.md": [
+            "`result.skip_reason` is required and non-null when `result.status = \"skipped\"`; all other result statuses set it to `null`.",
+        ],
+        "docs/SANDBOX_SECURITY.md": [
+            "phase label (`baseline`, `selection_preflight`, or `mutant`)",
+        ],
+        "docs/HANDOFF_CONTRACTS.md": [
+            "Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry.",
+        ],
+        ".agents/README.md": [
+            "Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry.",
+        ],
+        "docs/ORCHESTRATION_SPEC.md": [
+            "Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.",
+        ],
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.",
+        ],
+        ".agents/ORCHESTRATOR.md": [
+            "Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.",
+        ],
+        ".agents/roles/contract-editor.md": [
+            "When public contract changes define or change expected behavior, Contract Editor runs before Test Author so tests target the approved contract.",
+        ],
+        "docs/CI_STRATEGY.md": [
+            "Final release dogfood archives live under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.",
+        ],
+        "docs/DOGFOODING.md": [
+            "Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.",
+        ],
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md": [
+            "archived under `artifacts/pipeline/<task-id>/dogfood/`",
+        ],
+        "tasks/085-final-dogfood-release-gate.md": [
+            "artifacts/pipeline/085/dogfood/",
+            "`zig-out` runtime outputs are not the canonical archive",
+        ],
+        "tasks/053-ai-provider-and-context.md": [
+            "result-level `skip_reason`",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 098 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 098 phrase {phrase!r}")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task041 = task_by_id.get("041")
+    if isinstance(task041, dict):
+        allowed = task041.get("allowed_files")
+        for rel in [
+            "test/fixtures/pipeline/handoff/**",
+            "test/fixtures/pipeline/active_lock/**",
+            "test/fixtures/pipeline/context/**",
+            "test/fixtures/pipeline/stale_context/**",
+            "test/fixtures/pipeline/verification/**",
+            "test/fixtures/pipeline/escalation/**",
+        ]:
+            require(isinstance(allowed, list) and rel in allowed, errors, f"task 041 must allow baseline pipeline fixture scope {rel}")
+    task063 = task_by_id.get("063")
+    if isinstance(task063, dict):
+        allowed = task063.get("allowed_files")
+        for rel in [
+            "schemas/pipeline.handoff.v1.schema.json",
+            "schemas/pipeline.active_lock.v1.schema.json",
+            "schemas/pipeline.context.v1.schema.json",
+            "schemas/pipeline.stale_context.v1.schema.json",
+            "schemas/pipeline.verification.v1.schema.json",
+            "schemas/pipeline.escalation.v1.schema.json",
+        ]:
+            require(isinstance(allowed, list) and rel in allowed, errors, f"task 063 must allow baseline pipeline schema validation target {rel}")
+
+    invariants_gap = load_json(ROOT / "tests" / "coverage-gaps" / "invariants.v1.json", errors)
+    if isinstance(invariants_gap, dict):
+        entries = invariants_gap.get("entries")
+        if isinstance(entries, list):
+            i019 = next((entry for entry in entries if isinstance(entry, dict) and entry.get("number") == "I-019"), None)
+            require(isinstance(i019, dict), errors, "invariant gap registry must include I-019")
+            if isinstance(i019, dict):
+                require(i019.get("covered") is False, errors, "I-019 gap row must remain uncovered until role timestamp validation exists")
+                require(i019.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, "I-019 must defer mechanical chronology proof to task 063")
+                notes = i019.get("notes")
+                require(isinstance(notes, str) and "role timestamps" in notes, errors, "I-019 gap row notes must mention role timestamp validation")
+
+    ai_schema = load_json(ROOT / "schemas" / "ai.context.v1.schema.json", errors)
+    if isinstance(ai_schema, dict):
+        defs = ai_schema.get("$defs")
+        result = defs.get("result") if isinstance(defs, dict) else None
+        required = result.get("required") if isinstance(result, dict) else None
+        properties = result.get("properties") if isinstance(result, dict) else None
+        require(isinstance(required, list) and "skip_reason" in required, errors, "AI context result must require skip_reason")
+        require(isinstance(properties, dict) and "skip_reason" in properties, errors, "AI context result must define skip_reason")
+
+
+def validate_handoff_baseline_and_contract_drift_closure_contracts(
+    tasks: list[dict[str, object]],
+    status: object,
+    errors: list[str],
+) -> None:
+    """Guard task 099's handoff-baseline and downstream drift closures."""
+
+    required_phrases = {
+        "docs/AGENT_GUIDE.md": [
+            "clean_handoff_baseline",
+            "per-file SHA-256",
+            "unchanged files explicitly covered by the current clean handoff baseline",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active.",
+            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+        ],
+        ".agents/workflows/task-plan.md": [
+            "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active.",
+            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+        ],
+        ".agents/workflows/task-done.md": [
+            "clean_handoff_baseline",
+            "per-file SHA-256",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+        ],
+        "docs/AI_PROMPT_CONTRACTS.md": [
+            '"skip_reason": null',
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "For `invalid`, `failure_summary` starts with one of `patch:`, `sandbox:`, or `backend:`.",
+        ],
+        "docs/CLI_SPEC.md": [
+            "Until task `005` is complete, task `001` treats version output as policy-only",
+        ],
+        "docs/MUTATOR_SPEC.md": [
+            "When AST syntax alone cannot prove an optional/null, error-path, errdefer, integer-boundary, or loop-boundary rewrite preserves Zig grammar, the mutator must filter the candidate before execution rather than emitting a `compile_error` result.",
+        ],
+        "docs/ZIR_BACKEND.md": [
+            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
+        ],
+        "docs/AIR_BACKEND.md": [
+            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
+        ],
+        "docs/DOCTEST_MUTATION_STRATEGY.md": [
+            "`failure_kind`",
+            "mutation-aware doctest runner evidence",
+        ],
+        "docs/DOCTEST_AI_INTEGRATION.md": [
+            "`failure_kind`",
+            "mutation-aware doctest runner evidence",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "standard-library-only fixture sanity check",
+        ],
+        "tasks/001-cli-shell.md": [
+            "Until task `005` is complete, task `001` treats version output as policy-only",
+        ],
+        "tasks/006-report-schema.md": [
+            "For `invalid`, `failure_summary` starts with one of `patch:`, `sandbox:`, or `backend:`.",
+        ],
+        "tasks/039-doctest-mutation-experiments.md": [
+            "`failure_kind`",
+            "mutation-aware doctest runner evidence",
+        ],
+        "tasks/056-zir-backend-experiment.md": [
+            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
+        ],
+        "tasks/057-air-backend-experiment.md": [
+            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
+        ],
+        "tasks/061-doctest-mutate-stabilization.md": [
+            "`failure_kind`",
+            "mutation-aware doctest runner evidence",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 099 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 099 phrase {phrase!r}")
+
+    schema = load_json(ROOT / "tasks" / "schema" / "status.v1.schema.json", errors)
+    if isinstance(schema, dict):
+        required = schema.get("required")
+        properties = schema.get("properties")
+        require(isinstance(required, list) and "clean_handoff_baseline" in required, errors, "status schema must require clean_handoff_baseline")
+        require(isinstance(properties, dict) and "clean_handoff_baseline" in properties, errors, "status schema must define clean_handoff_baseline")
+        baseline = properties.get("clean_handoff_baseline") if isinstance(properties, dict) else None
+        baseline_text = json.dumps(baseline, sort_keys=True)
+        require("sha256" in baseline_text, errors, "status schema clean_handoff_baseline must record sha256 values")
+        require("source_commit" in baseline_text, errors, "status schema clean_handoff_baseline must record source_commit")
+
+    require(isinstance(status, dict) and "clean_handoff_baseline" in status, errors, "status.json must contain clean_handoff_baseline")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "099" in deps, errors, "task 000 must depend on task 099")
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -3412,6 +3806,8 @@ def main() -> int:
     validate_autonomous_agent_contract_repair_contracts(tasks, errors)
     validate_audit_finding_contract_closure_contracts(tasks, errors)
     validate_autonomous_agent_contract_closure_contracts(tasks, errors)
+    validate_agent_implementation_blocker_closure_contracts(tasks, errors)
+    validate_handoff_baseline_and_contract_drift_closure_contracts(tasks, status, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

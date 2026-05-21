@@ -36,7 +36,7 @@ Implement deterministic AI provider plumbing, privacy redaction, and AI context 
 
 - Add a failing schema validation or snapshot test for AI context.
 - Add a failing test that rejects an AI context missing required nested mutant, result, source, test, or operator fields.
-- Add a failing test that result context uses the structured mutant command-results array from the report schema, rejects legacy single-`command` or `test_command`-only payloads, rejects empty `argv[0]`, requires deterministic `skip_reason` values for skipped command entries, and allows only `environment_policy = "minimal"` in v1.
+- Add a failing test that result context uses the structured mutant command-results array from the report schema, rejects legacy single-`command` or `test_command`-only payloads, rejects empty `argv[0]`, requires deterministic `skip_reason` values for skipped command entries and result-level `skip_reason` for skipped mutant results, and allows only `environment_policy = "minimal"` in v1.
 - Add a failing schema validation test proving stdout_excerpt and stderr_excerpt are capped at 4096 characters.
 - Add a failing test that rejects `preview` as a backend stability while accepting it as an operator stability when explicitly represented.
 - Add a failing test for redaction failure closing the AI flow.

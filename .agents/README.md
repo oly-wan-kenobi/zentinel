@@ -112,6 +112,8 @@ artifacts/pipeline/<task-id>/
 
 Before task `041`, context packets and handoffs are recorded in task status or completion summaries. Until that artifact tree exists, record equivalent evidence in `tasks/STATUS.md`, `tasks/status.json`, and the completion summary. `tasks/status.json` records the narrower machine-checkable `completion_evidence` subset; the full pre-artifact handoff fields live in `tasks/STATUS.md` or the completion summary until task `041` introduces durable artifacts.
 
+Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completion log entry and the matching `tasks/status.json` `completion_evidence` entry. Do not rely on chat history as the only record of role output.
+
 After task `041` introduces the artifact tree, writes under `artifacts/pipeline/<active-task-id>/**` are a task-scoped audit exception to normal allowed-file lists. That exception is limited to pipeline evidence and never authorizes source, docs, tests, schema, task-state, or another task's artifact changes.
 
 Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a separate row-scoped exception. A Codex role may update only the row that corresponds to the invariant, failure mode, stable mutator, or schema contract added, changed, or covered by the active task.

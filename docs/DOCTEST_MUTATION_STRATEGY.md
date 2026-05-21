@@ -142,6 +142,7 @@ JSON report fields should reuse the shared mutant model and add doctest context:
       },
       "exit_code": 0,
       "timed_out": false,
+      "failure_kind": "none",
       "stdout_excerpt": "",
       "stderr_excerpt": "",
       "failure_summary": "",
@@ -152,6 +153,8 @@ JSON report fields should reuse the shared mutant model and add doctest context:
 ```
 
 The exact field contract, including `ds_` survivor-ref derivation, lives in `docs/DOCTEST_SPEC.md`.
+
+The mutation-aware doctest runner evidence object is closed and includes `failure_kind` so survivor assistance can distinguish compile errors, test failures, timeouts, compiler crashes, skips, and clean execution without inferring from prose.
 
 ## Mutation Score for Docs
 

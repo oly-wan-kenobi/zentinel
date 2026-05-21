@@ -9,9 +9,13 @@ Use this workflow when preparing the next queued task for implementation.
 3. If no task is active, resolve the first dependency-ready queued task by execution order from `tasks/queue.json`.
 4. Read the selected or active task file and required docs from `AGENTS.md`.
 5. Dispatch or simulate `Task Queue Manager` to mark a newly selected task active.
-6. Run `python3 scripts/validate_task_system.py` immediately after activation.
+6. Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active. Run `python3 scripts/validate_task_system.py` immediately after activation.
 7. Dispatch or simulate `Planner`.
 8. Record the plan, risks, applicable contracts, and required tests in the task handoff location. Before task `041`, use task status or the completion summary for equivalent pre-artifact handoff fields; after task `041`, use the task-scoped artifact path under `artifacts/pipeline/<task-id>/`.
+
+After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts. The active-lock artifact path is `artifacts/pipeline/<task-id>/locks/active-task-lock.json`.
+
+After task `041`, activate the task, write `artifacts/pipeline/<task-id>/locks/active-task-lock.json`, write the first context packet, then run `python3 scripts/validate_task_system.py` before dispatching role work.
 
 ## Stop Conditions
 

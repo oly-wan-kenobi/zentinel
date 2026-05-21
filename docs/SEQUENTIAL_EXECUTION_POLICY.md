@@ -23,6 +23,7 @@ Before task `041`, the synchronized task files are the canonical active-task loc
 - dependencies must be complete
 - reordering requires queue and status updates
 - blocked tasks create prerequisite tasks rather than hidden side work
+- A different task must not be activated across uncommitted prior-task changes unless a validator-readable clean handoff baseline is recorded.
 
 ## Branch Ownership
 

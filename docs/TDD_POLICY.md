@@ -10,6 +10,8 @@ Completion evidence must name the failing evidence, tests added, tests run, and 
 
 Current mechanical checks verify recorded evidence fields and role handoffs; they do not independently prove chronological order until pipeline artifact validation covers role timestamps. Agents and reviewers must still enforce D-400 and I-019 as mandatory discipline before that later artifact-level validation exists.
 
+Mechanical chronology proof for I-019 starts at task `063` when pipeline artifact validation can check role timestamps. Earlier tasks may preserve wording and require evidence fields, but they must not mark chronology proof as covered.
+
 ## Required Workflow
 
 1. Read the active task file and referenced docs.

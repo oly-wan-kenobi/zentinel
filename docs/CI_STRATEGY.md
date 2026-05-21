@@ -63,6 +63,8 @@ Artifacts:
 - text summary
 - cache diagnostics when enabled
 
+Final release dogfood archives live under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.
+
 Advisory dogfood should fail only on infrastructure or deterministic core errors, not ordinary survivors.
 
 ## Gating Policy

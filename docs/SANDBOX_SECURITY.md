@@ -56,7 +56,7 @@ Reports must record:
 - cwd label
 - environment policy label
 - whether shell execution was used, which must be `false` for stable Phase 1 behavior
-- phase label (`baseline` or `mutant`)
+- phase label (`baseline`, `selection_preflight`, or `mutant`)
 
 ## Workspace Policy
 

@@ -38,6 +38,7 @@ Prototype `zentinel doctest --mutate` for fixture documentation without stabiliz
 
 - Add failing fixture tests for one killed doctest mutant and one survived doctest mutant.
 - Add a failing test for `no_behavioral_assertion` skip reason.
+- Add a failing fixture test that mutation-aware doctest runner evidence includes `failure_kind`.
 - Add a failing JSON report snapshot for doctest mutation results.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
@@ -53,6 +54,7 @@ Prototype `zentinel doctest --mutate` for fixture documentation without stabiliz
 
 - `zentinel doctest --mutate` works only for explicitly configured fixture docs.
 - Documentation mutants reuse shared mutant/result semantics.
+- The mutation-aware doctest runner evidence object includes `failure_kind`.
 - Survivors are reported as documentation survivor diagnostics.
 - The feature remains experimental and opt-in.
 

@@ -79,7 +79,8 @@ This example is a minimal valid payload shape. Do not use empty placeholder obje
       "stdout_excerpt": "",
       "stderr_excerpt": "",
       "failure_summary": ""
-    }
+    },
+    "skip_reason": null
   },
   "source_context": {
     "policy": "minimal",
@@ -205,7 +206,8 @@ review_tests
     "stdout_excerpt": "",
     "stderr_excerpt": "",
     "failure_summary": ""
-  }
+  },
+  "skip_reason": null
 }
 ```
 
@@ -222,6 +224,8 @@ invalid
 ```
 
 AI receives status as read-only evidence.
+
+`result.skip_reason` is required and non-null when `result.status = "skipped"`; all other result statuses set it to `null`.
 
 The `commands` array mirrors mutant command results from the canonical report schema with snapshot-normalized durations. Each command entry requires `failure_kind`. Each entry includes the original display command, parsed argv with non-empty `argv[0]`, normalized cwd label, `environment_policy: "minimal"`, `shell: false`, `phase: "mutant"`, command status, `failure_kind`, exit evidence, and `skip_reason`. AI mutant context uses `phase: "mutant"` because baseline failures are represented at report run level instead of as mutant results.
 

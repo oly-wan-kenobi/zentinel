@@ -349,6 +349,8 @@ Compile errors are valid deterministic outcomes. A compile-error mutant is:
 
 Expected compile behavior in this document controls reporting language, not whether the candidate exists.
 
+When AST syntax alone cannot prove an optional/null, error-path, errdefer, integer-boundary, or loop-boundary rewrite preserves Zig grammar, the mutator must filter the candidate before execution rather than emitting a `compile_error` result. `compile_error` is reserved for a syntactically well-formed candidate patch that Zig rejects during the normal mutant run.
+
 ## Equivalent Mutants
 
 zentinel does not automatically remove mutants solely because they may be equivalent. Equivalent risk is reported as metadata and can be used by AI explanation flows.

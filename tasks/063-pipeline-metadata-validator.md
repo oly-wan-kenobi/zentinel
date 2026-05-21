@@ -25,6 +25,11 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 - `docs/HANDOFF_CONTRACTS.md`
 - `docs/AGENT_CONTEXT_PACKETS.md`
 - `schemas/pipeline.handoff.v1.schema.json`
+- `schemas/pipeline.active_lock.v1.schema.json`
+- `schemas/pipeline.context.v1.schema.json`
+- `schemas/pipeline.stale_context.v1.schema.json`
+- `schemas/pipeline.verification.v1.schema.json`
+- `schemas/pipeline.escalation.v1.schema.json`
 - `test/fixtures/pipeline/metadata_validator/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
@@ -45,13 +50,15 @@ Validate pipeline metadata artifacts so handoffs, context packets, reviews, and 
 - Add a failing fixture where a pipeline JSON artifact has an unknown field rejected by the artifact schema subset.
 - Add a failing fixture where enum or const values, including `schema_version`, do not match the registered pipeline schema.
 - Add a failing fixture where an artifact is written under the wrong task ID.
+- Add failing metadata fixtures that validate I-019 chronology by checking pipeline artifact role timestamps.
 - Run `python3 scripts/validate_task_system.py`.
 
 ## Acceptance criteria
 
 - Pipeline artifact validation is deterministic and task-scoped.
 - Pipeline metadata validation is in place immediately after task 041 introduces durable handoff artifacts.
-- Baseline pipeline schema files from task `041` are consumed by the validator before tasks `042`, `046`, and `049` refine role-specific fields.
+- Baseline pipeline schema files from task `041` are consumed by the validator before tasks `042`, `046`, and `049` refine role-specific fields. Task `063` may tighten schema validation or fixtures across all baseline pipeline schemas but must not create them.
+- The validator can validate I-019 chronology by checking pipeline artifact role timestamps once durable role handoffs exist.
 - Validator documentation states the supported schema subset and does not imply full Draft 2020-12 support.
 - JSON handoffs are required after task 041 for non-trivial tasks.
 - The post-041 active lock artifact at `locks/active-task-lock.json` is validated against task and context-packet ownership.

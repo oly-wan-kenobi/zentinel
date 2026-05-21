@@ -102,6 +102,8 @@ Use both specialized roles only when both triggers apply.
 
 Public contract changes route through Contract Editor before Architecture Reviewer or Implementation Reviewer approval. This keeps the authoring role separate from the review role for schema, CLI, config, report, ADR, task-system, and architecture contracts.
 
+Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.
+
 ## Canonical Mutation-Aware Flow
 
 ```text

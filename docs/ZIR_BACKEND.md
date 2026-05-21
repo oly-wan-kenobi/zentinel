@@ -54,7 +54,7 @@ The report must include only the closed report v1 backend fields:
 }
 ```
 
-The report v1 schema is closed. It accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields. Source-mapping inventories, unsupported-instruction notes, and compiler-internal evidence are out-of-report backend diagnostics until a future schema task adds a namespaced field.
+The report v1 schema is closed. It accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields. Source-mapping inventories, unsupported-instruction notes, and compiler-internal evidence are out-of-report backend diagnostics until a future schema task adds a namespaced field. Task-scoped ZIR diagnostics are written under `artifacts/pipeline/<task-id>/experimental-backend-diagnostics/`.
 
 ## Mutation Generation Strategy
 
