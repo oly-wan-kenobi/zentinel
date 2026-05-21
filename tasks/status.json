@@ -37,14 +37,15 @@
     "100",
     "101",
     "102",
-    "103"
+    "103",
+    "104"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed while task 103 was active after contract ambiguity cleanup guardrails were satisfied; complete-state validation passed after task 103 completion."
+    "notes": "Task 104 active-state validation passed before completion after output-bound wording cleanup guardrails were satisfied; complete-state validation passed after completion."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -554,7 +555,7 @@
     {
       "task": "096",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new task 096 guardrails for same-file generated-command preflight, post-041 pipeline artifact scope validation, Planner role coverage, AI prompt failure_kind examples, AI context excerpt bounds, follow-up timing, queued terminology, high-risk routing, internal_error report semantics, CLI output bounds, and mode-matrix compatibility.",
-      "implementation_summary": "Inserted and completed task 096 before bootstrap, added validator guardrails for the four-subagent audit findings, fixed completion-scope pipeline artifact exception validation to use the full task list, aligned docs and future task requirements, added Planner to the canonical role spec, added failure_kind to the AI prompt example, and capped AI context stdout/stderr excerpts at 4096 characters.",
+      "implementation_summary": "Inserted and completed task 096 before bootstrap, added validator guardrails for the four-subagent audit findings, fixed completion-scope pipeline artifact exception validation to use the full task list, aligned docs and future task requirements, added Planner to the canonical role spec, added failure_kind to the AI prompt example, and capped AI context stdout/stderr excerpts at 4096 UTF-8 bytes.",
       "files_changed": [
         "docs/AGENT_PIPELINE_ARCHITECTURE.md",
         "docs/AGENT_ROLE_SPEC.md",
@@ -1044,6 +1045,56 @@
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
       ]
+    },
+    {
+      "task": "104",
+      "failing_evidence": "failing_command: python3 scripts/validate_task_system.py. failing_output_excerpt: after adding task 104 guardrails, the validator failed on stale character-unit output-bound wording in task 096 history, task 104 wording, status evidence, the schema gap row, and on status wording that still named the pre-bootstrap hardening range through task 103.",
+      "implementation_summary": "implementation_started_after_failure: true. Inserted and completed task 104 before bootstrap, added validator guardrails rejecting stale character-unit output-bound wording in AI-context cleanup targets, normalized the zentinel.ai.context.v1 gap row and historical task/status wording to 4096 UTF-8 bytes, updated pre-bootstrap hardening status wording through task 104, and made task 000 depend on task 104.",
+      "files_changed": [
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/096-audit-finding-contract-closure.md",
+        "tasks/104-output-bound-wording-cleanup.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json",
+        "tests/coverage-gaps/schemas.v1.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.ai.context.v1"
+        ]
+      },
+      "tests_added": [
+        "Structural validator guardrail rejecting stale character-unit output-bound wording in AI-context cleanup targets."
+      ],
+      "tests_run": [
+        "Post-activation python3 scripts/validate_task_system.py initially failed on task 000 missing dependency 104",
+        "python3 scripts/validate_task_system.py passed after updating task 000 sequential guard for dependency 104",
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 104 guardrails as expected",
+        "passing_command: python3 scripts/validate_task_system.py while task 104 was active after fixes",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json tests/coverage-gaps/schemas.v1.json",
+        "git diff --check",
+        "stale character-unit phrase scan across tasks, tests, docs, scripts, .agents, and AGENTS.md returned no matches",
+        "passing_command: python3 scripts/validate_task_system.py after completing task 104"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task 104 active-state validation passed before completion after output-bound wording cleanup guardrails were satisfied; complete-state validation passed after completion."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after AI-context output-bound wording consistently uses 4096 UTF-8 bytes. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     }
   ],
   "history": [
@@ -1486,6 +1537,16 @@
       "event": "contract_ambiguity_cleanup_completed",
       "task": "103",
       "notes": "Completed task 103 before project bootstrap. Validator guardrails and contracts now enforce task 002/task 005 command-parser ownership, canonical UTF-8 byte output excerpt bounds, deduplicated task-plan activation branching, task 103/000 dependency ordering, and pre-063 structured chronology evidence labels for future behavior-changing tasks."
+    },
+    {
+      "event": "output_bound_wording_cleanup_started",
+      "task": "104",
+      "notes": "Inserted and activated task 104 at execution order 000.0.34 before project bootstrap to remove stale character-unit output-bound wording from AI-context implementation guidance."
+    },
+    {
+      "event": "output_bound_wording_cleanup_completed",
+      "task": "104",
+      "notes": "Completed task 104 before project bootstrap. Validator guardrails and contracts now reject stale character-unit output-bound wording in AI-context cleanup targets and preserve the canonical 4096 UTF-8 byte output excerpt bound before task 000 starts."
     }
   ]
 }

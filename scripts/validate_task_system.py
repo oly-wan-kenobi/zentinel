@@ -2573,10 +2573,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `103`",
+            "pre-bootstrap hardening tasks `071` through `104`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `103` is complete",
+            "after task `104` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3808,7 +3808,7 @@ def validate_clean_handoff_lifecycle_closure_contracts(
             "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `103`",
+            "pre-bootstrap hardening tasks `071` through `104`",
             "Task `100` completed at execution order `000.0.30` before project bootstrap.",
         ],
         "tasks/041-handoff-artifacts.md": [
@@ -3879,10 +3879,10 @@ def validate_version_command_and_evidence_closure_contracts(tasks: list[dict[str
             "`zentinel check` exits `2` for missing or unsupported Zig",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `103` is complete",
+            "after task `104` is complete",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `103`",
+            "pre-bootstrap hardening tasks `071` through `104`",
         ],
     }
 
@@ -3935,11 +3935,11 @@ def validate_agent_workflow_cleanup_contracts(
 
     required_phrases = {
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `103`",
+            "pre-bootstrap hardening tasks `071` through `104`",
             "Task `102`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `103` is complete",
+            "after task `104` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3991,11 +3991,11 @@ def validate_contract_ambiguity_cleanup_contracts(
 
     required_phrases = {
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `103`",
+            "pre-bootstrap hardening tasks `071` through `104`",
             "Task `103`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `103` is complete",
+            "after task `104` is complete",
         ],
         "tasks/002-config-parser.md": [
             "Task `002` validates that `test.commands` is present, non-empty, and contains non-empty string values only.",
@@ -4056,6 +4056,84 @@ def validate_contract_ambiguity_cleanup_contracts(
                 None,
             )
         require(isinstance(task103_evidence, dict), errors, "task 103 completion_evidence must exist")
+
+
+def validate_output_bound_wording_cleanup_contracts(
+    tasks: list[dict[str, object]],
+    status: object,
+    errors: list[str],
+) -> None:
+    """Guard task 104's stale output-bound wording cleanup."""
+
+    stale_phrases = [f"4096 {unit}" for unit in ["characters"]]
+    stale_phrases.append("4096-" + "character")
+    stale_targets = [
+        "tasks/096-audit-finding-contract-closure.md",
+        "tasks/104-output-bound-wording-cleanup.md",
+        "tasks/status.json",
+        "tests/coverage-gaps/schemas.v1.json",
+    ]
+    for rel in stale_targets:
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 104 stale-wording target {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in stale_phrases:
+            require(phrase not in text, errors, f"{rel} must not contain stale output-bound phrase {phrase!r}")
+
+    required_phrases = {
+        "tests/coverage-gaps/schemas.v1.json": [
+            "4096 UTF-8 byte stdout/stderr excerpt bounds",
+        ],
+        "tasks/096-audit-finding-contract-closure.md": [
+            "AI context stdout/stderr excerpts are bounded to 4096 UTF-8 bytes",
+        ],
+        "tasks/status.json": [
+            "capped AI context stdout/stderr excerpts at 4096 UTF-8 bytes",
+            "canonicalized output excerpt bounds as 4096 UTF-8 bytes",
+        ],
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `104`",
+            "Task `104` closes the output-bound wording cleanup before project bootstrap.",
+        ],
+        "tasks/000-project-bootstrap.md": [
+            "after task `104` is complete",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 104 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 104 phrase {phrase!r}")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task104 = task_by_id.get("104")
+    require(isinstance(task104, dict), errors, "task 104 must exist for output-bound wording cleanup")
+    if isinstance(task104, dict):
+        deps = task104.get("dependencies")
+        require(isinstance(deps, list) and "103" in deps, errors, "task 104 must depend on task 103")
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "104" in deps, errors, "task 000 must depend on task 104")
+
+    if isinstance(status, dict) and isinstance(task104, dict) and task104.get("state") == "complete":
+        completion_evidence = status.get("completion_evidence")
+        task104_evidence = None
+        if isinstance(completion_evidence, list):
+            task104_evidence = next(
+                (
+                    entry
+                    for entry in completion_evidence
+                    if isinstance(entry, dict) and entry.get("task") == "104"
+                ),
+                None,
+            )
+        require(isinstance(task104_evidence, dict), errors, "task 104 completion_evidence must exist")
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -4143,6 +4221,7 @@ def main() -> int:
     validate_version_command_and_evidence_closure_contracts(tasks, errors)
     validate_agent_workflow_cleanup_contracts(tasks, status, errors)
     validate_contract_ambiguity_cleanup_contracts(tasks, status, errors)
+    validate_output_bound_wording_cleanup_contracts(tasks, status, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

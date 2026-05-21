@@ -56,6 +56,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.31 | `tasks/101-version-command-and-evidence-closure.md` | complete | 0 |
 | 000.0.32 | `tasks/102-agent-workflow-cleanup.md` | complete | 0 |
 | 000.0.33 | `tasks/103-contract-ambiguity-cleanup.md` | complete | 0 |
+| 000.0.34 | `tasks/104-output-bound-wording-cleanup.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |

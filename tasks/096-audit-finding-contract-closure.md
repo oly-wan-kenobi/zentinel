@@ -73,7 +73,7 @@ Close the remaining repo-audit findings that could cause autonomous agents to im
 - Generated same-file selected commands require unmutated preflight evidence before they can classify a mutant.
 - The validator accepts task-scoped `artifacts/pipeline/<active-task-id>/**` completion evidence after task `041` is complete by checking against the full task list.
 - `Planner` is defined in `docs/AGENT_ROLE_SPEC.md` consistently with orchestrator and handoff contracts.
-- AI prompt examples contain command `failure_kind`, and AI context stdout/stderr excerpts are bounded to 4096 characters in schema and task requirements.
+- AI prompt examples contain command `failure_kind`, and AI context stdout/stderr excerpts are bounded to 4096 UTF-8 bytes in schema and task requirements.
 - Follow-up tasks are recorded while the original task is still active, before active validation and completion.
 - `queued` wording distinguishes all queued future tasks from dependency-ready queued tasks.
 - High-risk routing consistently adds Property Test Agent or Mutation Agent as applicable, using both only when both triggers apply.

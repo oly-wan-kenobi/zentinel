@@ -1448,6 +1448,36 @@
       ]
     },
     {
+      "id": "104",
+      "order": "000.0.34",
+      "title": "Output Bound Wording Cleanup",
+      "file": "tasks/104-output-bound-wording-cleanup.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "103"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/096-audit-finding-contract-closure.md",
+        "tasks/104-output-bound-wording-cleanup.md",
+        "tests/coverage-gaps/schemas.v1.json",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1457,7 +1487,8 @@
       "dependencies": [
         "101",
         "102",
-        "103"
+        "103",
+        "104"
       ],
       "allowed_files": [
         "build.zig",
