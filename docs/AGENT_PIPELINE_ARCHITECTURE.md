@@ -46,6 +46,8 @@ Roadmap + Specs
 - Every step emits a structured handoff artifact.
 - Deterministic verification is the only completion authority.
 
+Before task `041`, context packets and handoffs are recorded in task status or completion summaries. After task `041`, durable pipeline handoffs and context packets live under `artifacts/pipeline/<task-id>/**`.
+
 ## Ownership Model
 
 | Component | Owns | Does not own |
@@ -64,13 +66,13 @@ Persistent state lives in repository files:
 - `tasks/status.json`
 - `tasks/QUEUE.md`
 - `tasks/STATUS.md`
-- `artifacts/pipeline/<task-id>/`
+- `artifacts/pipeline/<task-id>/` after task `041`
 
-The Orchestrator may hold temporary context, but durable state must be written to artifacts and task status files.
+The Orchestrator may hold temporary context, but durable state must be written to task status files before task `041` and to artifacts plus task status files after task `041`.
 
 ## Verification Boundary
 
-Subagents may report local success. Only the Verifier can move a task to verified or complete.
+Subagents may report local success. Only the Verifier can approve completion evidence; artifact stages do not change task-control state.
 
 The Verifier checks:
 

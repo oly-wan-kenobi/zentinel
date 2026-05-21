@@ -15,7 +15,7 @@ Use this role for task state transitions and queue/status synchronization.
 ## Responsibilities
 
 - select the first dependency-ready queued task by execution order
-- enforce exactly one active task
+- ensure at most one task is active pending completion
 - synchronize Markdown and JSON state
 - reject out-of-order execution
 - run `python3 scripts/validate_task_system.py`
@@ -33,4 +33,4 @@ Use this role for task state transitions and queue/status synchronization.
 - validator command and result
 - active lock or completion transition record
 
-Lifecycle edits to `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` are allowed even when those files are not listed in the active task's allowed files. This exception is limited to task state, blocker insertion, queue reordering, and validator-required synchronization.
+Lifecycle edits to `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json` are allowed even when those files are not listed in the active task's allowed files. The Task Queue Manager may create or rename task markdown files under `tasks/` for blocker insertion. This exception is limited to task state, blocker insertion, queue reordering, and validator-required synchronization.

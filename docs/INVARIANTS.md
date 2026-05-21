@@ -138,7 +138,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 
 ## Task System and Agent Workflow
 
-**I-017.** At most one task is active, implemented, or verified pending completion at any time.
+**I-017.** At most one task is active pending completion at any time.
 - *Rationale.* Sequential autonomous work needs one clear owner and scope.
 - *Status.* enforced.
 - *Enforcement.* `scripts/validate_task_system.py`.

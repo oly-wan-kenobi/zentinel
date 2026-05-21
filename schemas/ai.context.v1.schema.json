@@ -88,7 +88,7 @@
     },
     "mutant_command_result": {
       "type": "object",
-      "required": ["command", "phase", "status", "exit_code", "timed_out", "duration_ms_normalized", "evidence", "skip_reason"],
+      "required": ["command", "phase", "status", "exit_code", "timed_out", "failure_kind", "duration_ms_normalized", "evidence", "skip_reason"],
       "additionalProperties": false,
       "allOf": [
         {
@@ -103,6 +103,7 @@
         "status": { "enum": ["passed", "failed", "compiler_crash", "timeout", "skipped"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
+        "failure_kind": { "enum": ["none", "compile_error", "test_failure", "compiler_crash", "timeout", "skipped"] },
         "duration_ms_normalized": { "const": "<duration>" },
         "evidence": { "$ref": "#/$defs/evidence" },
         "skip_reason": { "type": ["string", "null"] }

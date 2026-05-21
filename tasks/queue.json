@@ -1605,9 +1605,11 @@
       ],
       "allowed_files": [
         "src/test_selection.zig",
+        "src/config.zig",
         "src/ast_backend.zig",
         "src/run_command.zig",
         "src/report.zig",
+        "test/config_test.zig",
         "test/test_selection_test.zig",
         "test/fixtures/test_selection/**",
         "tasks/STATUS.md",
@@ -2204,6 +2206,8 @@
         "docs/ORCHESTRATION_SPEC.md",
         "docs/PIPELINE_ESCALATION_POLICY.md",
         "docs/AGENT_GUIDE.md",
+        "scripts/validate_task_system.py",
+        "tests/coverage-gaps/invariants.v1.json",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],
@@ -2544,9 +2548,11 @@
       ],
       "allowed_files": [
         "src/test_selection.zig",
+        "src/config.zig",
         "src/run_command.zig",
         "src/runner.zig",
         "src/report.zig",
+        "test/config_test.zig",
         "test/fail_fast_impact_test.zig",
         "test/fixtures/impact_analysis/**",
         "tasks/STATUS.md",

@@ -223,7 +223,7 @@ invalid
 
 AI receives status as read-only evidence.
 
-The `commands` array mirrors mutant command results from the canonical report schema with snapshot-normalized durations. Each entry includes the original display command, parsed argv with non-empty `argv[0]`, normalized cwd label, `environment_policy: "minimal"`, `shell: false`, `phase: "mutant"`, command status, `failure_kind`, exit evidence, and `skip_reason`. AI mutant context uses `phase: "mutant"` because baseline failures are represented at report run level instead of as mutant results.
+The `commands` array mirrors mutant command results from the canonical report schema with snapshot-normalized durations. Each command entry requires `failure_kind`. Each entry includes the original display command, parsed argv with non-empty `argv[0]`, normalized cwd label, `environment_policy: "minimal"`, `shell: false`, `phase: "mutant"`, command status, `failure_kind`, exit evidence, and `skip_reason`. AI mutant context uses `phase: "mutant"` because baseline failures are represented at report run level instead of as mutant results.
 
 ## Source Context
 

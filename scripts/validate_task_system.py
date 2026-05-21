@@ -289,7 +289,7 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
             require(file_value.startswith(f"tasks/{task_id}-"), errors, f"task {task_id} file name does not start with id")
 
         state = task.get("state")
-        require(state in {"queued", "active", "blocked", "implemented", "verified", "complete", "superseded"}, errors, f"task {task_id} has invalid state")
+        require(state in {"queued", "active", "blocked", "complete", "superseded"}, errors, f"task {task_id} has invalid state")
 
         deps = task.get("dependencies")
         require(isinstance(deps, list), errors, f"task {task_id} dependencies must be an array")
@@ -360,16 +360,16 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
     task_by_id = {task["id"]: task for task in tasks if isinstance(task.get("id"), str)}
 
     active_states = [task["id"] for task in tasks if task.get("state") == "active"]
-    current_states = [task["id"] for task in tasks if task.get("state") in {"active", "implemented", "verified"}]
+    current_states = active_states
     require(len(active_states) <= 1, errors, "only one task may be active")
-    require(len(current_states) <= 1, errors, "only one task may be active, implemented, or verified pending completion")
+    require(len(current_states) <= 1, errors, "only one task may be active pending completion")
 
     active_task = status.get("active_task")
     require(active_task is None or (isinstance(active_task, str) and active_task in task_by_id), errors, "status.json active_task must be null or a known task id")
     if current_states:
-        require(active_task == current_states[0], errors, "status active_task must match the current active/implemented/verified queue state")
+        require(active_task == current_states[0], errors, "status active_task must match the current active queue state")
     else:
-        require(active_task is None, errors, "status active_task must be null when no task is active, implemented, or verified")
+        require(active_task is None, errors, "status active_task must be null when no task is active")
 
     completed = status.get("completed_tasks")
     require(isinstance(completed, list), errors, "status completed_tasks must be an array")
@@ -457,7 +457,7 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
         deps = task.get("dependencies")
         if not isinstance(task_id, str) or not isinstance(deps, list):
             continue
-        if state not in {"active", "implemented", "verified", "complete"}:
+        if state not in {"active", "complete"}:
             continue
         for dep in deps:
             if isinstance(dep, str) and dep in task_by_id:
@@ -809,6 +809,83 @@ def changed_files_against_head(errors: list[str]) -> list[str]:
     return sorted(changed)
 
 
+def file_text_at_head(path: str) -> str | None:
+    result = subprocess.run(
+        ["git", "show", f"HEAD:{path}"],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def latest_completed_evidence(status: dict[str, object]) -> dict[str, object] | None:
+    completed = status.get("completed_tasks")
+    evidence = status.get("completion_evidence")
+    if not isinstance(completed, list) or not completed:
+        return None
+    if not isinstance(evidence, list):
+        return None
+    latest = completed[-1]
+    if not isinstance(latest, str):
+        return None
+    for entry in evidence:
+        if isinstance(entry, dict) and entry.get("task") == latest:
+            return entry
+    return None
+
+
+def registry_row_id(entry: object) -> str | None:
+    if not isinstance(entry, dict):
+        return None
+    for key in ("number", "operator", "version"):
+        value = entry.get(key)
+        if isinstance(value, str):
+            return value
+    return None
+
+
+def registry_rows_by_id(data: object) -> dict[str, object]:
+    if not isinstance(data, dict):
+        return {}
+    entries = data.get("entries")
+    if not isinstance(entries, list):
+        return {}
+    rows: dict[str, object] = {}
+    for entry in entries:
+        row_id = registry_row_id(entry)
+        if row_id is not None:
+            rows[row_id] = entry
+    return rows
+
+
+def changed_gap_registry_rows_since_head(path: str, errors: list[str]) -> set[str]:
+    current_path = ROOT / path
+    current_data = load_json(current_path, errors)
+    previous_text = file_text_at_head(path)
+    if previous_text is None:
+        return set(registry_rows_by_id(current_data))
+    try:
+        previous_data = json.loads(previous_text)
+    except json.JSONDecodeError as exc:
+        fail(errors, f"HEAD version of {path} is invalid JSON: {exc}")
+        return set()
+
+    current_rows = registry_rows_by_id(current_data)
+    previous_rows = registry_rows_by_id(previous_data)
+    changed: set[str] = set()
+    for row_id in set(current_rows) | set(previous_rows):
+        current_row = current_rows.get(row_id)
+        previous_row = previous_rows.get(row_id)
+        if json.dumps(current_row, sort_keys=True) != json.dumps(previous_row, sort_keys=True):
+            changed.add(row_id)
+    return changed
+
+
 def task_is_complete(tasks: list[dict[str, object]], task_id: str) -> bool:
     return any(task.get("id") == task_id and task.get("state") == "complete" for task in tasks)
 
@@ -844,6 +921,77 @@ def validate_active_task_changed_file_scope(status: object, tasks: list[dict[str
             continue
         if not path_matches_any(path, allowed_files):
             fail(errors, f"changed file {path} is outside active task {active_task_id} allowed_files")
+
+
+def validate_inactive_changed_file_scope(status: object, tasks: list[dict[str, object]], errors: list[str]) -> None:
+    if not isinstance(status, dict):
+        return
+    if isinstance(status.get("active_task"), str):
+        return
+
+    changed = changed_files_against_head(errors)
+    if not changed:
+        return
+
+    evidence = latest_completed_evidence(status)
+    if evidence is None:
+        fail(errors, "dirty files exist with no active task and no latest completion_evidence entry")
+        return
+
+    files_changed = evidence.get("files_changed")
+    task_id = evidence.get("task")
+    if not isinstance(files_changed, list) or not isinstance(task_id, str):
+        fail(errors, "dirty files exist with no active task but latest completion_evidence is incomplete")
+        return
+
+    recorded = {path for path in files_changed if isinstance(path, str)}
+    for path in changed:
+        require(
+            path in recorded,
+            errors,
+            f"dirty file {path} is not listed in latest completion_evidence.files_changed for task {task_id}",
+        )
+
+
+def validate_inactive_gap_registry_row_scope(status: object, errors: list[str]) -> None:
+    if not isinstance(status, dict):
+        return
+    if isinstance(status.get("active_task"), str):
+        return
+
+    dirty_registries = [
+        path
+        for path in changed_files_against_head(errors)
+        if re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", path)
+    ]
+    if not dirty_registries:
+        return
+
+    evidence = latest_completed_evidence(status)
+    if evidence is None:
+        fail(errors, "dirty gap registry files exist with no latest completion_evidence entry")
+        return
+    gap_rows = evidence.get("gap_registry_rows_changed")
+    if not isinstance(gap_rows, dict):
+        fail(errors, "dirty gap registry files require latest completion_evidence.gap_registry_rows_changed")
+        return
+
+    for path in dirty_registries:
+        declared_rows = gap_rows.get(path)
+        actual_rows = changed_gap_registry_rows_since_head(path, errors)
+        require(
+            isinstance(declared_rows, list),
+            errors,
+            f"latest completion_evidence.gap_registry_rows_changed must list rows for dirty registry {path}",
+        )
+        if not isinstance(declared_rows, list):
+            continue
+        declared = {row for row in declared_rows if isinstance(row, str)}
+        require(
+            declared == actual_rows,
+            errors,
+            f"latest completion_evidence.gap_registry_rows_changed for {path} must match actual changed rows {sorted(actual_rows)}",
+        )
 
 
 def validate_schema_files(errors: list[str]) -> None:
@@ -902,19 +1050,19 @@ def validate_agent_layer(errors: list[str]) -> None:
     if orchestrator.is_file():
         text = orchestrator.read_text(encoding="utf-8")
         require(
-            "Only one task may be `active`, `implemented`, or `verified` pending completion at a time." in text,
+            "Only one task may be `active` pending completion at a time." in text,
             errors,
-            ".agents/ORCHESTRATOR.md must include active/implemented/verified single-task wording",
+            ".agents/ORCHESTRATOR.md must include active-only single-task wording",
         )
         require(
-            "More than one task is active, implemented, or verified pending completion." in text,
+            "More than one task is active pending completion." in text,
             errors,
-            ".agents/ORCHESTRATOR.md stop conditions must include verified tasks",
+            ".agents/ORCHESTRATOR.md stop conditions must use active-only task-control wording",
         )
         require(
-            "Only one task may be `active` or `implemented` at a time." not in text,
+            "queued -> active -> implemented -> verified -> complete" not in text,
             errors,
-            ".agents/ORCHESTRATOR.md contains stale active/implemented-only wording",
+            ".agents/ORCHESTRATOR.md contains stale implemented/verified task-control state machine",
         )
 
 
@@ -1088,13 +1236,14 @@ def validate_mutation_gate_availability_policy(errors: list[str]) -> None:
 def validate_agent_execution_contracts(errors: list[str]) -> None:
     required_phrases = {
         ".agents/workflows/task-plan.md": ["first dependency-ready queued task by execution order"],
-        ".agents/workflows/sync.md": ["first dependency-ready queued task by execution order", "active, implemented, or verified"],
+        ".agents/workflows/sync.md": ["first dependency-ready queued task by execution order", "active task"],
         ".agents/roles/task-queue-manager.md": ["first dependency-ready queued task by execution order"],
-        "docs/AGENT_ROLE_SPEC.md": ["active, implemented, or verified pending completion"],
+        "docs/AGENT_ROLE_SPEC.md": ["at most one task is active pending completion"],
     }
     stale_phrases = [
         "first queued task",
         "active or implemented pending verification",
+        "active, implemented, or verified pending completion",
     ]
 
     for rel, phrases in required_phrases.items():
@@ -2277,7 +2426,7 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
     else:
         fail(errors, "missing task 030 doctest conventions file")
 
-    if isinstance(task030, dict) and task030.get("state") in {"active", "implemented", "verified", "complete"}:
+    if isinstance(task030, dict) and task030.get("state") in {"active", "complete"}:
         fixture_dir = ROOT / "test" / "fixtures" / "doctest"
         fixture_files = sorted(fixture_dir.rglob("*.md")) if fixture_dir.is_dir() else []
         require(bool(fixture_files), errors, "task 030 requires doctest markdown fixtures under test/fixtures/doctest")
@@ -2586,6 +2735,10 @@ def validate_gap_registries(errors: list[str]) -> None:
             require(isinstance(tests, list) and all(isinstance(item, str) for item in tests), errors, f"tests/coverage-gaps/{filename} {value!r} tests must be a string array")
             if covered is True:
                 require(isinstance(tests, list) and len(tests) > 0, errors, f"tests/coverage-gaps/{filename} {value!r} covered rows must list tests")
+                if isinstance(tests, list):
+                    for test_path in tests:
+                        if isinstance(test_path, str):
+                            require((ROOT / test_path).exists(), errors, f"tests/coverage-gaps/{filename} {value!r} covered row test path is missing: {test_path}")
             if covered is False:
                 require(isinstance(deferred_to, str) and bool(deferred_to), errors, f"tests/coverage-gaps/{filename} {value!r} uncovered rows must name deferred_to")
             if isinstance(deferred_to, str) and deferred_to.startswith("tasks/"):
@@ -2751,6 +2904,152 @@ def validate_agent_readiness_validator_closure_contracts(tasks: list[dict[str, o
         require(isinstance(allowed, list) and "docs/REPORT_FORMAT.md" in allowed, errors, "task 058 must allow docs/REPORT_FORMAT.md")
 
 
+def validate_autonomous_agent_contract_repair_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 095's autonomous-agent contract repairs against future drift."""
+
+    required_phrases = {
+        ".agents/ORCHESTRATOR.md": [
+            "Task-control states are `queued`, `active`, `blocked`, `complete`, and `superseded`.",
+            "Only one task may be `active` pending completion at a time.",
+            "Before task `041`, context packets and handoffs are recorded in task status or completion summaries.",
+        ],
+        ".agents/README.md": [
+            "Before task `041`, context packets and handoffs are recorded in task status or completion summaries.",
+        ],
+        ".agents/roles/task-queue-manager.md": [
+            "ensure at most one task is active pending completion",
+            "may create or rename task markdown files under `tasks/`",
+        ],
+        ".agents/workflows/sync.md": [
+            "first dependency-ready queued task by execution order",
+            "current active task",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Normal task-control transitions are `queued`, `active`, and `complete`",
+            "Only one task may be `active` pending completion at a time.",
+        ],
+        "docs/TASK_LIFECYCLE.md": [
+            "Task-control state transitions are `queued -> active -> complete`",
+            "Agents must not write those names to `tasks/queue.json`, `tasks/status.json`, `tasks/QUEUE.md`, or `tasks/STATUS.md`.",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "After completion, the validator checks the actual dirty file set against the latest completion evidence.",
+        ],
+        "docs/ORCHESTRATION_SPEC.md": [
+            "Before task `041`, context packets and handoffs are recorded in task status or completion summaries.",
+            "After task `041`, they are persisted under `artifacts/pipeline/<task-id>/**`.",
+        ],
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "Before task `041`, context packets and handoffs are recorded in task status or completion summaries.",
+            "Only the Verifier can approve completion evidence; artifact stages do not change task-control state.",
+        ],
+        "docs/AGENT_ROLE_SPEC.md": [
+            "ensure at most one task is active pending completion",
+        ],
+        "docs/GAP_REGISTRIES.md": [
+            "The validator compares actual changed row ids against `completion_evidence.gap_registry_rows_changed`",
+            "Covered row test paths must exist in the repository.",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "A baseline compiler crash uses `status = \"compiler_crash\"`, `failure_kind = \"compiler_crash\"`, and `run.status = \"baseline_failed\"`.",
+        ],
+        "docs/AI_CONTEXT_SCHEMA.md": [
+            "Each command entry requires `failure_kind`.",
+        ],
+        "tasks/014-baseline-runner.md": [
+            "Add a failing baseline compiler-crash classification test",
+        ],
+        "tasks/040-agent-pipeline-foundation.md": [
+            "Add a failing structural guardrail proving I-019 TDD-first wording is preserved",
+        ],
+        "tasks/041-handoff-artifacts.md": [
+            "If project-owned schema validation tooling does not exist yet, use a deterministic external schema or fixture validation command",
+        ],
+        "tasks/046-verification-pipeline.md": [
+            "artifact stages do not change task-control state",
+        ],
+    }
+    stale_phrases = {
+        ".agents/ORCHESTRATOR.md": [
+            "queued -> active -> implemented -> verified -> complete",
+            "More than one task is active, implemented, or verified pending completion.",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Only one task may be `active`, `implemented`, or `verified` pending completion at a time.",
+        ],
+        "docs/INVARIANTS.md": [
+            "At most one task is active, implemented, or verified pending completion at any time.",
+        ],
+        "docs/AGENT_ROLE_SPEC.md": [
+            "active, implemented, or verified pending completion",
+        ],
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "move a task to verified or complete",
+        ],
+        "tasks/046-verification-pipeline.md": [
+            "move from implemented to verified and complete",
+            "transitions for implemented, verified, complete, and blocked states",
+        ],
+    }
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 095 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 095 contract phrase {phrase!r}")
+
+    for rel, phrases in stale_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 095 stale-scan file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale task 095 phrase {phrase!r}")
+
+    queue_schema = load_json(QUEUE_SCHEMA_JSON, errors)
+    if isinstance(queue_schema, dict):
+        task_schema = queue_schema.get("properties", {}).get("tasks", {}).get("items", {}) if isinstance(queue_schema.get("properties"), dict) else {}
+        state_schema = task_schema.get("properties", {}).get("state", {}) if isinstance(task_schema, dict) and isinstance(task_schema.get("properties"), dict) else {}
+        state_enum = state_schema.get("enum") if isinstance(state_schema, dict) else None
+        require(isinstance(state_enum, list) and "implemented" not in state_enum and "verified" not in state_enum, errors, "queue schema must not permit implemented or verified task-control states")
+
+    ai_schema = load_json(ROOT / "schemas" / "ai.context.v1.schema.json", errors)
+    if isinstance(ai_schema, dict):
+        defs = ai_schema.get("$defs")
+        command_schema = defs.get("mutant_command_result") if isinstance(defs, dict) else None
+        required = command_schema.get("required") if isinstance(command_schema, dict) else None
+        properties = command_schema.get("properties") if isinstance(command_schema, dict) else None
+        require(isinstance(required, list) and "failure_kind" in required, errors, "AI context mutant_command_result must require failure_kind")
+        require(isinstance(properties, dict) and "failure_kind" in properties, errors, "AI context mutant_command_result must define failure_kind")
+
+    report_schema = load_json(ROOT / "schemas" / "report.v1.schema.json", errors)
+    if isinstance(report_schema, dict):
+        defs = report_schema.get("$defs")
+        baseline = defs.get("baseline_command_result") if isinstance(defs, dict) else None
+        properties = baseline.get("properties") if isinstance(baseline, dict) else None
+        status_enum = properties.get("status", {}).get("enum") if isinstance(properties, dict) and isinstance(properties.get("status"), dict) else None
+        failure_enum = properties.get("failure_kind", {}).get("enum") if isinstance(properties, dict) and isinstance(properties.get("failure_kind"), dict) else None
+        require(isinstance(status_enum, list) and "compiler_crash" in status_enum, errors, "report baseline_command_result status must include compiler_crash")
+        require(isinstance(failure_enum, list) and "compiler_crash" in failure_enum, errors, "report baseline_command_result failure_kind must include compiler_crash")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    for task_id in ("020", "051"):
+        task = task_by_id.get(task_id)
+        if isinstance(task, dict):
+            allowed = task.get("allowed_files")
+            require(isinstance(allowed, list) and "src/config.zig" in allowed, errors, f"task {task_id} must allow src/config.zig for impact_graph config validation")
+            require(isinstance(allowed, list) and "test/config_test.zig" in allowed, errors, f"task {task_id} must allow test/config_test.zig for impact_graph config validation")
+    task040 = task_by_id.get("040")
+    if isinstance(task040, dict):
+        allowed = task040.get("allowed_files")
+        require(isinstance(allowed, list) and "scripts/validate_task_system.py" in allowed, errors, "task 040 must allow validator guardrails for I-019")
+        require(isinstance(allowed, list) and "tests/coverage-gaps/invariants.v1.json" in allowed, errors, "task 040 must allow invariant gap row updates for I-019")
+
+
 def invariant_numbers(errors: list[str]) -> list[str]:
     path = ROOT / "docs" / "INVARIANTS.md"
     if not path.is_file():
@@ -2793,6 +3092,8 @@ def main() -> int:
     tasks = validate_queue(queue, errors)
     validate_status(status, tasks, errors)
     validate_active_task_changed_file_scope(status, tasks, errors)
+    validate_inactive_changed_file_scope(status, tasks, errors)
+    validate_inactive_gap_registry_row_scope(status, errors)
     validate_task_markdown(tasks, errors)
     validate_markdown_queue(tasks, errors)
     validate_markdown_status(status, tasks, errors)
@@ -2825,6 +3126,7 @@ def main() -> int:
     validate_analysis_followup_hardening_contracts(tasks, errors)
     validate_agent_enforcement_closure_contracts(tasks, errors)
     validate_agent_readiness_validator_closure_contracts(tasks, errors)
+    validate_autonomous_agent_contract_repair_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

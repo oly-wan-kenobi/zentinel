@@ -229,6 +229,8 @@ Each command result records `phase`, `status`, `exit_code`, `timed_out`, `failur
 
 `failure_kind` distinguishes `compile_error` from test assertion failure when a command exits non-zero. It is `none` for passed commands, `compile_error` for normal Zig compile diagnostics, `test_failure` for failed tests/assertions after compilation succeeds, `compiler_crash` for abnormal compiler termination, `timeout` for timed-out commands, and `skipped` for deterministic fail-fast skips. AI output must not populate or override this field.
 
+A baseline compiler crash uses `status = "compiler_crash"`, `failure_kind = "compiler_crash"`, and `run.status = "baseline_failed"`. zentinel treats abnormal Zig termination during baseline as deterministic baseline failure evidence, not as an internal zentinel error.
+
 Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and stderr excerpts are each limited to 4096 bytes after normalization.
 
 ## Stability Fields

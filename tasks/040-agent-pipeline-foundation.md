@@ -21,6 +21,8 @@ Establish the repository-visible foundation for the AI-agent task pipeline witho
 - `docs/ORCHESTRATION_SPEC.md`
 - `docs/PIPELINE_ESCALATION_POLICY.md`
 - `docs/AGENT_GUIDE.md`
+- `scripts/validate_task_system.py`
+- `tests/coverage-gaps/invariants.v1.json`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 
@@ -36,6 +38,7 @@ Establish the repository-visible foundation for the AI-agent task pipeline witho
 ## Required tests
 
 - Add a failing documentation-contract check or validator fixture first if terminology cannot be verified by the existing validator.
+- Add a failing structural guardrail proving I-019 TDD-first wording is preserved before updating the invariant gap row.
 - Run `python3 scripts/validate_task_system.py`.
 - Run a text search proving no new pipeline doc uses unsupported role names.
 

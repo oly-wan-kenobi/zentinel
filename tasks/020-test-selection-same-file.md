@@ -16,9 +16,11 @@ Implement the default `same_file_then_package` test selection strategy.
 ## Files allowed to modify
 
 - `src/test_selection.zig`
+- `src/config.zig`
 - `src/ast_backend.zig`
 - `src/run_command.zig`
 - `src/report.zig`
+- `test/config_test.zig`
 - `test/test_selection_test.zig`
 - `test/fixtures/test_selection/**`
 - `tasks/STATUS.md`

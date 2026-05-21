@@ -37,6 +37,7 @@ Define and validate the persistent handoff artifact structure used between pipel
 ## Required tests
 
 - Add a failing schema or fixture validation case before adding or changing the handoff schema.
+- If project-owned schema validation tooling does not exist yet, use a deterministic external schema or fixture validation command and record the exact command in completion evidence.
 - Run `python3 scripts/validate_task_system.py`.
 - If schema validation tooling exists, validate a passing and failing handoff artifact fixture.
 

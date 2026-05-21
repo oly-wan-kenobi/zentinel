@@ -50,6 +50,8 @@ An agent completes work by:
 - marking the task complete
 - running `python3 scripts/validate_task_system.py` again after the complete-state transition
 
+After completion, the validator checks the actual dirty file set against the latest completion evidence. This makes the complete-state validator a backstop for omitted or out-of-scope files, but it does not replace the required active-scope validation.
+
 ## Agent Pipeline
 
 Codex role profiles and workflow runbooks live under `.agents/`. The `docs/` files define stable project contracts; `.agents/` defines how Codex agents operate against those contracts.

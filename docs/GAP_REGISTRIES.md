@@ -39,7 +39,8 @@ An uncovered row whose `deferred_to` points to a complete task is invalid unless
 
 - When adding a new invariant, failure mode, stable mutator, or schema contract, update the matching registry in the same task.
 - When adding tests that cover a row, set `covered` to `true` and list the test paths.
+- Covered row test paths must exist in the repository.
 - Do not set `covered` to `true` for prose-only evidence.
 - Do not delete uncovered rows to make the registry look better.
 - Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a row-scoped task exception: update only the matching row or newly required row for the active task's contract change unless the active task explicitly allows broader registry maintenance.
-- When a completion changes a gap registry through the row-scoped exception, `completion_evidence.gap_registry_rows_changed` must list each changed registry path and row id so the validator can distinguish narrow row updates from broad registry cleanup.
+- When a completion changes a gap registry through the row-scoped exception, `completion_evidence.gap_registry_rows_changed` must list each changed registry path and row id so the validator can distinguish narrow row updates from broad registry cleanup. The validator compares actual changed row ids against `completion_evidence.gap_registry_rows_changed`.

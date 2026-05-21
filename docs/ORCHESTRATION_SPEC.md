@@ -19,6 +19,8 @@ The Orchestrator coordinates role execution while preserving sequential task own
 - escalation decisions
 - final verification request
 
+Before task `041`, context packets and handoffs are recorded in task status or completion summaries. After task `041`, they are persisted under `artifacts/pipeline/<task-id>/**`.
+
 ## Orchestration Steps
 
 1. Validate task system.
@@ -42,6 +44,8 @@ artifacts/pipeline/<task-id>/orchestration.md
 artifacts/pipeline/<task-id>/context/*.json
 artifacts/pipeline/<task-id>/handoffs/*.json
 ```
+
+Those artifact paths are required only after task `041` introduces durable pipeline artifacts.
 
 Markdown handoff summaries may be written next to JSON handoffs, but JSON handoffs are the canonical machine-readable state.
 

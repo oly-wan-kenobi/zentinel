@@ -50,7 +50,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed before inserting task 095; task 095 is now active and task 000 is blocked on it."
+    "notes": "Validator passed while task 095 was active after lifecycle, validator, schema, and task-scope repair guardrails were satisfied."
   },
   "completion_evidence": [
     {

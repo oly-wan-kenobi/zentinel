@@ -51,7 +51,7 @@
             "minimum": 0
           },
           "state": {
-            "enum": ["queued", "active", "blocked", "implemented", "verified", "complete", "superseded"]
+            "enum": ["queued", "active", "blocked", "complete", "superseded"]
           },
           "dependencies": {
             "type": "array",

@@ -18,14 +18,18 @@ The Orchestrator does not own product truth. It reads `AGENTS.md`, task state, a
 
 ## State Machine
 
-Task states are defined by `docs/AUTONOMOUS_AGENT_PROTOCOL.md`:
+Task-control states are defined by `docs/AUTONOMOUS_AGENT_PROTOCOL.md`.
+
+Task-control states are `queued`, `active`, `blocked`, `complete`, and `superseded`.
 
 ```text
-queued -> active -> implemented -> verified -> complete
+queued -> active -> complete
                  \-> blocked
 ```
 
-Only one task may be `active`, `implemented`, or `verified` pending completion at a time.
+Artifact stages may include `implemented` and `verified`, but the Task Queue Manager must not write them to task-control files.
+
+Only one task may be `active` pending completion at a time.
 
 The Orchestrator may not advance a state unless the Task Queue Manager has synchronized both Markdown and JSON state files.
 
@@ -114,6 +118,8 @@ Fresh roles must receive a context packet containing:
 
 Context packets are governed by `docs/AGENT_CONTEXT_PACKETS.md`.
 
+Before task `041`, context packets and handoffs are recorded in task status or completion summaries. After task `041`, durable context packets and handoffs are written under the active task's `artifacts/pipeline/<task-id>/**` directory.
+
 ## Handoffs
 
 Every role produces a handoff with:
@@ -133,7 +139,7 @@ Handoffs are governed by `docs/HANDOFF_CONTRACTS.md`.
 Stop implementation work and repair the operating state when:
 
 - Markdown task state and JSON task state disagree.
-- More than one task is active, implemented, or verified pending completion.
+- More than one task is active pending completion.
 - A role needs a forbidden file.
 - A required doc, ADR, invariant, or schema referenced by the task is missing.
 - Approved tests would need to be weakened.

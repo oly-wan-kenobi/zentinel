@@ -4,7 +4,7 @@ Sequential guard: Start this task only after task `045` is complete and `tasks/s
 
 ## Goal
 
-Specify the final verification pipeline that decides whether a task can move from implemented to verified and complete.
+Specify the final verification pipeline that decides whether a task has enough evidence to move from active to complete.
 
 ## Scope
 
@@ -70,7 +70,7 @@ No product mutation run is required unless verification code changes. Once mutat
 
 1. Add a failing fixture for incomplete verifier evidence.
 2. Update verification and artifact docs.
-3. Cross-check lifecycle transitions for implemented, verified, complete, and blocked states.
+3. Cross-check lifecycle transitions for active, complete, and blocked task-control states; artifact stages do not change task-control state.
 4. Run validation and record evidence.
 
 ## Dogfooding implications

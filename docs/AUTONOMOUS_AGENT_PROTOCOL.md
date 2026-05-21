@@ -39,7 +39,7 @@ A validator pass is not product proof and does not replace task-specific failing
 
 ## Task States
 
-Normal task-control transitions are:
+Normal task-control transitions are `queued`, `active`, and `complete`:
 
 ```text
 queued
@@ -47,7 +47,7 @@ active
 complete
 ```
 
-`blocked` is a recoverable side path and `superseded` is terminal. `implemented` and `verified` are reserved for pipeline artifact stages, not normal task-control states. Older schema and validator compatibility may still recognize those names so an interrupted repository can be repaired, but new agents must record implementation and verification progress in pipeline artifacts or completion evidence while keeping the task `active` until it becomes `complete`.
+`blocked` is a recoverable side path and `superseded` is terminal. `implemented` and `verified` are reserved for pipeline artifact stages, not normal task-control states. Agents must record implementation and verification progress in pipeline artifacts or completion evidence while keeping the task `active` until it becomes `complete`.
 
 Task-control state meanings:
 
@@ -59,7 +59,7 @@ Task-control state meanings:
 | `complete` | Task is done and state files are updated. |
 | `superseded` | Replaced by another task with an explicit reason. |
 
-Only one task may be `active`, `implemented`, or `verified` pending completion at a time. `implemented` and `verified` in that sentence are compatibility states that must be collapsed back to `active` or advanced to `complete` before normal work continues.
+Only one task may be `active` pending completion at a time.
 
 ## Task-Control File Exception
 

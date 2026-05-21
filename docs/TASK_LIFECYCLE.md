@@ -12,7 +12,7 @@ queued
   -> complete
 ```
 
-`blocked` is a recoverable side path outside the normal success path. `superseded` is terminal. `implemented` and `verified` are pipeline artifact stages, not task-control states. They remain recognized by older schema/validator compatibility checks only so historical or in-progress state can be repaired without inventing another transition.
+`blocked` is a recoverable side path outside the normal success path. `superseded` is terminal. `implemented` and `verified` are pipeline artifact stages, not task-control states. They are not valid values for current task-control files.
 
 These are the normal states agents may write to `tasks/queue.json` and `tasks/status.json`:
 

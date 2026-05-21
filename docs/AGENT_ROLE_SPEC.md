@@ -57,7 +57,7 @@ Verification duties:
 
 - run `python3 scripts/validate_task_system.py`
 - ensure Markdown queue and JSON queue describe the same task order
-- ensure at most one task is active, implemented, or verified pending completion
+- ensure at most one task is active pending completion
 
 ## Orchestrator
 

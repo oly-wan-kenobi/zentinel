@@ -16,9 +16,11 @@ Implement fail-fast and deterministic test impact analysis for mutation runs.
 ## Files allowed to modify
 
 - `src/test_selection.zig`
+- `src/config.zig`
 - `src/run_command.zig`
 - `src/runner.zig`
 - `src/report.zig`
+- `test/config_test.zig`
 - `test/fail_fast_impact_test.zig`
 - `test/fixtures/impact_analysis/**`
 - `tasks/STATUS.md`

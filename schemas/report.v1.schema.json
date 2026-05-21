@@ -262,15 +262,19 @@
         {
           "if": { "properties": { "status": { "const": "timeout" } }, "required": ["status"] },
           "then": { "properties": { "failure_kind": { "const": "timeout" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "compiler_crash" } }, "required": ["status"] },
+          "then": { "properties": { "failure_kind": { "const": "compiler_crash" } } }
         }
       ],
       "properties": {
         "command": { "$ref": "#/$defs/command_evidence" },
         "phase": { "const": "baseline" },
-        "status": { "enum": ["passed", "failed", "timeout"] },
+        "status": { "enum": ["passed", "failed", "timeout", "compiler_crash"] },
         "exit_code": { "type": ["integer", "null"] },
         "timed_out": { "type": "boolean" },
-        "failure_kind": { "enum": ["none", "compile_error", "test_failure", "timeout"] },
+        "failure_kind": { "enum": ["none", "compile_error", "test_failure", "timeout", "compiler_crash"] },
         "duration_ms": { "type": "integer", "minimum": 0 },
         "evidence": { "$ref": "#/$defs/evidence" },
         "skip_reason": { "type": "null" }
