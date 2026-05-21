@@ -264,6 +264,8 @@ Config validation must reject:
 - mutator names not defined in `MUTATOR_SPEC.md`
 - non-positive worker counts
 
+The CLI `--output <path>` override inherits this same project-root restriction as `report.output_dir`; CLI and config output paths must not diverge on sandbox boundary behavior.
+
 Validation errors should include the config path and key.
 
 AI command-line overrides are validated after config normalization. Passing `--ai-provider remote` while the normalized config has `remote_allowed = false` fails with `ZNTL_AI_PROVIDER_NOT_ALLOWED`; a persisted config that directly selects `provider = "remote"` with `remote_allowed = false` fails config validation with `ZNTL_CONFIG_INVALID_VALUE`.

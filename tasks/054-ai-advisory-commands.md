@@ -41,6 +41,7 @@ Implement `explain`, `suggest`, and `review-tests` advisory AI commands.
 - Add failing CLI tests proving `--input-report <path>` selects the report, omitted `--input-report` uses `zig-out/zentinel/report.json`, and a missing default report fails with `ZNTL_AI_REPORT_NOT_FOUND` as a usage error.
 - Add failing CLI tests proving `<mutant-ref>` accepts durable mutant IDs and display IDs scoped to the selected report, while unknown IDs and display IDs from another report are rejected with `ZNTL_AI_TARGET_NOT_FOUND`.
 - Add a failing schema-validation test for the AI prompt request envelope before sending it to a provider, including validation that mutation AI flows embed a `context` object satisfying `zentinel.ai.context.v1`, reject schema-version-only placeholders, and reject unknown context schema versions.
+- Add a failing schema-validation test proving prompt examples include command `failure_kind`.
 - Add failing schema-validation tests for explain, suggest, and review-tests responses. Explain response tests must include the doctest-specific classification values because task 055 reuses `schemas/ai.explain.response.v1.schema.json` and may not redefine the enum.
 - Add failing snapshot tests for stub-provider output.
 - Run `zig build test`.

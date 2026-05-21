@@ -30,9 +30,9 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 8. Implement the smallest passing change.
 9. Run targeted and broader relevant tests.
 10. Record completion evidence while the task remains current.
-11. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`.
-12. Update task state to `complete` with evidence in all task-control files.
-13. Add or update follow-up tasks when needed.
+11. Add or update follow-up tasks when needed while the task remains current.
+12. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`.
+13. Update task state to `complete` with evidence in all task-control files.
 14. Run `python3 scripts/validate_task_system.py` again after the complete-state transition.
 
 A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
@@ -53,13 +53,15 @@ Task-control state meanings:
 
 | State | Meaning |
 | --- | --- |
-| `queued` | Ready but not started. |
+| `queued` | Task is not active, blocked, complete, or superseded; `queued` means a task is not active, blocked, complete, or superseded. |
 | `active` | The single task currently being worked. |
 | `blocked` | Cannot continue until a prerequisite task is inserted or a required input is obtained. |
 | `complete` | Task is done and state files are updated. |
 | `superseded` | Replaced by another task with an explicit reason. |
 
 Only one task may be `active` pending completion at a time.
+
+A dependency-ready queued task is the first queued task in execution order whose dependencies are complete. Agents select only dependency-ready queued tasks for activation; other queued tasks remain future work until their dependencies complete.
 
 ## Task-Control File Exception
 

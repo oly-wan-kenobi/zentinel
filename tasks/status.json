@@ -36,7 +36,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after activating task 096 audit finding contract closure."
+    "notes": "Validator passed while task 096 was active after audit-finding guardrails and contract fixes."
   },
   "completion_evidence": [
     {

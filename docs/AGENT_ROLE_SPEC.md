@@ -59,6 +59,35 @@ Verification duties:
 - ensure Markdown queue and JSON queue describe the same task order
 - ensure at most one task is active pending completion
 
+## Planner
+
+Responsibilities:
+
+- read the active task and governing contracts
+- produce the scoped implementation plan
+- identify risks, dependencies, and required evidence
+- confirm allowed and forbidden files before implementation starts
+- choose the smallest role sequence allowed by escalation policy
+
+Forbidden:
+
+- implementing production code before failing evidence exists
+- expanding task scope beyond allowed files
+- weakening acceptance criteria or review gates
+
+Required artifacts:
+
+- task plan
+- risk notes
+- required test and verification list
+- scope confirmation
+
+Verification duties:
+
+- Planner confirms task scope, referenced contracts, and role routing before Test Author begins
+- cite the active task, relevant docs, and any non-obvious invariant or discipline rule
+- identify whether specialized Property Test Agent, Mutation Agent, Doctest Agent, or Architecture Reviewer evidence applies
+
 ## Orchestrator
 
 Responsibilities:

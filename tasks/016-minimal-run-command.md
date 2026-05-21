@@ -44,6 +44,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - Add a failing end-to-end fixture test for one survived mutant.
 - Add a failing test for baseline failure exit behavior.
 - Add failing CLI tests for `--operator <name>` filtering, `--mutant <id>` single-mutant selection, `--fail-on-survivors` exit code `1`, and `--output <path>` report writing.
+- Add a failing CLI test proving Explicit `--output <path>` inherits the same project-root restriction as `report.output_dir`.
 - Add a failing CLI test proving `run.jobs > 1` is rejected before task 050 instead of being silently ignored.
 - Add a failing JSON report snapshot proving baseline failure sets `run.status = baseline_failed`, records baseline command evidence, emits no mutant result with `baseline_failed`, and leaves summary counts at zero.
 - Add a failing JSON report snapshot proving baseline timeout maps to `run.status = baseline_failed`, `baseline.status = failed`, timed-out baseline command evidence, empty `mutants`, and zero summary counts.
@@ -59,6 +60,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - Baseline timeout follows the same run-level baseline failure path and exits with code `3`.
 - `--fail-on-survivors` changes only process exit status, not deterministic report fields.
 - `--operator <name>`, `--mutant <id>`, and `--output <path>` are implemented by the run command rather than left as documented-only options.
+- Explicit `--output <path>` inherits the same project-root restriction as `report.output_dir`.
 - Output remains concise and survivor-focused.
 
 ## Non-goals

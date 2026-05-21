@@ -33,6 +33,8 @@ Zig often colocates tests and implementation. For a mutation in `src/range.zig`,
 zig test src/range.zig
 ```
 
+Generated same-file selected commands are authorized generated selected test commands, not arbitrary AI or shell output. A generated selected command must pass an unmutated preflight before it can classify a mutant. If the command was not part of the baseline command set, zentinel first runs it against the unmodified project, records that preflight evidence, and uses the command for mutant classification only if the preflight passes.
+
 Same-file test bodies are not mutation targets by default.
 
 ## Build Tests

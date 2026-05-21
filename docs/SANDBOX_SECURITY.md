@@ -18,7 +18,7 @@ zentinel cannot fully sandbox arbitrary local code in Phase 1, but it must avoid
 
 The runner must:
 
-- execute only configured test commands
+- execute only configured commands or authorized generated selected test commands
 - use a controlled current working directory
 - apply one mutant per isolated workspace
 - avoid modifying the developer working tree
@@ -46,6 +46,8 @@ argv array + cwd + environment policy
 Config starts with string commands for UX, but zentinel must parse those strings into argv and execute the argv directly. Phase 1 must not use an implicit shell for configured test commands.
 
 The command parser must support only the grammar documented in `docs/CONFIG_SPEC.md`. Unsupported shell syntax is a config error, not a best-effort execution request.
+
+Generated same-file selected commands are authorized only by `docs/TEST_SELECTION.md`. They are built from normalized project-relative Zig source paths, parsed to argv directly, and must pass unmutated preflight evidence before mutant execution can use them for classification.
 
 Reports must record:
 

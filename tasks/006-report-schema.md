@@ -45,6 +45,7 @@ Add typed report data structures and JSON serialization matching `docs/REPORT_FO
 - Add a failing schema test that `test_selection` requires `strategy`, `selected`, `commands`, and `fallback_used` and rejects unknown fields.
 - Add a failing test for a deterministic report semantic validator proving schema validation is not the only report oracle; the validator must reject reports whose summary counts match the schema shape but not the serialized `mutants` entries.
 - Add failing semantic-validator cases for derived invariants that JSON Schema cannot fully prove: `summary.total` equals the number of `mutants`, per-status counts match mutant result entries, report-local `display_id` values follow canonical ordering, baseline-failed reports keep `mutants` empty with zero counts, and repeated-run normalization ignores only documented observation metadata.
+- Reject `baseline.status = "not_run"` with non-empty `mutants` in the deterministic semantic validator.
 - Add a failing test that `backend_stability` and `operator_stability` are distinct fields and validate their separate enum values.
 - Add a failing test that result entries preserve classifier source evidence through existing deterministic command, patch, sandbox, backend-contract, or skip-reason fields without adding AI-owned classifier data.
 - Add a failing test that advisory AI fields cannot overwrite result fields.

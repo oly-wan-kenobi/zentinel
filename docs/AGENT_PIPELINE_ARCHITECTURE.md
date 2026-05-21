@@ -90,11 +90,13 @@ The Verifier checks:
 | --- | --- |
 | Low-risk task | Test Author, Implementer, Verifier. |
 | Normal task | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier. |
-| High-risk task | Normal pipeline plus Property Test Agent and Mutation Agent. |
+| High-risk task | Normal pipeline plus Property Test Agent or Mutation Agent as applicable. |
 | Compiler-internal task | High-risk pipeline plus Architecture Reviewer and stricter source-mapping review. |
 | Architecture task | Phase Planner, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. |
 
 The Orchestrator classifies task complexity before spawning subagents.
+
+Use both specialized roles only when both triggers apply.
 
 ## Canonical Mutation-Aware Flow
 

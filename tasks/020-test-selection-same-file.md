@@ -36,6 +36,7 @@ Implement the default `same_file_then_package` test selection strategy.
 ## Required tests
 
 - Add a failing test for same-file test selection.
+- Add a failing test proving each generated selected command must pass an unmutated preflight before mutant classification when it was not part of the baseline command set.
 - Add a failing test for fallback to configured commands.
 - Add a failing test for deterministic selected test ordering.
 - Reject `impact_graph` before task `051` with a failing config-validation test instead of downgrading it to `same_file_then_package`.
@@ -49,6 +50,7 @@ Implement the default `same_file_then_package` test selection strategy.
 - Reports include strategy, selected tests, commands, and fallback flag.
 - Selection never uses AI.
 - Full command fallback is deterministic.
+- A generated selected command must pass an unmutated preflight before it can classify a mutant.
 
 ## Non-goals
 

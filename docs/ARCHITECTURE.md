@@ -113,11 +113,12 @@ The display ID is stable only within one report after canonical sorting. It is u
 7. Generate mutants through the selected backend.
 8. Filter by include/exclude rules, operator settings, and safety constraints.
 9. Select tests for each mutant.
-10. Apply one mutant in an isolated worktree or patch sandbox.
-11. Run selected tests with deterministic timeout and environment.
-12. Classify result from process status, compiler output, compiler crash evidence, and test output.
-13. Record report entries and cache artifacts.
-14. Optionally run AI explanation against the completed deterministic report.
+10. Run unmutated preflight for selected commands that were generated after baseline discovery.
+11. Apply one mutant in an isolated worktree or patch sandbox.
+12. Run selected tests with deterministic timeout and environment.
+13. Classify result from process status, compiler output, compiler crash evidence, and test output.
+14. Record report entries and cache artifacts.
+15. Optionally run AI explanation against the completed deterministic report.
 
 ## Module Responsibilities
 

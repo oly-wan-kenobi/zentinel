@@ -24,6 +24,8 @@ complete
 superseded
 ```
 
+`queued` means a task is not active, blocked, complete, or superseded. It can describe both future tasks with incomplete dependencies and the dependency-ready queued subset that may be activated next.
+
 Fine-grained work progress is recorded in pipeline artifacts after those artifacts exist. Before task `041`, equivalent progress is recorded in `tasks/STATUS.md`, `tasks/status.json`, and the task completion summary.
 
 ## Pipeline Artifact Stages
@@ -51,7 +53,7 @@ Before task `041`, the synchronized task-control files are the active-task lock.
 
 | State | Entry requirement | Exit requirement |
 | --- | --- | --- |
-| `queued` | Task exists and dependencies are complete. | Task Queue Manager activates it. |
+| `queued` | Task exists in the queue and is not active, blocked, complete, or superseded. Only a dependency-ready queued task has all dependencies complete and may be activated. | Task Queue Manager activates the first dependency-ready queued task by execution order. |
 | `active` | Exactly one active task lock exists, using task-control files before task `041` and the task-control files plus active-lock artifact after task `041`. | Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`; then update queue/status to complete. |
 | `complete` | Task status and required artifacts for the active cutover stage are persisted. | Next task may activate. |
 | `blocked` | A blocker exists that cannot be resolved within current task scope. | Smallest prerequisite task is queued, or the blocker is superseded. After the prerequisite task completes, the blocked task returns to `queued`. |

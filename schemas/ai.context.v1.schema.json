@@ -133,8 +133,8 @@
       "required": ["stdout_excerpt", "stderr_excerpt", "failure_summary"],
       "additionalProperties": false,
       "properties": {
-        "stdout_excerpt": { "type": "string" },
-        "stderr_excerpt": { "type": "string" },
+        "stdout_excerpt": { "type": "string", "maxLength": 4096 },
+        "stderr_excerpt": { "type": "string", "maxLength": 4096 },
         "failure_summary": { "type": "string" }
       }
     },

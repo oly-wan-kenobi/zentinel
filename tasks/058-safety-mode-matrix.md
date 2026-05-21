@@ -43,6 +43,7 @@ Implement safety and optimization mode matrix execution and reporting.
 - Add a failing run-command test for `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` override parsing and validation.
 - Add a failing report test for mode-specific outcomes.
 - Add a failing schema/doc test proving mode-matrix report fields are documented in `docs/REPORT_FORMAT.md` and represented in `schemas/report.v1.schema.json`.
+- Add a failing schema/doc test proving optional `result.mode_matrix` fields preserve `result.mode` semantics as an additive `zentinel.report.v1` extension.
 - Add a failing fixture for Debug versus ReleaseFast behavior.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
@@ -53,6 +54,7 @@ Implement safety and optimization mode matrix execution and reporting.
 - more than one configured `zig.modes` entry is accepted only after this task.
 - `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` is implemented as an explicit override and invalid modes are rejected deterministically.
 - Reports distinguish mode effects from normal test failures.
+- Mode-matrix reporting uses optional `result.mode_matrix` and must preserve `result.mode` semantics unless a new report schema version is introduced.
 - CI can limit modes by config.
 - `python3 scripts/validate_task_system.py` passes.
 

@@ -106,6 +106,7 @@ Task `055` owns the first four mappings and must snapshot them with the stub pro
           },
           "phase": "mutant",
           "status": "passed",
+          "failure_kind": "none",
           "exit_code": 0,
           "timed_out": false,
           "duration_ms_normalized": "<duration>",

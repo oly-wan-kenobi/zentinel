@@ -104,7 +104,7 @@ Report v1 does not support skipping the baseline. `baseline.status = "not_run"` 
 
 ## Report Validation
 
-JSON Schema validation checks report shape, required fields, closed objects, enums, and supported conditional state shapes. It is not the only report oracle: deterministic semantic validation must also verify derived invariants, including that `summary.total` equals the number of `mutants`, per-status summary counts match the `mutants` entries, report-local `display_id` values follow canonical ordering, baseline-failed reports keep `mutants` empty with zero counts, and repeated-run normalization ignores only documented observation metadata.
+JSON Schema validation checks report shape, required fields, closed objects, enums, and supported conditional state shapes. It is not the only report oracle: deterministic semantic validation must also verify derived invariants, including that `summary.total` equals the number of `mutants`, per-status summary counts match the `mutants` entries, report-local `display_id` values follow canonical ordering, baseline-failed reports keep `mutants` empty with zero counts, semantic validator must reject `baseline.status = "not_run"` with non-empty `mutants`, and repeated-run normalization ignores only documented observation metadata.
 
 ## Mutant Entry
 
@@ -241,7 +241,7 @@ Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and st
 
 report v1 has no backend-specific diagnostics namespace. Experimental ZIR/AIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
 
-The `mode` field is single-valued until safety-mode matrix work lands; mode-matrix reporting is owned by task `058`.
+The `mode` field is single-valued until safety-mode matrix work lands; mode-matrix reporting is owned by task `058`. Task `058` may add optional `result.mode_matrix` fields only as an additive change: mode-matrix reporting remains an additive `zentinel.report.v1` extension and must preserve existing `result.mode` semantics. If those semantics must change, the work requires a new report schema version.
 
 `operator_stability` describes the mutator operator. Valid values are `stable`, `preview`, and `experimental` as defined by `docs/MUTATOR_SPEC.md`. Preview operators may appear only when explicitly enabled by config or task scope; they are never part of the default stable minimum product.
 

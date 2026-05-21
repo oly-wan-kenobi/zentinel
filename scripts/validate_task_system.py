@@ -563,7 +563,8 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
         if isinstance(task_id, str):
             task = task_by_id.get(task_id)
             if isinstance(task, dict) and order_key(task_order(task)) >= order_key(COMPLETION_SCOPE_CUTOVER_ORDER):
-                validate_completion_scope_evidence(entry, task, index, errors)
+                all_tasks = list(task_by_id.values())
+                validate_completion_scope_evidence(entry, task, index, all_tasks, errors)
 
     completed_ids = [task_id for task_id in completed if isinstance(task_id, str)]
     for task_id in completed_ids:
@@ -585,7 +586,7 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
                         require((ROOT / artifact).exists(), errors, f"post-041 artifact {artifact} must exist")
 
 
-def validate_completion_scope_evidence(entry: dict[str, object], task: dict[str, object], index: int, errors: list[str]) -> None:
+def validate_completion_scope_evidence(entry: dict[str, object], task: dict[str, object], index: int, all_tasks: list[dict[str, object]], errors: list[str]) -> None:
     task_id = task.get("id")
     allowed_files = task.get("allowed_files")
     forbidden_files = task.get("forbidden_files")
@@ -604,7 +605,7 @@ def validate_completion_scope_evidence(entry: dict[str, object], task: dict[str,
         if path_matches_any(path, forbidden_files):
             fail(errors, f"completion_evidence entry {index} file {path} is forbidden by task {task_id}")
             continue
-        if is_global_scope_exception(path, task_id, [task]):
+        if is_global_scope_exception(path, task_id, all_tasks):
             if path in TASK_CONTROL_FILES:
                 task_control_changes = entry.get("task_control_changes")
                 require(isinstance(task_control_changes, list) and path in task_control_changes, errors, f"completion_evidence entry {index} task-control file {path} must be listed in task_control_changes")
@@ -3051,6 +3052,127 @@ def validate_autonomous_agent_contract_repair_contracts(tasks: list[dict[str, ob
         require(isinstance(allowed, list) and "tests/coverage-gaps/invariants.v1.json" in allowed, errors, "task 040 must allow invariant gap row updates for I-019")
 
 
+def validate_audit_finding_contract_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 096's audit-finding contract closures against future drift."""
+
+    required_phrases = {
+        "docs/TEST_SELECTION.md": [
+            "Generated same-file selected commands are authorized generated selected test commands",
+            "A generated selected command must pass an unmutated preflight before it can classify a mutant",
+        ],
+        "docs/SANDBOX_SECURITY.md": [
+            "configured commands or authorized generated selected test commands",
+            "unmutated preflight",
+        ],
+        "docs/ARCHITECTURE.md": [
+            "Run unmutated preflight for selected commands that were generated after baseline discovery",
+        ],
+        "docs/AGENT_ROLE_SPEC.md": [
+            "## Planner",
+            "Planner confirms task scope",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Add or update follow-up tasks when needed while the task remains current.",
+            "`queued` means a task is not active, blocked, complete, or superseded",
+            "dependency-ready queued",
+        ],
+        "docs/TASK_LIFECYCLE.md": [
+            "`queued` means a task is not active, blocked, complete, or superseded",
+            "dependency-ready queued",
+        ],
+        "docs/PIPELINE_ESCALATION_POLICY.md": [
+            "Property Test Agent or Mutation Agent as applicable",
+            "Use both specialized roles only when both triggers apply",
+        ],
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "Property Test Agent or Mutation Agent as applicable",
+            "Use both specialized roles only when both triggers apply",
+        ],
+        "docs/AI_PROMPT_CONTRACTS.md": [
+            '"failure_kind": "none"',
+        ],
+        "docs/AI_CONTEXT_SCHEMA.md": [
+            "`stdout_excerpt` and `stderr_excerpt` are capped at 4096 characters",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            'semantic validator must reject `baseline.status = "not_run"` with non-empty `mutants`',
+            "mode-matrix reporting remains an additive `zentinel.report.v1` extension",
+        ],
+        "docs/CLI_SPEC.md": [
+            "Explicit `--output <path>` inherits the same project-root restriction as `report.output_dir`",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "The CLI `--output <path>` override inherits this same project-root restriction",
+        ],
+        "tasks/006-report-schema.md": [
+            'Reject `baseline.status = "not_run"` with non-empty `mutants`',
+        ],
+        "tasks/016-minimal-run-command.md": [
+            "Explicit `--output <path>` inherits the same project-root restriction as `report.output_dir`",
+        ],
+        "tasks/020-test-selection-same-file.md": [
+            "generated selected command must pass an unmutated preflight",
+        ],
+        "tasks/049-pipeline-escalation.md": [
+            "Use both specialized roles only when both triggers apply",
+        ],
+        "tasks/053-ai-provider-and-context.md": [
+            "stdout_excerpt and stderr_excerpt are capped at 4096 characters",
+        ],
+        "tasks/054-ai-advisory-commands.md": [
+            "prompt examples include command `failure_kind`",
+        ],
+        "tasks/058-safety-mode-matrix.md": [
+            "optional `result.mode_matrix`",
+            "preserve `result.mode` semantics",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 096 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 096 contract phrase {phrase!r}")
+
+    forbidden_phrases = {
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "Property Test Agent and Mutation Agent",
+        ],
+    }
+    for rel, phrases in forbidden_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 096 stale-scan file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale task 096 phrase {phrase!r}")
+
+    source_text = (ROOT / "scripts" / "validate_task_system.py").read_text(encoding="utf-8")
+    require("all_tasks = list(task_by_id.values())" in source_text, errors, "completion scope validation must build a full task list for global exceptions")
+    require(
+        "is_global_scope_exception(path, task_id, all_tasks)" in source_text,
+        errors,
+        "completion scope validation must check pipeline artifact exceptions against the full task list",
+    )
+
+    ai_schema = load_json(ROOT / "schemas" / "ai.context.v1.schema.json", errors)
+    if isinstance(ai_schema, dict):
+        defs = ai_schema.get("$defs")
+        evidence_schema = defs.get("evidence") if isinstance(defs, dict) else None
+        properties = evidence_schema.get("properties") if isinstance(evidence_schema, dict) else None
+        if isinstance(properties, dict):
+            for field in ("stdout_excerpt", "stderr_excerpt"):
+                field_schema = properties.get(field)
+                require(
+                    isinstance(field_schema, dict) and field_schema.get("maxLength") == 4096,
+                    errors,
+                    f"AI context {field} must have maxLength 4096",
+                )
+
+
 def invariant_numbers(errors: list[str]) -> list[str]:
     path = ROOT / "docs" / "INVARIANTS.md"
     if not path.is_file():
@@ -3128,6 +3250,7 @@ def main() -> int:
     validate_agent_enforcement_closure_contracts(tasks, errors)
     validate_agent_readiness_validator_closure_contracts(tasks, errors)
     validate_autonomous_agent_contract_repair_contracts(tasks, errors)
+    validate_audit_finding_contract_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

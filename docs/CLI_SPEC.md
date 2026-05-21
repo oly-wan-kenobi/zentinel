@@ -185,6 +185,8 @@ Useful options:
 
 Default text output emphasizes survivors and diagnostics, not percentages.
 
+Explicit `--output <path>` inherits the same project-root restriction as `report.output_dir`; paths outside the project root are rejected unless a future policy explicitly allows them.
+
 ## AI Commands
 
 AI commands require `ai.enabled = true` or explicit CLI opt-in:

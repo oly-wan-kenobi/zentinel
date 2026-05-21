@@ -56,6 +56,7 @@ No mutation run is required unless escalation validation code changes. Once muta
 
 - Complexity classes are explicit.
 - Required pipeline depth for each class is explicit.
+- Use both specialized roles only when both triggers apply.
 - Escalation triggers and reviewer requirements are documented.
 - The policy prevents architecture drift and broad refactors.
 - `python3 scripts/validate_task_system.py` passes.
