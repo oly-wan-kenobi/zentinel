@@ -41,6 +41,7 @@ Wire `zentinel doctest` for CLI documentation examples and dogfood the CLI spec.
 - Add failing report snapshots for passing and failing CLI doctests.
 - Add a failing schema-validation test for `schemas/doctest.report.v1.schema.json` before emitting JSON doctest reports, including the full `run`, `summary`, `cases`, exact `case.kind` enum, structured `command`, bounded `result`, exact `case.result.snapshot` evidence, `diagnostics`, and `advisory.ai` fields documented in `docs/DOCTEST_SPEC.md`. This preserves the existing structured `command`, bounded `result`, `diagnostics`, and `advisory.ai` fields contract while making snapshot evidence exact.
 - Add a failing report snapshot for an invalid doctest case with a stable diagnostic error code.
+- Add a failing CLI test for exit code `1` for failing, invalid, compile-error, and timeout doctest reports while successful and `expected_compile_error` cases exit `0`.
 - Add a failing test for `--case <case-ref>` selection using both durable `dt_...` IDs and source-ref selectors.
 - Add a failing test proving source-ref selectors resolve only the case anchor line and reject lines that point only at secondary expectation blocks.
 - Run `zig build test`.

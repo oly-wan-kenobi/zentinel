@@ -38,6 +38,7 @@ Implement normal doctest execution for Zig, CLI, and config cases without mutati
 
 - Add failing tests for Zig compile-pass, Zig test pass, Zig compile-fail pass, CLI command pass, config pass, and config-fail pass.
 - Add failing tests for timeout and unsupported CLI command rejection with `ZNTL_DOCTEST_COMMAND_REJECTED`.
+- Add failing tests proving ordinary doctest failure statuses exit `1` and `expected_compile_error` remains a successful compile-fail status.
 - Run `zig build test`.
 - Run `python3 scripts/validate_task_system.py`.
 

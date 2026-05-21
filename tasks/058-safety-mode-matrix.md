@@ -47,6 +47,7 @@ Implement safety and optimization mode matrix execution and reporting.
 ## Acceptance criteria
 
 - Mode matrix output is deterministic.
+- more than one configured `zig.modes` entry is accepted only after this task.
 - `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` is implemented as an explicit override and invalid modes are rejected deterministically.
 - Reports distinguish mode effects from normal test failures.
 - CI can limit modes by config.

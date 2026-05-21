@@ -29,9 +29,11 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 7. Run the targeted test and capture the expected failure.
 8. Implement the smallest passing change.
 9. Run targeted and broader relevant tests.
-10. Update task state to `complete` with evidence in all task-control files.
-11. Add or update follow-up tasks when needed.
-12. Run `python3 scripts/validate_task_system.py`.
+10. Record completion evidence while the task remains current.
+11. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`.
+12. Update task state to `complete` with evidence in all task-control files.
+13. Add or update follow-up tasks when needed.
+14. Run `python3 scripts/validate_task_system.py` again after the complete-state transition.
 
 A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
 
@@ -94,8 +96,10 @@ Use this decision table:
 | Spec ambiguity with conservative answer | Choose the stricter deterministic behavior and document it. |
 | Spec ambiguity affecting public UX | Add a clarifying docs task and use AskUserQuestion only if two choices are equally defensible. |
 | External dependency decision | Follow `docs/DEPENDENCY_POLICY.md`; do not add dependency unless policy allows it. |
-| Latest stable Zig API uncertainty | Prefer public stable APIs; add adapter tests; document fallback. |
+| Pinned Zig `0.16.0` API uncertainty | Prefer public Zig `0.16.0` APIs; add adapter tests; document fallback. |
 | Test failure from prior completed task | Create a regression-fix task before continuing. |
+
+When a missing prerequisite is inserted, keep the originally blocked task in `blocked` until the prerequisite task completes. After the prerequisite task completes, the blocked task returns to `queued` and waits for normal dependency-ready selection by execution order; it must not jump directly to `active`.
 
 ## AskUserQuestion Use
 
@@ -162,5 +166,6 @@ Each completed task must record:
 - validator result
 - dogfooding implication
 - follow-up tasks created
+- after task `041`, `completion_evidence.artifacts` listing canonical artifact paths when durable pipeline artifacts were required or produced
 
 Evidence belongs in `tasks/status.json` under `completion_evidence` and is summarized in `tasks/STATUS.md`.

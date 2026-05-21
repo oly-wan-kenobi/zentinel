@@ -24,7 +24,7 @@ Each rule is binding even before it is fully machine-enforced. When a rule is no
 
 ## 2. Mutation Correctness
 
-**D-100.** Runner evidence is the only authority for killed, survived, compile_error, compiler_crash, timeout, skipped, invalid, and run-level baseline_failed statuses.
+**D-100.** Deterministic classifier evidence, not AI output, is the authority for mutation result status. Runner evidence owns `killed`, `survived`, `compile_error`, `compiler_crash`, `timeout`, `skipped`, and run-level `baseline_failed` after a valid patch reaches command execution. Patch, sandbox, and backend contract validation own `invalid` before or around command execution.
 
 **D-101.** AI output must not classify mutation correctness, decide equivalence, suppress mutants, or alter deterministic report fields.
 

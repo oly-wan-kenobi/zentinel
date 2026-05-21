@@ -12,7 +12,7 @@ queued
   -> complete
 ```
 
-`blocked` and `superseded` are terminal side paths outside the normal success path. These are the only states that may be written to `tasks/queue.json` and `tasks/status.json`:
+`blocked` is a recoverable side path outside the normal success path. `superseded` is terminal. These are the only states that may be written to `tasks/queue.json` and `tasks/status.json`:
 
 ```text
 queued
@@ -54,9 +54,9 @@ Before task `041`, the synchronized task-control files are the active-task lock.
 | `queued` | Task exists and dependencies are complete. | Task Queue Manager activates it. |
 | `active` | Exactly one active task lock exists, using task-control files before task `041` and the task-control files plus active-lock artifact after task `041`. | Test Author emits failing-test evidence in the active task's available evidence location. |
 | `implemented` | Code compiles and targeted tests pass. | Implementation Reviewer approves scope and design. |
-| `verified` | Final verification passed. | Queue/status updated to complete. |
+| `verified` | Final verification passed. | Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`; then update queue/status to complete. |
 | `complete` | Task status and required artifacts for the active cutover stage are persisted. | Next task may activate. |
-| `blocked` | A blocker exists that cannot be resolved within current task scope. | Smallest prerequisite task is queued or the blocker is superseded. |
+| `blocked` | A blocker exists that cannot be resolved within current task scope. | Smallest prerequisite task is queued, or the blocker is superseded. After the prerequisite task completes, the blocked task returns to `queued`. |
 | `superseded` | A later product or sequencing decision made the task obsolete. | No normal exit. |
 
 ## Completion Rule
@@ -87,3 +87,5 @@ Blocked task record must include:
 - whether current edits were reverted or preserved behind tests
 
 Normal missing prerequisites should be converted into tasks without asking a human.
+
+When a prerequisite task is inserted, the blocked task stays `blocked` until that prerequisite is complete. After the prerequisite task completes, the blocked task returns to `queued`, clears the blocked-task detail entry, and is selected again only through the normal dependency-ready queue order.

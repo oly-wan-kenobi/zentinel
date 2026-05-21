@@ -201,6 +201,8 @@ JSON Schema validation checks report shape, required fields, closed objects, enu
 | `skipped` | Mutant was not executed for a deterministic documented reason. |
 | `invalid` | zentinel generated an invalid patch or violated a backend contract. |
 
+Each mutant result must name the deterministic classifier source in existing evidence fields. Runner-owned statuses use structured command evidence; `invalid` uses patch, sandbox, or backend contract evidence; `skipped` uses a deterministic skip reason. Report v1 must not add an open classifier field or use AI text to classify correctness.
+
 Baseline failure is a run-level state (`run.status = baseline_failed`), not a mutant result status.
 
 `compiler_crash` is distinct from `compile_error` and `invalid`. A normal Zig diagnostic for a mutated project is `compile_error`; a zentinel-generated malformed patch or backend contract violation is `invalid`; an abnormal Zig compiler panic/crash while compiling an otherwise syntactically valid mutant is `compiler_crash` with command evidence and bounded compiler output.

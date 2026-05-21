@@ -111,7 +111,7 @@ Extraction metadata:
 }
 ```
 
-`source_ref` is a case-level anchor, not a per-block identity. It always points at the first executable or producer block in the grouped case. Secondary expectation blocks are retained in `block_refs` for diagnostics and report display, but CLI source-ref selectors resolve only against the anchor line so expectation-line selectors cannot silently choose a producer.
+`source_ref` is a case-level anchor, not a per-block identity. It always points at the first executable or producer block in the grouped case. Secondary expectation blocks are retained in `block_refs` for diagnostics and report display, but CLI source-ref selectors resolve only against the anchor line so expectation-line selectors cannot silently choose a producer. Examples use illustrative line numbers; executable fixtures must derive source refs from current extraction metadata rather than copying example line numbers.
 
 ## Parsing Strategy
 

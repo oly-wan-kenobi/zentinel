@@ -20,7 +20,7 @@ Property tests are required for:
 
 Before task `044` refines this policy and task `062` implements generated property infrastructure, tasks that touch the required surfaces above must add deterministic property-style tests using the test mechanisms available in their allowed scope. Acceptable pre-infrastructure evidence includes enumerated unit tests, repeated-run tests, fixture cases, snapshots, or small table-driven checks that exercise the invariant without generated data.
 
-Generated property-test infrastructure is mandatory only after task `062` is complete and only for tasks whose active scope requires generated coverage. After that cutover, generated property tests must follow the seed, report, and review rules in this document unless a task explicitly records a narrower deterministic reason.
+Generated property-test infrastructure is mandatory only after task `062` is complete and only for tasks whose active scope requires generated coverage. After task `062`, generated property evidence must record the seed list, invariant list, and generated case count, then follow the seed, report, and review rules in this document unless a task explicitly records a narrower deterministic reason.
 
 ## Mandatory Invariant Categories
 

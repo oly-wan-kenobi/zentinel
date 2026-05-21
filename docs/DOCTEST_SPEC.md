@@ -61,6 +61,8 @@ invalid
 
 `expected_compile_error` is a pass status for `zig compile_fail` only.
 
+Any ordinary doctest status other than `passed`, `skipped`, or `expected_compile_error` makes `zentinel doctest` exit `1`. Invalid CLI/config/case selector usage still exits `2`, and internal zentinel failures exit `4`.
+
 ## Doctest Case Kind Enum
 
 `case.kind` in `zentinel.doctest.report.v1` must be one of exactly:
@@ -288,7 +290,7 @@ Duplicate unlabeled cases in the same file are invalid when they have the same c
 
 Each case has a canonical anchor line. The anchor line is the first executable or producer block in the group: `zig test`, `zig compile_fail`, `bash cli`, `toml config`, `toml config_fail`, `zig before`, or the producer block paired with `text output` or `json expected`. Expectation-only blocks such as `text output`, `json expected`, and `zig after` are secondary block refs, not source-ref anchors.
 
-Source refs have the form `docs/path.md:line[:label]`. The `line` component resolves only against the case anchor line. They are accepted by CLI selectors such as `--case <case-ref>` and `doctest explain <case-ref>` when they resolve to exactly one case in the current extraction or selected doctest report. A line pointing only to a secondary expectation block must fail with a case-ref diagnostic instead of guessing the producer case. Reports must store durable `id` values, the anchor `source_ref`, and may also store secondary `block_refs`, source location fields, and labels for display.
+Source refs have the form `docs/path.md:line[:label]`. The `line` component resolves only against the case anchor line. They are accepted by CLI selectors such as `--case <case-ref>` and `doctest explain <case-ref>` when they resolve to exactly one case in the current extraction or selected doctest report. Examples in this file use illustrative line numbers; executable fixtures must derive source refs from current extraction metadata rather than copying example line numbers. A line pointing only to a secondary expectation block must fail with a case-ref diagnostic instead of guessing the producer case. Reports must store durable `id` values, the anchor `source_ref`, and may also store secondary `block_refs`, source location fields, and labels for display.
 
 ### Doctest Mutation Entry IDs
 

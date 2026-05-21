@@ -114,6 +114,8 @@ CI should run the same stages available for the current phase:
 - mutation fixture dogfood when implemented
 - performance smoke checks when implemented
 
+Before task `062`, property evidence may be enumerated or fixture-based when generated property infrastructure does not exist. After task `062`, generated property evidence must include the seed list, invariant list, and generated case count.
+
 CI must not require remote AI providers.
 
 ## Completion Decision

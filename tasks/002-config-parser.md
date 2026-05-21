@@ -47,6 +47,7 @@ Implement parsing and validation for `zentinel.toml` according to `docs/CONFIG_S
 - Add a failing path normalization test.
 - Add a failing defaults test proving omitted `project.exclude` expands exactly to `[".zig-cache/**", "zig-out/**", "test/**"]`.
 - Add a failing defaults test proving omitted `run.jobs` normalizes to `1`.
+- Add a failing validation test rejecting multiple `zig.modes` entries before task `058` with `ZNTL_CONFIG_INVALID_VALUE`.
 - Add failing CLI/config integration tests proving `init --test-command <command>` and `init --backend ast` write config that parses successfully.
 - Update the task 001 transitional CLI tests so `init --test-command <command>` and `init --backend ast` are no longer treated as invalid options once config-aware init exists.
 - Add a failing test that `init --backend zir` or `init --backend air` is rejected by init instead of enabling experimental backends.

@@ -100,6 +100,8 @@ hash(project_relative_file, operator, span_start, span_end, original, replacemen
 
 The display ID is stable only within one report after canonical sorting. It is useful for terminal output and short CLI selectors against a selected report, but it is not a durable backend identity and must not be stored in handoffs or AI context as the canonical reference.
 
+`backend_version` is an internal deterministic backend contract string, not a user-facing backend choice. For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`. ZIR and AIR may define experimental backend versions only when their experiment tasks document version coupling and mapping semantics.
+
 ## Pipeline
 
 1. Load config.

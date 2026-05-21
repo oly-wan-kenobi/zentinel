@@ -6,6 +6,8 @@ In the AI-agent pipeline, test authorship and implementation are separate respon
 
 A successful `python3 scripts/validate_task_system.py` run is not product proof. It checks task-system consistency and registered governance guardrails; it does not replace the active task's failing evidence, targeted tests, snapshots, doctests, schemas, semantic validators, or dogfood runs.
 
+Completion evidence must name the failing evidence, tests added, tests run, and a passed task-system validator result. `tests_added` may be empty only for a no-behavior-change task that explicitly records why no new structural guardrail was added.
+
 ## Required Workflow
 
 1. Read the active task file and referenced docs.
@@ -15,7 +17,8 @@ A successful `python3 scripts/validate_task_system.py` run is not product proof.
 5. Implement the minimum change.
 6. Run the targeted test until it passes.
 7. Run the broader relevant suite.
-8. Update task status and documentation only if behavior or contracts changed.
+8. Run final active-scope validation before marking the task complete.
+9. Update task status and documentation only if behavior or contracts changed.
 
 ## Test Categories
 

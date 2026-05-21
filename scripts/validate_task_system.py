@@ -96,7 +96,18 @@ STATUS_TOP_LEVEL_FIELDS = {
     "completion_evidence",
     "history",
 }
-BLOCKED_TASK_DETAIL_FIELDS = {"task", "reason", "prerequisite_task", "requires_user_input", "notes"}
+BLOCKED_TASK_DETAIL_FIELDS = {
+    "task",
+    "reason",
+    "blocker_type",
+    "evidence",
+    "attempted_recovery",
+    "prerequisite_task",
+    "required_prerequisite_task",
+    "requires_user_input",
+    "edits_state",
+    "notes",
+}
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
 GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
@@ -405,6 +416,16 @@ def validate_status(status: object, tasks: list[dict[str, object]], errors: list
                 errors,
                 f"blocked_task_details entry {index} prerequisite_task must be null or a known task id",
             )
+            required_prerequisite_task = detail.get("required_prerequisite_task")
+            require(
+                required_prerequisite_task is None or (isinstance(required_prerequisite_task, str) and required_prerequisite_task in task_by_id),
+                errors,
+                f"blocked_task_details entry {index} required_prerequisite_task must be null or a known task id",
+            )
+            if isinstance(prerequisite_task, str) and isinstance(required_prerequisite_task, str):
+                require(prerequisite_task == required_prerequisite_task, errors, f"blocked_task_details entry {index} prerequisite_task and required_prerequisite_task must match")
+            for field in ["blocker_type", "evidence", "attempted_recovery", "edits_state"]:
+                require(isinstance(detail.get(field), str) and bool(detail.get(field, "").strip()), errors, f"blocked_task_details entry {index} {field} must be non-empty")
             require(isinstance(detail.get("requires_user_input"), bool), errors, f"blocked_task_details entry {index} requires_user_input must be boolean")
             notes = detail.get("notes")
             require(isinstance(notes, str) and bool(notes.strip()), errors, f"blocked_task_details entry {index} notes must be non-empty")
@@ -461,6 +482,7 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
         "dogfooding_implication",
         "follow_up_tasks",
     }
+    optional_fields = {"artifacts"}
     evidence_by_task: dict[str, dict[str, object]] = {}
     for index, entry in enumerate(evidence):
         require(isinstance(entry, dict), errors, f"completion_evidence entry {index} must be an object")
@@ -468,7 +490,7 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             continue
         keys = set(entry)
         missing = required_fields - keys
-        extra = keys - required_fields
+        extra = keys - required_fields - optional_fields
         for field in sorted(missing):
             fail(errors, f"completion_evidence entry {index} missing field {field}")
         for field in sorted(extra):
@@ -484,18 +506,39 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             require(isinstance(entry.get(field), str) and bool(entry.get(field)), errors, f"completion_evidence entry {index} field {field} must be a non-empty string")
         for field in ["files_changed", "tests_added", "tests_run", "follow_up_tasks"]:
             require(isinstance(entry.get(field), list) and all(isinstance(item, str) and item for item in entry.get(field, [])), errors, f"completion_evidence entry {index} field {field} must be a string array")
+        if "artifacts" in entry:
+            require(isinstance(entry.get("artifacts"), list) and all(isinstance(item, str) and item for item in entry.get("artifacts", [])), errors, f"completion_evidence entry {index} field artifacts must be a string array")
+        tests_run = entry.get("tests_run")
+        require(isinstance(tests_run, list) and any(isinstance(item, str) and "python3 scripts/validate_task_system.py" in item for item in tests_run), errors, f"completion_evidence entry {index} tests_run must include python3 scripts/validate_task_system.py")
+        tests_added = entry.get("tests_added")
+        failing_evidence = entry.get("failing_evidence")
+        if isinstance(tests_added, list) and not tests_added:
+            require(
+                isinstance(failing_evidence, str)
+                and ("No new structural guardrail" in failing_evidence or "No behavior change" in failing_evidence),
+                errors,
+                f"completion_evidence entry {index} with empty tests_added must explain no new structural guardrail or no behavior change",
+            )
 
         validator = entry.get("validator_result")
         require(isinstance(validator, dict), errors, f"completion_evidence entry {index} validator_result must be an object")
         if isinstance(validator, dict):
             require(set(validator) == {"command", "status", "notes"}, errors, f"completion_evidence entry {index} validator_result must contain command, status, and notes")
             require(isinstance(validator.get("command"), str) and bool(validator.get("command")), errors, f"completion_evidence entry {index} validator_result.command must be non-empty")
-            require(validator.get("status") in {"passed", "failed", "not_run"}, errors, f"completion_evidence entry {index} validator_result.status is invalid")
+            require(validator.get("status") == "passed", errors, f"completion_evidence entry {index} validator_result.status must be passed")
             require(isinstance(validator.get("notes"), str) and bool(validator.get("notes")), errors, f"completion_evidence entry {index} validator_result.notes must be non-empty")
 
     completed_ids = [task_id for task_id in completed if isinstance(task_id, str)]
     for task_id in completed_ids:
         require(task_id in evidence_by_task, errors, f"completed task {task_id} missing completion_evidence entry")
+
+    task_041 = task_by_id.get("041")
+    if isinstance(task_041, dict) and task_041.get("state") == "complete":
+        order_041 = order_key(task_order(task_041))
+        for task_id, entry in evidence_by_task.items():
+            task = task_by_id.get(task_id)
+            if isinstance(task, dict) and order_key(task_order(task)) > order_041:
+                require("artifacts" in entry, errors, f"post-041 completion_evidence for task {task_id} must include artifacts")
 
 
 def validate_task_markdown(tasks: list[dict[str, object]], errors: list[str]) -> None:
@@ -751,6 +794,14 @@ def validate_schema_files(errors: list[str]) -> None:
                 require(isinstance(properties, dict) and "completion_evidence" in properties, errors, "status schema must define completion_evidence")
                 require(isinstance(required_fields, list) and "blocked_task_details" in required_fields, errors, "status schema must require blocked_task_details")
                 require(isinstance(properties, dict) and "blocked_task_details" in properties, errors, "status schema must define blocked_task_details")
+                blocked_schema = properties.get("blocked_task_details") if isinstance(properties, dict) else None
+                blocked_item = blocked_schema.get("items") if isinstance(blocked_schema, dict) else None
+                blocked_required = blocked_item.get("required") if isinstance(blocked_item, dict) else None
+                require(isinstance(blocked_required, list) and set(BLOCKED_TASK_DETAIL_FIELDS).issubset(set(blocked_required)), errors, "status schema blocked_task_details must require typed blocker metadata fields")
+                completion_schema = properties.get("completion_evidence") if isinstance(properties, dict) else None
+                completion_item = completion_schema.get("items") if isinstance(completion_schema, dict) else None
+                completion_properties = completion_item.get("properties") if isinstance(completion_item, dict) else None
+                require(isinstance(completion_properties, dict) and "artifacts" in completion_properties, errors, "status schema completion_evidence must define optional artifacts")
 
 
 def validate_schema_registry(errors: list[str]) -> None:
@@ -2093,10 +2144,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `092`",
+            "pre-bootstrap hardening tasks `071` through `093`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `092` is complete",
+            "after task `093` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -2113,6 +2164,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "pre-bootstrap hardening tasks `071` through `089`",
             "pre-bootstrap hardening tasks `071` through `090`",
             "pre-bootstrap hardening tasks `071` through `091`",
+            "pre-bootstrap hardening tasks `071` through `092`",
         ],
     }
     for rel, phrases in forbidden_phrases.items():
@@ -2275,6 +2327,123 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
             require(phrase not in text, errors, f"{rel} contains stale backend phrase '{phrase}'")
 
 
+def validate_agent_enforcement_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 093's autonomous-agent enforcement fixes against future drift."""
+
+    required_phrases = {
+        ".agents/workflows/task-done.md": [
+            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
+            "then mark the task `complete`",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
+            "Pinned Zig `0.16.0` API uncertainty",
+            "After the prerequisite task completes, the blocked task returns to `queued`",
+            "`completion_evidence.artifacts`",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
+            "`completion_evidence.artifacts`",
+        ],
+        "docs/TASK_LIFECYCLE.md": [
+            "`blocked` is a recoverable side path",
+            "After the prerequisite task completes, the blocked task returns to `queued`",
+            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "Before task `058`, config validation must reject more than one `zig.modes` entry with `ZNTL_CONFIG_INVALID_VALUE`",
+        ],
+        "docs/CLI_SPEC.md": [
+            "Deterministic command completed but found failing evidence, including mutation survivors under fail-on-survivors or doctest failures.",
+            "Doctest source-ref examples are illustrative; executable fixtures must derive source refs from current extraction metadata",
+        ],
+        "docs/DOCTEST_SPEC.md": [
+            "Any ordinary doctest status other than `passed`, `skipped`, or `expected_compile_error` makes `zentinel doctest` exit `1`",
+            "derive source refs from current extraction metadata rather than copying example line numbers",
+        ],
+        "docs/DOCTEST_ARCHITECTURE.md": [
+            "derive source refs from current extraction metadata rather than copying example line numbers",
+        ],
+        "docs/DOCTEST_AI_INTEGRATION.md": [
+            "derive source refs from current extraction metadata rather than copying example line numbers",
+        ],
+        "docs/DISCIPLINE.md": [
+            "Deterministic classifier evidence, not AI output, is the authority",
+            "Patch, sandbox, and backend contract validation own `invalid`",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "Each mutant result must name the deterministic classifier source in existing evidence fields",
+        ],
+        "docs/INTERNAL_API_CONTRACTS.md": [
+            "backend_version",
+            "classifier_source",
+        ],
+        "docs/ARCHITECTURE.md": [
+            "For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`",
+        ],
+        "docs/PERFORMANCE_STRATEGY.md": [
+            "`backend_version` values such as `ast.v1.zig-0.16.0`",
+        ],
+        "docs/GAP_REGISTRIES.md": [
+            "An uncovered row whose `deferred_to` points to a complete task is invalid unless the row is explicitly marked superseded",
+        ],
+        "docs/PROPERTY_TEST_POLICY.md": [
+            "After task `062`, generated property evidence must record the seed list, invariant list, and generated case count",
+        ],
+        "docs/VERIFICATION_PIPELINE.md": [
+            "Before task `062`, property evidence may be enumerated or fixture-based",
+            "After task `062`, generated property evidence must include the seed list, invariant list, and generated case count",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "`completion_evidence.artifacts`",
+        ],
+        "tasks/001-cli-shell.md": [
+            "Executing user-configured Zig test commands remains required for repository verification but is not implemented by the CLI shell",
+        ],
+        "tasks/002-config-parser.md": [
+            "multiple `zig.modes` entries before task `058`",
+        ],
+        "tasks/006-report-schema.md": [
+            "classifier source evidence",
+        ],
+        "tasks/007-mutant-model.md": [
+            "`backend_version = \"ast.v1.zig-0.16.0\"`",
+        ],
+        "tasks/021-cache-key-design.md": [
+            "`backend_version` changes the cache key",
+        ],
+        "tasks/033-doctest-runner.md": [
+            "ordinary doctest failure statuses exit `1`",
+        ],
+        "tasks/035-cli-doctests.md": [
+            "exit code `1` for failing, invalid, compile-error, and timeout doctest reports",
+        ],
+        "tasks/058-safety-mode-matrix.md": [
+            "more than one configured `zig.modes` entry is accepted only after this task",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 093 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 093 phrase '{phrase}'")
+
+    forbidden_phrases = {
+        "docs/TASK_LIFECYCLE.md": ["`blocked` and `superseded` are terminal side paths"],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": ["Latest stable Zig API uncertainty"],
+    }
+    for rel, phrases in forbidden_phrases.items():
+        path = ROOT / rel
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase not in text, errors, f"{rel} contains stale task 093 phrase '{phrase}'")
+
+
 def validate_adr_system(errors: list[str]) -> None:
     readme = ADR_DIR / "README.md"
     require(readme.is_file(), errors, "docs/adr/README.md is missing")
@@ -2385,6 +2554,33 @@ def validate_schema_gap_ownership(tasks: list[dict[str, object]], errors: list[s
         require(isinstance(allowed, list) and schema_file in allowed, errors, f"schemas.v1.json entry {index} defers {schema_file} to {deferred_to}, but that task does not allow the schema file")
 
 
+def validate_gap_registry_deferred_task_closure(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    task_by_file = {task.get("file"): task for task in tasks if isinstance(task.get("file"), str)}
+    for path in sorted(GAP_REGISTRY_DIR.glob("*.v1.json")):
+        data = load_json(path, errors)
+        if not isinstance(data, dict):
+            continue
+        entries = data.get("entries")
+        if not isinstance(entries, list):
+            continue
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict) or entry.get("covered") is True:
+                continue
+            deferred_to = entry.get("deferred_to")
+            if not isinstance(deferred_to, str):
+                continue
+            task = task_by_file.get(deferred_to)
+            if not isinstance(task, dict) or task.get("state") != "complete":
+                continue
+            notes = entry.get("notes")
+            superseded = entry.get("superseded_by")
+            require(
+                (isinstance(notes, str) and "superseded" in notes.lower()) or isinstance(superseded, str),
+                errors,
+                f"{path.relative_to(ROOT)} entry {index} is uncovered but deferred_to complete task {deferred_to}",
+            )
+
+
 def invariant_numbers(errors: list[str]) -> list[str]:
     path = ROOT / "docs" / "INVARIANTS.md"
     if not path.is_file():
@@ -2457,9 +2653,11 @@ def main() -> int:
     validate_contract_traceability_and_scope_hardening_contracts(tasks, errors)
     validate_analysis_risk_cleanup_contracts(errors)
     validate_analysis_followup_hardening_contracts(tasks, errors)
+    validate_agent_enforcement_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)
+    validate_gap_registry_deferred_task_closure(tasks, errors)
 
     if errors:
         print("task system validation failed:", file=sys.stderr)

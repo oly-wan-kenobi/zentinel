@@ -122,6 +122,8 @@ ReleaseFast
 ReleaseSmall
 ```
 
+Before task `058`, config validation must reject more than one `zig.modes` entry with `ZNTL_CONFIG_INVALID_VALUE`. The parser may preserve the list shape for forward compatibility, but normalized runnable config remains single-mode until the safety-mode matrix task owns multi-mode execution and reporting.
+
 ## Backend Section
 
 | Key | Type | Default | Meaning |

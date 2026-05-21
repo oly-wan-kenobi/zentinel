@@ -5,11 +5,12 @@ Use this workflow only after Verifier reports green.
 ## Steps
 
 1. Dispatch or simulate `Task Queue Manager`.
-2. Update `tasks/status.json`.
-3. Update `tasks/STATUS.md`.
-4. Update `tasks/queue.json` and `tasks/QUEUE.md` if the task state changed there.
-5. Record files changed, tests added, tests run, validator result, dogfooding implication, and follow-up tasks. These task-control edits are permitted only for the Task Queue Manager lifecycle transition.
-6. Run `python3 scripts/validate_task_system.py`.
+2. Record files changed, tests added, tests run, validator result, dogfooding implication, and follow-up tasks while the task remains current. These task-control edits are permitted only for the Task Queue Manager lifecycle transition.
+3. Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`; this preserves changed-file scope validation against the active task.
+4. Update `tasks/status.json`.
+5. Update `tasks/STATUS.md`.
+6. Update `tasks/queue.json` and `tasks/QUEUE.md`; then mark the task `complete`.
+7. Run `python3 scripts/validate_task_system.py` again after the complete-state transition to prove synchronized queue/status state.
 
 ## Output
 

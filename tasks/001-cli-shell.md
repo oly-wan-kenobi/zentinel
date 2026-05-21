@@ -62,7 +62,7 @@ Implement the Phase 0 CLI shell for `--help`, `version`, and `init` without muta
 - Full option parser beyond global `--no-color` and `init --force`.
 - Config-aware init options such as `--test-command` and `--backend`.
 - Config validation beyond writing default content.
-- Running Zig tests.
+- Implementing a Zig test runner or executing user-configured Zig test commands. Executing user-configured Zig test commands remains required for repository verification but is not implemented by the CLI shell.
 - Listing mutants.
 
 ## Suggested implementation approach

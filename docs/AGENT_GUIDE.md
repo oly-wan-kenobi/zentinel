@@ -44,8 +44,9 @@ An agent completes work by:
 - recording files changed
 - recording any follow-up task discovered
 - updating gap registries when coverage changed
+- running final active-scope validation: Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`
 - marking the task complete
-- running `python3 scripts/validate_task_system.py`
+- running `python3 scripts/validate_task_system.py` again after the complete-state transition
 
 ## Agent Pipeline
 
@@ -217,7 +218,7 @@ Pre-artifact completion summaries must include:
 
 Before task `041` creates durable pipeline artifacts, completion evidence must also be recorded in `tasks/status.json` under the `completion_evidence` subset. The subset records failing evidence, implementation summary, files changed, tests added and run, validator result, dogfooding implication, and follow-up task refs; the expanded role, files-read, risk, and next-role handoff details remain in `tasks/STATUS.md` or the completion summary until durable artifacts exist.
 
-Task `041` is the cutover point for durable handoff artifacts. After it is complete, non-trivial tasks must use the artifact paths specified by `docs/HANDOFF_CONTRACTS.md` and `docs/PIPELINE_ARTIFACTS.md`. JSON handoffs are canonical; Markdown summaries are optional companion artifacts only.
+Task `041` is the cutover point for durable handoff artifacts. After it is complete, non-trivial tasks must use the artifact paths specified by `docs/HANDOFF_CONTRACTS.md` and `docs/PIPELINE_ARTIFACTS.md`. JSON handoffs are canonical; Markdown summaries are optional companion artifacts only. `completion_evidence.artifacts` records the canonical artifact paths in `tasks/status.json` when durable artifacts were required or produced.
 
 ## Pipeline Reference Map
 

@@ -141,6 +141,7 @@ Required fields:
 id
 display_id
 backend
+backend_version
 backend_stability
 operator
 operator_stability
@@ -155,6 +156,7 @@ Rules:
 
 - durable `id` is hash-derived
 - `display_id` is assigned after canonical sorting for report rendering and is stable only within that report
+- `backend_version` is the deterministic backend contract string used for identity and cache keys, for example `ast.v1.zig-0.16.0`
 - `backend_stability` is `stable` or `experimental`; `operator_stability` is `stable`, `preview`, or `experimental`
 - `replacement` is exact source text for AST-backed mutants
 - one mutant contains exactly one source change
@@ -226,6 +228,8 @@ report.writeJson(allocator, report, writer) -> void
 ```
 
 Names may vary, but responsibilities must not cross module boundaries.
+
+`MutationResult` must include `classifier_source`, a closed enum that names the deterministic authority used for the result: runner command evidence, patch validation, sandbox validation, backend contract validation, or documented skip policy. `classifier_source` is internal evidence for report construction; it must not be populated from AI output.
 
 ## Deterministic Sorting Contract
 

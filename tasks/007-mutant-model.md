@@ -31,6 +31,7 @@ Define the shared `Mutant` model used by all backends and reports.
 ## Required tests
 
 - Add a failing test for deterministic ID generation from stable fields.
+- Add a failing test proving `backend_version = "ast.v1.zig-0.16.0"` participates in durable mutant identity.
 - Add a failing test that candidate ordering matches `docs/MUTATOR_SPEC.md`.
 - Add a failing test for source span validation.
 - Run `zig build test`.

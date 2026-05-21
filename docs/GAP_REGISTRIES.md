@@ -33,6 +33,8 @@ Each row has:
 - fail when a new documented row is added without a registry entry
 - allow existing uncovered rows until their owning task lands
 
+An uncovered row whose `deferred_to` points to a complete task is invalid unless the row is explicitly marked superseded. Once the owning task completes, the row must either become covered with executable evidence, move to a still-queued concrete owner, or document supersession.
+
 ## Agent Rules
 
 - When adding a new invariant, failure mode, stable mutator, or schema contract, update the matching registry in the same task.

@@ -59,7 +59,7 @@ Ownership:
 | Code | Meaning |
 | --- | --- |
 | `0` | Command completed successfully. |
-| `1` | Mutation run completed and found survivors when configured to fail on survivors. |
+| `1` | Deterministic command completed but found failing evidence, including mutation survivors under fail-on-survivors or doctest failures. |
 | `2` | CLI usage or config error. |
 | `3` | Baseline tests failed. |
 | `4` | Internal zentinel error or invalid mutant generation. |
@@ -215,7 +215,7 @@ For mutation AI commands, `--input-report <path>` points to a deterministic muta
 
 For doctest AI commands, `--input-report <path>` points to a deterministic doctest report. `zentinel doctest explain <case-ref>` and `zentinel doctest review-snapshot <case-ref>` require the selected report and default to `zig-out/zentinel/doctest/report.json` when omitted; a missing default report is a usage error. `zentinel doctest suggest <doc-path>` and `zentinel doctest suggest-missing [--file <doc-path>]` do not require a report; when `--input-report` is provided, the report is optional context and must be validated before use. `zentinel doctest explain-survivor <survivor-ref>` requires a mutation-aware doctest report from `zentinel doctest --mutate` and is owned by task `067` after task `061` defines stable survivor fields.
 
-`<case-ref>` accepts either a durable doctest case ID such as `dt_01hr7p6h0v2fj3drdzt9k2a0xe` or a source ref such as `docs/CLI_SPEC.md:47[:help-output]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, which is the first executable or producer block in the grouped case. Lines that point only at secondary expectation blocks must fail with `ZNTL_DOCTEST_CASE_NOT_FOUND` instead of guessing the producer. Source refs are selectors, not durable references, and must not be persisted in handoffs, reports, or AI context as canonical IDs.
+`<case-ref>` accepts either a durable doctest case ID such as `dt_01hr7p6h0v2fj3drdzt9k2a0xe` or a source ref such as `docs/CLI_SPEC.md:47[:help-output]` resolved against the current extraction or selected doctest report. Doctest source-ref examples are illustrative; executable fixtures must derive source refs from current extraction metadata instead of copying hard-coded line numbers from this document. Source refs resolve only against the case anchor line, which is the first executable or producer block in the grouped case. Lines that point only at secondary expectation blocks must fail with `ZNTL_DOCTEST_CASE_NOT_FOUND` instead of guessing the producer. Source refs are selectors, not durable references, and must not be persisted in handoffs, reports, or AI context as canonical IDs.
 
 Doctest AI subcommands are user-facing CLI commands because autonomous agents can invoke and test CLI surfaces reliably. `zentinel doctest explain <case-ref>` explains a failing doctest case from the selected doctest report. `zentinel doctest suggest <doc-path>` suggests executable examples for one project-relative docs path. `zentinel doctest review-snapshot <case-ref>` summarizes normalized expected/actual snapshot differences from exact `case.result.snapshot` evidence for one report case. `zentinel doctest suggest-missing [--file <doc-path>]` suggests public docs that need executable examples. `zentinel doctest explain-survivor <survivor-ref>` explains a mutation-aware doctest survivor after task `067` implements that deferred flow. None of these commands edit documentation, snapshots, or deterministic doctest reports.
 

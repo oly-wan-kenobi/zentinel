@@ -101,4 +101,4 @@ Every artifact must include:
 - command evidence when applicable
 - source commit or working-tree state when available
 
-Artifacts should be referenced from `tasks/STATUS.md` and `tasks/status.json`.
+Artifacts should be referenced from `tasks/STATUS.md` and `tasks/status.json`. After task `041`, `completion_evidence.artifacts` lists the canonical artifact paths required or produced by the completed task so fresh agents can locate durable evidence without parsing Markdown prose.

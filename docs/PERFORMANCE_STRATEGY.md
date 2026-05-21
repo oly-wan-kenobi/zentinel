@@ -26,6 +26,8 @@ Cache keys must include:
 - mode
 - relevant environment normalization
 
+Cache keys use `backend_version` values such as `ast.v1.zig-0.16.0` rather than a loose backend name when backend mapping, patch generation, or Zig coupling can affect observable results.
+
 Cache entries may store:
 
 - baseline pass result

@@ -26,14 +26,15 @@
     "089",
     "090",
     "091",
-    "092"
+    "092",
+    "093"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 092 agent readiness follow-up hardening; task 000 is the next dependency-ready queued task."
+    "notes": "Validator passed after completing task 093 agent enforcement closure; task 000 is the next dependency-ready queued task."
   },
   "completion_evidence": [
     {
@@ -395,6 +396,21 @@
       },
       "dogfooding_implication": "Future implementation agents start bootstrap with stricter task-state validation, closed report-v1 backend contracts, deterministic pipeline handoff names, and executable doctest fixture guardrails.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "093",
+      "failing_evidence": "Pre-fix validator failed on new guardrails for active-before-complete scope wording, blocked-task recovery metadata, future completion evidence shape, post-041 artifact references, stale doctest source-reference wording, task 058 safety-mode staging, doctest failure exit semantics, classifier-authority wording, backend version identity, gap registry closure, and affected future task specs.",
+      "implementation_summary": "Inserted task 093 before project bootstrap and aligned validator guardrails, status schema, completion workflow docs, lifecycle/protocol/TDD docs, CLI/config/doctest/report/backend/property/gap contracts, and queued task requirements.",
+      "files_changed": ["task metadata", "validator guardrails", "status schema", "agent workflow docs", "lifecycle/protocol/TDD docs", "CLI/config/doctest/report/backend/property/gap contracts", "queued task requirements"],
+      "tests_added": ["Structural validator guardrails for active-before-complete scope wording, blocked-task metadata, completion evidence artifacts, safety-mode staging, doctest exit/source-ref rules, classifier authority, backend version identity, gap registry closure, property evidence cutover, and affected future task specs."],
+      "tests_run": ["Pre-fix python3 scripts/validate_task_system.py failed on task 093 guardrails as expected", "post-fix python3 scripts/validate_task_system.py while task 093 was active", "python3 -m py_compile scripts/validate_task_system.py", "python3 -m json.tool tasks/queue.json tasks/status.json tasks/schema/status.v1.schema.json", "git diff --check"],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed after task 093 implementation while task 093 remained active."
+      },
+      "dogfooding_implication": "Future dogfood and bootstrap work starts after active-scope validation ordering, typed blocker records, and deterministic classifier/backend-version rules are validator-backed.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -732,6 +748,16 @@
       "event": "agent_readiness_follow_up_hardening_completed",
       "task": "092",
       "notes": "Completed task 092 before project bootstrap. Validator guardrails now cover task 030 doctest fixture evidence, full post-041 handoff role coverage, cumulative tests_added semantics, Implementation Reviewer terminology, experimental backend report-schema alignment, pinned Zig backend wording, strict task-state shape, completed-task sync, Markdown queue drift, blocked-state details, and active-task changed-file scope."
+    },
+    {
+      "event": "agent_enforcement_closure_started",
+      "task": "093",
+      "notes": "Inserted and activated task 093 at execution order 000.0.23 before project bootstrap to apply the latest parallel-agent findings around completion-order validation, blocked-task recovery metadata, future evidence contracts, safety-mode staging, doctest exit semantics, classifier authority, backend versioning, gap registry closure, property/pipeline cutovers, stale source references, and post-041 artifact references."
+    },
+    {
+      "event": "agent_enforcement_closure_completed",
+      "task": "093",
+      "notes": "Completed task 093 before project bootstrap. Validator guardrails, status schema, docs, and queued task requirements now enforce active-before-complete scope validation, typed blocked-task metadata, stricter completion evidence, doctest/source-ref semantics, classifier authority, backend_version identity, gap registry closure, property evidence cutovers, and post-041 artifact references."
     }
   ]
 }

@@ -38,6 +38,7 @@ Implement deterministic cache key construction and cache metadata without enabli
 
 - Add failing tests for cache key stability.
 - Add failing tests that changing source, config, Zig version, mode, command, or Zig cache namespace metadata changes the key.
+- Add a failing test that `backend_version` changes the cache key independently of the display backend name.
 - Add a failing run-command test that `--no-cache` disables zentinel result-cache reads and writes for the invocation without disabling required Zig build-cache isolation metadata.
 - Add a failing metadata serialization snapshot.
 - Run `zig build test`.

@@ -48,8 +48,13 @@
         "required": [
           "task",
           "reason",
+          "blocker_type",
+          "evidence",
+          "attempted_recovery",
           "prerequisite_task",
+          "required_prerequisite_task",
           "requires_user_input",
+          "edits_state",
           "notes"
         ],
         "additionalProperties": false,
@@ -62,12 +67,30 @@
             "type": "string",
             "minLength": 1
           },
+          "blocker_type": {
+            "enum": ["missing_prerequisite", "scope_gap", "external_input", "spec_ambiguity", "prior_task_regression"]
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "attempted_recovery": {
+            "type": "string",
+            "minLength": 1
+          },
           "prerequisite_task": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]{3}$"
+          },
+          "required_prerequisite_task": {
             "type": ["string", "null"],
             "pattern": "^[0-9]{3}$"
           },
           "requires_user_input": {
             "type": "boolean"
+          },
+          "edits_state": {
+            "enum": ["no_edits", "task_control_only", "reverted", "preserved_behind_tests"]
           },
           "notes": {
             "type": "string",
@@ -146,7 +169,7 @@
                 "type": "string"
               },
               "status": {
-                "enum": ["not_run", "passed", "failed"]
+                "const": "passed"
               },
               "notes": {
                 "type": "string"
@@ -157,6 +180,12 @@
             "type": "string"
           },
           "follow_up_tasks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "artifacts": {
             "type": "array",
             "items": {
               "type": "string"
