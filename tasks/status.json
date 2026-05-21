@@ -35,14 +35,15 @@
     "098",
     "099",
     "100",
-    "101"
+    "101",
+    "102"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed while task 101 was active after version command and pre-063 evidence guardrails were satisfied; task 000 is next."
+    "notes": "Validator passed while task 102 was active after agent workflow cleanup guardrails were satisfied; complete-state validation passed after task 102 completion."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -947,9 +948,51 @@
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
-        "notes": "Validator passed while task 101 was active after version-command ownership, pre-063 evidence, and activation-wording guardrails were satisfied."
+        "notes": "Task 101 active-state validation passed before completion after version-command ownership, pre-063 evidence, and activation-wording guardrails were satisfied; complete-state validation passed after completion."
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after version-command ownership and early TDD evidence contracts are validator-backed. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
+    },
+    {
+      "task": "102",
+      "failing_evidence": "failing_command: python3 scripts/validate_task_system.py. failing_output_excerpt: after adding task 102 guardrails, the validator failed on duplicate generic activation-validator wording, duplicate post-041 activation-order wording, and task 101 validator_result.notes missing active-state and complete-state validation wording.",
+      "implementation_summary": "implementation_started_after_failure: true. Inserted and completed task 102 before bootstrap, updated stale final-prerequisite validator guardrails to include task 102, deduplicated .agents/workflows/task-plan.md, clarified task 101 active-state and complete-state validation notes, made task 000 depend on task 102, and recorded the cleanup in synchronized task state.",
+      "files_changed": [
+        ".agents/workflows/task-plan.md",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/102-agent-workflow-cleanup.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for task-plan activation wording deduplication, task 101 validation-evidence precision, task 102/000 dependency ordering, and pre-bootstrap hardening status wording."
+      ],
+      "tests_run": [
+        "Post-activation python3 scripts/validate_task_system.py failed on stale hard-coded task 101 final-prerequisite guardrails as expected after inserting task 102",
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 102 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 102 was active after fixes",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json",
+        "git diff --check",
+        "passing_command: python3 scripts/validate_task_system.py after completing task 102"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task 102 active-state validation passed before completion after agent workflow cleanup guardrails were satisfied; complete-state validation passed after completion."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after task-plan workflow duplication and task 101 validation-evidence drift are closed. No zentinel runtime exists yet, so no dogfood run was expected.",
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
       ]
@@ -1375,6 +1418,16 @@
       "event": "version_command_and_evidence_closure_completed",
       "task": "101",
       "notes": "Completed task 101 before project bootstrap. Validator guardrails and contracts now enforce task 005 ownership of zentinel version Zig discovery, fatal check-command Zig diagnostics, pre-063 chronology evidence labels, task 101/000 dependency ordering, and single post-041 activation wording."
+    },
+    {
+      "event": "agent_workflow_cleanup_started",
+      "task": "102",
+      "notes": "Inserted and activated task 102 at execution order 000.0.32 before project bootstrap to remove remaining task-plan workflow duplication and clarify task 101 validation evidence."
+    },
+    {
+      "event": "agent_workflow_cleanup_completed",
+      "task": "102",
+      "notes": "Completed task 102 before project bootstrap. Validator guardrails and contracts now enforce deduplicated task-plan activation wording, explicit task 101 active-state and complete-state validation evidence, task 102/000 dependency ordering, and pre-bootstrap hardening status wording through task 102."
     }
   ]
 }

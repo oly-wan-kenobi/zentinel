@@ -54,6 +54,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.29 | `tasks/099-handoff-baseline-and-contract-drift-closure.md` | complete | 0 |
 | 000.0.30 | `tasks/100-clean-handoff-lifecycle-closure.md` | complete | 0 |
 | 000.0.31 | `tasks/101-version-command-and-evidence-closure.md` | complete | 0 |
+| 000.0.32 | `tasks/102-agent-workflow-cleanup.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |

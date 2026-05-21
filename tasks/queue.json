@@ -1382,6 +1382,38 @@
       ]
     },
     {
+      "id": "102",
+      "order": "000.0.32",
+      "title": "Agent Workflow Cleanup",
+      "file": "tasks/102-agent-workflow-cleanup.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "101"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/102-agent-workflow-cleanup.md",
+        ".agents/workflows/task-plan.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "build/**",
+        "zig-out/**",
+        "test/**/*.zig",
+        "docs/**",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1389,7 +1421,8 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "101"
+        "101",
+        "102"
       ],
       "allowed_files": [
         "build.zig",
