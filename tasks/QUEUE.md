@@ -49,7 +49,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.24 | `tasks/094-agent-readiness-validator-closure.md` | complete | 0 |
 | 000.0.25 | `tasks/095-autonomous-agent-contract-repair.md` | complete | 0 |
 | 000.0.26 | `tasks/096-audit-finding-contract-closure.md` | complete | 0 |
-| 000.0.27 | `tasks/097-autonomous-agent-contract-closure.md` | active | 0 |
+| 000.0.27 | `tasks/097-autonomous-agent-contract-closure.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "097",
-  "next_task": "097",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
@@ -30,14 +30,15 @@
     "093",
     "094",
     "095",
-    "096"
+    "096",
+    "097"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after activating task 097 autonomous agent contract closure; task 097 is current."
+    "notes": "Validator passed after completing task 097 autonomous agent contract closure; task 000 is next."
   },
   "completion_evidence": [
     {
@@ -603,6 +604,85 @@
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after the latest autonomous-agent audit findings are closed. No zentinel runtime exists yet, so no dogfood run was expected.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "097",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new task 097 guardrails for report preflight evidence, result-level skipped reasons, pipeline schema ownership, blocker JSON shape, TDD chronology proof wording, Contract Editor routing, experimental backend CLI opt-in ownership, doctest run.error, active-task resume, and Markdown queue row order.",
+      "implementation_summary": "Inserted and completed task 097 before bootstrap, added validator guardrails, canonicalized generated-command preflight evidence in report v1, added result-level skip reasons, moved baseline pipeline schema ownership to task 041, aligned blocker/TDD/role-routing docs, added Contract Editor, clarified experimental backend CLI ownership, and closed doctest internal_error evidence shape.",
+      "files_changed": [
+        ".agents/ORCHESTRATOR.md",
+        ".agents/README.md",
+        ".agents/roles/contract-editor.md",
+        ".agents/roles/task-queue-manager.md",
+        ".agents/workflows/task-plan.md",
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/CLI_SPEC.md",
+        "docs/CONFIG_SPEC.md",
+        "docs/DOCTEST_SPEC.md",
+        "docs/INVARIANTS.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/TDD_POLICY.md",
+        "docs/TEST_SELECTION.md",
+        "schemas/report.v1.schema.json",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/035-cli-doctests.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/046-verification-pipeline.md",
+        "tasks/049-pipeline-escalation.md",
+        "tasks/056-zir-backend-experiment.md",
+        "tasks/057-air-backend-experiment.md",
+        "tasks/063-pipeline-metadata-validator.md",
+        "tasks/097-autonomous-agent-contract-closure.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json",
+        "tests/coverage-gaps/schemas.v1.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.pipeline.context.v1",
+          "zentinel.pipeline.stale_context.v1",
+          "zentinel.pipeline.verification.v1",
+          "zentinel.pipeline.escalation.v1"
+        ]
+      },
+      "tests_added": [
+        "Structural validator guardrails for report preflight evidence, result-level skipped reasons, pipeline schema ownership, blocker JSON shape, TDD chronology proof wording, Contract Editor routing, experimental backend CLI opt-in ownership, doctest run.error, active-task resume, and Markdown queue row order."
+      ],
+      "tests_run": [
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 097 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 097 was active",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/queue.json tasks/status.json schemas/report.v1.schema.json tests/coverage-gaps/schemas.v1.json",
+        "git diff --check",
+        "python3 scripts/validate_task_system.py after completing task 097"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 097 was active after autonomous-agent contract closure guardrails were satisfied."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after canonical report preflight evidence, pipeline schema ownership, blocker metadata, TDD evidence wording, and contract/backend ownership are validator-backed. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     }
   ],
   "history": [
@@ -980,6 +1060,11 @@
       "event": "autonomous_agent_contract_closure_started",
       "task": "097",
       "notes": "Inserted and activated task 097 at execution order 000.0.27 before project bootstrap to close remaining autonomous-agent contract findings around report preflight evidence, pipeline schema cutovers, blocker metadata, TDD proof wording, skipped reasons, contract-edit ownership, experimental backend opt-in, doctest internal_error evidence, and workflow validation gaps."
+    },
+    {
+      "event": "autonomous_agent_contract_closure_completed",
+      "task": "097",
+      "notes": "Completed task 097 before project bootstrap. Validator guardrails and contracts now enforce canonical report preflight evidence, result-level skipped reasons, task 041 baseline pipeline schema ownership, strict blocker templates, honest TDD chronology proof wording, Contract Editor routing, experimental backend CLI ownership, doctest run.error shape, active-task resume, and Markdown queue row order."
     }
   ]
 }
