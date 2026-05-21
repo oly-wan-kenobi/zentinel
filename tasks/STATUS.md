@@ -6,8 +6,8 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 | Field | Value |
 | --- | --- |
-| Active task | none |
-| Next task | `tasks/000-project-bootstrap.md` |
+| Active task | `tasks/095-autonomous-agent-contract-repair.md` |
+| Next task | `tasks/095-autonomous-agent-contract-repair.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | enforced |
@@ -80,11 +80,13 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 ## Blockers
 
-No known blockers.
+| Blocked task | Reason | Recovery |
+| --- | --- | --- |
+| `tasks/000-project-bootstrap.md` | The four-lane deep analysis found remaining autonomous-agent contract blockers around lifecycle state wording, final dirty-file scope validation, AI context command evidence, baseline compiler-crash semantics, `impact_graph` task scope, pre-`041` artifact cutovers, and gap registry enforcement. | Inserted prerequisite `tasks/095-autonomous-agent-contract-repair.md` at execution order `000.0.25`; task `000` returns to queued after task `095` completes. |
 
 ## Handoff Notes
 
-No task is active. The next agent should run `python3 scripts/validate_task_system.py`, start with `tasks/000-project-bootstrap.md`, create the minimal Zig project scaffold, and follow `docs/TDD_POLICY.md` from the first behavior-bearing change. The validator checks task-system consistency, not product semantic correctness; product behavior still requires the active task's failing tests and verification gates.
+Task `095` is active. Complete `tasks/095-autonomous-agent-contract-repair.md` before project bootstrap, then return `tasks/000-project-bootstrap.md` to queued and start the minimal Zig project scaffold. The validator checks task-system consistency, not product semantic correctness; product behavior still requires the active task's failing tests and verification gates.
 
 Governance docs are available under `docs/GLOSSARY.md`, `docs/NON_GOALS.md`, `docs/INVARIANTS.md`, `docs/HARNESS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, `docs/FAILURE_MODES.md`, `docs/GAP_REGISTRIES.md`, and `docs/adr/README.md`.
 
@@ -94,4 +96,4 @@ Codex-specific operating profiles are available under `.agents/`. Use `.agents/R
 
 The repository scaffold has been prepared as the baseline project state. Future agents should still use the task queue, status files, and explicit handoff notes as the durable source of truth, but `git status` may be used to detect changes made after the baseline is tracked.
 
-Task `094` completed at execution order `000.0.24` before project bootstrap. Future agents should start `tasks/000-project-bootstrap.md` next.
+Task `094` completed at execution order `000.0.24` before project bootstrap. Task `095` is the active prerequisite at execution order `000.0.25`; future agents should not start `tasks/000-project-bootstrap.md` until task `095` is complete.

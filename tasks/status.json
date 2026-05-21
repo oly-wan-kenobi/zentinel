@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": null,
-  "next_task": "000",
+  "active_task": "095",
+  "next_task": "095",
   "completed_tasks": [
     "068",
     "069",
@@ -30,12 +30,27 @@
     "093",
     "094"
   ],
-  "blocked_tasks": [],
-  "blocked_task_details": [],
+  "blocked_tasks": [
+    "000"
+  ],
+  "blocked_task_details": [
+    {
+      "task": "000",
+      "reason": "Project bootstrap depends on repairing autonomous-agent lifecycle, validator, schema, and task-scope contracts found by the four-lane deep analysis.",
+      "blocker_type": "missing_prerequisite",
+      "evidence": "Deep analysis found stale implemented/verified task-control wording, final dirty-file validation gaps, schema/prose mismatches, and future task scopes that can force agents to violate TDD or allowed-file discipline.",
+      "attempted_recovery": "Inserted prerequisite task 095 before task 000 and updated task 000 to depend on 095.",
+      "prerequisite_task": "095",
+      "required_prerequisite_task": "095",
+      "requires_user_input": false,
+      "edits_state": "task_control_only",
+      "notes": "Task 000 returns to queued after task 095 completes and the validator passes."
+    }
+  ],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 094 agent readiness validator closure; task 000 is next."
+    "notes": "Validator passed before inserting task 095; task 095 is now active and task 000 is blocked on it."
   },
   "completion_evidence": [
     {
@@ -824,6 +839,11 @@
       "event": "agent_readiness_validator_closure_completed",
       "task": "094",
       "notes": "Completed task 094 before project bootstrap. Validator guardrails and contracts now cover completed-task scope evidence, blocked prerequisite recovery, lifecycle stage wording, safety-mode report ownership, failure_kind evidence, phase2 and impact_graph staging, sandbox evidence bounds, backend_version visibility, doctest AI stubs, and plain zig doctest expectations."
+    },
+    {
+      "event": "autonomous_agent_contract_repair_started",
+      "task": "095",
+      "notes": "Inserted and activated task 095 at execution order 000.0.25 before project bootstrap to repair the latest four-lane analysis findings around lifecycle state wording, final dirty-file scope validation, AI context command evidence, baseline compiler-crash semantics, impact_graph task scope, pre-041 artifact cutovers, and gap registry enforcement."
     }
   ]
 }

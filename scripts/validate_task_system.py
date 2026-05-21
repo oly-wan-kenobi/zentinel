@@ -2221,7 +2221,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "pre-bootstrap hardening tasks `071` through `093`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `094` is complete",
+            "after task `095` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():

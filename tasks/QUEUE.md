@@ -47,7 +47,8 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.22 | `tasks/092-agent-readiness-follow-up-hardening.md` | complete | 0 |
 | 000.0.23 | `tasks/093-agent-enforcement-closure.md` | complete | 0 |
 | 000.0.24 | `tasks/094-agent-readiness-validator-closure.md` | complete | 0 |
-| 000.1 | `tasks/000-project-bootstrap.md` | queued | 0 |
+| 000.0.25 | `tasks/095-autonomous-agent-contract-repair.md` | active | 0 |
+| 000.1 | `tasks/000-project-bootstrap.md` | blocked | 0 |
 | 001 | `tasks/001-cli-shell.md` | queued | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
 | 003 | `tasks/003-test-harness.md` | queued | 0 |
