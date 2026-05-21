@@ -725,8 +725,15 @@ def validate_markdown_queue(tasks: list[dict[str, object]], errors: list[str]) -
     if not QUEUE_MD.is_file():
         return
     queue_text = QUEUE_MD.read_text(encoding="utf-8")
-    rows = {match.group(2): {"order": match.group(1), "state": match.group(3).strip(), "phase": match.group(4).strip()} for match in QUEUE_ROW_RE.finditer(queue_text)}
+    ordered_rows = [
+        (match.group(2), {"order": match.group(1), "state": match.group(3).strip(), "phase": match.group(4).strip()})
+        for match in QUEUE_ROW_RE.finditer(queue_text)
+    ]
+    rows = {file_value: row for file_value, row in ordered_rows}
     queue_files = {task.get("file") for task in tasks if isinstance(task.get("file"), str)}
+    expected_files = [task.get("file") for task in tasks if isinstance(task.get("file"), str)]
+    actual_files = [file_value for file_value, _row in ordered_rows]
+    require(actual_files == expected_files, errors, "tasks/QUEUE.md row order must match queue.json execution order exactly")
     for file_value in sorted(set(rows) - queue_files):
         fail(errors, f"tasks/QUEUE.md has extra row not present in queue.json: {file_value}")
     for task in tasks:
@@ -3173,6 +3180,157 @@ def validate_audit_finding_contract_closure_contracts(tasks: list[dict[str, obje
                 )
 
 
+def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 097's autonomous-agent closure contracts against future drift."""
+
+    required_phrases = {
+        "docs/TEST_SELECTION.md": [
+            "Report writers must copy generated-command preflight evidence into `test_selection.preflight_commands`",
+        ],
+        "docs/REPORT_FORMAT.md": [
+            "`test_selection.preflight_commands` is the canonical report location for generated selected-command preflight evidence.",
+            "`result.skip_reason` is required and non-null when `result.status = \"skipped\"`",
+        ],
+        "docs/SCHEMA_REGISTRY.md": [
+            "Task `tasks/041-handoff-artifacts.md` creates the baseline pipeline handoff, active-lock, context, stale-context, verification, and escalation schema files.",
+        ],
+        "docs/PIPELINE_ARTIFACTS.md": [
+            "The first post-`041` pipeline task may use those baseline schemas immediately",
+        ],
+        "tasks/063-pipeline-metadata-validator.md": [
+            "consume and validate baseline pipeline schema files created by task `041`",
+        ],
+        "docs/TASK_LIFECYCLE.md": [
+            "The inserted prerequisite task must depend on the immediately previous non-superseded execution-order task",
+            '"blocked_task_details": [',
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "If a task is already active, resume that active task instead of selecting another task.",
+            "Run `python3 scripts/validate_task_system.py` immediately after marking it `active`",
+            "The inserted prerequisite task must depend on the immediately previous non-superseded execution-order task",
+            '"blocked_task_details": [',
+        ],
+        "docs/TDD_POLICY.md": [
+            "Current mechanical checks verify recorded evidence fields and role handoffs; they do not independently prove chronological order until pipeline artifact validation covers role timestamps.",
+        ],
+        "docs/INVARIANTS.md": [
+            "Current machine checks verify required evidence fields and role handoffs, but do not independently prove chronology until pipeline artifact validation covers role timestamps.",
+        ],
+        "tasks/STATUS.md": [
+            "| TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |",
+        ],
+        "docs/AGENT_ROLE_SPEC.md": [
+            "## Contract Editor",
+            "Contract Editor owns public contract edits",
+        ],
+        ".agents/README.md": [
+            "| Contract Editor | public contracts, schemas, ADRs, or architecture docs change |",
+        ],
+        ".agents/ORCHESTRATOR.md": [
+            "Contract Editor",
+            "public contract changes route through Contract Editor",
+        ],
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md": [
+            "Contract Editor",
+            "public contract changes route through Contract Editor",
+        ],
+        "docs/ORCHESTRATION_SPEC.md": [
+            "Contract Editor",
+            "public contract changes route through Contract Editor",
+        ],
+        "docs/PIPELINE_ESCALATION_POLICY.md": [
+            "Contract Editor",
+            "public contract changes route through Contract Editor",
+        ],
+        "docs/CLI_SPEC.md": [
+            "`list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`.",
+        ],
+        "docs/CONFIG_SPEC.md": [
+            "The experimental CLI backend flag is `list-mutants --backend <zir|air>` and is owned by tasks `056` and `057`.",
+        ],
+        "tasks/056-zir-backend-experiment.md": [
+            "`list-mutants --backend zir`",
+        ],
+        "tasks/057-air-backend-experiment.md": [
+            "`list-mutants --backend air`",
+        ],
+        "docs/DOCTEST_SPEC.md": [
+            "`run.error` is required and null for `completed` or `failed`; for `internal_error` it is a closed object",
+        ],
+        "tasks/035-cli-doctests.md": [
+            "closed `run.error` object for `internal_error` doctest reports",
+        ],
+        ".agents/workflows/task-plan.md": [
+            "If a task is already active, resume it instead of selecting a new task.",
+            "Run `python3 scripts/validate_task_system.py` immediately after activation",
+        ],
+    }
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 097 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 097 contract phrase {phrase!r}")
+
+    contract_editor = ROOT / ".agents" / "roles" / "contract-editor.md"
+    require(contract_editor.is_file(), errors, "missing Contract Editor role profile .agents/roles/contract-editor.md")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task041 = task_by_id.get("041")
+    if isinstance(task041, dict):
+        allowed = task041.get("allowed_files")
+        for rel in [
+            "schemas/pipeline.handoff.v1.schema.json",
+            "schemas/pipeline.active_lock.v1.schema.json",
+            "schemas/pipeline.context.v1.schema.json",
+            "schemas/pipeline.stale_context.v1.schema.json",
+            "schemas/pipeline.verification.v1.schema.json",
+            "schemas/pipeline.escalation.v1.schema.json",
+        ]:
+            require(isinstance(allowed, list) and rel in allowed, errors, f"task 041 must own baseline pipeline schema file {rel}")
+    task063 = task_by_id.get("063")
+    if isinstance(task063, dict):
+        allowed = task063.get("allowed_files")
+        for rel in [
+            "schemas/pipeline.context.v1.schema.json",
+            "schemas/pipeline.stale_context.v1.schema.json",
+            "schemas/pipeline.verification.v1.schema.json",
+            "schemas/pipeline.escalation.v1.schema.json",
+        ]:
+            require(not (isinstance(allowed, list) and rel in allowed), errors, f"task 063 must not create baseline pipeline schema file {rel}")
+    for task_id, cli_file, test_file in [
+        ("056", "src/cli.zig", "test/cli_backend_experiment_test.zig"),
+        ("057", "src/cli.zig", "test/cli_backend_experiment_test.zig"),
+    ]:
+        task = task_by_id.get(task_id)
+        if isinstance(task, dict):
+            allowed = task.get("allowed_files")
+            require(isinstance(allowed, list) and cli_file in allowed, errors, f"task {task_id} must allow {cli_file} for experimental backend CLI opt-in")
+            require(isinstance(allowed, list) and test_file in allowed, errors, f"task {task_id} must allow {test_file} for experimental backend CLI opt-in tests")
+
+    source_text = (ROOT / "scripts" / "validate_task_system.py").read_text(encoding="utf-8")
+    require("actual_files == expected_files" in source_text, errors, "validator must compare tasks/QUEUE.md row order to queue.json order")
+
+    report_schema = load_json(ROOT / "schemas" / "report.v1.schema.json", errors)
+    if isinstance(report_schema, dict):
+        defs = report_schema.get("$defs")
+        result = defs.get("result") if isinstance(defs, dict) else None
+        result_required = result.get("required") if isinstance(result, dict) else None
+        result_properties = result.get("properties") if isinstance(result, dict) else None
+        require(isinstance(result_required, list) and "skip_reason" in result_required, errors, "report result must require skip_reason")
+        require(isinstance(result_properties, dict) and "skip_reason" in result_properties, errors, "report result must define skip_reason")
+        mutant = defs.get("mutant") if isinstance(defs, dict) else None
+        mutant_properties = mutant.get("properties") if isinstance(mutant, dict) else None
+        test_selection = mutant_properties.get("test_selection") if isinstance(mutant_properties, dict) else None
+        selection_required = test_selection.get("required") if isinstance(test_selection, dict) else None
+        selection_properties = test_selection.get("properties") if isinstance(test_selection, dict) else None
+        require(isinstance(selection_required, list) and "preflight_commands" in selection_required, errors, "report test_selection must require preflight_commands")
+        require(isinstance(selection_properties, dict) and "preflight_commands" in selection_properties, errors, "report test_selection must define preflight_commands")
+        require(isinstance(defs, dict) and "selection_preflight_command_result" in defs, errors, "report schema must define selection_preflight_command_result")
+
+
 def invariant_numbers(errors: list[str]) -> list[str]:
     path = ROOT / "docs" / "INVARIANTS.md"
     if not path.is_file():
@@ -3251,6 +3409,7 @@ def main() -> int:
     validate_agent_readiness_validator_closure_contracts(tasks, errors)
     validate_autonomous_agent_contract_repair_contracts(tasks, errors)
     validate_audit_finding_contract_closure_contracts(tasks, errors)
+    validate_autonomous_agent_contract_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)
