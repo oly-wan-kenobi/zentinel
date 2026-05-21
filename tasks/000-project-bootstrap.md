@@ -1,6 +1,6 @@
 # 000 Project Bootstrap
 
-Sequential guard: start this task only after task `100` is complete in `tasks/STATUS.md`, and therefore after task `099` is complete and task `098` is complete. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task `101` is complete in `tasks/STATUS.md`, and therefore after task `100`, task `099`, and task `098` are complete. No later-order task may begin until this task is complete.
 
 ## Goal
 

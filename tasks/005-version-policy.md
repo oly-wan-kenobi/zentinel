@@ -41,6 +41,8 @@ Implement pinned Zig `0.16.0` version detection and the `zentinel check` command
 ## Required tests
 
 - Add failing tests for supported version `0.16.0`, unsupported older/newer stable version, malformed version, and missing Zig executable diagnostic.
+- Add failing CLI tests for `zentinel version` with supported Zig `0.16.0`, missing Zig executable, and unsupported Zig version.
+- Add failing CLI tests that `zentinel check` treats missing Zig and unsupported Zig as fatal environment errors.
 - Add a failing snapshot for unsupported-version wording.
 - Add failing pure parser tests for quoted argv fields, unmatched quotes, empty argv, unsupported escapes, rejected metacharacters, rejected environment assignment, rejected variable expansion, and rejected command chaining before wiring `zentinel check`.
 - Add failing CLI tests for `zentinel check` success, invalid config, missing config path with `ZNTL_CONFIG_NOT_FOUND`, unsupported Zig version, invalid include/exclude paths, invalid test command syntax with `ZNTL_CONFIG_INVALID_COMMAND`, and invalid report output directory.
@@ -55,11 +57,13 @@ Implement pinned Zig `0.16.0` version detection and the `zentinel check` command
 
 - Version policy matches `docs/ZIG_VERSION_POLICY.md`.
 - Version checking is testable without invoking the real Zig binary.
+- `zentinel version` reports Zig discovery status without making missing or unsupported Zig fatal for that command.
 - `zentinel check` validates config, Zig version policy, paths, configured test commands, and report output directory.
 - `--config <path>` and `--root <path>` follow the ownership matrix in `docs/CLI_SPEC.md`.
 - Configured command strings are parsed by `src/command.zig`; task 014 must reuse the same parser for execution.
 - Invalid configured command syntax reports `ZNTL_CONFIG_INVALID_COMMAND`; unsupported TOML and non-command value errors still use the config parse/value codes from `docs/ERROR_CODES.md`.
 - `zentinel check` exits `0` for valid inputs and exits `2` for usage, config, environment, path, command-syntax, or output-directory failures.
+- `zentinel check` exits `2` for missing or unsupported Zig.
 - `zentinel check` does not generate mutants, patch source, or execute test commands.
 - Unsupported versions fail before mutation work begins.
 - Diagnostics include detected version and required policy.

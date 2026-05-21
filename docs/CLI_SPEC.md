@@ -96,9 +96,13 @@ zentinel 0.1.0
 zig 0.16.0
 ```
 
-Until task `005` is complete, task `001` treats version output as policy-only; task `001` prints the configured zentinel version and Zig policy label but must not own moving Zig discovery behavior.
+Task `001` owns only policy-label `zentinel version` output. Until task `005` is complete, task `001` treats version output as policy-only and prints the configured zentinel version and Zig policy label but must not invoke `zig version` or own compatibility diagnostics.
 
-If Zig is not available, `version` still prints zentinel version and reports Zig discovery failure on stderr with exit code `0` only if Zig is not required by the command.
+Task `005` adds real Zig discovery to `zentinel version` and `zentinel check`. After task `005`, `zentinel version` reports discovered Zig status as environment information, while `zentinel check` treats unsupported or missing Zig as a fatal environment validation failure.
+
+When Zig is missing, `zentinel version` exits `0`, prints zentinel version on stdout, and reports `ZNTL_ZIG_NOT_FOUND` on stderr because Zig is not required to print the tool version. When Zig is unsupported, `zentinel version` still exits `0`, prints zentinel version on stdout, and reports `ZNTL_ZIG_UNSUPPORTED_VERSION` with detected and required versions on stderr.
+
+When Zig is missing, `zentinel check` exits `2` with `ZNTL_ZIG_NOT_FOUND`. When Zig is unsupported, `zentinel check` exits `2` with `ZNTL_ZIG_UNSUPPORTED_VERSION`.
 
 ## `init`
 

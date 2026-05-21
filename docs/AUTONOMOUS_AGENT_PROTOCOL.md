@@ -39,6 +39,8 @@ zentinel uses Codex-only development orchestration. Do not create `.claude/` or 
 
 A validator pass is not product proof and does not replace task-specific failing evidence. Agents must still record the active task's failing test, fixture, snapshot, doctest, schema, semantic validator, or structural guardrail evidence before implementation, then run the required targeted and broader verification commands.
 
+Before task `063`, agents must record pre-`063` structured chronology evidence in completion prose or existing `completion_evidence` text fields: `failing_command`, `failing_output_excerpt`, `implementation_started_after_failure`, and `passing_command`. These labels make evidence reviewable before role timestamp validation exists; they do not claim mechanical chronology proof.
+
 The clean handoff boundary is part of the standard loop. Before activating a different task, the Task Queue Manager must either commit the completed task changes or record a validator-readable clean baseline that makes prior task changes explicit to active-scope validation. Agents must not activate a new task while treating prior-task dirty files as hidden state.
 
 After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.

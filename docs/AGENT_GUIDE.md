@@ -42,6 +42,7 @@ An agent starts work by:
 An agent completes work by:
 
 - recording tests run
+- recording pre-`063` structured chronology evidence before pipeline artifact timestamps exist: `failing_command`, `failing_output_excerpt`, `implementation_started_after_failure`, and `passing_command`
 - recording pipeline handoff artifacts when the active task requires them
 - recording files changed
 - recording any follow-up task discovered

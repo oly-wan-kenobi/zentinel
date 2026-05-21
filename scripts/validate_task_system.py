@@ -2515,10 +2515,10 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `100`",
+            "pre-bootstrap hardening tasks `071` through `101`",
         ],
         "tasks/000-project-bootstrap.md": [
-            "after task `100` is complete",
+            "after task `101` is complete",
         ],
     }
     for rel, phrases in required_phrases.items():
@@ -3518,7 +3518,7 @@ def validate_agent_implementation_blocker_closure_contracts(tasks: list[dict[str
             "may tighten schema validation or fixtures across all baseline pipeline schemas but must not create them",
         ],
         "docs/PIPELINE_ARTIFACTS.md": [
-            "After task `041`, activation order is: mark the task active in task-control files, create `locks/active-task-lock.json`, create the first role context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
+            "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts.",
             "artifacts/pipeline/<task-id>/dogfood/",
         ],
         "docs/AGENT_CONTEXT_PACKETS.md": [
@@ -3724,9 +3724,13 @@ def validate_handoff_baseline_and_contract_drift_closure_contracts(
 
     task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
     task000 = task_by_id.get("000")
+    task101 = task_by_id.get("101")
+    if isinstance(task101, dict):
+        deps = task101.get("dependencies")
+        require(isinstance(deps, list) and "100" in deps, errors, "task 101 must depend on task 100")
     if isinstance(task000, dict):
         deps = task000.get("dependencies")
-        require(isinstance(deps, list) and "100" in deps, errors, "task 000 must depend on task 100")
+        require(isinstance(deps, list) and "101" in deps, errors, "task 000 must depend on task 101")
 
 
 def validate_clean_handoff_lifecycle_closure_contracts(
@@ -3746,7 +3750,7 @@ def validate_clean_handoff_lifecycle_closure_contracts(
             "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `100`",
+            "pre-bootstrap hardening tasks `071` through `101`",
             "Task `100` completed at execution order `000.0.30` before project bootstrap.",
         ],
         "tasks/041-handoff-artifacts.md": [
@@ -3773,9 +3777,82 @@ def validate_clean_handoff_lifecycle_closure_contracts(
 
     task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
     task000 = task_by_id.get("000")
+    task101 = task_by_id.get("101")
+    if isinstance(task101, dict):
+        deps = task101.get("dependencies")
+        require(isinstance(deps, list) and "100" in deps, errors, "task 101 must depend on task 100 after clean handoff lifecycle closure")
     if isinstance(task000, dict):
         deps = task000.get("dependencies")
-        require(isinstance(deps, list) and "100" in deps, errors, "task 000 must depend on task 100 after clean handoff lifecycle closure")
+        require(isinstance(deps, list) and "101" in deps, errors, "task 000 must depend on task 101 after version command and evidence closure")
+
+
+def validate_version_command_and_evidence_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
+    """Guard task 101's version-command and pre-pipeline evidence contracts."""
+
+    required_phrases = {
+        "docs/CLI_SPEC.md": [
+            "Task `001` owns only policy-label `zentinel version` output.",
+            "Task `005` adds real Zig discovery to `zentinel version` and `zentinel check`.",
+            "When Zig is missing, `zentinel version` exits `0`",
+            "When Zig is missing, `zentinel check` exits `2` with `ZNTL_ZIG_NOT_FOUND`",
+        ],
+        "docs/FAILURE_MODES.md": [
+            "Fatal for commands that require Zig.",
+            "`zentinel version` records this as non-fatal environment status",
+        ],
+        "docs/TDD_POLICY.md": [
+            "`failing_command`",
+            "`failing_output_excerpt`",
+            "`implementation_started_after_failure`",
+            "`passing_command`",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "pre-`063` structured chronology evidence",
+            "`implementation_started_after_failure`",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "pre-`063` structured chronology evidence",
+            "`implementation_started_after_failure`",
+        ],
+        "tasks/005-version-policy.md": [
+            "Add failing CLI tests for `zentinel version` with supported Zig `0.16.0`, missing Zig executable, and unsupported Zig version.",
+            "Add failing CLI tests that `zentinel check` treats missing Zig and unsupported Zig as fatal environment errors.",
+            "`zentinel version` reports Zig discovery status without making missing or unsupported Zig fatal for that command.",
+            "`zentinel check` exits `2` for missing or unsupported Zig",
+        ],
+        "tasks/000-project-bootstrap.md": [
+            "after task `101` is complete",
+        ],
+        "tasks/STATUS.md": [
+            "pre-bootstrap hardening tasks `071` through `101`",
+        ],
+    }
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 101 contract file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 101 phrase {phrase!r}")
+
+    pipeline_artifacts = ROOT / "docs" / "PIPELINE_ARTIFACTS.md"
+    if pipeline_artifacts.is_file():
+        text = pipeline_artifacts.read_text(encoding="utf-8")
+        activation_phrase = "After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts."
+        require(text.count(activation_phrase) == 1, errors, "docs/PIPELINE_ARTIFACTS.md must contain one canonical post-041 activation-order sentence")
+        require("After task `041`, activation order is:" not in text, errors, "docs/PIPELINE_ARTIFACTS.md must not duplicate post-041 activation order wording")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task101 = task_by_id.get("101")
+    if isinstance(task101, dict):
+        deps = task101.get("dependencies")
+        require(isinstance(deps, list) and "100" in deps, errors, "task 101 must depend on task 100")
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "101" in deps, errors, "task 000 must depend on task 101")
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -3860,6 +3937,7 @@ def main() -> int:
     validate_agent_implementation_blocker_closure_contracts(tasks, errors)
     validate_handoff_baseline_and_contract_drift_closure_contracts(tasks, status, errors)
     validate_clean_handoff_lifecycle_closure_contracts(tasks, status, errors)
+    validate_version_command_and_evidence_closure_contracts(tasks, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

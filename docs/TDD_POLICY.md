@@ -12,6 +12,13 @@ Current mechanical checks verify recorded evidence fields and role handoffs; the
 
 Mechanical chronology proof for I-019 starts at task `063` when pipeline artifact validation can check role timestamps. Earlier tasks may preserve wording and require evidence fields, but they must not mark chronology proof as covered.
 
+Until task `063`, pre-`063` structured chronology evidence must be recorded in the task completion summary or `completion_evidence` text fields without adding ad hoc JSON fields. Use these labels exactly:
+
+- `failing_command`: the targeted command that produced the expected failure before implementation
+- `failing_output_excerpt`: a bounded excerpt or summary showing the expected failure
+- `implementation_started_after_failure`: `true` only after the failing evidence was captured
+- `passing_command`: the targeted command that passed after implementation
+
 ## Required Workflow
 
 1. Read the active task file and referenced docs.

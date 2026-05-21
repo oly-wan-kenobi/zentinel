@@ -1347,6 +1347,41 @@
       ]
     },
     {
+      "id": "101",
+      "order": "000.0.31",
+      "title": "Version Command and Evidence Closure",
+      "file": "tasks/101-version-command-and-evidence-closure.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "100"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/005-version-policy.md",
+        "tasks/101-version-command-and-evidence-closure.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/CLI_SPEC.md",
+        "docs/FAILURE_MODES.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/TDD_POLICY.md",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1354,7 +1389,7 @@
       "phase": 0,
       "state": "queued",
       "dependencies": [
-        "100"
+        "101"
       ],
       "allowed_files": [
         "build.zig",

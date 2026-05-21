@@ -20,14 +20,14 @@ Each failure mode has:
 
 **F-001. Zig executable missing**
 - *Phase.* Zig version.
-- *Expected outcome.* Command fails before project analysis.
+- *Expected outcome.* Fatal for commands that require Zig. `zentinel check` exits `2` before project analysis with `ZNTL_ZIG_NOT_FOUND`; `zentinel version` records this as non-fatal environment status on stderr while still exiting `0`.
 - *Code/status.* `ZNTL_ZIG_NOT_FOUND`.
 - *Invariants stressed.* I-006, I-014.
 - *Required test surface.* Version-policy test with stubbed missing Zig.
 
 **F-002. Unsupported Zig version**
 - *Phase.* Zig version.
-- *Expected outcome.* Clear diagnostic explaining the pinned Zig `0.16.0` policy.
+- *Expected outcome.* Clear diagnostic explaining the pinned Zig `0.16.0` policy. Commands that require Zig fail before project analysis; `zentinel version` reports the mismatch as non-fatal environment status.
 - *Code/status.* `ZNTL_ZIG_UNSUPPORTED_VERSION`.
 - *Invariants stressed.* I-006.
 - *Required test surface.* Version-policy test with stubbed older version.

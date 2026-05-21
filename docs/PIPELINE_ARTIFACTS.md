@@ -88,8 +88,6 @@ The active lock artifact is evidence that the task-control files, context packet
 
 After task `041`, mark the task active, create the active-lock artifact, create the first context packet, then run `python3 scripts/validate_task_system.py` before role work starts. The active-lock artifact path is `artifacts/pipeline/<task-id>/locks/active-task-lock.json`.
 
-After task `041`, activation order is: mark the task active in task-control files, create `locks/active-task-lock.json`, create the first role context packet, then run `python3 scripts/validate_task_system.py` before role work starts.
-
 Task `041` creates baseline schemas for handoffs, active locks, context packets, stale-context markers, verification records, and escalation records. The first post-`041` pipeline task may use those baseline schemas immediately; later tasks refine role-specific fields without removing the required baseline fields.
 
 ## Retention Policy

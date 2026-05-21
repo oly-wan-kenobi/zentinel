@@ -34,14 +34,15 @@
     "097",
     "098",
     "099",
-    "100"
+    "100",
+    "101"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed after completing task 100 clean handoff lifecycle closure; task 000 is next."
+    "notes": "Validator passed while task 101 was active after version command and pre-063 evidence guardrails were satisfied; task 000 is next."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -904,6 +905,54 @@
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
       ]
+    },
+    {
+      "task": "101",
+      "failing_evidence": "failing_command: python3 scripts/validate_task_system.py. failing_output_excerpt: after adding task 101 guardrails, the validator failed on missing docs/CLI_SPEC.md task 001/task 005 version-command ownership wording, missing docs/FAILURE_MODES.md fatal/non-fatal missing-Zig wording, missing pre-063 evidence labels in docs/TDD_POLICY.md, docs/AGENT_GUIDE.md, and docs/AUTONOMOUS_AGENT_PROTOCOL.md, missing task 005 CLI tests, and duplicated post-041 activation wording in docs/PIPELINE_ARTIFACTS.md.",
+      "implementation_summary": "implementation_started_after_failure: true. Inserted and completed task 101 before bootstrap, clarified that task 001 owns only policy-label version output, assigned real Zig discovery for version and check to task 005, scoped missing/unsupported Zig as non-fatal status for zentinel version and fatal for zentinel check, added pre-063 structured chronology evidence labels, deduplicated post-041 activation wording, updated task 005 requirements, made task 000 depend on task 101, and added validator guardrails for these contracts.",
+      "files_changed": [
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/CLI_SPEC.md",
+        "docs/FAILURE_MODES.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/TDD_POLICY.md",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/005-version-policy.md",
+        "tasks/101-version-command-and-evidence-closure.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for task 005 version-command ownership, check-command fatal Zig diagnostics, pre-063 structured chronology evidence labels, task 101/000 dependency ordering, and post-041 activation wording deduplication."
+      ],
+      "tests_run": [
+        "Post-activation python3 scripts/validate_task_system.py failed on stale hard-coded task 000-after-100 guardrails as expected after inserting task 101",
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 101 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 101 was active after fixes",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json",
+        "git diff --check",
+        "passing_command: python3 scripts/validate_task_system.py after completing task 101"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 101 was active after version-command ownership, pre-063 evidence, and activation-wording guardrails were satisfied."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after version-command ownership and early TDD evidence contracts are validator-backed. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     }
   ],
   "history": [
@@ -1316,6 +1365,16 @@
       "event": "clean_handoff_lifecycle_closure_completed",
       "task": "100",
       "notes": "Completed task 100 before project bootstrap. Validator guardrails and contracts now enforce committed clean worktrees with clean_handoff_baseline null, baseline lifecycle wording after commits, task 041 row-scoped pipeline schema gap-row reminders, task 000 dependency on task 100, and single pre-041 validator startup wording."
+    },
+    {
+      "event": "version_command_and_evidence_closure_started",
+      "task": "101",
+      "notes": "Inserted and activated task 101 at execution order 000.0.31 before project bootstrap to close the version-command discovery ownership ambiguity, add pre-063 structured evidence wording, and deduplicate post-041 activation wording."
+    },
+    {
+      "event": "version_command_and_evidence_closure_completed",
+      "task": "101",
+      "notes": "Completed task 101 before project bootstrap. Validator guardrails and contracts now enforce task 005 ownership of zentinel version Zig discovery, fatal check-command Zig diagnostics, pre-063 chronology evidence labels, task 101/000 dependency ordering, and single post-041 activation wording."
     }
   ]
 }
