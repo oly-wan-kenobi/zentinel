@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
-  "active_task": "095",
-  "next_task": "095",
+  "active_task": null,
+  "next_task": "000",
   "completed_tasks": [
     "068",
     "069",
@@ -28,29 +28,15 @@
     "091",
     "092",
     "093",
-    "094"
+    "094",
+    "095"
   ],
-  "blocked_tasks": [
-    "000"
-  ],
-  "blocked_task_details": [
-    {
-      "task": "000",
-      "reason": "Project bootstrap depends on repairing autonomous-agent lifecycle, validator, schema, and task-scope contracts found by the four-lane deep analysis.",
-      "blocker_type": "missing_prerequisite",
-      "evidence": "Deep analysis found stale implemented/verified task-control wording, final dirty-file validation gaps, schema/prose mismatches, and future task scopes that can force agents to violate TDD or allowed-file discipline.",
-      "attempted_recovery": "Inserted prerequisite task 095 before task 000 and updated task 000 to depend on 095.",
-      "prerequisite_task": "095",
-      "required_prerequisite_task": "095",
-      "requires_user_input": false,
-      "edits_state": "task_control_only",
-      "notes": "Task 000 returns to queued after task 095 completes and the validator passes."
-    }
-  ],
+  "blocked_tasks": [],
+  "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Validator passed while task 095 was active after lifecycle, validator, schema, and task-scope repair guardrails were satisfied."
+    "notes": "Validator passed after completing task 095 autonomous agent contract repair; task 000 is next."
   },
   "completion_evidence": [
     {
@@ -487,6 +473,74 @@
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after validator-backed completion scope evidence, blocker recovery, report evidence, option staging, doctest AI, and public/internal schema boundaries.",
       "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+    },
+    {
+      "task": "095",
+      "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new task 095 guardrails for active-only lifecycle wording, stale implemented/verified task-control states, final dirty-file scope validation, AI context failure_kind schema, baseline compiler-crash schema, pre-041 artifact cutover wording, impact_graph task scopes, I-019 proof scope, and gap-registry row evidence.",
+      "implementation_summary": "Inserted and completed task 095 before bootstrap, made task-control states active-only for in-progress work, added final dirty-file and gap-registry row diff validation, aligned agent/pipeline lifecycle docs, added AI context failure_kind schema support, defined baseline compiler-crash report semantics, and widened affected future task scopes.",
+      "files_changed": [
+        ".agents/ORCHESTRATOR.md",
+        ".agents/README.md",
+        ".agents/roles/task-queue-manager.md",
+        ".agents/workflows/sync.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AGENT_PIPELINE_ARCHITECTURE.md",
+        "docs/AGENT_ROLE_SPEC.md",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/GAP_REGISTRIES.md",
+        "docs/INVARIANTS.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/TASK_LIFECYCLE.md",
+        "schemas/ai.context.v1.schema.json",
+        "schemas/report.v1.schema.json",
+        "scripts/validate_task_system.py",
+        "tasks/000-project-bootstrap.md",
+        "tasks/014-baseline-runner.md",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/040-agent-pipeline-foundation.md",
+        "tasks/041-handoff-artifacts.md",
+        "tasks/046-verification-pipeline.md",
+        "tasks/051-fail-fast-impact-analysis.md",
+        "tasks/095-autonomous-agent-contract-repair.md",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/schema/queue.v1.schema.json",
+        "tasks/status.json",
+        "tests/coverage-gaps/invariants.v1.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": ["I-017"]
+      },
+      "tests_added": ["Structural validator guardrails for active-only task-control states, stale lifecycle wording, inactive dirty-file scope evidence, row-scoped gap-registry diffs, AI context command failure_kind, baseline compiler-crash report schema, pre-041 artifact cutovers, impact_graph task scopes, and I-019 proof scope."],
+      "tests_run": [
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 095 guardrails as expected",
+        "python3 scripts/validate_task_system.py while task 095 was active",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "python3 -m json.tool tasks/queue.json",
+        "python3 -m json.tool tasks/status.json",
+        "python3 -m json.tool tasks/schema/queue.v1.schema.json",
+        "python3 -m json.tool schemas/ai.context.v1.schema.json",
+        "python3 -m json.tool schemas/report.v1.schema.json",
+        "python3 -m json.tool tests/coverage-gaps/invariants.v1.json",
+        "git diff --check",
+        "stale lifecycle phrase scan"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 095 was active after lifecycle, validator, schema, and task-scope repair guardrails were satisfied."
+      },
+      "dogfooding_implication": "Future bootstrap and dogfood tasks start after stricter autonomous-agent lifecycle, schema, and scope contracts. No zentinel runtime exists yet, so no dogfood run was expected.",
+      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
     }
   ],
   "history": [
@@ -844,6 +898,11 @@
       "event": "autonomous_agent_contract_repair_started",
       "task": "095",
       "notes": "Inserted and activated task 095 at execution order 000.0.25 before project bootstrap to repair the latest four-lane analysis findings around lifecycle state wording, final dirty-file scope validation, AI context command evidence, baseline compiler-crash semantics, impact_graph task scope, pre-041 artifact cutovers, and gap registry enforcement."
+    },
+    {
+      "event": "autonomous_agent_contract_repair_completed",
+      "task": "095",
+      "notes": "Completed task 095 before project bootstrap. Validator guardrails and contracts now enforce active-only task-control states, final dirty-file scope evidence, AI context failure_kind schema alignment, baseline compiler-crash report semantics, pre-041 artifact cutovers, impact_graph task scopes, I-019 proof scope, and gap-registry row diff checks."
     }
   ]
 }

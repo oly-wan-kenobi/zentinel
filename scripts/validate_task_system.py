@@ -2367,7 +2367,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `093`",
+            "pre-bootstrap hardening tasks `071` through `095`",
         ],
         "tasks/000-project-bootstrap.md": [
             "after task `095` is complete",

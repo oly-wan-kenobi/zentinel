@@ -1003,7 +1003,7 @@
       "title": "Autonomous Agent Contract Repair",
       "file": "tasks/095-autonomous-agent-contract-repair.md",
       "phase": 0,
-      "state": "active",
+      "state": "complete",
       "dependencies": [
         "094"
       ],
@@ -1062,7 +1062,7 @@
       "title": "Project Bootstrap",
       "file": "tasks/000-project-bootstrap.md",
       "phase": 0,
-      "state": "blocked",
+      "state": "queued",
       "dependencies": [
         "095"
       ],
