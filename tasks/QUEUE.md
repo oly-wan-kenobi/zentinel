@@ -59,7 +59,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 000.0.34 | `tasks/104-output-bound-wording-cleanup.md` | complete | 0 |
 | 000.0.35 | `tasks/105-architecture-boundary-enforcement.md` | complete | 0 |
 | 000.1 | `tasks/000-project-bootstrap.md` | complete | 0 |
-| 001 | `tasks/001-cli-shell.md` | queued | 0 |
+| 001 | `tasks/001-cli-shell.md` | complete | 0 |
 | 002 | `tasks/002-config-parser.md` | queued | 0 |
 | 003 | `tasks/003-test-harness.md` | queued | 0 |
 | 004 | `tasks/004-fixture-system.md` | queued | 0 |

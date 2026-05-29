@@ -1555,7 +1555,7 @@
       "title": "CLI Shell",
       "file": "tasks/001-cli-shell.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "000"
       ],

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "001",
+  "next_task": "002",
   "completed_tasks": [
     "068",
     "069",
@@ -40,7 +40,8 @@
     "103",
     "104",
     "105",
-    "000"
+    "000",
+    "001"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -1188,6 +1189,44 @@
       "follow_up_tasks": [
         "tasks/001-cli-shell.md"
       ]
+    },
+    {
+      "task": "001",
+      "failing_evidence": "failing_command: zig build test (with src/root.zig reverted to the task-000 version, before the CLI dispatch existed). failing_output_excerpt: test/cli_test.zig:7:68: error: root source file struct 'root' has no member named 'Outcome' (3 compilation errors). implementation_started_after_failure: verified by reverting src/root.zig so the CLI tests fail to compile, proving they exercise the dispatch implementation rather than passing vacuously. passing_command: zig build test.",
+      "implementation_summary": "Implemented the Phase 0 CLI shell. Pure deterministic dispatch (help/version/init, --no-color, init --force, error classification) lives in src/root.zig (deterministic_core, which owns command parsing); src/cli.zig (presentation_adapter) is a thin I/O adapter and src/main.zig is the Zig 0.16 entry point using std.process.Init for io/arena/args. Version output is policy-only (static zentinel version plus pinned Zig 0.16.0 label, no zig invocation). init writes the deterministic default zentinel.toml from docs/CONFIG_SPEC.md. Known roadmap commands return ZNTL_CLI_COMMAND_NOT_IMPLEMENTED, unknown commands ZNTL_CLI_UNKNOWN_COMMAND, and not-yet-owned options ZNTL_CLI_INVALID_OPTION, all exit 2. init-refuse exits 2 with a clear message; no dedicated error code is defined for that condition.",
+      "files_changed": [
+        "src/root.zig",
+        "src/cli.zig",
+        "src/main.zig",
+        "test/cli_test.zig",
+        "test/snapshots/cli_help.txt",
+        "test/snapshots/init_config.toml",
+        "tests/coverage-gaps/failure_modes.v1.json"
+      ],
+      "tests_added": [
+        "test/cli_test.zig",
+        "test/snapshots/cli_help.txt",
+        "test/snapshots/init_config.toml"
+      ],
+      "tests_run": [
+        "zig build test: 7/7 steps, 15/15 tests passed across 3 auto-discovered test files",
+        "zig build: executable compiled",
+        "zentinel binary verified: --help matches snapshot; version prints zentinel 0.0.0 and zig 0.16.0; run exits 2 ZNTL_CLI_COMMAND_NOT_IMPLEMENTED; frobnicate exits 2 ZNTL_CLI_UNKNOWN_COMMAND; init creates config (exit 0), refuses existing (exit 2), --force overwrites (exit 0) with zentinel.toml matching the snapshot; init --test-command exits 2 ZNTL_CLI_INVALID_OPTION",
+        "zig fmt --check src test/cli_test.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task-system consistency green with task 001 complete; CLI behavior proven by zig build test and direct binary verification."
+      },
+      "dogfooding_implication": "CLI help and config snapshots are stable text surfaces that future report and command mutation/dogfood review will target. No dogfood run yet.",
+      "follow_up_tasks": [
+        "tasks/002-config-parser.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-036", "F-037", "F-038"]
+      }
     }
   ],
   "history": [

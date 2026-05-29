@@ -1,0 +1,15 @@
+zentinel - Zig-native mutation testing
+
+Usage:
+  zentinel <command> [options]
+
+Commands:
+  init           create zentinel.toml
+  version        print version information
+  check          validate config and environment
+  list-mutants   list generated mutants without running tests
+  run            run mutation testing
+  doctest        validate executable documentation
+  explain        explain one mutant using advisory AI
+  suggest        suggest tests for one mutant using advisory AI
+  review-tests   review survivors using advisory AI
