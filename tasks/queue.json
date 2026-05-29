@@ -1843,7 +1843,7 @@
       "title": "Comparison Mutators",
       "file": "tasks/011-comparison-mutators.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "010"
       ],

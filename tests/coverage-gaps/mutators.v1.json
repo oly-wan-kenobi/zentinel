@@ -5,8 +5,8 @@
   "entries": [
     { "operator": "arithmetic_add_sub", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/arithmetic_test.zig"], "deferred_to": null, "notes": "Needs arithmetic fixture coverage." },
     { "operator": "arithmetic_mul_div", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/arithmetic_test.zig"], "deferred_to": null, "notes": "Needs arithmetic fixture coverage." },
-    { "operator": "equality_swap", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs equality fixture coverage." },
-    { "operator": "comparison_boundary", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs boundary fixture coverage." },
+    { "operator": "equality_swap", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/comparison_test.zig"], "deferred_to": null, "notes": "Needs equality fixture coverage." },
+    { "operator": "comparison_boundary", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/comparison_test.zig"], "deferred_to": null, "notes": "Needs boundary fixture coverage." },
     { "operator": "logical_and_or", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/012-logical-boolean-mutators.md", "notes": "Needs logical operator fixture coverage." },
     { "operator": "boolean_literal", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/012-logical-boolean-mutators.md", "notes": "Needs boolean literal fixture coverage." },
     { "operator": "optional_orelse_unreachable", "phase": 2, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/023-optional-null-mutators.md", "notes": "Needs optional fallback fixture coverage." },

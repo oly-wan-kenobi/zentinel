@@ -38,6 +38,7 @@ pub const ast_backend = @import("ast_backend.zig");
 /// the shared collector; mutators may not import runner/sandbox/report/cli/ai.
 pub const mutators = struct {
     pub const arithmetic = @import("mutators/arithmetic.zig");
+    pub const comparison = @import("mutators/comparison.zig");
 };
 
 /// Typed report model + deterministic JSON serialization (deterministic core).
