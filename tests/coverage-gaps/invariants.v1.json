@@ -61,9 +61,9 @@
     },
     {
       "number": "I-009",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/019-same-file-test-exclusion.md",
+      "covered": true,
+      "tests": ["test/same_file_test_exclusion_test.zig"],
+      "deferred_to": null,
       "notes": "Test declaration exclusion is covered by AST traversal fixtures."
     },
     {

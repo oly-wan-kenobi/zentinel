@@ -1791,7 +1791,7 @@
       "title": "Same-File Test Exclusion",
       "file": "tasks/019-same-file-test-exclusion.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "009"
       ],

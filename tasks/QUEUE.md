@@ -68,7 +68,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 007 | `tasks/007-mutant-model.md` | complete | 1 |
 | 008 | `tasks/008-ast-parser-spike.md` | complete | 1 |
 | 009 | `tasks/009-ast-candidate-ordering.md` | complete | 1 |
-| 009.1 | `tasks/019-same-file-test-exclusion.md` | queued | 1 |
+| 009.1 | `tasks/019-same-file-test-exclusion.md` | complete | 1 |
 | 010 | `tasks/010-arithmetic-mutators.md` | queued | 1 |
 | 011 | `tasks/011-comparison-mutators.md` | queued | 1 |
 | 012 | `tasks/012-logical-boolean-mutators.md` | queued | 1 |

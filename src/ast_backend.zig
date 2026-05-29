@@ -134,3 +134,62 @@ pub const Collector = struct {
         self.items.deinit(self.allocator);
     }
 };
+
+/// Half-open byte range `[start, end)` of a source region.
+pub const ByteRange = struct { start: u32, end: u32 };
+
+/// Byte ranges of every `test` declaration in the parsed source. Mutation
+/// excludes candidates inside these ranges by default so it does not target test
+/// bodies (docs/INVARIANTS.md I-009).
+pub fn testDeclRanges(parsed: Parsed, arena: std.mem.Allocator) std.mem.Allocator.Error![]ByteRange {
+    var out: std.ArrayList(ByteRange) = .empty;
+    const node_tags = parsed.tree.nodes.items(.tag);
+    const token_tags = parsed.tree.tokens.items(.tag);
+    for (node_tags, 0..) |tag, i| {
+        if (tag != .test_decl) continue;
+        const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
+        const first_tok = parsed.tree.firstToken(node); // the `test` keyword
+        const start = parsed.tree.tokenStart(first_tok);
+        // Span the whole declaration through its body's matching close brace.
+        // Token-scan brace matching is robust and avoids depending on parser
+        // node-data layout for body extraction.
+        var t: u32 = first_tok;
+        while (t < token_tags.len and token_tags[t] != .l_brace) t += 1;
+        var depth: u32 = 0;
+        var end: u32 = start;
+        while (t < token_tags.len) : (t += 1) {
+            switch (token_tags[t]) {
+                .l_brace => depth += 1,
+                .r_brace => {
+                    depth -= 1;
+                    if (depth == 0) {
+                        end = parsed.tree.tokenStart(t) + 1; // `}` is one byte
+                        break;
+                    }
+                },
+                else => {},
+            }
+        }
+        try out.append(arena, .{ .start = start, .end = end });
+    }
+    return out.toOwnedSlice(arena);
+}
+
+/// True if byte offset `at` lies within any test declaration range.
+pub fn inTestBody(ranges: []const ByteRange, at: u32) bool {
+    for (ranges) |r| {
+        if (at >= r.start and at < r.end) return true;
+    }
+    return false;
+}
+
+/// Drop candidates whose site falls inside a `test` declaration, keeping
+/// production candidates in the same file. Deterministic and kept separate from
+/// test selection.
+pub fn excludeTestBodyCandidates(arena: std.mem.Allocator, candidates: []const Candidate, ranges: []const ByteRange) std.mem.Allocator.Error![]Candidate {
+    var out: std.ArrayList(Candidate) = .empty;
+    for (candidates) |candidate| {
+        if (!inTestBody(ranges, @intCast(candidate.span.byte_start))) try out.append(arena, candidate);
+    }
+    return out.toOwnedSlice(arena);
+}
