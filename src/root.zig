@@ -43,6 +43,9 @@ pub const mutators = struct {
     pub const boolean = @import("mutators/boolean.zig");
 };
 
+/// Deterministic patch sandbox: applies one mutant to a source copy (deterministic core).
+pub const sandbox = @import("sandbox.zig");
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

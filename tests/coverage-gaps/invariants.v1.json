@@ -47,16 +47,16 @@
     },
     {
       "number": "I-007",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/013-patch-sandbox.md",
+      "covered": true,
+      "tests": ["test/sandbox_test.zig"],
+      "deferred_to": null,
       "notes": "No permanent worktree mutation is covered by sandbox tests."
     },
     {
       "number": "I-008",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/013-patch-sandbox.md",
+      "covered": true,
+      "tests": ["test/sandbox_test.zig"],
+      "deferred_to": null,
       "notes": "Original-text span validation is covered by patch sandbox tests."
     },
     {
