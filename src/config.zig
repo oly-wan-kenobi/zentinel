@@ -11,6 +11,7 @@ pub const Code = enum {
     parse_error,
     unknown_key,
     invalid_value,
+    invalid_command,
     experimental_backend,
     not_found,
 
@@ -19,6 +20,7 @@ pub const Code = enum {
             .parse_error => "ZNTL_CONFIG_PARSE_ERROR",
             .unknown_key => "ZNTL_CONFIG_UNKNOWN_KEY",
             .invalid_value => "ZNTL_CONFIG_INVALID_VALUE",
+            .invalid_command => "ZNTL_CONFIG_INVALID_COMMAND",
             .experimental_backend => "ZNTL_CONFIG_EXPERIMENTAL_BACKEND",
             .not_found => "ZNTL_CONFIG_NOT_FOUND",
         };
@@ -199,6 +201,13 @@ fn outsideRoot(path: []const u8) bool {
         if (std.mem.eql(u8, seg, "..")) return true;
     }
     return false;
+}
+
+/// Public form of the project-root containment check. A path is outside the
+/// project root when it is absolute or contains a `..` segment. Used by
+/// `zentinel check` to validate include/exclude paths (docs/CONFIG_SPEC.md).
+pub fn isOutsideRoot(path: []const u8) bool {
+    return outsideRoot(path);
 }
 
 // Paths are normalized to forward slashes per docs/CONFIG_SPEC.md.

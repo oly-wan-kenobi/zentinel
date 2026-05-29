@@ -1,0 +1,1 @@
+unsupported Zig version 0.15.1; zentinel requires Zig 0.16.0

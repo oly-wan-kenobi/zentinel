@@ -3,8 +3,8 @@
   "source": "docs/FAILURE_MODES.md",
   "mode": "regression_only",
   "entries": [
-    { "number": "F-001", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Missing Zig executable test." },
-    { "number": "F-002", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Unsupported Zig version test." },
+    { "number": "F-001", "covered": true, "tests": ["test/zig_version_test.zig", "test/check_command_test.zig"], "deferred_to": null, "notes": "Missing Zig executable test." },
+    { "number": "F-002", "covered": true, "tests": ["test/zig_version_test.zig", "test/check_command_test.zig"], "deferred_to": null, "notes": "Unsupported Zig version test." },
     { "number": "F-003", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Config parse error fixture." },
     { "number": "F-004", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Unknown config key fixture." },
     { "number": "F-005", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Experimental backend opt-in validation." },
@@ -41,9 +41,9 @@
     { "number": "F-036", "covered": true, "tests": ["test/cli_test.zig"], "deferred_to": null, "notes": "Unknown CLI command diagnostic test." },
     { "number": "F-037", "covered": true, "tests": ["test/cli_test.zig"], "deferred_to": null, "notes": "Known future command not-implemented diagnostic test." },
     { "number": "F-038", "covered": true, "tests": ["test/cli_test.zig"], "deferred_to": null, "notes": "Initial global/command invalid option diagnostic test; later task 005 extends global option ownership." },
-    { "number": "F-039", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Check-command missing config path fixture." },
+    { "number": "F-039", "covered": true, "tests": ["test/check_command_test.zig"], "deferred_to": null, "notes": "Check-command missing config path fixture." },
     { "number": "F-040", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Config invalid value validation fixture." },
-    { "number": "F-041", "covered": false, "tests": [], "deferred_to": "tasks/005-version-policy.md", "notes": "Shared command parser and check-command invalid command syntax tests." },
+    { "number": "F-041", "covered": true, "tests": ["test/check_command_test.zig"], "deferred_to": null, "notes": "Shared command parser and check-command invalid command syntax tests." },
     { "number": "F-042", "covered": false, "tests": [], "deferred_to": "tasks/014-baseline-runner.md", "notes": "Baseline runner failing-command evidence fixture." },
     { "number": "F-043", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Unsupported executable doctest tag diagnostic fixture." },
     { "number": "F-044", "covered": false, "tests": [], "deferred_to": "tasks/033-doctest-runner.md", "notes": "Doctest CLI allowlist command-rejection fixture." }

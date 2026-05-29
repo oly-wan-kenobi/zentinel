@@ -7,14 +7,23 @@ pub const project_name = "zentinel";
 /// Initial project version. Deterministic compile-time constant.
 pub const version = "0.0.0";
 
-/// Pinned supported Zig version policy label. Task 001 prints this as a static
-/// policy label only; task 005 owns real `zig version` discovery and
-/// compatibility diagnostics. Task 001 must not invoke `zig version`.
-pub const supported_zig_version = "0.16.0";
+/// Zig version policy and discovery classification (deterministic core).
+pub const zig_version = @import("zig_version.zig");
+
+/// Pinned supported Zig version, owned by the single version-policy module
+/// `zig_version`. `zentinel version` prints it as a policy label; task 005 adds
+/// real `zig version` discovery compared against this pin by `version` and `check`.
+pub const supported_zig_version = zig_version.supported_version;
 
 /// Config parsing and validation (deterministic core).
 pub const config = @import("config.zig");
 pub const config_toml = @import("config_toml.zig");
+
+/// Shared shell-free command-string parser (deterministic core).
+pub const command = @import("command.zig");
+
+/// `zentinel check` orchestration (deterministic core).
+pub const check_command = @import("check_command.zig");
 
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
 /// baseline test command for config-aware `init --test-command`.
@@ -195,19 +204,19 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
         return .{ .stdout = help_text };
     }
 
-    const command = args[i];
+    const cmd = args[i];
     i += 1;
 
-    if (eq(command, "version")) {
+    if (eq(cmd, "version")) {
         return .{ .stdout = version_text };
     }
-    if (eq(command, "init")) {
+    if (eq(cmd, "init")) {
         return dispatchInit(args[i..], config_exists);
     }
-    if (contains(&not_implemented_commands, command)) {
-        return .{ .exit_code = 2, .error_code = .cli_command_not_implemented, .detail = command };
+    if (contains(&not_implemented_commands, cmd)) {
+        return .{ .exit_code = 2, .error_code = .cli_command_not_implemented, .detail = cmd };
     }
-    return .{ .exit_code = 2, .error_code = .cli_unknown_command, .detail = command };
+    return .{ .exit_code = 2, .error_code = .cli_unknown_command, .detail = cmd };
 }
 
 fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
@@ -241,6 +250,72 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
     }
 
     return .{ .stdout = "created zentinel.toml\n", .write_config = true, .init_test_command = test_command };
+}
+
+/// Default config file path when `--config` is not given.
+pub const config_default_path = "zentinel.toml";
+
+/// Parsed global options shared across project commands (docs/CLI_SPEC.md).
+/// Owned by task 005 for `check`; reused by later project commands.
+pub const Globals = struct {
+    config_path: []const u8 = config_default_path,
+    config_explicit: bool = false,
+    root: []const u8 = ".",
+};
+
+/// What the presentation adapter should do with an argv. The pure Phase 0
+/// `dispatch` above stays frozen for the commands it already owns; `route` adds
+/// the task-005 surface (global options, `check`, and Zig-aware `version`)
+/// without changing `dispatch`. `.passthrough` means the adapter falls back to
+/// `dispatch`, which still rejects options it does not own.
+pub const Route = union(enum) {
+    passthrough,
+    version,
+    check: Globals,
+};
+
+/// Decide how to handle argv. `check` and `version` need environment inputs
+/// (config bytes, discovered Zig) that only the adapter can gather, so routing
+/// is kept separate from the pure `dispatch`. Global options `--config`/`--root`
+/// are consumed only for the commands that own them; anything else passes
+/// through to the frozen Phase 0 dispatch.
+pub fn route(args: []const []const u8) Route {
+    var globals: Globals = .{};
+    var i: usize = 0;
+    while (i < args.len and isOption(args[i])) {
+        const opt = args[i];
+        if (eq(opt, "--help") or eq(opt, "-h")) return .passthrough;
+        if (eq(opt, "--no-color")) {
+            i += 1;
+            continue;
+        }
+        if (eq(opt, "--config")) {
+            if (i + 1 >= args.len) return .passthrough; // missing value: dispatch reports it
+            globals.config_path = args[i + 1];
+            globals.config_explicit = true;
+            i += 2;
+            continue;
+        }
+        if (eq(opt, "--root")) {
+            if (i + 1 >= args.len) return .passthrough;
+            globals.root = args[i + 1];
+            i += 2;
+            continue;
+        }
+        // Unowned or unknown option: the frozen dispatch rejects it.
+        return .passthrough;
+    }
+
+    if (i >= args.len) return .passthrough; // no command -> dispatch prints help
+
+    const cmd = args[i];
+    if (eq(cmd, "check")) return .{ .check = globals };
+    if (eq(cmd, "version")) {
+        // `version` does not own --config/--root; defer to dispatch when present.
+        if (globals.config_explicit or !eq(globals.root, ".")) return .passthrough;
+        return .version;
+    }
+    return .passthrough;
 }
 
 test "project name is the stable constant" {

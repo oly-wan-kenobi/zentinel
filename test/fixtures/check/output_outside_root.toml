@@ -1,0 +1,8 @@
+[project]
+name = "demo"
+
+[report]
+output_dir = "../escape"
+
+[test]
+commands = ["zig build test"]

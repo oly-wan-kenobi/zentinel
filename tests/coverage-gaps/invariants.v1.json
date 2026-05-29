@@ -33,16 +33,16 @@
     },
     {
       "number": "I-005",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/005-version-policy.md",
+      "covered": true,
+      "tests": ["test/config_test.zig"],
+      "deferred_to": null,
       "notes": "Backend default enforcement is first covered by config and version-policy tests."
     },
     {
       "number": "I-006",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/005-version-policy.md",
+      "covered": true,
+      "tests": ["test/zig_version_test.zig", "test/check_command_test.zig"],
+      "deferred_to": null,
       "notes": "Pinned Zig 0.16.0 checks land with Zig version policy."
     },
     {

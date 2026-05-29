@@ -1,0 +1,7 @@
+[project]
+name = "demo"
+include = ["src/**/*.zig"]
+exclude = [".zig-cache/**", "zig-out/**", "test/**"]
+
+[test]
+commands = ["zig build test"]

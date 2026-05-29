@@ -1660,7 +1660,7 @@
       "title": "Version Policy and Check Command",
       "file": "tasks/005-version-policy.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "004"
       ],

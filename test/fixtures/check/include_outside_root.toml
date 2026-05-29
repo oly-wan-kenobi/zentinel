@@ -1,0 +1,6 @@
+[project]
+name = "demo"
+include = ["../outside/**/*.zig"]
+
+[test]
+commands = ["zig build test"]

