@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "004",
+  "next_task": "005",
   "completed_tasks": [
     "068",
     "069",
@@ -43,17 +43,68 @@
     "000",
     "001",
     "002",
-    "003"
+    "003",
+    "004"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 105 active-state validation passed before completion after architecture boundary guardrails were satisfied; complete-state validation passed after completion."
+    "notes": "Task 004 fixture system completed; active-state and complete-state validation passed after closing gap row F-006."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "004",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) — the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
+      "implementation_summary": "Added the fixture system. test/support/fixture.zig enumerates fixture projects under test/fixtures/projects sorted by normalized project-relative path (deterministic regardless of raw directory iteration order) and parses+validates each fixture.toml via the in-tree TOML subset parser re-exported from the zentinel hub (ADR-0009). Added two fixture projects: arithmetic_kill (calc.zig plus metadata, expected outcome killed) and no_eligible_sources (metadata plus README, expected outcome no_eligible_sources for F-006, with no eligible .zig sources). build.zig compiles the minimal arithmetic fixture as a test so `zig build test` proves it compiles through a test command; fixture sources avoid the _test.zig suffix so recursive discovery does not sweep them. No mutant generation was implemented (task non-goal).",
+      "files_changed": [
+        "build.zig",
+        "test/support/fixture.zig",
+        "test/fixture_system_test.zig",
+        "test/fixtures/projects/arithmetic_kill/calc.zig",
+        "test/fixtures/projects/arithmetic_kill/fixture.toml",
+        "test/fixtures/projects/no_eligible_sources/fixture.toml",
+        "test/fixtures/projects/no_eligible_sources/README.md",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixture_system_test.zig: deterministic fixture enumeration sorted by normalized path; fixture metadata loading of target files, operators, and outcome; metadata validation rejecting unknown outcome, missing fields, and empty targets; project-relative forward-slash path normalization reusing the harness normalizer.",
+        "test/fixtures/projects/arithmetic_kill/calc.zig: minimal fixture test compiled and run through `zig build test` to prove the fixture compiles."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing-loader compile error while the 44 prior tests still passed",
+        "zig build test (passing): 17/17 steps succeeded, 49/49 tests passed",
+        "zig build install: exe still builds after the build.zig change",
+        "zig fmt --check build.zig src test: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 004 was active after fixtures and tests landed, and again after the complete-state transition with gap row F-006 closed."
+      },
+      "dogfooding_implication": "Fixture projects under test/fixtures/projects are Stage 1 dogfood inputs for the future mutation engine; the no_eligible_sources fixture pins the F-006 project-analysis failure case. No mutation run exists yet.",
+      "follow_up_tasks": [
+        "tasks/005-version-policy.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-006"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "105",
       "failing_evidence": "Pre-fix `python3 scripts/validate_task_system.py` failed on the new task 105 guardrails for missing ADR-0008, deterministic pipeline boundary wording, layer registry wording, architecture review duties, verifier duties, I-022 coverage, and task 000 dependency on task 105.",

@@ -1,0 +1,13 @@
+# Fixture metadata (task 004) for failure mode F-006: a project with no
+# eligible Zig sources. Project analysis must fail before mutation generation.
+[fixture]
+name = "no_eligible_sources"
+description = "Project with no eligible Zig sources; analysis fails before mutation generation (F-006)."
+
+[project]
+target_files = []
+test_command = "zig build test"
+
+[expect]
+operators = []
+outcome = "no_eligible_sources"

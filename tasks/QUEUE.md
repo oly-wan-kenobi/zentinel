@@ -62,7 +62,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 001 | `tasks/001-cli-shell.md` | complete | 0 |
 | 002 | `tasks/002-config-parser.md` | complete | 0 |
 | 003 | `tasks/003-test-harness.md` | complete | 0 |
-| 004 | `tasks/004-fixture-system.md` | queued | 0 |
+| 004 | `tasks/004-fixture-system.md` | complete | 0 |
 | 005 | `tasks/005-version-policy.md` | queued | 0 |
 | 006 | `tasks/006-report-schema.md` | queued | 0 |
 | 007 | `tasks/007-mutant-model.md` | queued | 1 |

@@ -1,0 +1,12 @@
+# Fixture metadata (task 004), parsed by the in-tree TOML subset parser.
+[fixture]
+name = "arithmetic_kill"
+description = "Arithmetic module whose same-file tests kill arithmetic mutants."
+
+[project]
+target_files = ["calc.zig"]
+test_command = "zig build test"
+
+[expect]
+operators = ["arithmetic_add_sub"]
+outcome = "killed"

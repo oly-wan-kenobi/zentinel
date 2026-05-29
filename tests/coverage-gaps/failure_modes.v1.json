@@ -8,7 +8,7 @@
     { "number": "F-003", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Config parse error fixture." },
     { "number": "F-004", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Unknown config key fixture." },
     { "number": "F-005", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Experimental backend opt-in validation." },
-    { "number": "F-006", "covered": false, "tests": [], "deferred_to": "tasks/004-fixture-system.md", "notes": "No eligible sources fixture." },
+    { "number": "F-006", "covered": true, "tests": ["test/fixture_system_test.zig"], "deferred_to": null, "notes": "No eligible sources fixture." },
     { "number": "F-007", "covered": false, "tests": [], "deferred_to": "tasks/008-ast-parser-spike.md", "notes": "Backend parse failure fixture." },
     { "number": "F-008", "covered": false, "tests": [], "deferred_to": "tasks/008-ast-parser-spike.md", "notes": "Source mapping failure guardrail." },
     { "number": "F-009", "covered": false, "tests": [], "deferred_to": "tasks/007-mutant-model.md", "notes": "Invalid candidate contract test." },

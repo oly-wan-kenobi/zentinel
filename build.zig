@@ -29,6 +29,34 @@ pub fn build(b: *std.Build) void {
     // excluded by that suffix convention.
     const test_step = b.step("test", "Run all test/**/*_test.zig files");
     addDiscoveredTests(b, test_step, zentinel_mod, target, optimize);
+
+    // Task 004: prove the minimal mutation fixture project compiles "through a
+    // test command". Fixture project sources do not end in `_test.zig`, so the
+    // recursive discovery above intentionally ignores them; they are compiled
+    // and tested only through this explicit wiring. The no-eligible-sources
+    // fixture (failure mode F-006) has no compilable entrypoint and is omitted.
+    addFixtureCheck(b, test_step, "test/fixtures/projects/arithmetic_kill/calc.zig", target, optimize);
+}
+
+// Compile and run a standalone fixture project source as a test so `zig build
+// test` verifies it compiles. Fixture sources are std-only and do not import
+// the zentinel module.
+fn addFixtureCheck(
+    b: *std.Build,
+    test_step: *std.Build.Step,
+    path: []const u8,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const fixture_test = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(path),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_fixture_test = b.addRunArtifact(fixture_test);
+    test_step.dependOn(&run_fixture_test.step);
 }
 
 fn addDiscoveredTests(
