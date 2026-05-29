@@ -5,9 +5,9 @@
   "entries": [
     {
       "number": "I-001",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/014-baseline-runner.md",
+      "covered": true,
+      "tests": ["test/runner_baseline_test.zig"],
+      "deferred_to": null,
       "notes": "Runner evidence authority lands with baseline and mutant runner work."
     },
     {

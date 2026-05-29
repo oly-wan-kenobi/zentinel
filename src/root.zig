@@ -46,6 +46,9 @@ pub const mutators = struct {
 /// Deterministic patch sandbox: applies one mutant to a source copy (deterministic core).
 pub const sandbox = @import("sandbox.zig");
 
+/// Baseline runner: classifies test-command outcomes via an injected executor (deterministic core).
+pub const runner = @import("runner.zig");
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

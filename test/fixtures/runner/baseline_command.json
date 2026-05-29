@@ -1,0 +1,25 @@
+{
+  "command": {
+    "original": "zig build test",
+    "argv": [
+      "zig",
+      "build",
+      "test"
+    ],
+    "cwd": "<project>",
+    "environment_policy": "minimal",
+    "shell": false
+  },
+  "phase": "baseline",
+  "status": "passed",
+  "exit_code": 0,
+  "timed_out": false,
+  "failure_kind": "none",
+  "duration_ms": 0,
+  "evidence": {
+    "stdout_excerpt": "",
+    "stderr_excerpt": "",
+    "failure_summary": ""
+  },
+  "skip_reason": null
+}

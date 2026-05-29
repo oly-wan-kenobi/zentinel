@@ -15,7 +15,7 @@
     { "number": "F-010", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Sandbox creation failure test. Filesystem workspace creation (ZNTL_SANDBOX_CREATE_FAILED) is a side_effect_adapter concern owned by the mutant runner that creates per-mutant filesystem workspaces; the deterministic patch sandbox (task 013) applies one mutation to a source copy without creating filesystem workspaces." },
     { "number": "F-011", "covered": true, "tests": ["test/sandbox_test.zig"], "deferred_to": null, "notes": "Patch mismatch test." },
     { "number": "F-012", "covered": true, "tests": ["test/sandbox_test.zig"], "deferred_to": null, "notes": "Patch out-of-range test." },
-    { "number": "F-013", "covered": false, "tests": [], "deferred_to": "tasks/014-baseline-runner.md", "notes": "Baseline failure test." },
+    { "number": "F-013", "covered": true, "tests": ["test/runner_baseline_test.zig"], "deferred_to": null, "notes": "Baseline failure test." },
     { "number": "F-014", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Killed mutant fixture." },
     { "number": "F-015", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Survived mutant fixture." },
     { "number": "F-016", "covered": false, "tests": [], "deferred_to": "tasks/015-mutant-runner.md", "notes": "Compile-error mutant fixture." },
@@ -44,7 +44,7 @@
     { "number": "F-039", "covered": true, "tests": ["test/check_command_test.zig"], "deferred_to": null, "notes": "Check-command missing config path fixture." },
     { "number": "F-040", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Config invalid value validation fixture." },
     { "number": "F-041", "covered": true, "tests": ["test/check_command_test.zig"], "deferred_to": null, "notes": "Shared command parser and check-command invalid command syntax tests." },
-    { "number": "F-042", "covered": false, "tests": [], "deferred_to": "tasks/014-baseline-runner.md", "notes": "Baseline runner failing-command evidence fixture." },
+    { "number": "F-042", "covered": true, "tests": ["test/runner_baseline_test.zig"], "deferred_to": null, "notes": "Baseline runner failing-command evidence fixture." },
     { "number": "F-043", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Unsupported executable doctest tag diagnostic fixture." },
     { "number": "F-044", "covered": false, "tests": [], "deferred_to": "tasks/033-doctest-runner.md", "notes": "Doctest CLI allowlist command-rejection fixture." }
   ]

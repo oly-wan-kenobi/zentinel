@@ -1919,7 +1919,7 @@
       "title": "Baseline Runner",
       "file": "tasks/014-baseline-runner.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "013"
       ],
