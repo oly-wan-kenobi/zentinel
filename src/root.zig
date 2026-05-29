@@ -25,6 +25,9 @@ pub const command = @import("command.zig");
 /// `zentinel check` orchestration (deterministic core).
 pub const check_command = @import("check_command.zig");
 
+/// Shared mutant model + durable `m_...` identity algorithm (deterministic core).
+pub const mutant = @import("mutant.zig");
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

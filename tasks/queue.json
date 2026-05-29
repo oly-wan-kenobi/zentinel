@@ -1715,7 +1715,7 @@
       "title": "Mutant Model",
       "file": "tasks/007-mutant-model.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "006"
       ],

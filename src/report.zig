@@ -7,6 +7,7 @@
 // that checks derived invariants JSON Schema cannot fully prove (summary
 // derivation, display-id ordering, cross-field run/baseline rules).
 const std = @import("std");
+const mutant = @import("mutant.zig");
 
 pub const schema_version = "zentinel.report.v1";
 
@@ -16,11 +17,13 @@ pub const Phase = enum { baseline, mutant, selection_preflight };
 pub const CommandStatus = enum { passed, failed, timeout, compiler_crash, skipped };
 pub const FailureKind = enum { none, compile_error, test_failure, compiler_crash, timeout, skipped };
 pub const ResultStatus = enum { killed, survived, compile_error, compiler_crash, timeout, skipped, invalid };
-pub const BackendStability = enum { stable, experimental };
-pub const OperatorStability = enum { stable, preview, experimental };
-pub const Backend = enum { ast, zir, air };
+// Backend/stability/compile-expectation enums are owned by the shared mutant
+// model so the report consumes one source of truth (task 007).
+pub const BackendStability = mutant.BackendStability;
+pub const OperatorStability = mutant.OperatorStability;
+pub const Backend = mutant.Backend;
 pub const Mode = enum { Debug, ReleaseSafe, ReleaseFast, ReleaseSmall };
-pub const ExpectedCompile = enum { compiles, may_fail, must_fail };
+pub const ExpectedCompile = mutant.ExpectedCompile;
 pub const EnvironmentPolicy = enum { minimal };
 pub const CacheMode = enum { disabled, metadata_only, read_write };
 pub const ErrorPhase = enum { internal, report, backend, mutator, sandbox, runner, cache, task };
@@ -101,14 +104,8 @@ pub const Summary = struct {
     invalid: u64 = 0,
 };
 
-pub const Span = struct {
-    byte_start: u64,
-    byte_end: u64,
-    line_start: u32,
-    column_start: u32,
-    line_end: u32,
-    column_end: u32,
-};
+/// Source span, owned by the shared mutant model (task 007).
+pub const Span = mutant.Span;
 
 pub const SelectedTest = struct {
     file: []const u8,

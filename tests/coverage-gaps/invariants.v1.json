@@ -75,9 +75,9 @@
     },
     {
       "number": "I-011",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/007-mutant-model.md",
+      "covered": true,
+      "tests": ["test/mutant_model_test.zig"],
+      "deferred_to": null,
       "notes": "Invalid mutant semantics start with the shared mutant model and continue through sandbox tests."
     },
     {

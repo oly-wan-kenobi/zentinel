@@ -11,7 +11,7 @@
     { "number": "F-006", "covered": true, "tests": ["test/fixture_system_test.zig"], "deferred_to": null, "notes": "No eligible sources fixture." },
     { "number": "F-007", "covered": false, "tests": [], "deferred_to": "tasks/008-ast-parser-spike.md", "notes": "Backend parse failure fixture." },
     { "number": "F-008", "covered": false, "tests": [], "deferred_to": "tasks/008-ast-parser-spike.md", "notes": "Source mapping failure guardrail." },
-    { "number": "F-009", "covered": false, "tests": [], "deferred_to": "tasks/007-mutant-model.md", "notes": "Invalid candidate contract test." },
+    { "number": "F-009", "covered": true, "tests": ["test/mutant_model_test.zig"], "deferred_to": null, "notes": "Invalid candidate contract test." },
     { "number": "F-010", "covered": false, "tests": [], "deferred_to": "tasks/013-patch-sandbox.md", "notes": "Sandbox creation failure test." },
     { "number": "F-011", "covered": false, "tests": [], "deferred_to": "tasks/013-patch-sandbox.md", "notes": "Patch mismatch test." },
     { "number": "F-012", "covered": false, "tests": [], "deferred_to": "tasks/013-patch-sandbox.md", "notes": "Patch out-of-range test." },
