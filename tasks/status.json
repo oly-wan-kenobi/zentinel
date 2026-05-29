@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "002",
+  "next_task": "003",
   "completed_tasks": [
     "068",
     "069",
@@ -41,7 +41,8 @@
     "104",
     "105",
     "000",
-    "001"
+    "001",
+    "002"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -1226,6 +1227,43 @@
       ],
       "gap_registry_rows_changed": {
         "tests/coverage-gaps/failure_modes.v1.json": ["F-036", "F-037", "F-038"]
+      }
+    },
+    {
+      "task": "002",
+      "failing_evidence": "failing_command: zig build test. failing_output_excerpt: config_test 'path normalization converts backslashes to forward slashes' failed: expected 'build/cache', found 'build//cache' (36/37 tests passing). implementation_started_after_failure: test/config_test.zig was authored as executable specifications (zentinel.config undefined, then normalization missing) and src/config_toml.zig + src/config.zig were implemented to satisfy them; the normalization test stayed red until normalizePath was added. passing_command: zig build test (39/39).",
+      "implementation_summary": "Implemented zentinel.toml parsing/validation per docs/CONFIG_SPEC.md. src/config_toml.zig: deterministic in-tree TOML subset parser (tables, double-quoted strings, booleans, base-10 integers, single/multi-line string arrays, # comments; no external dependency). src/config.zig: typed Config with documented defaults; rejects unknown sections/keys, non-0.16.0 Zig versions, >1 zig.modes, unopted experimental backends, unknown mutator names, empty/empty-string test commands, negative timeouts, baseline_required=false, non-positive run.jobs, output_dir outside root, and remote AI without remote_allowed (ZNTL_CONFIG_PARSE_ERROR/UNKNOWN_KEY/INVALID_VALUE/EXPERIMENTAL_BACKEND); normalizes paths to forward slashes; expands phase1/phase2/all_stable from the MUTATOR_SPEC operator table. Mutator special-value expansion is deterministic name expansion, independent of which mutator implementation tasks are complete (runtime gating is a later concern). src/root.zig re-exports config/config_toml (deterministic-core module hub) and adds initConfigText; config-aware init --test-command and --backend ast are wired through dispatch, and init --backend zir|air is rejected without enabling experimental backends. Task 002 allowed_files was corrected to include src/root.zig because the zentinel library module root is the deterministic-core re-export hub and owns the shared CLI dispatch these options extend.",
+      "files_changed": [
+        "src/config.zig",
+        "src/config_toml.zig",
+        "src/cli.zig",
+        "src/main.zig",
+        "src/root.zig",
+        "test/config_test.zig",
+        "test/cli_test.zig",
+        "tests/coverage-gaps/failure_modes.v1.json"
+      ],
+      "tests_added": [
+        "test/config_test.zig"
+      ],
+      "tests_run": [
+        "zig build test: 9/9 steps, 39/39 tests passed across 4 auto-discovered test files",
+        "zig build: executable compiled",
+        "zentinel binary verified: init --test-command writes commands=[custom]; init --backend zir exits 2 without enabling experimental backends; init --force --backend ast exits 0",
+        "zig fmt --check src test/config_test.zig test/cli_test.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task-system consistency green with task 002 complete; config behavior proven by zig build test and direct binary verification."
+      },
+      "dogfooding_implication": "Config validation is deterministic and branch-heavy, making it an early mutation/dogfood target. No dogfood run yet.",
+      "follow_up_tasks": [
+        "tasks/003-test-harness.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-003", "F-004", "F-005", "F-040"]
       }
     }
   ],

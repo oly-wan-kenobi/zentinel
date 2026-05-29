@@ -1582,7 +1582,7 @@
       "title": "Config Parser",
       "file": "tasks/002-config-parser.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "001"
       ],
@@ -1591,6 +1591,7 @@
         "src/config_toml.zig",
         "src/cli.zig",
         "src/main.zig",
+        "src/root.zig",
         "test/cli_test.zig",
         "test/config_test.zig",
         "test/fixtures/config/**",

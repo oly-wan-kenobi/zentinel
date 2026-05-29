@@ -8,6 +8,7 @@ const config_path = "zentinel.toml";
 /// deterministic dispatch in the zentinel core, writes output, and performs the
 /// init file write. All decision logic lives in `zentinel.dispatch`.
 pub fn run(
+    gpa: std.mem.Allocator,
     io: std.Io,
     dir: std.Io.Dir,
     args: []const []const u8,
@@ -30,7 +31,8 @@ pub fn run(
     }
 
     if (outcome.write_config) {
-        try dir.writeFile(io, .{ .sub_path = config_path, .data = zentinel.default_config });
+        const text = try zentinel.initConfigText(gpa, outcome.init_test_command);
+        try dir.writeFile(io, .{ .sub_path = config_path, .data = text });
     }
 
     return outcome.exit_code;

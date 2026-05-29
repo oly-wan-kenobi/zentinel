@@ -77,12 +77,31 @@ test "--no-color parses before dispatch and keeps help byte-stable" {
     try std.testing.expectEqualStrings(cli_help_snapshot, out.stdout);
 }
 
-test "config-aware init options owned by task 002 return ZNTL_CLI_INVALID_OPTION" {
+test "config-aware init accepts --test-command (owned by task 002)" {
     const out = dispatch(&[_][]const u8{ "init", "--test-command", "zig build test" }, false);
-    try std.testing.expectEqual(@as(u8, 2), out.exit_code);
-    try std.testing.expect(out.error_code == .cli_invalid_option);
-    try std.testing.expectEqualStrings("ZNTL_CLI_INVALID_OPTION", out.error_code.token());
-    try std.testing.expectEqualStrings("--test-command", out.detail);
+    try std.testing.expectEqual(@as(u8, 0), out.exit_code);
+    try std.testing.expect(out.write_config);
+    try std.testing.expect(out.init_test_command != null);
+    try std.testing.expectEqualStrings("zig build test", out.init_test_command.?);
+}
+
+test "config-aware init accepts --backend ast" {
+    const out = dispatch(&[_][]const u8{ "init", "--backend", "ast" }, false);
+    try std.testing.expectEqual(@as(u8, 0), out.exit_code);
+    try std.testing.expect(out.write_config);
+}
+
+test "init rejects experimental --backend zir/air without enabling them" {
+    const zir = dispatch(&[_][]const u8{ "init", "--backend", "zir" }, false);
+    try std.testing.expectEqual(@as(u8, 2), zir.exit_code);
+    try std.testing.expect(zir.error_code == .cli_invalid_option);
+    try std.testing.expect(!zir.write_config);
+    try std.testing.expectEqualStrings("zir", zir.detail);
+
+    const air = dispatch(&[_][]const u8{ "init", "--backend", "air" }, false);
+    try std.testing.expectEqual(@as(u8, 2), air.exit_code);
+    try std.testing.expect(!air.write_config);
+    try std.testing.expectEqualStrings("air", air.detail);
 }
 
 test "known future global option returns ZNTL_CLI_INVALID_OPTION before its owner task" {

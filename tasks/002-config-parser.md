@@ -24,6 +24,7 @@ Implement parsing and validation for `zentinel.toml` according to `docs/CONFIG_S
 - `src/config_toml.zig`
 - `src/cli.zig`
 - `src/main.zig`
+- `src/root.zig`
 - `test/cli_test.zig`
 - `test/config_test.zig`
 - `test/fixtures/config/**`

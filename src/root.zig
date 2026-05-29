@@ -12,6 +12,22 @@ pub const version = "0.0.0";
 /// compatibility diagnostics. Task 001 must not invoke `zig version`.
 pub const supported_zig_version = "0.16.0";
 
+/// Config parsing and validation (deterministic core).
+pub const config = @import("config.zig");
+pub const config_toml = @import("config_toml.zig");
+
+/// Render the deterministic default `zentinel.toml`, optionally substituting the
+/// baseline test command for config-aware `init --test-command`.
+pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
+    const cmd = test_command orelse return default_config;
+    const needle = "commands = [\"zig build test\"]";
+    const replacement = try std.fmt.allocPrint(arena, "commands = [\"{s}\"]", .{cmd});
+    const size = std.mem.replacementSize(u8, default_config, needle, replacement);
+    const out = try arena.alloc(u8, size);
+    _ = std.mem.replace(u8, default_config, needle, replacement, out);
+    return out;
+}
+
 /// Deterministic, snapshot-tested `--help` output. Mirrors test/snapshots/cli_help.txt.
 pub const help_text =
     \\zentinel - Zig-native mutation testing
@@ -115,8 +131,10 @@ pub const Outcome = struct {
     error_code: ErrorCode = .none,
     /// Offending command or option name for coded errors; slices into `args`.
     detail: []const u8 = "",
-    /// When true, the adapter writes `default_config` to zentinel.toml.
+    /// When true, the adapter writes the init config to zentinel.toml.
     write_config: bool = false,
+    /// Baseline test command for config-aware `init --test-command`; null uses the default template.
+    init_test_command: ?[]const u8 = null,
 };
 
 /// Roadmap commands recognized but not implemented by the Phase 0 CLI shell.
@@ -194,14 +212,25 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
 
 fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
     var force = false;
-    for (rest) |arg| {
+    var test_command: ?[]const u8 = null;
+    var i: usize = 0;
+    while (i < rest.len) : (i += 1) {
+        const arg = rest[i];
         if (eq(arg, "--force")) {
             force = true;
-            continue;
+        } else if (eq(arg, "--test-command")) {
+            i += 1;
+            if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
+            test_command = rest[i];
+        } else if (eq(arg, "--backend")) {
+            i += 1;
+            if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--backend" };
+            const value = rest[i];
+            // init only writes the stable AST backend; it never enables experimental backends.
+            if (!eq(value, "ast")) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = value };
+        } else {
+            return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = arg };
         }
-        // --test-command and --backend are owned by task 002; reject until then.
-        // Any other option or positional is an invalid option for the shell.
-        return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = arg };
     }
 
     if (config_exists and !force) {
@@ -211,7 +240,7 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
         };
     }
 
-    return .{ .stdout = "created zentinel.toml\n", .write_config = true };
+    return .{ .stdout = "created zentinel.toml\n", .write_config = true, .init_test_command = test_command };
 }
 
 test "project name is the stable constant" {
