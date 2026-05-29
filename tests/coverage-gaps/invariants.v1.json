@@ -12,9 +12,9 @@
     },
     {
       "number": "I-002",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/009-ast-candidate-ordering.md",
+      "covered": true,
+      "tests": ["test/ast_candidate_ordering_test.zig", "test/mutant_model_test.zig"],
+      "deferred_to": null,
       "notes": "Candidate determinism requires AST candidate ordering and mutant model tests."
     },
     {

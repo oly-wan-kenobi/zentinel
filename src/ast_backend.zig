@@ -13,6 +13,7 @@
 //   - Ast.nodes: MultiArrayList(Node).Slice; nodes.items(.tag) -> []Node.Tag
 const std = @import("std");
 const source_map = @import("source_map.zig");
+const mutant = @import("mutant.zig");
 
 /// A parse diagnostic mapped to a file and 1-based location. `message` is the
 /// stable `std.zig.Ast` error tag name; full human rendering is deferred.
@@ -102,3 +103,34 @@ pub fn parse(gpa: std.mem.Allocator, file: []const u8, source: []const u8) !Pars
         .gpa = gpa,
     };
 }
+
+/// A candidate is a shared mutant whose durable id is assigned during collection.
+pub const Candidate = mutant.Mutant;
+
+/// Collects AST backend candidates and produces a deterministic, deduplicated
+/// candidate set. Recognizers (task 010+) feed candidates through `add`; this
+/// spike only provides the collection/ordering interface and enables no
+/// operators itself.
+pub const Collector = struct {
+    allocator: std.mem.Allocator,
+    items: std.ArrayList(Candidate),
+
+    pub fn init(allocator: std.mem.Allocator) Collector {
+        return .{ .allocator = allocator, .items = .empty };
+    }
+
+    pub fn add(self: *Collector, candidate: Candidate) std.mem.Allocator.Error!void {
+        try self.items.append(self.allocator, candidate);
+    }
+
+    /// Assign durable ids, sort by canonical candidate order, and remove
+    /// exact-identity duplicates.
+    pub fn finish(self: *Collector) std.mem.Allocator.Error![]mutant.Mutant {
+        for (self.items.items) |*candidate| try mutant.assignId(self.allocator, candidate);
+        return mutant.sortAndDedupe(self.allocator, self.items.items);
+    }
+
+    pub fn deinit(self: *Collector) void {
+        self.items.deinit(self.allocator);
+    }
+};

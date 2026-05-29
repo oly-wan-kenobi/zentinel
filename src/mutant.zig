@@ -175,3 +175,25 @@ pub fn lessThan(_: void, a: Mutant, b: Mutant) bool {
 pub fn sort(mutants: []Mutant) void {
     std.mem.sort(Mutant, mutants, {}, lessThan);
 }
+
+/// Compute the durable id from `m.identity()` and store it in `m.id`, allocating
+/// the id bytes into `arena`.
+pub fn assignId(arena: std.mem.Allocator, m: *Mutant) std.mem.Allocator.Error!void {
+    const id = computeId(m.identity());
+    m.id = try arena.dupe(u8, &id);
+}
+
+/// Return a canonically-sorted copy of `mutants` with exact-identity duplicates
+/// (equal durable id) removed. Ids must already be assigned. Deterministic:
+/// identical candidates share canonical sort keys, so they are adjacent after
+/// sorting and equal-id neighbors are dropped.
+pub fn sortAndDedupe(arena: std.mem.Allocator, mutants: []const Mutant) std.mem.Allocator.Error![]Mutant {
+    const copy = try arena.dupe(Mutant, mutants);
+    sort(copy);
+    var out: std.ArrayList(Mutant) = .empty;
+    for (copy, 0..) |m, i| {
+        if (i > 0 and std.mem.eql(u8, m.id, copy[i - 1].id)) continue;
+        try out.append(arena, m);
+    }
+    return out.toOwnedSlice(arena);
+}

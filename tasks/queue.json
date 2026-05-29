@@ -1766,7 +1766,7 @@
       "title": "AST Candidate Ordering",
       "file": "tasks/009-ast-candidate-ordering.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "008"
       ],
