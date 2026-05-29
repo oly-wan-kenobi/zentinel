@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "008",
+  "next_task": "009",
   "completed_tasks": [
     "068",
     "069",
@@ -47,17 +47,68 @@
     "004",
     "005",
     "006",
-    "007"
+    "007",
+    "008"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 007 mutant model completed; active-state and complete-state validation passed after closing gap rows F-009 and I-011."
+    "notes": "Task 008 AST parser spike completed; active-state and complete-state validation passed after closing gap rows F-007 and F-008."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "008",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_parser_test.zig:3:28: error: root source file struct 'root' has no member named 'source_map'` and the same for `ast_backend` (Build Summary: 24/27 steps succeeded (1 failed); 108/108 tests passed) — the parser tests could not compile because src/source_map.zig and src/ast_backend.zig did not exist. implementation_started_after_failure: true; both modules and the root.zig re-exports were written only after capturing the missing-module failure. A subsequent `zig fmt --check test` failure on the deliberately-invalid fixture led to storing it as `.zig.txt` so fmt does not parse it. passing_command: `zig build test` then succeeded with 27/27 steps and 113/113 tests passed and `zig fmt --check src test` is clean.",
+      "implementation_summary": "Added src/source_map.zig (pure byte <-> 1-based line/column mapping with locate/byteOf round-trip and out-of-range guardrails, independent of the parser) and src/ast_backend.zig (a wrapper over the pinned std.zig.Ast that owns a null-terminated source copy, reports parse diagnostics mapped to file + 1-based location, and exposes deterministic node-index traversal). Verified std.zig.Ast API surface against installed Zig 0.16.0: std.zig.Ast.parse(gpa, source: [:0]const u8, mode: .zig) Allocator.Error!Ast; Ast.deinit(gpa); Ast.source: [:0]const u8; Ast.errors: []const Ast.Error with Error.tag (used via @tagName) and Error.is_note; Ast.errorOffset(Error) u32; Ast.nodes: std.MultiArrayList(Node).Slice accessed as nodes.items(.tag) -> []Node.Tag. Also available and recorded for later tasks: Ast.tokenStart, Ast.tokenSlice, Ast.firstToken/lastToken, Ast.nodeToSpan(node) Span{start,end,main}, and Ast.tokenLocation. The adapter wraps these so a future Zig pin change is isolated to one module. No mutation operators are enabled (task non-goal).",
+      "files_changed": [
+        "src/source_map.zig",
+        "src/ast_backend.zig",
+        "src/root.zig",
+        "test/ast_parser_test.zig",
+        "test/fixtures/ast_parser/valid.zig",
+        "test/fixtures/ast_parser/invalid.zig.txt",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ast_parser_test.zig: byte <-> line/column round-trip across every offset including EOF; out-of-range offset/position guardrails (F-008); valid Zig parse with no diagnostics and a non-empty node set; parse diagnostics with file and 1-based location on invalid Zig (F-007); and deterministic node-index traversal signature for identical source.",
+        "test/fixtures/ast_parser/valid.zig and test/fixtures/ast_parser/invalid.zig.txt."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing-module compile error while 108 prior tests still passed",
+        "zig build test (passing): 27/27 steps succeeded, 113/113 tests passed",
+        "zig build install: exe still builds (root.zig re-exports the new modules)",
+        "zig fmt --check src test: clean after storing the invalid fixture as .zig.txt",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 008 was active after the parser/source-map modules and tests landed, and again after the complete-state transition with gap rows F-007 and F-008 closed."
+      },
+      "dogfooding_implication": "Source mapping defects would make dogfood reports untrustworthy; the round-trip and guardrail tests are established before any mutator depends on byte/line/column mapping. The parser API surface is now pinned behind one adapter. No mutation run exists yet.",
+      "follow_up_tasks": [
+        "tasks/009-ast-candidate-ordering.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-007",
+          "F-008"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "007",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_model_test.zig:3:24: error: root source file struct 'root' has no member named 'mutant'` (Build Summary: 22/25 steps succeeded (1 failed); 100/100 tests passed) — the mutant-model tests could not compile because src/mutant.zig did not exist. implementation_started_after_failure: true; src/mutant.zig, the report.zig type aliases, and the root.zig re-export were written only after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 25/25 steps and 108/108 tests passed.",

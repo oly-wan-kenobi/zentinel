@@ -28,6 +28,12 @@ pub const check_command = @import("check_command.zig");
 /// Shared mutant model + durable `m_...` identity algorithm (deterministic core).
 pub const mutant = @import("mutant.zig");
 
+/// Pure byte <-> line/column source mapping (deterministic core).
+pub const source_map = @import("source_map.zig");
+
+/// AST parsing adapter over the pinned std.zig.Ast (deterministic core).
+pub const ast_backend = @import("ast_backend.zig");
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

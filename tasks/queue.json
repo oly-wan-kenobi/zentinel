@@ -1740,7 +1740,7 @@
       "title": "AST Parser Spike",
       "file": "tasks/008-ast-parser-spike.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "007"
       ],
