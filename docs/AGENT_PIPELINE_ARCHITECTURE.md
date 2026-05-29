@@ -4,7 +4,7 @@ zentinel is developed by a sequential AI-agent pipeline. The pipeline is designe
 
 The pipeline is not product AI. It is the engineering operating system used to build zentinel.
 
-Codex-facing role profiles and workflow runbooks live under `.agents/`. This document defines the stable architecture of the pipeline; `.agents/` defines how Codex agents execute it. zentinel intentionally has no `.claude/` directory.
+Agent-facing role profiles and workflow runbooks live under `.agents/`. This document defines the stable architecture of the pipeline; `.agents/` defines how agents execute it. zentinel intentionally commits no `.claude/` directory.
 
 ## Core Architecture
 

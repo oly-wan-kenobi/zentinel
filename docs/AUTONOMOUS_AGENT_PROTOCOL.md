@@ -10,13 +10,13 @@ When instructions conflict, use this order:
 2. `AGENTS.md`.
 3. Machine-readable task state in `tasks/queue.json` and `tasks/status.json`.
 4. The active task markdown file.
-5. Codex operating contracts under `.agents/`.
+5. Agent operating contracts under `.agents/`.
 6. Specification docs under `docs/`.
 7. Existing implementation patterns.
 
 If machine-readable state and Markdown disagree, stop implementation work and repair state synchronization first.
 
-zentinel uses Codex-only development orchestration. Do not create `.claude/` or provider-specific command/profile files. Translate useful external agent patterns into `.agents/`, `docs/`, `tasks/`, or `scripts/`.
+zentinel uses provider-neutral development orchestration: any MCP-capable agent runtime (for example Codex or Claude) may drive it by following the `.agents/` contracts. Do not commit provider-specific files such as `.claude/` or other runtime command/profile/settings files. Translate useful runtime-specific agent patterns into provider-neutral `.agents/`, `docs/`, `tasks/`, or `scripts/` form.
 
 ## Standard Agent Loop
 
@@ -170,7 +170,7 @@ An autonomous implementation may be performed by one agent only if no multi-agen
 
 When subagents are available and explicitly authorized by the user or environment, the Test Author and Implementer should be separate agents. Tests must not be weakened by the Implementer.
 
-Detailed Codex role profiles live under `.agents/roles/`. Workflow runbooks live under `.agents/workflows/`.
+Detailed agent role profiles live under `.agents/roles/`. Workflow runbooks live under `.agents/workflows/`.
 
 ## Follow-Up Task Rules
 

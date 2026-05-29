@@ -30,7 +30,7 @@ Before task `041`, the synchronized task files are the canonical active-task loc
 When branches are used:
 
 - one branch per active task
-- branch name starts with `codex/`
+- branch name uses an agent-task prefix such as `agent/<task-id>`
 - do not mix multiple task implementations on one branch
 - merge only after verification passes
 

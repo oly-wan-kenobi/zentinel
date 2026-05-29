@@ -16,10 +16,10 @@ This repository is designed for sequential AI-agent development. Agents must pre
 10. Keep AI advisory behavior separate from deterministic core behavior.
 11. Run `python3 scripts/validate_task_system.py` before and after task state changes.
 12. Treat public documentation examples as future executable contracts and use doctest block formats when adding examples.
-13. Follow the Codex operating layer in `.agents/README.md` and `.agents/ORCHESTRATOR.md` for every non-trivial task.
+13. Follow the agent operating layer in `.agents/README.md` and `.agents/ORCHESTRATOR.md` for every non-trivial task.
 14. Update `tests/coverage-gaps/` when adding or covering invariants, failure modes, stable mutators, or schema contracts.
 15. Use ADRs under `docs/adr/` for foundational decisions that future agents should not re-litigate.
-16. Do not add `.claude/`; translate provider-specific agent patterns into Codex-neutral `.agents/`, `docs/`, `tasks/`, or `scripts/`.
+16. Do not commit provider-specific files such as `.claude/`; translate runtime-specific agent patterns into provider-neutral `.agents/`, `docs/`, `tasks/`, or `scripts/` form.
 
 `scripts/validate_task_system.py` validates task-system consistency, not product semantic correctness. A passing validator run proves the queue, status, guardrail wording, and registered contracts are synchronized; task-specific failing tests, snapshots, schemas, doctests, dogfood runs, and semantic validators still prove product behavior. A validator pass is not product proof and does not replace task-specific failing evidence.
 
@@ -61,7 +61,7 @@ A non-null clean handoff baseline is only valid for uncommitted prior-task files
 
 ## Agent Pipeline
 
-Codex role profiles and workflow runbooks live under `.agents/`. The `docs/` files define stable project contracts; `.agents/` defines how Codex agents operate against those contracts.
+Agent role profiles and workflow runbooks live under `.agents/`. The `docs/` files define stable project contracts; `.agents/` defines how agents operate against those contracts.
 
 The default engineering flow is:
 
@@ -248,7 +248,7 @@ Task `041` is the cutover point for durable handoff artifacts. After it is compl
 
 | Need | Read |
 | --- | --- |
-| Codex agent operating layer | `.agents/README.md` |
+| Agent operating layer | `.agents/README.md` |
 | Orchestrator dispatch | `.agents/ORCHESTRATOR.md` |
 | Role operating profiles | `.agents/roles/` |
 | Workflow runbooks | `.agents/workflows/` |

@@ -1,6 +1,6 @@
-# Codex Orchestrator Contract
+# Agent Orchestrator Contract
 
-The Orchestrator coordinates Codex roles while preserving zentinel's sequential task system. It is a dispatch contract, not an executable runtime.
+The Orchestrator coordinates agent roles while preserving zentinel's sequential task system. It is a dispatch contract, not an executable runtime.
 
 The Orchestrator does not own product truth. It reads `AGENTS.md`, task state, active task files, `.agents/roles/*.md`, and the relevant `docs/` contracts, then routes work through the smallest safe role sequence.
 
@@ -84,7 +84,7 @@ When in doubt, choose the higher-risk route.
 - Mutation Triage Agent must not call a survivor equivalent without a deterministic rule or accepted project policy.
 - Task Queue Manager owns task state updates, not code quality approval.
 
-If only one Codex agent is available, the same chat may execute multiple roles sequentially, but each role must produce separate evidence and must not erase failed evidence from earlier roles.
+If only one agent is available, the same session may execute multiple roles sequentially, but each role must produce separate evidence and must not erase failed evidence from earlier roles.
 
 ## Rejection Loop
 
@@ -153,4 +153,4 @@ Stop implementation work and repair the operating state when:
 
 ## Provider Boundary
 
-This repository is Codex-only for development orchestration. Do not add Claude-specific directories, role metadata, slash commands, or settings. If a useful pattern comes from another project, translate the pattern into `.agents/`, `docs/`, `tasks/`, or `scripts/` without preserving provider-specific bindings.
+This repository's development orchestration is provider-neutral: any MCP-capable agent runtime (for example Codex or Claude) may drive it by following the `.agents/` contracts. Do not commit provider-specific directories, role metadata, slash commands, or settings (such as `.claude/`) to the repository. If a useful pattern comes from a specific runtime, translate it into provider-neutral `.agents/`, `docs/`, `tasks/`, or `scripts/` form without preserving runtime-specific bindings.

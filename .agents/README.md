@@ -1,10 +1,10 @@
-# zentinel Codex Agent Layer
+# zentinel Agent Operating Layer
 
-This directory contains the Codex-only operating layer for building zentinel with autonomous agents.
+This directory contains the provider-neutral operating layer for building zentinel with autonomous agents.
 
-It is not a second product documentation tree. Product contracts, architecture, invariants, style, harness rules, failure modes, schemas, and ADRs stay under `docs/`. This directory explains how Codex agents should dispatch roles, route handoffs, and run task workflows against those contracts.
+It is not a second product documentation tree. Product contracts, architecture, invariants, style, harness rules, failure modes, schemas, and ADRs stay under `docs/`. This directory explains how agents should dispatch roles, route handoffs, and run task workflows against those contracts.
 
-Do not add `.claude/` to this repository. zentinel is developed by Codex, and agent instructions must remain Codex-neutral instead of binding the project to Claude Code commands, model names, or permission files.
+Do not commit provider-specific files such as `.claude/` to this repository. zentinel is developed by autonomous agents, and agent instructions must remain provider-neutral (runnable by Codex, Claude, or any MCP-capable runtime) instead of binding the project to one runtime's commands, model names, or permission files.
 
 ## Directory Map
 
@@ -38,7 +38,7 @@ Do not add `.claude/` to this repository. zentinel is developed by Codex, and ag
 
 ## Authority Boundary
 
-Use this authority order when operating as a Codex agent:
+Use this authority order when operating as an agent:
 
 1. System, developer, and direct user instructions.
 2. `AGENTS.md`.
@@ -70,11 +70,11 @@ If a role profile conflicts with a project contract under `docs/`, stop and repa
 - runtime source code
 - provider-specific command files such as `.claude/commands`
 
-## Codex Usage
+## Subagent Usage
 
-When Codex subagents are available and the environment explicitly permits them, dispatch separate agents for roles that must not share authority, especially Test Author versus Implementer and Reviewer versus Implementer.
+When subagents are available and the environment explicitly permits them, dispatch separate agents for roles that must not share authority, especially Test Author versus Implementer and Reviewer versus Implementer.
 
-When only one Codex agent is available, preserve the same logical separation by running the roles sequentially and recording each role's evidence in the task status or pipeline artifacts. A single agent may execute multiple roles, but it must not use implementation knowledge to weaken tests or review its own changes without a separate review pass.
+When only one agent is available, preserve the same logical separation by running the roles sequentially and recording each role's evidence in the task status or pipeline artifacts. A single agent may execute multiple roles, but it must not use implementation knowledge to weaken tests or review its own changes without a separate review pass.
 
 ## Role Summary
 
@@ -116,7 +116,7 @@ Pre-`041` handoffs are recorded in the active task's `tasks/STATUS.md` completio
 
 After task `041` introduces the artifact tree, writes under `artifacts/pipeline/<active-task-id>/**` are a task-scoped audit exception to normal allowed-file lists. That exception is limited to pipeline evidence and never authorizes source, docs, tests, schema, task-state, or another task's artifact changes.
 
-Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a separate row-scoped exception. A Codex role may update only the row that corresponds to the invariant, failure mode, stable mutator, or schema contract added, changed, or covered by the active task.
+Gap registry updates under `tests/coverage-gaps/<registry>.v1.json` are a separate row-scoped exception. A role may update only the row that corresponds to the invariant, failure mode, stable mutator, or schema contract added, changed, or covered by the active task.
 
 Pre-artifact handoffs must include:
 

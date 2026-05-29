@@ -41,7 +41,7 @@ For behavior changes, also read:
 - Never use AI output to determine mutation correctness.
 - Dogfood zentinel as soon as the task system requires it.
 - Cite `docs/INVARIANTS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, or ADR IDs when they govern a non-obvious choice.
-- Develop zentinel with Codex-only agent contracts under `.agents/`; do not add `.claude/` or Claude-specific command/profile files.
+- Develop zentinel with provider-neutral agent contracts under `.agents/`; any MCP-capable agent runtime (for example Codex or Claude) may drive development by following them. Do not commit provider-specific files such as `.claude/` or other runtime command/profile/settings files to the repository.
 
 ## Machine-Checkable Workflow
 
