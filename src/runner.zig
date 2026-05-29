@@ -62,11 +62,12 @@ fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.
     return arena.dupe(u8, text[0..len]);
 }
 
-/// Classify one raw outcome into a baseline `CommandResult`. Status is derived
-/// only from the command outcome (runner evidence authority, I-001); AI cannot
-/// influence it.
-pub fn classifyBaseline(
+/// Classify one raw outcome into a `CommandResult` for the given phase. Status is
+/// derived only from the command outcome (runner evidence authority, I-001); AI
+/// cannot influence it. Reused for baseline and mutant command classification.
+pub fn classifyCommand(
     arena: std.mem.Allocator,
+    phase: report.Phase,
     original: []const u8,
     argv: []const []const u8,
     cwd: []const u8,
@@ -108,7 +109,7 @@ pub fn classifyBaseline(
             .environment_policy = .minimal,
             .shell = false,
         },
-        .phase = .baseline,
+        .phase = phase,
         .status = status,
         .exit_code = exit_code,
         .timed_out = raw.timed_out,
@@ -142,7 +143,7 @@ pub fn runBaseline(
             .invalid => return error.InvalidCommand,
         };
         const raw = executor.run(argv);
-        const result = try classifyBaseline(arena, original, argv, cwd, raw);
+        const result = try classifyCommand(arena, .baseline, original, argv, cwd, raw);
         if (result.status != .passed) all_passed = false;
         try results.append(arena, result);
     }

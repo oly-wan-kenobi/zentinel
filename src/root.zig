@@ -49,6 +49,9 @@ pub const sandbox = @import("sandbox.zig");
 /// Baseline runner: classifies test-command outcomes via an injected executor (deterministic core).
 pub const runner = @import("runner.zig");
 
+/// Mutant runner: runs one patched mutant and classifies the result (deterministic core).
+pub const mutant_runner = @import("mutant_runner.zig");
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

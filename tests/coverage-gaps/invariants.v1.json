@@ -68,9 +68,9 @@
     },
     {
       "number": "I-010",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/015-mutant-runner.md",
+      "covered": true,
+      "tests": ["test/mutant_runner_test.zig"],
+      "deferred_to": null,
       "notes": "Compile-error classification lands with mutant runner tests."
     },
     {
@@ -153,9 +153,9 @@
     },
     {
       "number": "I-021",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/015-mutant-runner.md",
+      "covered": true,
+      "tests": ["test/mutant_runner_test.zig"],
+      "deferred_to": null,
       "notes": "Compiler crash classification lands with mutant runner tests."
     },
     {

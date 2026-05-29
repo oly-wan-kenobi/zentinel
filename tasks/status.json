@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "015",
+  "next_task": "016",
   "completed_tasks": [
     "068",
     "069",
@@ -55,17 +55,76 @@
     "011",
     "012",
     "013",
-    "014"
+    "014",
+    "015"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 014 baseline runner completed; active-state and complete-state validation passed after closing F-013, F-042, and I-001."
+    "notes": "Task 015 mutant runner completed; active-state and complete-state validation passed after closing F-010, F-014, F-015, F-016, F-017, F-032, I-010, and I-021."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "015",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_runner_test.zig:3:31: error: root source file struct 'root' has no member named 'mutant_runner'` (139/139 prior tests passed). implementation_started_after_failure: true; src/mutant_runner.zig, the runner.classifyCommand generalization, and the root.zig re-export were written after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 43/43 steps and 147/147 tests passed.",
+      "implementation_summary": "Added src/mutant_runner.zig (deterministic_core): run() combines the mutant model, the patch sandbox, and the runner to run one patched mutant and classify it. It checks an injected WorkspaceOutcome (create_failed -> invalid with sandbox classifier source, covering F-010), applies the patch via sandbox.apply (SpanOutOfRange/PatchMismatch -> invalid), runs the mutant's commands through the injected runner.Executor with fail-fast (later commands recorded as skipped command results with a non-empty skip_reason and failure_kind=skipped), and classifies via classifyFromCommands. A failing command classifies as compile_error when its failure_kind is compile_error and killed when it is test_failure (I-010); timeout -> timeout; abnormal termination -> compiler_crash, not compile_error/invalid/internal_error (I-021); all-passing commands -> survived; status is derived only from command results and patch validity with a closed classifier_source enum (never AI). Generalized runner.classifyBaseline into runner.classifyCommand(phase) so baseline and mutant command classification share one implementation. No real process spawning or filesystem workspace creation in tests; those providers are injected and wired by the run command. No worker pool or cache (task non-goals).",
+      "files_changed": [
+        "src/mutant_runner.zig",
+        "src/runner.zig",
+        "src/root.zig",
+        "test/mutant_runner_test.zig",
+        "test/fixtures/mutant_runner/target.zig",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutant_runner_test.zig: killed (test failure), survived (tests pass), compile_error vs killed by failure_kind, compiler_crash distinct, timeout, invalid patch (sandbox classifier source + sandbox: summary), workspace creation failure (F-010), fail-fast recording later commands as skipped, and structured mutant command evidence (argv, phase=mutant).",
+        "test/fixtures/mutant_runner/target.zig: minimal source patched by the runner."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing-module compile error while 139 prior tests still passed",
+        "zig build test (passing): 43/43 steps succeeded, 147/147 tests passed",
+        "zig build install: exe still builds",
+        "zig fmt --check src test: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 015 was active after the mutant runner and tests landed, and again after the complete-state transition with F-010, F-014, F-015, F-016, F-017, F-032, I-010, and I-021 closed."
+      },
+      "dogfooding_implication": "Mutant result classification is the core execution behavior required for Stage 1 fixture dogfooding. Real process spawning and filesystem workspaces are injected and wired by the run command; classification is verified deterministically. No dogfood run exists yet.",
+      "follow_up_tasks": [
+        "tasks/016-minimal-run-command.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-010",
+          "F-014",
+          "F-015",
+          "F-016",
+          "F-017",
+          "F-032"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-010",
+          "I-021"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "014",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/runner_baseline_test.zig:3:24: error: root source file struct 'root' has no member named 'runner'` (132/132 prior tests passed); after implementing the runner, the snapshot test failed against a placeholder, seeding the baseline command-result fixture. implementation_started_after_failure: true; src/runner.zig and the root.zig re-export were written after capturing the missing-module failure, and test/fixtures/runner/baseline_command.json was generated from the actual serialized CommandResult. passing_command: `zig build test` then succeeded with 41/41 steps and 139/139 tests passed.",
