@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "003",
+  "next_task": "004",
   "completed_tasks": [
     "068",
     "069",
@@ -42,7 +42,8 @@
     "105",
     "000",
     "001",
-    "002"
+    "002",
+    "003"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -1265,6 +1266,36 @@
       "gap_registry_rows_changed": {
         "tests/coverage-gaps/failure_modes.v1.json": ["F-003", "F-004", "F-005", "F-040"]
       }
+    },
+    {
+      "task": "003",
+      "failing_evidence": "failing_command: zig build test. failing_output_excerpt: test/support/harness.zig:11:27: error: cannot assign to constant (the if/else widened the buffer to []const u8 before normalizePath mutated it), with 40/40 tests passing and the harness module failing to compile. implementation_started_after_failure: test/harness_test.zig was authored as executable specifications and test/support/harness.zig implemented to satisfy them; the const-assignment compile error surfaced and was fixed by returning a mutable []u8 from replaceAll. passing_command: zig build test (44/44).",
+      "implementation_summary": "Added deterministic test-support helpers and recursive test discovery. test/support/harness.zig: normalizePath (absolute project root to <project>, backslashes to forward slashes), normalizeDurationMs (duration_ms integer values to <duration>), expectSnapshot, isolated tempDir wrapping std.testing.tmpDir, and fixturePath. test/harness_test.zig covers normalization, snapshot comparison, and temp-dir isolation. build.zig now discovers test/**/*_test.zig recursively (via Io.Dir Walker) so future nested test files are picked up without build.zig edits; only *_test.zig files are entrypoints, so non-test fixture sources are excluded. test/fixtures/harness/test_discovery/nested_probe_test.zig is a nested probe proving recursive discovery.",
+      "files_changed": [
+        "build.zig",
+        "test/support/harness.zig",
+        "test/harness_test.zig",
+        "test/fixtures/harness/test_discovery/nested_probe_test.zig"
+      ],
+      "tests_added": [
+        "test/harness_test.zig",
+        "test/fixtures/harness/test_discovery/nested_probe_test.zig"
+      ],
+      "tests_run": [
+        "zig build test: 13/13 steps, 44/44 tests passed across 6 recursively discovered test files (including the nested probe)",
+        "zig build: executable still compiles",
+        "zig fmt --check build.zig test: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task-system consistency green with task 003 complete; recursive discovery and harness helpers proven by zig build test."
+      },
+      "dogfooding_implication": "The harness normalizes volatile output (absolute paths, durations) so future dogfood and report snapshots are stable across machines. No dogfood run yet.",
+      "follow_up_tasks": [
+        "tasks/004-fixture-system.md"
+      ]
     }
   ],
   "history": [

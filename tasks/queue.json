@@ -1611,7 +1611,7 @@
       "title": "Test Harness",
       "file": "tasks/003-test-harness.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "002"
       ],
