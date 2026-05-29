@@ -147,6 +147,10 @@ PRE_063_CHRONOLOGY_LABELS = [
 
 PIPELINE_ARTIFACT_EXCEPTION = "artifacts/pipeline/<active-task-id>/**"
 GAP_REGISTRY_EXCEPTION = "tests/coverage-gaps/<registry>.v1.json"
+# The deterministic-core library root is the module-export + shared-dispatch hub
+# (ADR-0009). Any task that introduces a core module must re-export it here, so
+# root.zig is a project-wide allowed-files scope exception rather than a per-task file.
+ROOT_MODULE_FILE = "src/root.zig"
 
 GOVERNANCE_FILES = [
     "docs/VISION.md",
@@ -1110,6 +1114,8 @@ def task_is_complete(tasks: list[dict[str, object]], task_id: str) -> bool:
 
 def is_global_scope_exception(path: str, active_task_id: str, tasks: list[dict[str, object]]) -> bool:
     if path in TASK_CONTROL_FILES:
+        return True
+    if path == ROOT_MODULE_FILE:
         return True
     if re.match(r"^tests/coverage-gaps/[^/]+\.v1\.json$", path):
         return True

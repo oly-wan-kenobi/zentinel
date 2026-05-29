@@ -33,6 +33,12 @@ Forbidden Import Edges:
 
 These layer names are architecture contracts, not package names. If a file's responsibility changes, update the layer declaration and dependency map in the same task.
 
+## Module Export Hub
+
+`src/root.zig` is the `zentinel` library module root and the deterministic-core module-export hub (ADR-0009). Tests reach code through `@import("zentinel")`, so every new deterministic-core module must be re-exported from `src/root.zig`, and the shared CLI command dispatch lives there because deterministic-core modules may not import presentation adapters.
+
+Because nearly every source task must touch it, `src/root.zig` is a project-wide `allowed_files` scope exception, like the task-control files and the gap registries. A task need not list `src/root.zig` in its `allowed_files`; it may edit `src/root.zig` to re-export the deterministic-core modules it introduces and to wire shared dispatch. These edits are limited to module re-exports and dispatch wiring — not unrelated product logic — and the architecture-layer validator still forbids deterministic-core from importing adapter layers.
+
 ## Module Dependency Direction
 
 Allowed dependency direction:
