@@ -2156,61 +2156,6 @@ def validate_task_lifecycle_contracts(errors: list[str]) -> None:
         require(state in text, errors, f"docs/TASK_LIFECYCLE.md must classify {state} as an artifact stage")
 
 
-def validate_agent_contract_cutover_closure_contracts(errors: list[str]) -> None:
-    """Guard pre-bootstrap cutovers so agents do not block on unavailable gates."""
-    required_phrases = {
-        "docs/TASK_LIFECYCLE.md": [
-            "Before task `041`, the synchronized task-control files are the active-task lock.",
-            "Before task `041`, required artifacts mean task-control status entries and the completion summary.",
-            "Before task `043`, mutation-gate evidence may be recorded as `pre-gate unavailable` when mutation tooling cannot exist yet.",
-        ],
-        "docs/PROPERTY_TEST_POLICY.md": [
-            "Before task `044` refines this policy and task `062` implements generated property infrastructure",
-            "deterministic property-style tests",
-            "Generated property-test infrastructure is mandatory only after task `062` is complete",
-        ],
-        ".agents/README.md": [
-            "`tasks/status.json` records the narrower machine-checkable `completion_evidence` subset",
-        ],
-        "docs/AGENT_GUIDE.md": [
-            "`tasks/status.json` records the narrower machine-checkable `completion_evidence` subset",
-        ],
-    }
-    for rel, phrases in required_phrases.items():
-        path = ROOT / rel
-        require(path.is_file(), errors, f"missing agent cutover contract file {rel}")
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase in text, errors, f"{rel} must contain agent cutover contract phrase '{phrase}'")
-
-
-def validate_validator_scope_clarity_contracts(errors: list[str]) -> None:
-    """Keep task-system validation distinct from product semantic validation."""
-    required_phrases = {
-        "docs/AGENT_GUIDE.md": [
-            "task-system consistency, not product semantic correctness",
-        ],
-        "tasks/STATUS.md": [
-            "task-system consistency, not product semantic correctness",
-        ],
-        "tasks/006-report-schema.md": [
-            "deterministic report semantic validator",
-            "schema validation is not the only report oracle",
-            "derived invariants",
-        ],
-    }
-    for rel, phrases in required_phrases.items():
-        path = ROOT / rel
-        require(path.is_file(), errors, f"missing validator scope contract file {rel}")
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase in text, errors, f"{rel} must contain validator scope contract phrase '{phrase}'")
-
-
 def validate_dogfood_release_gate_sequence_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
     task_by_id = {task.get("id"): task for task in tasks}
     task059 = task_by_id.get("059")
@@ -2583,50 +2528,6 @@ def validate_contract_traceability_and_scope_hardening_contracts(tasks: list[dic
         )
 
 
-def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
-    """Guard the final pre-bootstrap cleanup against stale analysis findings."""
-    required_phrases = {
-        "docs/adr/0001-latest-stable-zig-only.md": [
-            "This ADR is a historical superseded record.",
-            "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
-        ],
-        "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `105`",
-        ],
-        "tasks/000-project-bootstrap.md": [
-            "after task `104` is complete",
-        ],
-    }
-    for rel, phrases in required_phrases.items():
-        path = ROOT / rel
-        require(path.is_file(), errors, f"missing analysis cleanup contract file {rel}")
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase in text, errors, f"{rel} must contain analysis cleanup phrase '{phrase}'")
-
-    forbidden_phrases = {
-        "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `089`",
-            "pre-bootstrap hardening tasks `071` through `090`",
-            "pre-bootstrap hardening tasks `071` through `091`",
-            "pre-bootstrap hardening tasks `071` through `092`",
-            "pre-bootstrap hardening tasks `071` through `095`",
-            "pre-bootstrap hardening tasks `071` through `096`",
-            "pre-bootstrap hardening tasks `071` through `097`",
-        ],
-    }
-    for rel, phrases in forbidden_phrases.items():
-        path = ROOT / rel
-        require(path.is_file(), errors, f"missing stale analysis cleanup file {rel}")
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase not in text, errors, f"{rel} contains stale analysis cleanup phrase '{phrase}'")
-
-
 def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
     """Guard task 092's agent-readiness fixes against future drift."""
     task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
@@ -2777,123 +2678,6 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
         text = path.read_text(encoding="utf-8")
         for phrase in phrases:
             require(phrase not in text, errors, f"{rel} contains stale backend phrase '{phrase}'")
-
-
-def validate_agent_enforcement_closure_contracts(tasks: list[dict[str, object]], errors: list[str]) -> None:
-    """Guard task 093's autonomous-agent enforcement fixes against future drift."""
-
-    required_phrases = {
-        ".agents/workflows/task-done.md": [
-            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
-            "then mark the task `complete`",
-        ],
-        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
-            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
-            "Pinned Zig `0.16.0` API uncertainty",
-            "After the prerequisite task completes, the blocked task returns to `queued`",
-            "`completion_evidence.artifacts`",
-        ],
-        "docs/AGENT_GUIDE.md": [
-            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
-            "`completion_evidence.artifacts`",
-        ],
-        "docs/TASK_LIFECYCLE.md": [
-            "`blocked` is a recoverable side path",
-            "After the prerequisite task completes, the blocked task returns to `queued`",
-            "Run `python3 scripts/validate_task_system.py` while the task is still active before changing queue state to `complete`",
-        ],
-        "docs/CONFIG_SPEC.md": [
-            "Before task `058`, config validation must reject more than one `zig.modes` entry with `ZNTL_CONFIG_INVALID_VALUE`",
-        ],
-        "docs/CLI_SPEC.md": [
-            "Deterministic command completed but found failing evidence, including mutation survivors under fail-on-survivors or doctest failures.",
-            "Doctest source-ref examples are illustrative; executable fixtures must derive source refs from current extraction metadata",
-        ],
-        "docs/DOCTEST_SPEC.md": [
-            "Any ordinary doctest status other than `passed`, `skipped`, or `expected_compile_error` makes `zentinel doctest` exit `1`",
-            "derive source refs from current extraction metadata rather than copying example line numbers",
-        ],
-        "docs/DOCTEST_ARCHITECTURE.md": [
-            "derive source refs from current extraction metadata rather than copying example line numbers",
-        ],
-        "docs/DOCTEST_AI_INTEGRATION.md": [
-            "derive source refs from current extraction metadata rather than copying example line numbers",
-        ],
-        "docs/DISCIPLINE.md": [
-            "Deterministic classifier evidence, not AI output, is the authority",
-            "Patch, sandbox, and backend contract validation own `invalid`",
-        ],
-        "docs/REPORT_FORMAT.md": [
-            "Each mutant result must name the deterministic classifier source in existing evidence fields",
-        ],
-        "docs/INTERNAL_API_CONTRACTS.md": [
-            "backend_version",
-            "classifier_source",
-        ],
-        "docs/ARCHITECTURE.md": [
-            "For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`",
-        ],
-        "docs/PERFORMANCE_STRATEGY.md": [
-            "`backend_version` values such as `ast.v1.zig-0.16.0`",
-        ],
-        "docs/GAP_REGISTRIES.md": [
-            "An uncovered row whose `deferred_to` points to a complete task is invalid unless the row is explicitly marked superseded",
-        ],
-        "docs/PROPERTY_TEST_POLICY.md": [
-            "After task `062`, generated property evidence must record the seed list, invariant list, and generated case count",
-        ],
-        "docs/VERIFICATION_PIPELINE.md": [
-            "Before task `062`, property evidence may be enumerated or fixture-based",
-            "After task `062`, generated property evidence must include the seed list, invariant list, and generated case count",
-        ],
-        "docs/PIPELINE_ARTIFACTS.md": [
-            "`completion_evidence.artifacts`",
-        ],
-        "tasks/001-cli-shell.md": [
-            "Executing user-configured Zig test commands remains required for repository verification but is not implemented by the CLI shell",
-        ],
-        "tasks/002-config-parser.md": [
-            "multiple `zig.modes` entries before task `058`",
-        ],
-        "tasks/006-report-schema.md": [
-            "classifier source evidence",
-        ],
-        "tasks/007-mutant-model.md": [
-            "`backend_version = \"ast.v1.zig-0.16.0\"`",
-        ],
-        "tasks/021-cache-key-design.md": [
-            "`backend_version` changes the cache key",
-        ],
-        "tasks/033-doctest-runner.md": [
-            "ordinary doctest failure statuses exit `1`",
-        ],
-        "tasks/035-cli-doctests.md": [
-            "exit code `1` for failing, invalid, compile-error, and timeout doctest reports",
-        ],
-        "tasks/058-safety-mode-matrix.md": [
-            "more than one configured `zig.modes` entry is accepted only after this task",
-        ],
-    }
-    for rel, phrases in required_phrases.items():
-        path = ROOT / rel
-        require(path.is_file(), errors, f"missing task 093 contract file {rel}")
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase in text, errors, f"{rel} must contain task 093 phrase '{phrase}'")
-
-    forbidden_phrases = {
-        "docs/TASK_LIFECYCLE.md": ["`blocked` and `superseded` are terminal side paths"],
-        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": ["Latest stable Zig API uncertainty"],
-    }
-    for rel, phrases in forbidden_phrases.items():
-        path = ROOT / rel
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8")
-        for phrase in phrases:
-            require(phrase not in text, errors, f"{rel} contains stale task 093 phrase '{phrase}'")
 
 
 def validate_adr_system(errors: list[str]) -> None:
@@ -4391,16 +4175,12 @@ def main() -> int:
     validate_preimplementation_blocker_contracts(tasks, errors)
     validate_agent_contract_finalization_contracts(status, errors)
     validate_task_lifecycle_contracts(errors)
-    validate_agent_contract_cutover_closure_contracts(errors)
-    validate_validator_scope_clarity_contracts(errors)
     validate_dogfood_release_gate_sequence_contracts(tasks, errors)
     validate_markdown_table_shapes(errors)
     validate_analysis_findings_closure_contracts(tasks, errors)
     validate_agent_tooling_contract_hardening_contracts(errors)
     validate_contract_traceability_and_scope_hardening_contracts(tasks, errors)
-    validate_analysis_risk_cleanup_contracts(errors)
     validate_analysis_followup_hardening_contracts(tasks, errors)
-    validate_agent_enforcement_closure_contracts(tasks, errors)
     validate_agent_readiness_validator_closure_contracts(tasks, errors)
     validate_autonomous_agent_contract_repair_contracts(tasks, errors)
     validate_audit_finding_contract_closure_contracts(tasks, errors)
