@@ -64,7 +64,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 003 | `tasks/003-test-harness.md` | complete | 0 |
 | 004 | `tasks/004-fixture-system.md` | complete | 0 |
 | 005 | `tasks/005-version-policy.md` | complete | 0 |
-| 006 | `tasks/006-report-schema.md` | queued | 0 |
+| 006 | `tasks/006-report-schema.md` | complete | 0 |
 | 007 | `tasks/007-mutant-model.md` | queued | 1 |
 | 008 | `tasks/008-ast-parser-spike.md` | queued | 1 |
 | 009 | `tasks/009-ast-candidate-ordering.md` | queued | 1 |

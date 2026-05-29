@@ -1691,7 +1691,7 @@
       "title": "Report Schema",
       "file": "tasks/006-report-schema.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "005"
       ],

@@ -25,6 +25,9 @@ pub const command = @import("command.zig");
 /// `zentinel check` orchestration (deterministic core).
 pub const check_command = @import("check_command.zig");
 
+/// Typed report model + deterministic JSON serialization (deterministic core).
+pub const report = @import("report.zig");
+
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
 /// baseline test command for config-aware `init --test-command`.
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {

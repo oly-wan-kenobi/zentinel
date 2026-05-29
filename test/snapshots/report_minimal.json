@@ -1,0 +1,64 @@
+{
+  "schema_version": "zentinel.report.v1",
+  "run": {
+    "id": "run_0000000000000000000000000",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.1.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel run",
+    "config_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "project_root": "<project>",
+    "started_at": "<normalized>",
+    "duration_ms": 0
+  },
+  "baseline": {
+    "status": "passed",
+    "commands": [
+      {
+        "command": {
+          "original": "zig build test",
+          "argv": [
+            "zig",
+            "build",
+            "test"
+          ],
+          "cwd": "<project>",
+          "environment_policy": "minimal",
+          "shell": false
+        },
+        "phase": "baseline",
+        "status": "passed",
+        "exit_code": 0,
+        "timed_out": false,
+        "failure_kind": "none",
+        "duration_ms": 0,
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "",
+          "failure_summary": ""
+        },
+        "skip_reason": null
+      }
+    ]
+  },
+  "diagnostics": {
+    "cache": {
+      "enabled": false,
+      "mode": "disabled",
+      "hits": 0,
+      "misses": 0
+    }
+  },
+  "summary": {
+    "total": 0,
+    "killed": 0,
+    "survived": 0,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "mutants": []
+}
