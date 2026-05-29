@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "000",
+  "next_task": "001",
   "completed_tasks": [
     "068",
     "069",
@@ -39,7 +39,8 @@
     "102",
     "103",
     "104",
-    "105"
+    "105",
+    "000"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -1155,6 +1156,37 @@
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after AI-context output-bound wording consistently uses 4096 UTF-8 bytes. No zentinel runtime exists yet, so no dogfood run was expected.",
       "follow_up_tasks": [
         "tasks/000-project-bootstrap.md"
+      ]
+    },
+    {
+      "task": "000",
+      "failing_evidence": "failing_command: zig build test (run before build.zig existed). failing_output_excerpt: error: no build.zig file found, in the current directory or any parent directories. implementation_started_after_failure: true; test/bootstrap_test.zig and test/bootstrap_discovery_test.zig were added and the no-build.zig failure was captured before build.zig and src were written. passing_command: zig build test.",
+      "implementation_summary": "Added the minimal Zig 0.16.0 scaffold: build.zig.zon manifest, build.zig with deterministic sorted top-level test/*_test.zig discovery using the Zig 0.16 Io API (b.graph.io with dir.openDir(io, ...), iterate, and next(io)), src/root.zig (Layer: deterministic_core) exposing project_name and version, and src/main.zig (Layer: presentation_adapter) bootstrap entry point. No mutation behavior or CLI.",
+      "files_changed": [
+        "build.zig",
+        "build.zig.zon",
+        "src/root.zig",
+        "src/main.zig",
+        "test/bootstrap_test.zig",
+        "test/bootstrap_discovery_test.zig"
+      ],
+      "tests_added": [
+        "test/bootstrap_test.zig",
+        "test/bootstrap_discovery_test.zig"
+      ],
+      "tests_run": [
+        "zig build test: 5/5 steps, 3/3 tests passed across 2 auto-discovered test files",
+        "zig fmt --check build.zig src test: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Task-system consistency green with task 000 complete; product behavior proven by zig build test running both discovered test files."
+      },
+      "dogfooding_implication": "Creates the codebase shape future dogfood tasks will mutate. No dogfood run is expected yet.",
+      "follow_up_tasks": [
+        "tasks/001-cli-shell.md"
       ]
     }
   ],

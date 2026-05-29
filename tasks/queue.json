@@ -1525,7 +1525,7 @@
       "title": "Project Bootstrap",
       "file": "tasks/000-project-bootstrap.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "101",
         "102",

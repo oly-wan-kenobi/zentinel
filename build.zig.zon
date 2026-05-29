@@ -1,0 +1,13 @@
+.{
+    .name = .zentinel,
+    .version = "0.0.0",
+    .minimum_zig_version = "0.16.0",
+    .fingerprint = 0xe779f564903306e4,
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "test",
+    },
+    .dependencies = .{},
+}
