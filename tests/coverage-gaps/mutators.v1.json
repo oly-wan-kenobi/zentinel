@@ -3,8 +3,8 @@
   "source": "docs/MUTATOR_SPEC.md",
   "mode": "regression_only",
   "entries": [
-    { "operator": "arithmetic_add_sub", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/010-arithmetic-mutators.md", "notes": "Needs arithmetic fixture coverage." },
-    { "operator": "arithmetic_mul_div", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/010-arithmetic-mutators.md", "notes": "Needs arithmetic fixture coverage." },
+    { "operator": "arithmetic_add_sub", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/arithmetic_test.zig"], "deferred_to": null, "notes": "Needs arithmetic fixture coverage." },
+    { "operator": "arithmetic_mul_div", "phase": 1, "stability": "stable", "covered": true, "tests": ["test/mutators/arithmetic_test.zig"], "deferred_to": null, "notes": "Needs arithmetic fixture coverage." },
     { "operator": "equality_swap", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs equality fixture coverage." },
     { "operator": "comparison_boundary", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/011-comparison-mutators.md", "notes": "Needs boundary fixture coverage." },
     { "operator": "logical_and_or", "phase": 1, "stability": "stable", "covered": false, "tests": [], "deferred_to": "tasks/012-logical-boolean-mutators.md", "notes": "Needs logical operator fixture coverage." },

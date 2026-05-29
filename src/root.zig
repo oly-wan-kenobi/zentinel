@@ -34,6 +34,12 @@ pub const source_map = @import("source_map.zig");
 /// AST parsing adapter over the pinned std.zig.Ast (deterministic core).
 pub const ast_backend = @import("ast_backend.zig");
 
+/// AST mutators (deterministic core). Each recognizer emits candidates through
+/// the shared collector; mutators may not import runner/sandbox/report/cli/ai.
+pub const mutators = struct {
+    pub const arithmetic = @import("mutators/arithmetic.zig");
+};
+
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
 

@@ -1815,7 +1815,7 @@
       "title": "Arithmetic Mutators",
       "file": "tasks/010-arithmetic-mutators.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "019"
       ],
