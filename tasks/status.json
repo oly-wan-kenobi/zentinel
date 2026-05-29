@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "012",
+  "next_task": "013",
   "completed_tasks": [
     "068",
     "069",
@@ -52,17 +52,67 @@
     "009",
     "019",
     "010",
-    "011"
+    "011",
+    "012"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 011 comparison mutators completed; active-state and complete-state validation passed after closing gap rows equality_swap and comparison_boundary."
+    "notes": "Task 012 logical and boolean mutators completed; active-state and complete-state validation passed after closing gap rows logical_and_or and boolean_literal."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "012",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/logical_boolean_test.zig:3:34: error: struct 'root.mutators' has no member named 'logical'` and the same for `boolean` (124/124 prior tests passed). implementation_started_after_failure: true; src/mutators/logical.zig, src/mutators/boolean.zig, and the root.zig re-exports were written after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 37/37 steps and 128/128 tests passed.",
+      "implementation_summary": "Added two deterministic_core recognizers. src/mutators/logical.zig emits logical_and_or (and<->or) on .bool_and/.bool_or nodes using the keyword main_token span; bitwise &/| and unary ! are different node tags and are not recognized. src/mutators/boolean.zig emits boolean_literal (true<->false) by matching .identifier nodes whose token text is exactly true/false (in Zig true/false are identifier expressions), which excludes enum literals like .true and literals inside comments/strings. Both exclude test bodies via ast_backend.inTestBody, flow through the shared collector for canonical ordering/dedupe/ids, use expected_compile compiles, and carry MUTATOR_SPEC equivalent-risk hints. Mixed logical+boolean candidates remain stably ordered by byte offset through the collector. No patching or execution (task non-goals).",
+      "files_changed": [
+        "src/mutators/logical.zig",
+        "src/mutators/boolean.zig",
+        "src/root.zig",
+        "test/mutators/logical_boolean_test.zig",
+        "test/fixtures/mutators/logical_boolean/ops.zig",
+        "tests/coverage-gaps/mutators.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutators/logical_boolean_test.zig: and->or/or->and swaps in canonical order with an exact short-circuit keyword span; true->false/false->true swaps; stable ordering of mixed logical and boolean candidates by byte offset; and boolean literals in comments/strings producing no candidates.",
+        "test/fixtures/mutators/logical_boolean/ops.zig: production function with and/or operators and true/false literals."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing-member compile error while 124 prior tests still passed",
+        "zig build test (passing): 37/37 steps succeeded, 128/128 tests passed",
+        "zig build install: exe still builds",
+        "zig fmt --check src test: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 012 was active after the recognizers and tests landed, and again after the complete-state transition with gap rows logical_and_or and boolean_literal closed."
+      },
+      "dogfooding_implication": "Logical and boolean mutators will help find missing branch tests in zentinel's own config and report code once execution exists. With this task the full Phase 1 stable expression-mutator set (arithmetic, comparison, logical, boolean) is recognized; no mutation run exists yet.",
+      "follow_up_tasks": [
+        "tasks/013-patch-sandbox.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/mutators.v1.json": [
+          "logical_and_or",
+          "boolean_literal"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "011",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/comparison_test.zig:3:37: error: struct 'root.mutators' has no member named 'comparison'` (121/121 prior tests passed). implementation_started_after_failure: true; src/mutators/comparison.zig and the root.zig re-export were written after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 35/35 steps and 124/124 tests passed.",

@@ -39,6 +39,8 @@ pub const ast_backend = @import("ast_backend.zig");
 pub const mutators = struct {
     pub const arithmetic = @import("mutators/arithmetic.zig");
     pub const comparison = @import("mutators/comparison.zig");
+    pub const logical = @import("mutators/logical.zig");
+    pub const boolean = @import("mutators/boolean.zig");
 };
 
 /// Typed report model + deterministic JSON serialization (deterministic core).

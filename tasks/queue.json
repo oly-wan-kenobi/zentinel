@@ -1869,7 +1869,7 @@
       "title": "Logical and Boolean Mutators",
       "file": "tasks/012-logical-boolean-mutators.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "011"
       ],

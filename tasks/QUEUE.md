@@ -71,7 +71,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 009.1 | `tasks/019-same-file-test-exclusion.md` | complete | 1 |
 | 010 | `tasks/010-arithmetic-mutators.md` | complete | 1 |
 | 011 | `tasks/011-comparison-mutators.md` | complete | 1 |
-| 012 | `tasks/012-logical-boolean-mutators.md` | queued | 1 |
+| 012 | `tasks/012-logical-boolean-mutators.md` | complete | 1 |
 | 013 | `tasks/013-patch-sandbox.md` | queued | 1 |
 | 014 | `tasks/014-baseline-runner.md` | queued | 1 |
 | 015 | `tasks/015-mutant-runner.md` | queued | 1 |
