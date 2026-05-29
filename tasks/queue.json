@@ -1478,6 +1478,48 @@
       ]
     },
     {
+      "id": "105",
+      "order": "000.0.35",
+      "title": "Architecture Boundary Enforcement",
+      "file": "tasks/105-architecture-boundary-enforcement.md",
+      "phase": 0,
+      "state": "complete",
+      "dependencies": [
+        "104"
+      ],
+      "allowed_files": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/105-architecture-boundary-enforcement.md",
+        "docs/ARCHITECTURE.md",
+        "docs/INTERNAL_API_CONTRACTS.md",
+        "docs/INVARIANTS.md",
+        "docs/GLOSSARY.md",
+        "docs/DISCIPLINE.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/adr/README.md",
+        "docs/adr/0008-deterministic-pipeline-core.md",
+        ".agents/ORCHESTRATOR.md",
+        ".agents/roles/architecture-reviewer.md",
+        ".agents/roles/implementation-reviewer.md",
+        ".agents/roles/verifier.md",
+        "tests/coverage-gaps/invariants.v1.json",
+        "scripts/validate_task_system.py"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon",
+        "test/**/*.zig",
+        "schemas/**",
+        ".claude/**"
+      ]
+    },
+    {
       "id": "000",
       "order": "000.1",
       "title": "Project Bootstrap",
@@ -1488,7 +1530,8 @@
         "101",
         "102",
         "103",
-        "104"
+        "104",
+        "105"
       ],
       "allowed_files": [
         "build.zig",
@@ -1935,9 +1978,11 @@
         "src/cli.zig",
         "src/main.zig",
         "src/run_command.zig",
+        "src/project_model.zig",
         "src/report.zig",
         "src/ast_backend.zig",
         "test/run_command_test.zig",
+        "test/project_model_test.zig",
         "test/fixtures/run_command/**",
         "test/snapshots/run_command_*.json",
         "tasks/STATUS.md",

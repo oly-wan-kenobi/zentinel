@@ -54,7 +54,7 @@ Deliver:
   - arithmetic swap: `+ <-> -`, `* <-> /`
   - equality swap: `== <-> !=`
   - boundary swap: `>= -> >`, `<= -> <`, `> -> >=`, `< -> <=`
-  - logical swap: `&& <-> ||`
+  - logical swap: `and <-> or`
   - boolean literal swap: `true <-> false`
 - killed/survived/compile_error/compiler_crash/timeout reports
 - `zentinel doctest` extraction and normal execution for CLI/config/report examples

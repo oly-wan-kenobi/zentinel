@@ -43,6 +43,8 @@ install Zig 0.16.0 or use a zentinel release that supports your compiler
 
 When task `005` is implemented, the agent must store the compiled-in supported version in one version-policy module, run `zig version` in the implementation environment, and record durable verification evidence: pinned supported Zig version, local `zig version`, and match or mismatch result. No live latest-stable lookup is required for task `005`. Agents must not infer a different supported version from chat history, examples, installed toolchains, or unrelated documentation.
 
+Verifying the version string is necessary but not sufficient for the AST backend. The `std.zig.Ast` parser API surface that the stable backend depends on is also pinned to Zig `0.16.0`. The AST parser spike (task `008`) must verify and record that API surface against an installed Zig `0.16.0` rather than assuming it; see the Parser API Surface section of `docs/AST_BACKEND.md`. This is verification of the pinned compiler's API, not inference of a different supported version.
+
 ## Config Contract
 
 Config accepts:

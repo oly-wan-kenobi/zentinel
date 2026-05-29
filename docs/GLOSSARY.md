@@ -14,6 +14,8 @@ When a new concept becomes part of the public contract, add it here before using
 
 **AI context packet**: A bounded, schema-versioned payload sent to an AI provider. Mutation AI context is governed by `docs/AI_CONTEXT_SCHEMA.md`; doctest AI context is governed by `docs/DOCTEST_AI_INTEGRATION.md`. Both contain only privacy-filtered deterministic evidence allowed by their registered schema.
 
+**Architecture boundary**: A module ownership and import-direction rule that protects deterministic core behavior from side-effect, presentation, orchestration, or advisory adapter drift.
+
 **AST backend**: The stable default backend that generates mutants from Zig source syntax and exact source spans.
 
 **Backend**: A component that discovers mutation candidates and emits the shared `Mutant` model. Valid backend names are `ast`, `zir`, and `air`.
@@ -50,6 +52,8 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Fixture**: A small Zig project or source file designed to exercise one behavior or mutator contract.
 
+**Functional core**: Deterministic logic expressed as small modules and explicit data transformations, with side effects pushed to boundary adapters.
+
 **Gap registry**: A committed machine-readable file under `tests/coverage-gaps/` that maps docs requirements to tests or documents uncovered work.
 
 **Invalid mutant**: A zentinel bug where a backend or mutator emits malformed source, an out-of-range span, or a candidate that violates its documented contract.
@@ -65,6 +69,8 @@ When a new concept becomes part of the public contract, add it here before using
 **Oracle**: A source of truth for pass/fail or kill/survive classification. In zentinel, only deterministic command evidence is an oracle. AI is never an oracle.
 
 **Pinned Zig version**: The only Zig compiler version supported by one zentinel release. For this zentinel version the pin is Zig `0.16.0`.
+
+**Port or adapter**: A boundary module that connects the deterministic core to CLI/editor/CI presentation, filesystem or process side effects, sandbox/cache/report I/O, or advisory AI providers.
 
 **Preview mutator**: A mutator documented in `docs/MUTATOR_SPEC.md` but not enabled by default. Preview mutators are not part of end-to-end minimum-product completion unless a future task explicitly names the operator.
 

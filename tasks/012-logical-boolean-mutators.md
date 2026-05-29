@@ -8,7 +8,7 @@ Implement AST candidates for `logical_and_or` and `boolean_literal`.
 
 ## Scope
 
-- Generate `&& <-> ||`.
+- Generate `and <-> or`.
 - Generate `true <-> false`.
 - Preserve short-circuit operator spans.
 - Avoid strings, comments, and test bodies if exclusion support already exists.
@@ -31,7 +31,7 @@ Implement AST candidates for `logical_and_or` and `boolean_literal`.
 
 ## Required tests
 
-- Add failing tests for `&& -> ||` and `|| -> &&`.
+- Add failing tests for `and -> or` and `or -> and`.
 - Add failing tests for `true -> false` and `false -> true`.
 - Add a failing short-circuit fixture proving the operator span is exact.
 - Run `zig build test`.

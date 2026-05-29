@@ -24,7 +24,7 @@ Planned options:
 --operator <name>
 --case <case-ref>
 --file <path>
---format <text|json|jsonl>
+--format <text|json>
 --fail-on-survivors
 ```
 

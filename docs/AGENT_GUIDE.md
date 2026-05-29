@@ -187,6 +187,19 @@ Update docs when:
 
 When docs add a new invariant, failure mode, mutator, or schema contract, update the matching gap registry under `tests/coverage-gaps/`.
 
+## Architecture Boundary Checklist
+
+Use this checklist for every implementation task and every public-contract task:
+
+- Does this change add or modify an import edge?
+- Does every new `src/**/*.zig` file declare one valid `// Layer: <layer>` from `docs/INTERNAL_API_CONTRACTS.md`?
+- Does deterministic logic stay in `deterministic_core` instead of moving into CLI, runner, sandbox, cache, report writer, or AI modules?
+- Does a side effect cross a `side_effect_adapter`, `presentation_adapter`, or `advisory_adapter` boundary?
+- Does AI consume only deterministic artifacts and advisory schemas?
+- Did `python3 scripts/validate_task_system.py` run after architecture-relevant edits?
+
+If a task needs a forbidden dependency edge, do not add it locally. Insert the smallest prerequisite contract task or write a superseding ADR before implementation continues.
+
 ## Doctest Authoring Rules
 
 Future agents writing public docs must follow `docs/DOCTEST_BLOCK_FORMATS.md`.

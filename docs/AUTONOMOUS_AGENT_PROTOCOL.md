@@ -95,6 +95,12 @@ This exception is row-scoped. It does not allow broad registry cleanup, unrelate
 
 Most blockers should be resolved without user input.
 
+## Architecture Boundary Handling
+
+Architecture boundary drift is a blocker, not an implementation detail. If a task needs a forbidden dependency edge, insert a prerequisite contract task that updates `docs/INTERNAL_API_CONTRACTS.md`, ADRs, task scope, and validator guardrails before source work continues.
+
+Agents must not work around architecture validation by moving deterministic logic into adapters, omitting `// Layer: <layer>` declarations, or using advisory AI as a shortcut for deterministic classification.
+
 Use this decision table:
 
 | Blocker | Autonomous action |
@@ -106,6 +112,7 @@ Use this decision table:
 | External dependency decision | Follow `docs/DEPENDENCY_POLICY.md`; do not add dependency unless policy allows it. |
 | Pinned Zig `0.16.0` API uncertainty | Prefer public Zig `0.16.0` APIs; add adapter tests; document fallback. |
 | Test failure from prior completed task | Create a regression-fix task before continuing. |
+| Architecture boundary violation | If a task needs a forbidden dependency edge, insert a prerequisite contract task before continuing. |
 
 When a missing prerequisite is inserted, keep the originally blocked task in `blocked` until the prerequisite task completes. After the prerequisite task completes, the blocked task returns to `queued` and waits for normal dependency-ready selection by execution order; it must not jump directly to `active`. A blocked record whose required prerequisite is already complete is invalid because completed prerequisites cannot leave the blocked task in `blocked`.
 

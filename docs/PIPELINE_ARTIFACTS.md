@@ -50,17 +50,18 @@ Required handoff basenames are deterministic:
 01-phase-planner.json
 02-task-queue-manager-start.json
 03-planner.json
-04-test-author.json
-05-test-reviewer.json
-06-implementer.json
-07-implementation-reviewer.json
-08-mutation-agent.json
-09-mutation-triage-agent.json
-10-property-test-agent.json
-11-doctest-agent.json
-12-architecture-reviewer.json
-13-verifier.json
-14-task-queue-manager-complete.json
+04-contract-editor.json
+05-test-author.json
+06-test-reviewer.json
+07-implementer.json
+08-implementation-reviewer.json
+09-mutation-agent.json
+10-mutation-triage-agent.json
+11-property-test-agent.json
+12-doctest-agent.json
+13-architecture-reviewer.json
+14-verifier.json
+15-task-queue-manager-complete.json
 ```
 
 ## Active Lock Artifact

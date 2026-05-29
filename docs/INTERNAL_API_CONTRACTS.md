@@ -2,6 +2,37 @@
 
 This document defines the expected internal module boundaries for zentinel. Exact Zig syntax may evolve, but agents must preserve these contracts unless a task explicitly changes them and updates this document.
 
+## Layer Registry
+
+All future `src/**/*.zig` files must declare `// Layer: <layer>` in the first comment block. Every future Zig source file under `src/` must declare one layer:
+
+```zig
+// Layer: deterministic_core
+```
+
+Valid layers:
+
+| Layer | Owns | May Import |
+| --- | --- | --- |
+| `deterministic_core` | Pure or deterministic mutation, source mapping, command parsing, selection, classification, and data-model logic. | `std` and other `deterministic_core` modules. |
+| `pipeline_orchestration` | Command-level flow that wires deterministic core modules to boundary adapters. | `deterministic_core`, `side_effect_adapter`, `presentation_adapter`, and report model modules needed for orchestration. |
+| `side_effect_adapter` | Filesystem, process execution, sandbox workspace, cache storage, and concrete report writing. | `deterministic_core` models and adapter-local helpers. |
+| `presentation_adapter` | CLI, CI, and editor-facing routing and user output surfaces. | `pipeline_orchestration`, `deterministic_core` command/config/report types, and presentation helpers. |
+| `advisory_adapter` | AI provider, prompt, redaction, and advisory response handling. | Deterministic report/context artifacts and advisory-local helpers. |
+
+Forbidden Import Edges:
+
+- `deterministic_core` -> `pipeline_orchestration`
+- `deterministic_core` -> `side_effect_adapter`
+- `deterministic_core` -> `presentation_adapter`
+- `deterministic_core` -> `advisory_adapter`
+- `mutators/*` -> `runner`, `sandbox`, `report`, `cli`, or `ai/*`
+- `report` -> `runner`, `sandbox`, process execution, or AI providers
+- `runner` -> backend generation or mutator modules
+- `ai/*` -> mutators, backend generation, runner classification, cache-key construction, or deterministic result writers
+
+These layer names are architecture contracts, not package names. If a file's responsibility changes, update the layer declaration and dependency map in the same task.
+
 ## Module Dependency Direction
 
 Allowed dependency direction:
@@ -154,7 +185,7 @@ equivalent_risks
 
 Rules:
 
-- durable `id` is hash-derived
+- durable `id` is derived by the deterministic `m_...` algorithm in `docs/ARCHITECTURE.md` (`m_ + first_26_chars(lowercase_unpadded_crockford_base32(sha256(canonical_mutant_bytes)))` over the fixed field order `zentinel.mutant.v1`, `backend_version`, `project_relative_file`, `operator`, `span_start`, `span_end`, `original`, `replacement`); implementations must not invent a different hash, encoding, or field order
 - `display_id` is assigned after canonical sorting for report rendering and is stable only within that report
 - `backend_version` is the deterministic backend contract string used for identity and cache keys, for example `ast.v1.zig-0.16.0`
 - `backend_version` remains internal and is not emitted in report v1 or AI context v1

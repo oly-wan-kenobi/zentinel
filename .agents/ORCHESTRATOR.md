@@ -59,6 +59,8 @@ Add specialized roles when required by task scope:
 
 Contract Editor runs before Test Author when public contract changes define or change the tests' expected behavior; otherwise Test Author runs before implementation.
 
+Architecture boundary checks are mandatory for tasks that add source files, change imports, touch deterministic core modules, modify adapters, or alter architecture contracts. Route those tasks through Architecture Reviewer unless the active task explicitly states the change is a documentation-only typo.
+
 ## Complexity Routing
 
 This table mirrors `docs/PIPELINE_ESCALATION_POLICY.md`. Task Queue Manager and Planner steps still run when required by the task lifecycle or dispatch flow, but the class-specific minimum roles below must not drift from the escalation policy.

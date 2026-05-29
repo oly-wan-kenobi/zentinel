@@ -1,6 +1,6 @@
 # 000 Project Bootstrap
 
-Sequential guard: start this task only after task `104` is complete, after task `103` is complete, after task `102` and task `101` are complete in `tasks/STATUS.md`, and therefore after task `100`, task `099`, and task `098` are complete. No later-order task may begin until this task is complete.
+Sequential guard: start this task only after task `105` is complete, after task `104` is complete, after task `103` is complete, after task `102` and task `101` are complete in `tasks/STATUS.md`, and therefore after task `100`, task `099`, and task `098` are complete. No later-order task may begin until this task is complete.
 
 ## Goal
 
@@ -36,6 +36,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - First add a failing smoke test that imports the root module and asserts a stable project name or version constant.
 - Add a failing `test/bootstrap_discovery_test.zig` that proves a second top-level `test/*_test.zig` file is included by `zig build test`.
 - Run the targeted test and record the failure before implementation; before `build.zig` exists, the expected failure may be a missing build scaffold or unresolved root-module import.
+- Ensure each new `src/**/*.zig` file declares a valid `// Layer: <layer>` from `docs/INTERNAL_API_CONTRACTS.md`.
 - Run `zig build test` after implementation.
 - Run `python3 scripts/validate_task_system.py`.
 
@@ -44,6 +45,7 @@ Create the minimal Zig project scaffold for zentinel without implementing mutati
 - `zig build test` passes.
 - `zig build test` runs every top-level `test/*_test.zig` file without requiring future tasks 001 and 002 to edit `build.zig`.
 - The root module exposes deterministic compile-time constants for project name and initial version.
+- New source files include valid architecture layer declarations.
 - No mutation behavior exists.
 - No CLI commands beyond what is necessary for compilation exist.
 - `tasks/STATUS.md` records completion, files changed, and tests run.

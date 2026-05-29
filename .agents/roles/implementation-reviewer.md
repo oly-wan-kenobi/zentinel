@@ -16,6 +16,8 @@ Use this role after implementation and before final verification.
 - verify no forbidden files were modified
 - check deterministic ordering and report stability
 - identify architecture drift
+- review added or changed import edges against `docs/INTERNAL_API_CONTRACTS.md`
+- verify new `src/**/*.zig` files declare a valid `// Layer: <layer>`
 - require cleanup before mutation or final verification gates
 
 ## Forbidden

@@ -30,7 +30,8 @@ Define the shared `Mutant` model used by all backends and reports.
 
 ## Required tests
 
-- Add a failing test for deterministic ID generation from stable fields.
+- Add a failing test for deterministic ID generation from stable fields using the exact `m_...` derivation in `docs/ARCHITECTURE.md` (canonical `\n`-separated field order, sha256, lowercase unpadded Crockford base32, 26-char truncation).
+- Add a failing test pinning a known `(field set) -> m_...` vector so the hash, encoding, and truncation cannot drift between implementations.
 - Add a failing test proving `backend_version = "ast.v1.zig-0.16.0"` participates in durable mutant identity.
 - Add a failing test that candidate ordering matches `docs/MUTATOR_SPEC.md`.
 - Add a failing test for source span validation.
@@ -39,7 +40,7 @@ Define the shared `Mutant` model used by all backends and reports.
 
 ## Acceptance criteria
 
-- Same input fields always produce the same durable ID.
+- Same input fields always produce the same durable ID, computed by the documented `m_...` algorithm; the pinned test vector matches `^m_[A-Za-z0-9]+$`.
 - Display ordering is independent of map or filesystem iteration.
 - Compile expectation values are `compiles`, `may_fail`, and `must_fail`.
 - Report serialization can consume the model without duplicating identity logic.

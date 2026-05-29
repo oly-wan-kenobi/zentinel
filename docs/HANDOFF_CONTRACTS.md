@@ -157,17 +157,18 @@ artifacts/pipeline/<task-id>/handoffs/00-orchestrator.json
 artifacts/pipeline/<task-id>/handoffs/01-phase-planner.json
 artifacts/pipeline/<task-id>/handoffs/02-task-queue-manager-start.json
 artifacts/pipeline/<task-id>/handoffs/03-planner.json
-artifacts/pipeline/<task-id>/handoffs/04-test-author.json
-artifacts/pipeline/<task-id>/handoffs/05-test-reviewer.json
-artifacts/pipeline/<task-id>/handoffs/06-implementer.json
-artifacts/pipeline/<task-id>/handoffs/07-implementation-reviewer.json
-artifacts/pipeline/<task-id>/handoffs/08-mutation-agent.json
-artifacts/pipeline/<task-id>/handoffs/09-mutation-triage-agent.json
-artifacts/pipeline/<task-id>/handoffs/10-property-test-agent.json
-artifacts/pipeline/<task-id>/handoffs/11-doctest-agent.json
-artifacts/pipeline/<task-id>/handoffs/12-architecture-reviewer.json
-artifacts/pipeline/<task-id>/handoffs/13-verifier.json
-artifacts/pipeline/<task-id>/handoffs/14-task-queue-manager-complete.json
+artifacts/pipeline/<task-id>/handoffs/04-contract-editor.json
+artifacts/pipeline/<task-id>/handoffs/05-test-author.json
+artifacts/pipeline/<task-id>/handoffs/06-test-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/07-implementer.json
+artifacts/pipeline/<task-id>/handoffs/08-implementation-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/09-mutation-agent.json
+artifacts/pipeline/<task-id>/handoffs/10-mutation-triage-agent.json
+artifacts/pipeline/<task-id>/handoffs/11-property-test-agent.json
+artifacts/pipeline/<task-id>/handoffs/12-doctest-agent.json
+artifacts/pipeline/<task-id>/handoffs/13-architecture-reviewer.json
+artifacts/pipeline/<task-id>/handoffs/14-verifier.json
+artifacts/pipeline/<task-id>/handoffs/15-task-queue-manager-complete.json
 ```
 
 If a role is not required, the Verifier records the skip reason instead of creating a fake passing handoff.

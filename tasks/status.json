@@ -38,17 +38,78 @@
     "101",
     "102",
     "103",
-    "104"
+    "104",
+    "105"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 104 active-state validation passed before completion after output-bound wording cleanup guardrails were satisfied; complete-state validation passed after completion."
+    "notes": "Task 105 active-state validation passed before completion after architecture boundary guardrails were satisfied; complete-state validation passed after completion."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "105",
+      "failing_evidence": "Pre-fix `python3 scripts/validate_task_system.py` failed on the new task 105 guardrails for missing ADR-0008, deterministic pipeline boundary wording, layer registry wording, architecture review duties, verifier duties, I-022 coverage, and task 000 dependency on task 105.",
+      "implementation_summary": "Inserted and completed task 105 before project bootstrap; added ADR-0008; documented deterministic pipeline plus functional core with ports/adapters only at side-effect and advisory boundaries; added layer registry and forbidden import edges; updated agent guide/protocol/orchestrator/reviewer/verifier duties; added I-022 and its gap row; added validator checks for required architecture contracts and future src/**/*.zig layer/import boundaries.",
+      "files_changed": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/000-project-bootstrap.md",
+        "tasks/105-architecture-boundary-enforcement.md",
+        "docs/ARCHITECTURE.md",
+        "docs/INTERNAL_API_CONTRACTS.md",
+        "docs/INVARIANTS.md",
+        "docs/GLOSSARY.md",
+        "docs/DISCIPLINE.md",
+        "docs/AGENT_GUIDE.md",
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md",
+        "docs/adr/README.md",
+        "docs/adr/0008-deterministic-pipeline-core.md",
+        ".agents/ORCHESTRATOR.md",
+        ".agents/roles/architecture-reviewer.md",
+        ".agents/roles/implementation-reviewer.md",
+        ".agents/roles/verifier.md",
+        "tests/coverage-gaps/invariants.v1.json",
+        "scripts/validate_task_system.py"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for ADR-0008 architecture boundary contracts, I-022 coverage, task dependency ordering, role duties, and future src/**/*.zig layer/import-boundary checks."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (post-activation baseline pass)",
+        "python3 scripts/validate_task_system.py (expected pre-fix failure on task 105 guardrails)",
+        "python3 scripts/validate_task_system.py (active-state pass after fixes)",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty tasks/status.json tasks/queue.json tests/coverage-gaps/invariants.v1.json",
+        "git diff --check",
+        "python3 scripts/validate_task_system.py (complete-state pass)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Active-state and complete-state validator runs passed after task 105 architecture boundary enforcement."
+      },
+      "dogfooding_implication": "No zentinel runtime exists yet; future source scaffolding and implementation tasks now start from ADR-backed architecture boundaries and validator-enforced layer declarations.",
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-022"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "068",
       "failing_evidence": "No new structural guardrail was added; task 068 aligned existing docs/schema contracts using existing validator and syntax checks.",
@@ -1542,6 +1603,16 @@
       "event": "output_bound_wording_cleanup_started",
       "task": "104",
       "notes": "Inserted and activated task 104 at execution order 000.0.34 before project bootstrap to remove stale character-unit output-bound wording from AI-context implementation guidance."
+    },
+    {
+      "event": "architecture_boundary_enforcement_started",
+      "task": "105",
+      "notes": "Inserted and activated task 105 at execution order 000.0.35 before project bootstrap to make deterministic pipeline architecture boundaries explicit, ADR-backed, and validator-guarded for AI-agent implementation."
+    },
+    {
+      "event": "architecture_boundary_enforcement_completed",
+      "task": "105",
+      "notes": "Completed task 105 before project bootstrap. ADR-0008, architecture docs, internal API layer registry, I-022, Codex role duties, and validator guardrails now enforce deterministic pipeline boundaries before source scaffold begins."
     },
     {
       "event": "output_bound_wording_cleanup_completed",

@@ -15,6 +15,7 @@ Use this role after implementation review and specialized gates are complete.
 
 - run targeted and broader relevant tests
 - run `python3 scripts/validate_task_system.py`
+- run architecture boundary validator checks as part of `python3 scripts/validate_task_system.py`
 - confirm task state and changed files are allowed
 - verify required docs, schemas, snapshots, and gap registries are synchronized
 - produce final reproducibility evidence

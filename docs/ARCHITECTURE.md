@@ -2,6 +2,20 @@
 
 zentinel is organized as a deterministic mutation pipeline with optional advisory AI layers on top. The core must be useful offline, reproducible in CI, and independent of any model provider.
 
+## Architecture Shape
+
+The primary architecture is a deterministic pipeline with a functional core.
+
+Ports and adapters are boundary tools, not the system architecture. zentinel uses ports/adapters only where deterministic core behavior crosses a side-effect, presentation, or advisory boundary:
+
+- CLI, CI, and editor surfaces adapt user requests into pipeline commands.
+- filesystem, process execution, sandbox workspace, cache storage, and report writers are side-effect adapters.
+- AI provider integrations are advisory adapters that consume deterministic artifacts.
+- pipeline orchestration coordinates the flow without owning mutation semantics.
+- deterministic core modules own source mapping, command parsing, mutant identity, candidate generation, filtering, test-selection rules, result classification, and canonical report data.
+
+This follows ADR-0008. A task that changes these boundaries must update `docs/INTERNAL_API_CONTRACTS.md` and either cite ADR-0008 or add a superseding ADR.
+
 ## System Overview
 
 ```text
@@ -50,6 +64,27 @@ The deterministic core must not depend on:
 - wall-clock ordering for IDs
 - nondeterministic filesystem iteration
 - random scheduling decisions without an explicit seed
+- CLI command routers, process runners, sandbox workspace managers, cache storage adapters, report writers, or AI provider adapters
+
+## Architecture Boundary Contract
+
+Deterministic core modules must not import adapters.
+
+Every future Zig source file under `src/` must declare its layer with a top-of-file comment:
+
+```zig
+// Layer: deterministic_core
+```
+
+Allowed layers and forbidden import edges are defined in `docs/INTERNAL_API_CONTRACTS.md`. The validator treats missing layer declarations and deterministic-core imports of side-effect, presentation, pipeline-orchestration, or advisory adapters as architecture drift.
+
+Reviewers must check ownership, not only compile success:
+
+- `runner` executes parsed commands; it does not generate mutants.
+- `report` renders deterministic evidence; it does not run commands or invent results.
+- `mutators/*` emit exact source spans and replacements; they do not import AI, runners, or report writers.
+- `ai/*` consumes deterministic artifacts; it does not write result status, cache keys, source maps, or classifier evidence.
+- CLI modules route commands; they do not own mutation semantics.
 
 ## AI Boundary
 
@@ -92,11 +127,26 @@ Mutant
 └─ advisory metadata: equivalent risks and optional AI annotations
 ```
 
-IDs are derived from stable content:
+The durable mutant `id` uses the `m_` prefix and this deterministic derivation:
 
 ```text
-hash(project_relative_file, operator, span_start, span_end, original, replacement, backend_version)
+m_ + first_26_chars(lowercase_unpadded_crockford_base32(sha256(canonical_mutant_bytes)))
 ```
+
+`canonical_mutant_bytes` is UTF-8 text with `\n` separators and this exact field order:
+
+```text
+zentinel.mutant.v1
+backend_version
+project_relative_file
+operator
+span_start
+span_end
+original
+replacement
+```
+
+`span_start` and `span_end` are decimal byte offsets into the original source buffer. The derivation must not include display order, wall-clock time, absolute paths, command output, result duration, result status, or AI output. The resulting durable ID matches `^m_[A-Za-z0-9]+$` and is byte-identical across agents, sessions, and machines for the same content. This mirrors the doctest mutation-entry identity in `docs/DOCTEST_SPEC.md`.
 
 The display ID is stable only within one report after canonical sorting. It is useful for terminal output and short CLI selectors against a selected report, but it is not a durable backend identity and must not be stored in handoffs or AI context as the canonical reference.
 

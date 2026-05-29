@@ -43,6 +43,7 @@ Introduce a minimal AST/source parsing adapter for Zig files that can locate syn
 - Source mapping can round-trip byte offsets to line/column ranges.
 - Parser adapter produces deterministic traversal for the same source.
 - Parse errors are reported with file and location.
+- The `std.zig.Ast` API surface used is verified against an installed Zig `0.16.0` and recorded in completion evidence; the adapter does not depend on unverified or guessed parser APIs.
 - No actual mutation operators are enabled yet.
 
 ## Non-goals
@@ -54,10 +55,10 @@ Introduce a minimal AST/source parsing adapter for Zig files that can locate syn
 
 ## Suggested implementation approach
 
-1. Prefer Zig standard library parser support if available in pinned Zig `0.16.0`.
-2. Keep adapter wrapped so future parser changes do not leak across modules.
-3. Write fixtures with small source snippets.
-4. Avoid building a custom parser unless no stable alternative exists.
+1. Verify the `std.zig.Ast` parser API surface against an installed Zig `0.16.0` and build on it; do not assume the API exists or guess its shape from other Zig versions. Record the exact entry points used (for example, the parse function, node tag enum, token/source-location accessors) in completion evidence so the pinned parser API surface required by `docs/AST_BACKEND.md` is explicit and reviewable.
+2. If the pinned `std.zig.Ast` API is unavailable or differs from what zentinel needs, block per `docs/AUTONOMOUS_AGENT_PROTOCOL.md` (Pinned Zig `0.16.0` API uncertainty) rather than inventing a custom parser.
+3. Keep adapter wrapped so future parser changes do not leak across modules.
+4. Write fixtures with small source snippets.
 
 ## Dogfooding implications
 

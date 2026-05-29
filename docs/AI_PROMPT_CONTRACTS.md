@@ -124,7 +124,8 @@ Task `055` owns the first four mappings and must snapshot them with the stub pro
         "stdout_excerpt": "",
         "stderr_excerpt": "",
         "failure_summary": ""
-      }
+      },
+      "skip_reason": null
     },
     "source_context": {
       "policy": "none",

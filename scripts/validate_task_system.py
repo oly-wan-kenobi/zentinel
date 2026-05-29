@@ -65,6 +65,8 @@ INVARIANT_RE = re.compile(r"^\*\*(I-[0-9]{3})\.", re.MULTILINE)
 FAILURE_MODE_RE = re.compile(r"^\*\*(F-[0-9]{3})\.", re.MULTILINE)
 ERROR_CODE_RE = re.compile(r"`(ZNTL_[A-Z0-9_]+)`")
 ADR_INDEX_RE = re.compile(r"^\| (ADR-[0-9]{4}) \| \[[^\]]+\]\(([^)]+)\) \| ([^|]+) \| ([^|]+) \|$", re.MULTILINE)
+ZIG_LAYER_RE = re.compile(r"^\s*//\s*Layer:\s*([a-z_]+)\s*$", re.MULTILINE)
+ZIG_IMPORT_RE = re.compile(r"@import\(\"([^\"]+)\"\)")
 
 PINNED_ZIG_VERSION = "0.16.0"
 
@@ -118,6 +120,22 @@ BLOCKED_EDIT_STATES = {"no_edits", "task_control_only", "reverted", "preserved_b
 LAST_VALIDATION_FIELDS = {"command", "status", "notes"}
 LAST_VALIDATION_STATUSES = {"not_run", "passed", "failed"}
 COMPLETION_SCOPE_CUTOVER_ORDER = "000.0.24"
+
+ARCHITECTURE_LAYERS = {
+    "deterministic_core",
+    "pipeline_orchestration",
+    "side_effect_adapter",
+    "presentation_adapter",
+    "advisory_adapter",
+}
+FORBIDDEN_LAYER_IMPORTS = {
+    "deterministic_core": {
+        "pipeline_orchestration",
+        "side_effect_adapter",
+        "presentation_adapter",
+        "advisory_adapter",
+    },
+}
 BOOTSTRAP_START_TASK_ID = "000"
 CHRONOLOGY_PROOF_TASK_ID = "063"
 PRE_063_CHRONOLOGY_LABELS = [
@@ -1313,7 +1331,7 @@ def validate_pipeline_contracts(errors: list[str]) -> None:
     if handoffs.is_file():
         text = handoffs.read_text(encoding="utf-8")
         require("JSON handoffs are canonical" in text or "JSON handoff is the canonical" in text, errors, "docs/HANDOFF_CONTRACTS.md must make JSON handoffs canonical")
-        require("04-test-author.json" in text, errors, "docs/HANDOFF_CONTRACTS.md must list deterministic JSON handoff names")
+        require("04-contract-editor.json" in text and "05-test-author.json" in text, errors, "docs/HANDOFF_CONTRACTS.md must list deterministic JSON handoff names including the Contract Editor slot")
 
     orchestration = ROOT / "docs" / "ORCHESTRATION_SPEC.md"
     if orchestration.is_file():
@@ -1493,8 +1511,8 @@ def validate_cli_contracts(errors: list[str]) -> None:
     require("zig-out/zentinel/doctest/report.json" in cli_text, errors, "docs/CLI_SPEC.md must define the default doctest AI report path")
     require("Display IDs are scoped to the report" in cli_text, errors, "docs/CLI_SPEC.md must scope display IDs to the selected report")
     require("case anchor line" in cli_text, errors, "docs/CLI_SPEC.md must define doctest source refs as anchor-line selectors")
-    require("--format <text|json|jsonl>" in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must use --format for output selection")
-    require("--report <text|json|jsonl>" not in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must not use --report for doctest output format")
+    require("--format <text|json>" in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must use --format for output selection")
+    require("--report <text|json>" not in doctest_mutation_text, errors, "docs/DOCTEST_MUTATION_STRATEGY.md must not use --report for doctest output format")
 
     if ai_ux_path.is_file():
         ai_ux_text = ai_ux_path.read_text(encoding="utf-8")
@@ -2573,7 +2591,7 @@ def validate_analysis_risk_cleanup_contracts(errors: list[str]) -> None:
             "Current zentinel versions follow ADR-0007 and pin Zig `0.16.0`.",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
+            "pre-bootstrap hardening tasks `071` through `105`",
         ],
         "tasks/000-project-bootstrap.md": [
             "after task `104` is complete",
@@ -2651,34 +2669,36 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
             "01-phase-planner.json",
             "02-task-queue-manager-start.json",
             "03-planner.json",
-            "04-test-author.json",
-            "05-test-reviewer.json",
-            "06-implementer.json",
-            "07-implementation-reviewer.json",
-            "08-mutation-agent.json",
-            "09-mutation-triage-agent.json",
-            "10-property-test-agent.json",
-            "11-doctest-agent.json",
-            "12-architecture-reviewer.json",
-            "13-verifier.json",
-            "14-task-queue-manager-complete.json",
+            "04-contract-editor.json",
+            "05-test-author.json",
+            "06-test-reviewer.json",
+            "07-implementer.json",
+            "08-implementation-reviewer.json",
+            "09-mutation-agent.json",
+            "10-mutation-triage-agent.json",
+            "11-property-test-agent.json",
+            "12-doctest-agent.json",
+            "13-architecture-reviewer.json",
+            "14-verifier.json",
+            "15-task-queue-manager-complete.json",
         ],
         "docs/PIPELINE_ARTIFACTS.md": [
             "00-orchestrator.json",
             "01-phase-planner.json",
             "02-task-queue-manager-start.json",
             "03-planner.json",
-            "04-test-author.json",
-            "05-test-reviewer.json",
-            "06-implementer.json",
-            "07-implementation-reviewer.json",
-            "08-mutation-agent.json",
-            "09-mutation-triage-agent.json",
-            "10-property-test-agent.json",
-            "11-doctest-agent.json",
-            "12-architecture-reviewer.json",
-            "13-verifier.json",
-            "14-task-queue-manager-complete.json",
+            "04-contract-editor.json",
+            "05-test-author.json",
+            "06-test-reviewer.json",
+            "07-implementer.json",
+            "08-implementation-reviewer.json",
+            "09-mutation-agent.json",
+            "10-mutation-triage-agent.json",
+            "11-property-test-agent.json",
+            "12-doctest-agent.json",
+            "13-architecture-reviewer.json",
+            "14-verifier.json",
+            "15-task-queue-manager-complete.json",
         ],
         "tasks/041-handoff-artifacts.md": [
             "deterministic handoff names for every emitting role",
@@ -3808,7 +3828,7 @@ def validate_clean_handoff_lifecycle_closure_contracts(
             "If completed-task changes remain uncommitted, record `clean_handoff_baseline`",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
+            "pre-bootstrap hardening tasks `071` through `105`",
             "Task `100` completed at execution order `000.0.30` before project bootstrap.",
         ],
         "tasks/041-handoff-artifacts.md": [
@@ -3882,7 +3902,7 @@ def validate_version_command_and_evidence_closure_contracts(tasks: list[dict[str
             "after task `104` is complete",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
+            "pre-bootstrap hardening tasks `071` through `105`",
         ],
     }
 
@@ -3935,7 +3955,7 @@ def validate_agent_workflow_cleanup_contracts(
 
     required_phrases = {
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
+            "pre-bootstrap hardening tasks `071` through `105`",
             "Task `102`",
         ],
         "tasks/000-project-bootstrap.md": [
@@ -3991,7 +4011,7 @@ def validate_contract_ambiguity_cleanup_contracts(
 
     required_phrases = {
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
+            "pre-bootstrap hardening tasks `071` through `105`",
             "Task `103`",
         ],
         "tasks/000-project-bootstrap.md": [
@@ -4094,8 +4114,8 @@ def validate_output_bound_wording_cleanup_contracts(
             "canonicalized output excerpt bounds as 4096 UTF-8 bytes",
         ],
         "tasks/STATUS.md": [
-            "pre-bootstrap hardening tasks `071` through `104`",
-            "Task `104` closes the output-bound wording cleanup before project bootstrap.",
+            "pre-bootstrap hardening tasks `071` through `105`",
+            "Task `105` closes architecture boundary enforcement before project bootstrap.",
         ],
         "tasks/000-project-bootstrap.md": [
             "after task `104` is complete",
@@ -4134,6 +4154,176 @@ def validate_output_bound_wording_cleanup_contracts(
                 None,
             )
         require(isinstance(task104_evidence, dict), errors, "task 104 completion_evidence must exist")
+
+
+def validate_architecture_boundary_enforcement_contracts(
+    tasks: list[dict[str, object]],
+    status: object,
+    errors: list[str],
+) -> None:
+    """Guard task 105's deterministic architecture boundary contracts."""
+
+    required_phrases = {
+        "docs/adr/README.md": [
+            "ADR-0008",
+            "Deterministic pipeline core with ports at side-effect boundaries",
+            "0008-deterministic-pipeline-core.md",
+        ],
+        "docs/adr/0008-deterministic-pipeline-core.md": [
+            "# ADR-0008: Deterministic pipeline core with ports at side-effect boundaries",
+            "Status: Accepted",
+            "zentinel's primary architecture is a deterministic pipeline with a functional core",
+            "Ports and adapters are allowed only at side-effect and advisory boundaries",
+        ],
+        "docs/ARCHITECTURE.md": [
+            "The primary architecture is a deterministic pipeline with a functional core.",
+            "Ports and adapters are boundary tools, not the system architecture.",
+            "Architecture Boundary Contract",
+            "Deterministic core modules must not import adapters.",
+        ],
+        "docs/INTERNAL_API_CONTRACTS.md": [
+            "Layer Registry",
+            "All future `src/**/*.zig` files must declare `// Layer: <layer>`",
+            "deterministic_core",
+            "pipeline_orchestration",
+            "side_effect_adapter",
+            "advisory_adapter",
+            "Forbidden Import Edges",
+        ],
+        "docs/INVARIANTS.md": [
+            "**I-022.** Deterministic core modules do not import side-effect or advisory adapters.",
+        ],
+        "docs/GLOSSARY.md": [
+            "**Architecture boundary**",
+            "**Functional core**",
+            "**Port or adapter**",
+        ],
+        "docs/DISCIPLINE.md": [
+            "**D-603.** Deterministic core modules must not import side-effect adapters, advisory AI adapters, CLI command routers, or report renderers.",
+        ],
+        "docs/AGENT_GUIDE.md": [
+            "Architecture Boundary Checklist",
+            "Does this change add or modify an import edge?",
+        ],
+        "docs/AUTONOMOUS_AGENT_PROTOCOL.md": [
+            "Architecture Boundary Handling",
+            "If a task needs a forbidden dependency edge, insert a prerequisite contract task",
+        ],
+        ".agents/ORCHESTRATOR.md": [
+            "Architecture boundary checks are mandatory",
+        ],
+        ".agents/roles/architecture-reviewer.md": [
+            "verify layer declarations and import direction",
+            "reject deterministic core imports of side-effect or advisory adapters",
+        ],
+        ".agents/roles/implementation-reviewer.md": [
+            "review added or changed import edges against `docs/INTERNAL_API_CONTRACTS.md`",
+        ],
+        ".agents/roles/verifier.md": [
+            "run architecture boundary validator checks",
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+            '"number": "I-022"',
+            '"tests": [',
+            '"scripts/validate_task_system.py"',
+        ],
+        "tasks/000-project-bootstrap.md": [
+            "after task `105` is complete",
+        ],
+    }
+
+    for rel, phrases in required_phrases.items():
+        path = ROOT / rel
+        require(path.is_file(), errors, f"missing task 105 architecture-boundary file {rel}")
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        for phrase in phrases:
+            require(phrase in text, errors, f"{rel} must contain task 105 architecture-boundary phrase {phrase!r}")
+
+    task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
+    task105 = task_by_id.get("105")
+    require(isinstance(task105, dict), errors, "task 105 must exist for architecture boundary enforcement")
+    if isinstance(task105, dict):
+        deps = task105.get("dependencies")
+        require(isinstance(deps, list) and "104" in deps, errors, "task 105 must depend on task 104")
+    task000 = task_by_id.get("000")
+    if isinstance(task000, dict):
+        deps = task000.get("dependencies")
+        require(isinstance(deps, list) and "105" in deps, errors, "task 000 must depend on task 105")
+
+    validate_zig_architecture_layers(errors)
+
+    if isinstance(status, dict) and isinstance(task105, dict) and task105.get("state") == "complete":
+        completion_evidence = status.get("completion_evidence")
+        task105_evidence = None
+        if isinstance(completion_evidence, list):
+            task105_evidence = next(
+                (
+                    entry
+                    for entry in completion_evidence
+                    if isinstance(entry, dict) and entry.get("task") == "105"
+                ),
+                None,
+            )
+        require(isinstance(task105_evidence, dict), errors, "task 105 completion_evidence must exist")
+
+
+def validate_zig_architecture_layers(errors: list[str]) -> None:
+    src_dir = ROOT / "src"
+    if not src_dir.is_dir():
+        return
+
+    layers_by_path: dict[Path, str] = {}
+    for path in sorted(src_dir.rglob("*.zig")):
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(ROOT).as_posix()
+        match = ZIG_LAYER_RE.search(text)
+        require(match is not None, errors, f"{rel} must declare an architecture layer with // Layer: <layer>")
+        if match is None:
+            continue
+        layer = match.group(1)
+        require(layer in ARCHITECTURE_LAYERS, errors, f"{rel} declares unknown architecture layer {layer!r}")
+        layers_by_path[path.resolve()] = layer
+
+    for path, layer in sorted(layers_by_path.items(), key=lambda item: item[0].as_posix()):
+        text = path.read_text(encoding="utf-8")
+        rel = path.relative_to(ROOT).as_posix()
+        forbidden_targets = FORBIDDEN_LAYER_IMPORTS.get(layer, set())
+        if not forbidden_targets:
+            continue
+        for imported in ZIG_IMPORT_RE.findall(text):
+            target = resolve_zig_import(path, imported)
+            if target is None:
+                continue
+            target_layer = layers_by_path.get(target)
+            if target_layer is None:
+                continue
+            require(
+                target_layer not in forbidden_targets,
+                errors,
+                f"{rel} layer {layer} must not import {target.relative_to(ROOT).as_posix()} layer {target_layer}",
+            )
+
+
+def resolve_zig_import(importer: Path, imported: str) -> Path | None:
+    if not imported.endswith(".zig"):
+        return None
+    if imported.startswith("src/"):
+        candidate = ROOT / imported
+    else:
+        candidate = importer.parent / imported
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return None
+    if not resolved.is_file():
+        return None
+    try:
+        resolved.relative_to(ROOT / "src")
+    except ValueError:
+        return None
+    return resolved
 
 
 def invariant_numbers(errors: list[str]) -> list[str]:
@@ -4222,6 +4412,7 @@ def main() -> int:
     validate_agent_workflow_cleanup_contracts(tasks, status, errors)
     validate_contract_ambiguity_cleanup_contracts(tasks, status, errors)
     validate_output_bound_wording_cleanup_contracts(tasks, status, errors)
+    validate_architecture_boundary_enforcement_contracts(tasks, status, errors)
     validate_adr_system(errors)
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)

@@ -384,7 +384,7 @@ Minimal valid JSON shape:
       "kind": "cli",
       "status": "passed",
       "expectation": {
-        "mode": "exact",
+        "mode": "contains",
         "block_ref": "docs/CLI_SPEC.md:54:help-output"
       },
       "command": {
@@ -522,6 +522,7 @@ invalid
 | `command` | Structured command evidence or `null` when the mutant was skipped before command execution. |
 | `exit_code` | Integer process exit code or `null` for timeout/skipped/no process. |
 | `timed_out` | Boolean timeout evidence. |
+| `failure_kind` | Runner outcome class copied from deterministic command evidence: `none`, `compile_error`, `test_failure`, `compiler_crash`, `timeout`, or `skipped`. Survivor assistance reads this field instead of inferring the outcome class from prose. |
 | `stdout_excerpt`, `stderr_excerpt`, `failure_summary` | Bounded normalized excerpts. |
 | `skip_reason` | Stable skip reason string for skipped mutation entries; otherwise `null`. |
 

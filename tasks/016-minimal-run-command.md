@@ -10,8 +10,10 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 
 - Load config.
 - Validate Zig version.
+- Build the project model from config: source roots, include/exclude globs, and the configured baseline/test command.
+- Discover eligible source files from the configured include/exclude rules rather than a hardcoded fixture file list.
 - Run baseline tests.
-- Generate Phase 1 AST candidates.
+- Generate Phase 1 AST candidates over the discovered source files.
 - Support Phase 1 run options `--operator <name>`, `--mutant <id>`, `--fail-on-survivors`, `--report <text|json>`, and `--output <path>`.
 - Execute mutants serially.
 - Write JSON report and text summary.
@@ -21,9 +23,11 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 - `src/cli.zig`
 - `src/main.zig`
 - `src/run_command.zig`
+- `src/project_model.zig`
 - `src/report.zig`
 - `src/ast_backend.zig`
 - `test/run_command_test.zig`
+- `test/project_model_test.zig`
 - `test/fixtures/run_command/**`
 - `test/snapshots/run_command_*.json`
 - `tasks/STATUS.md`
@@ -40,6 +44,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 
 ## Required tests
 
+- Add a failing test proving eligible source files are discovered from config include/exclude globs over a fixture project rather than a hardcoded file list.
 - Add a failing end-to-end fixture test for one killed mutant.
 - Add a failing end-to-end fixture test for one survived mutant.
 - Add a failing test for baseline failure exit behavior.
@@ -55,6 +60,7 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 ## Acceptance criteria
 
 - `zentinel run` works for small fixture projects.
+- The project model and the set of mutated source files are derived from config include/exclude rules; `zentinel run` is not limited to a single hardcoded fixture file.
 - Reports include deterministic mutant entries and summary counts.
 - Baseline failure stops mutant execution and is represented as a run-level status with structured baseline command evidence.
 - Baseline timeout follows the same run-level baseline failure path and exits with code `3`.
@@ -74,8 +80,9 @@ Implement `zentinel run` for a single-threaded Phase 1 flow over configured file
 
 1. Wire existing modules with minimal orchestration.
 2. Keep execution serial and easy to debug.
-3. Use fixtures rather than broad repository scans.
-4. Avoid adding configuration options not already documented.
+3. Use small fixture projects and discover their source files via config include/exclude globs, rather than hardcoding file paths or scanning the whole repository.
+4. Keep the project model config-driven (source roots, globs, baseline command); full `build.zig` graph analysis is out of scope here.
+5. Avoid adding configuration options not already documented.
 
 ## Dogfooding implications
 

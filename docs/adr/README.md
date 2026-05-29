@@ -37,3 +37,4 @@ This directory contains zentinel Architecture Decision Records (ADRs). ADRs capt
 | ADR-0005 | [Public artifacts are schema-versioned](0005-schema-versioned-artifacts.md) | Accepted | 2026-05-19 |
 | ADR-0006 | [Docs-to-tests gap registries are regression-oriented](0006-docs-to-tests-gap-registries.md) | Accepted | 2026-05-19 |
 | ADR-0007 | [Pin Zig 0.16.0 for this zentinel version](0007-pin-zig-0-16-0.md) | Accepted | 2026-05-20 |
+| ADR-0008 | [Deterministic pipeline core with ports at side-effect boundaries](0008-deterministic-pipeline-core.md) | Accepted | 2026-05-23 |

@@ -66,6 +66,12 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Enforcement.* Zig version validation tests and ADR-0007.
 - *Failure mode.* Agents implement compatibility branches that are not tested or documented.
 
+**I-022.** Deterministic core modules do not import side-effect or advisory adapters.
+- *Rationale.* Mutation semantics, stable IDs, source mapping, classification, and canonical ordering must stay independent of process execution, filesystem state, report rendering, and AI provider behavior.
+- *Status.* enforced for source files with layer declarations once `src/` exists.
+- *Enforcement.* ADR-0008, `docs/INTERNAL_API_CONTRACTS.md`, `docs/DISCIPLINE.md`, and `scripts/validate_task_system.py` architecture boundary checks.
+- *Failure mode.* Boundary adapters acquire domain authority, making deterministic behavior harder to audit and easier for agents to change accidentally.
+
 ## Mutation and Sandbox
 
 **I-007.** zentinel never permanently mutates the user's working tree during a run.

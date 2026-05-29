@@ -157,6 +157,15 @@
       "tests": [],
       "deferred_to": "tasks/015-mutant-runner.md",
       "notes": "Compiler crash classification lands with mutant runner tests."
+    },
+    {
+      "number": "I-022",
+      "covered": true,
+      "tests": [
+        "scripts/validate_task_system.py"
+      ],
+      "deferred_to": null,
+      "notes": "The validator requires ADR-0008 architecture-boundary contracts and checks source layer declarations plus deterministic-core import boundaries once src/**/*.zig files exist."
     }
   ]
 }

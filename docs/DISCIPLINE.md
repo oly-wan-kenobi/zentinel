@@ -92,6 +92,8 @@ Each rule is binding even before it is fully machine-enforced. When a rule is no
 
 **D-602.** Experimental backend failures must not fail stable AST jobs unless the active task explicitly changes promotion status.
 
+**D-603.** Deterministic core modules must not import side-effect adapters, advisory AI adapters, CLI command routers, or report renderers.
+
 ## 7. Agent and Task Discipline
 
 **D-700.** Agents must respect the active task's allowed and forbidden files unless direct user instructions deliberately change scope.

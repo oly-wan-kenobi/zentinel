@@ -44,7 +44,7 @@ For config expansion, `phase2` means stable Phase 2 operators only. Preview Phas
 | `arithmetic_mul_div` | 1 | stable | `*` to `/`, `/` to `*`. |
 | `equality_swap` | 1 | stable | `==` to `!=`, `!=` to `==`. |
 | `comparison_boundary` | 1 | stable | Inclusive/exclusive boundary swap. |
-| `logical_and_or` | 1 | stable | `&&` to `\|\|`, `\|\|` to `&&`. |
+| `logical_and_or` | 1 | stable | `and` to `or`, `or` to `and`. |
 | `boolean_literal` | 1 | stable | `true` to `false`, `false` to `true`. |
 | `optional_orelse_unreachable` | 2 | stable | Replace fallback with `unreachable`. |
 | `optional_orelse_default` | 2 | preview | Replace fallback expression with type default when safe. |
@@ -106,7 +106,7 @@ Transformations:
 | Before | `a == b`, `a != b` |
 | After | `a != b`, `a == b` |
 | Allowed contexts | Equality comparison expressions for values Zig permits to compare. |
-| Forbidden contexts | Token sequences inside comments/strings; custom comparison helper calls; comparisons already inside generated test code. |
+| Forbidden contexts | Token sequences inside comments/strings; custom comparison helper calls; comparisons already inside generated test code; comparisons where one operand is the `null` literal (owned by `optional_null_check`). |
 | Equivalent risks | Values known to differ in all tests; dead branches; comparisons guarded by identical previous checks. |
 | Compile expectation | `compiles`. |
 | Fixture requirements | Include boolean, enum, optional, and integer equality examples. |
@@ -136,9 +136,9 @@ a < b  -> a <= b
 
 | Field | Contract |
 | --- | --- |
-| Before | `a && b`, `a \|\| b` |
-| After | `a \|\| b`, `a && b` |
-| Allowed contexts | Boolean binary operations with short-circuit semantics. |
+| Before | `a and b`, `a or b` |
+| After | `a or b`, `a and b` |
+| Allowed contexts | Boolean `and`/`or` keyword operations with short-circuit semantics. |
 | Forbidden contexts | Bitwise `&` and `\|`; non-boolean operands; code inside tests by default. |
 | Equivalent risks | One operand constant; guards where later code makes branches equivalent; tests not covering short-circuit side effects. |
 | Compile expectation | `compiles`. |
@@ -338,6 +338,14 @@ Candidates are sorted by:
 6. backend name
 
 Parallel execution must not change this order.
+
+## Operator Overlap and Precedence
+
+When more than one operator could match the same source span, exactly one candidate is emitted, chosen by a deterministic precedence rule so candidate counts and durable IDs are reproducible:
+
+- `null` equality comparisons (`x == null`, `x != null`, and the reversed `null == x` / `null != x` operand orders) are owned by `optional_null_check`; `equality_swap` does not emit candidates for them.
+
+A documented precedence rule must exist before two operators are allowed to match the same span. Absent such a rule, the lower-precedence operator must restrict its allowed contexts to avoid the overlap rather than emit a duplicate candidate.
 
 ## Compile-Error Classification
 
