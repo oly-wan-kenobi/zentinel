@@ -64,6 +64,9 @@ pub const run_command = @import("run_command.zig");
 /// `zentinel list-mutants` candidate generation + rendering (deterministic core).
 pub const list_mutants_command = @import("list_mutants_command.zig");
 
+/// Same-file test selection + fallback (deterministic core).
+pub const test_selection = @import("test_selection.zig");
+
 /// Report renderers: survivor-focused text, streaming JSONL, and JUnit XML
 /// (deterministic core). All derive from the canonical report.v1 model.
 pub const report_text = @import("report_text.zig");

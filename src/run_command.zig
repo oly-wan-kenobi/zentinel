@@ -18,6 +18,8 @@ const boolean = @import("mutators/boolean.zig");
 const runner = @import("runner.zig");
 const mutant_runner = @import("mutant_runner.zig");
 const report = @import("report.zig");
+const command = @import("command.zig");
+const test_selection = @import("test_selection.zig");
 
 pub const ReportFormat = enum { text, json, jsonl, junit };
 
@@ -161,12 +163,18 @@ pub fn run(
     // Generate candidates over the discovered files, then filter.
     const candidates = try generateCandidates(arena, cfg, files, options);
 
-    // Run each mutant and build report entries.
+    const strategy = strategyFromConfig(cfg.test_selection);
+
+    // Run each mutant and build report entries. Per-file selection (same-file
+    // tests + generated-command preflight) is computed once per file and reused.
+    var file_cache: std.ArrayList(FileSelection) = .empty;
     var entries: std.ArrayList(report.Mutant) = .empty;
     for (candidates) |candidate| {
         const source = sourceFor(files, candidate.file) orelse continue;
-        const result = mutant_executor.run(candidate, source, cfg.test_commands, mode);
-        try entries.append(arena, try buildEntry(arena, candidate, source, cfg, result, mode));
+        const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
+        const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
+        const result = mutant_executor.run(candidate, source, resolution.commands, mode);
+        try entries.append(arena, try buildEntry(arena, candidate, source, result, mode, resolution.selection));
     }
     const mutants = try entries.toOwnedSlice(arena);
     report.sortAndAssignDisplayIds(mutants);
@@ -206,6 +214,89 @@ fn sourceFor(files: []const FileSource, path: []const u8) ?[]const u8 {
         if (std.mem.eql(u8, f.path, path)) return f.source;
     }
     return null;
+}
+
+fn strategyFromConfig(s: []const u8) test_selection.Strategy {
+    if (std.mem.eql(u8, s, "same_file")) return .same_file;
+    if (std.mem.eql(u8, s, "same_file_then_package")) return .same_file_then_package;
+    // `all` and `package` both run the configured commands directly; the report
+    // has no narrower `package` strategy variant, so it is reported as `all`.
+    return .all;
+}
+
+/// Per-file selection inputs: the discovered same-file tests, the (already-run)
+/// generated-command preflight result, and whether the generated command was
+/// already a baseline command (so it needs no preflight).
+const FileSelection = struct {
+    file: []const u8,
+    same_file_tests: []const report.SelectedTest,
+    preflight: ?report.CommandResult,
+    generated_in_baseline: bool,
+};
+
+/// Compute (and cache) the selection inputs for `file`. When the strategy uses
+/// same-file tests and the generated `zig test <file>` command is not already a
+/// baseline command, this runs the generated command against the UNMUTATED
+/// project through the baseline executor and records the preflight evidence, so
+/// a generated command must pass an unmutated preflight before it classifies a
+/// mutant (docs/TEST_SELECTION.md).
+fn selectionForFile(
+    arena: std.mem.Allocator,
+    cache: *std.ArrayList(FileSelection),
+    strategy: test_selection.Strategy,
+    file: []const u8,
+    source: []const u8,
+    configured: []const []const u8,
+    baseline_executor: runner.Executor,
+    cwd: []const u8,
+) std.mem.Allocator.Error!FileSelection {
+    for (cache.items) |c| {
+        if (std.mem.eql(u8, c.file, file)) return c;
+    }
+
+    var same_file_tests: []const report.SelectedTest = &.{};
+    const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package;
+    if (same_file_enabled) {
+        var parsed = try ast_backend.parse(arena, file, source);
+        defer parsed.deinit();
+        if (parsed.ok()) same_file_tests = try test_selection.sameFileTests(arena, parsed, file);
+    }
+
+    const generated = try test_selection.generatedCommand(arena, file);
+    const generated_in_baseline = contains(configured, generated);
+
+    var preflight: ?report.CommandResult = null;
+    if (same_file_enabled and same_file_tests.len > 0 and !generated_in_baseline) {
+        preflight = try runPreflight(arena, baseline_executor, generated, cwd);
+    }
+
+    const sel = FileSelection{
+        .file = file,
+        .same_file_tests = same_file_tests,
+        .preflight = preflight,
+        .generated_in_baseline = generated_in_baseline,
+    };
+    try cache.append(arena, sel);
+    return sel;
+}
+
+fn contains(haystack: []const []const u8, needle: []const u8) bool {
+    for (haystack) |item| {
+        if (std.mem.eql(u8, item, needle)) return true;
+    }
+    return false;
+}
+
+/// Run the generated selected command against the unmutated project and classify
+/// it as a `selection_preflight` command result.
+fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: []const u8, cwd: []const u8) std.mem.Allocator.Error!?report.CommandResult {
+    const parsed = try command.parse(arena, original);
+    const argv = switch (parsed) {
+        .ok => |a| a,
+        .invalid => return null, // generated command is always well-formed; defensively skip
+    };
+    const raw = executor.run(argv);
+    return try runner.classifyCommand(arena, .selection_preflight, original, argv, cwd, raw);
 }
 
 fn enabled(cfg: config.Config, operator: []const u8) bool {
@@ -249,9 +340,9 @@ fn buildEntry(
     arena: std.mem.Allocator,
     candidate: mutant.Mutant,
     source: []const u8,
-    cfg: config.Config,
     result: mutant_runner.MutationResult,
     mode: report.Mode,
+    selection: report.TestSelection,
 ) std.mem.Allocator.Error!report.Mutant {
     var duration: u64 = 0;
     for (result.commands) |c| duration += c.duration_ms;
@@ -278,13 +369,7 @@ fn buildEntry(
             .evidence = result.evidence,
             .skip_reason = result.skip_reason,
         },
-        .test_selection = .{
-            .strategy = .all,
-            .selected = &.{},
-            .commands = cfg.test_commands,
-            .preflight_commands = &.{},
-            .fallback_used = false,
-        },
+        .test_selection = selection,
         .advisory = .{ .equivalent_risks = candidate.equivalent_risks, .ai = null },
     };
 }

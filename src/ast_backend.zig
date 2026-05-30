@@ -175,6 +175,43 @@ pub fn testDeclRanges(parsed: Parsed, arena: std.mem.Allocator) std.mem.Allocato
     return out.toOwnedSlice(arena);
 }
 
+/// A `test` declaration's name and 1-based line, for same-file test selection
+/// (docs/TEST_SELECTION.md). `name` is the test's string-literal or identifier
+/// name, or empty for an anonymous `test { ... }`.
+pub const TestDecl = struct {
+    name: []const u8,
+    line: u32,
+    byte_start: u32,
+};
+
+/// Names and locations of every `test` declaration in the parsed source, in
+/// source order. Used by test selection to discover same-file tests.
+pub fn testDecls(parsed: Parsed, arena: std.mem.Allocator) std.mem.Allocator.Error![]TestDecl {
+    var out: std.ArrayList(TestDecl) = .empty;
+    const node_tags = parsed.tree.nodes.items(.tag);
+    const token_tags = parsed.tree.tokens.items(.tag);
+    for (node_tags, 0..) |tag, i| {
+        if (tag != .test_decl) continue;
+        const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
+        const test_tok = parsed.tree.firstToken(node); // the `test` keyword
+        const name_tok = test_tok + 1;
+        const name: []const u8 = if (name_tok < token_tags.len) switch (token_tags[name_tok]) {
+            .string_literal => stripQuotes(parsed.tree.tokenSlice(name_tok)),
+            .identifier => parsed.tree.tokenSlice(name_tok),
+            else => "", // anonymous `test { ... }`
+        } else "";
+        const start = parsed.tree.tokenStart(test_tok);
+        const pos = source_map.locate(parsed.tree.source, start) orelse source_map.Position{ .line = 1, .column = 1 };
+        try out.append(arena, .{ .name = try arena.dupe(u8, name), .line = pos.line, .byte_start = start });
+    }
+    return out.toOwnedSlice(arena);
+}
+
+fn stripQuotes(s: []const u8) []const u8 {
+    if (s.len >= 2 and s[0] == '"' and s[s.len - 1] == '"') return s[1 .. s.len - 1];
+    return s;
+}
+
 /// True if byte offset `at` lies within any test declaration range.
 pub fn inTestBody(ranges: []const ByteRange, at: u32) bool {
     for (ranges) |r| {

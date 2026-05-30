@@ -2068,7 +2068,7 @@
       "title": "Test Selection Same File",
       "file": "tasks/020-test-selection-same-file.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "018",
         "019"
@@ -2082,6 +2082,8 @@
         "test/config_test.zig",
         "test/test_selection_test.zig",
         "test/fixtures/test_selection/**",
+        "test/snapshots/run_command_*.json",
+        "tasks/020-test-selection-same-file.md",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],

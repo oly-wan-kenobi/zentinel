@@ -1,0 +1,46 @@
+{
+  "strategy": "same_file_then_package",
+  "selected": [
+    {
+      "file": "src/range.zig",
+      "name": "add is correct",
+      "line": 7
+    },
+    {
+      "file": "src/range.zig",
+      "name": "add handles zero",
+      "line": 11
+    }
+  ],
+  "commands": [
+    "zig test src/range.zig"
+  ],
+  "preflight_commands": [
+    {
+      "command": {
+        "original": "zig test src/range.zig",
+        "argv": [
+          "zig",
+          "test",
+          "src/range.zig"
+        ],
+        "cwd": "<project>",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+      "phase": "selection_preflight",
+      "status": "passed",
+      "exit_code": 0,
+      "timed_out": false,
+      "failure_kind": "none",
+      "duration_ms": 0,
+      "evidence": {
+        "stdout_excerpt": "",
+        "stderr_excerpt": "",
+        "failure_summary": ""
+      },
+      "skip_reason": null
+    }
+  ],
+  "fallback_used": false
+}

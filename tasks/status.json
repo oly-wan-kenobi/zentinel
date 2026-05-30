@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "020",
+  "next_task": "021",
   "completed_tasks": [
     "068",
     "069",
@@ -59,17 +59,75 @@
     "015",
     "016",
     "017",
-    "018"
+    "018",
+    "020"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 018 report renderers completed; active-state and complete-state validation passed (106 tasks). Closed I-003 (canonical report ordering) and I-015 (snapshot normalization). Added survivor-focused text, streaming JSONL, and JUnit XML renderers plus run-local --verbose/--quiet, all derived from the canonical report without changing its data."
+    "notes": "Task 020 same-file test selection completed; active-state and complete-state validation passed (106 tasks). Closed I-012 (selection never hides an executed mutant). Implemented the default same_file_then_package strategy with an unmutated preflight contract and deterministic fallback, integrated into run; the run report now carries real selection metadata, which regenerated test/snapshots/run_command_completed.json (added to task 020 allowed_files as a downstream consequence of the in-scope run_command.zig change)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "020",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/test_selection_test.zig:4:20: error: root source file struct 'root' has no member named 'test_selection'` (183/183 prior tests passed; the config impact_graph-rejection test compiled and passed against existing config). implementation_started_after_failure: true; src/test_selection.zig, ast_backend.testDecls, and the root.zig re-export were written only after capturing the missing-module failure; the selection-metadata snapshot was generated from actual output. After integrating selection into run, the task-016 run snapshot legitimately changed (test_selection went from the placeholder strategy=all to the real strategy=same_file_then_package with fallback_used=true for the no-same-file-tests fixture); test/snapshots/run_command_completed.json was regenerated and re-asserts deterministically. passing_command: `zig build test` then passed all tests, `zig build` built the binary, and the binary selected same-file tests end-to-end.",
+      "implementation_summary": "Implemented the default same_file_then_package test selection. ast_backend.testDecls extracts each `test` declaration's name (string-literal or identifier; empty for anonymous) and 1-based line. src/test_selection.zig (deterministic_core) is pure: sameFileTests builds report SelectedTests sorted by file, line, then name; generatedCommand builds `zig test <file>`; resolve decides the selection from the strategy, discovered same-file tests, configured commands, and an (already-executed) preflight result. For same_file/same_file_then_package with same-file tests, it uses the generated command when it is already a baseline command (no preflight) or when its preflight passed, recording the preflight evidence (phase=selection_preflight); a failed preflight or absent same-file tests falls back to the configured commands with fallback_used=true and the failed preflight still recorded. all/package run configured commands directly. run_command integrates this: per file (cached) it discovers same-file tests and, when the generated command is not already a baseline command, runs it against the UNMUTATED project through the baseline executor as a selection_preflight before it can classify a mutant; each mutant then runs its selected commands and the report carries the real test_selection. config now rejects `impact_graph` explicitly (not downgraded) before task 051. Selection is deterministic and never uses AI; every executed mutant still appears in the report (I-012).",
+      "files_changed": [
+        "src/test_selection.zig",
+        "src/ast_backend.zig",
+        "src/run_command.zig",
+        "src/config.zig",
+        "src/root.zig",
+        "test/test_selection_test.zig",
+        "test/config_test.zig",
+        "test/fixtures/test_selection/with_tests.zig",
+        "test/fixtures/test_selection/no_tests.zig",
+        "test/fixtures/test_selection/selection_metadata.json",
+        "test/snapshots/run_command_completed.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/020-test-selection-same-file.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/test_selection_test.zig: same-file test discovery + ordering by file/line/name; no-tests file yields none; preflight-pass selects `zig test <file>`; preflight-fail falls back and records the failed preflight; missing same-file tests fall back; a generated command already in baseline needs no preflight; the all strategy runs configured commands; a run-integration test proving the same-file preflight path (selected command, passed preflight, killed mutant still in the report, report valid = I-012); and a selection-metadata snapshot with exactly the documented fields.",
+        "test/config_test.zig: impact_graph selection is rejected (error.Invalid, code invalid_value, section/key test/selection), not downgraded.",
+        "test/fixtures/test_selection/{with_tests.zig,no_tests.zig,selection_metadata.json}."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing test_selection module error while 183 prior tests passed",
+        "zig build test (passing): all tests pass; the selection-metadata and regenerated run snapshots re-assert equality (determinism)",
+        "zig fmt --check src test build.zig: clean",
+        "zig build: binary builds",
+        "binary: `zentinel --root test/fixtures/run_command/killable run` selects the same-file test (strategy=same_file_then_package, selected=[add sums its operands], commands=[zig test src/calc.zig]); because the configured command equals the generated command, generated_in_baseline=true so preflight_commands is empty and fallback_used=false; the mutant is killed and present in the report; no stray files left",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 020 was active (after extending allowed_files to include test/snapshots/run_command_*.json, the necessary downstream snapshot of the in-scope run_command.zig change, and the task markdown so the allowed_files correction is self-consistent), and again after the complete-state transition (106 tasks) with I-012 closed."
+      },
+      "dogfooding_implication": "Same-file selection makes future self-mutation faster (run `zig test <file>` instead of the whole suite) while preserving a deterministic fallback and the unmutated preflight safety check; every executed mutant remains in the report so coverage is never hidden.",
+      "follow_up_tasks": [
+        "tasks/021-cache-key-design.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-012"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "018",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_renderers_test.zig:5:29: error: root source file struct 'root' has no member named 'report_text'` (and report_jsonl/report_junit; 169/169 prior tests passed). implementation_started_after_failure: true; src/report_text.zig, src/report_jsonl.zig, src/report_junit.zig and the root.zig re-exports were written only after capturing the missing-module failures. A real dangling-pointer bug was then caught by the tests (a `&.{ runtimeCall() }` literal in the test builders pointed at a freed temporary, segfaulting the JSONL/JUnit serializers) and fixed by moving the command arrays to comptime container-scope consts. The three renderer snapshots were generated from actual renderer output (self-blessing helper writes on first run then re-asserts equality). passing_command: `zig build test` then succeeded with all tests passing and `zig build` produced a binary rendering all four formats.",

@@ -235,3 +235,21 @@ test "default init output equals the static template" {
     const text = try zentinel.initConfigText(arena.allocator(), null);
     try expectEqualStrings(zentinel.default_config, text);
 }
+
+test "impact_graph selection is rejected before task 051, not downgraded" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena.allocator(),
+        \\[project]
+        \\name = "demo"
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\selection = "impact_graph"
+        \\
+    , &diag));
+    try expectEqual(config.Code.invalid_value, diag.code);
+    try expectEqualStrings("test", diag.section);
+    try expectEqualStrings("selection", diag.key);
+}

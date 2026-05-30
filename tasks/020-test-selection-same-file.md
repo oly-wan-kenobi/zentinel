@@ -23,6 +23,8 @@ Implement the default `same_file_then_package` test selection strategy.
 - `test/config_test.zig`
 - `test/test_selection_test.zig`
 - `test/fixtures/test_selection/**`
+- `test/snapshots/run_command_*.json`
+- `tasks/020-test-selection-same-file.md`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 

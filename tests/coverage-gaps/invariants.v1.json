@@ -82,10 +82,10 @@
     },
     {
       "number": "I-012",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/020-test-selection-same-file.md",
-      "notes": "Test selection reporting is covered when selection strategies exist."
+      "covered": true,
+      "tests": ["test/test_selection_test.zig"],
+      "deferred_to": null,
+      "notes": "same_file_then_package selection narrows execution to a generated `zig test <file>` command but the mutant still appears in the report with its result status: the run-integration test asserts the killed mutant is present (mutants.len==1) and report.validate is ok, and selection records strategy/selected/commands/preflight_commands/fallback_used so no executed mutant is hidden."
     },
     {
       "number": "I-013",

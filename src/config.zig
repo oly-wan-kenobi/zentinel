@@ -311,6 +311,12 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         if (c.len == 0) return fail(diag, .invalid_value, "test", "commands", "test command must not be empty");
     }
     const test_selection = try look.getString("test", "selection", "same_file_then_package", diag);
+    // `impact_graph` is a documented future strategy (task 051). It must be
+    // rejected outright, never silently downgraded to same_file_then_package or
+    // all (docs/TEST_SELECTION.md).
+    if (std.mem.eql(u8, test_selection, "impact_graph")) {
+        return fail(diag, .invalid_value, "test", "selection", "impact_graph selection is not available before task 051");
+    }
     if (!inList(&known_selections, test_selection)) {
         return fail(diag, .invalid_value, "test", "selection", "unknown or not-yet-supported selection strategy");
     }

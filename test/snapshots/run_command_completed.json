@@ -124,13 +124,13 @@
         "skip_reason": null
       },
       "test_selection": {
-        "strategy": "all",
+        "strategy": "same_file_then_package",
         "selected": [],
         "commands": [
           "zig build test"
         ],
         "preflight_commands": [],
-        "fallback_used": false
+        "fallback_used": true
       },
       "advisory": {
         "equivalent_risks": [],
