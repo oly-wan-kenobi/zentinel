@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "028",
+  "next_task": "029",
   "completed_tasks": [
     "068",
     "069",
@@ -67,17 +67,65 @@
     "024",
     "025",
     "026",
-    "027"
+    "027",
+    "028"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 027 integer literal boundary mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row integer_literal_boundary. Added src/mutators/integer_boundary.zig emitting paired +1/-1 candidates for plain-decimal integer literals in comparison (branch/length-check) contexts; protected literals (declarations, enum tags, lengths, alignments) are rejected by the context allowlist. Eleven of twelve minimum-product mutators implemented (only loop_boundary remains). Running autonomously via /loop; the harness recreates .claude/scheduled_tasks.lock on ScheduleWakeup, so it is gitignored and deleted at the start of each iteration to satisfy the no-.claude-directory validator rule."
+    "notes": "Task 028 loop boundary mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row loop_boundary. ALL TWELVE minimum-product mutators are now implemented (6 Phase 1 + optional x2 + error_catch + errdefer + integer_literal_boundary + loop_boundary). Added src/mutators/loop_boundary.zig (while-condition boundary swap + for-range end +/-1). Running autonomously via /loop with start-of-iteration .claude cleanup."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "028",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/loop_boundary_test.zig:3:40: error: struct 'root.mutators' has no member named 'loop_boundary'` (224/224 prior tests passed). implementation_started_after_failure: true; src/mutators/loop_boundary.zig and the root.zig mutators re-export were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests.",
+      "implementation_summary": "Added src/mutators/loop_boundary.zig (deterministic_core): the stable loop_boundary mutator, completing the twelve minimum-product mutators. For while loops it reads the condition via the while node data (while_simple -> node_and_node[0]; while_cont and @\"while\" -> node_and_extra[0]) and, when the condition is a boundary comparison (<, <=, >, >=), swaps the inclusive/exclusive boundary (< <-> <=, > <-> >=) with compiles compile expectation (the swap always type-checks). For for ranges it reads the range end (for_range node_and_opt_node[1], skipping open ranges a..) and, when the end is a plain decimal integer literal, emits paired +1/-1 candidates (i128 math, replacement strings via the collector allocator) with may_fail compile expectation (the bound can overflow the range type or form an invalid range). Infinite loops (while true: the condition is the `true` identifier, not a comparison), non-comparison conditions, open or non-integer range ends, and test bodies are skipped. Candidate order is deterministic via the shared collector's canonical sort. Equality comparisons (==, !=) in while conditions are NOT boundary-swapped (boundary is inclusive/exclusive only). No ast_backend or mutant model change was needed. Re-exported via zentinel.mutators.loop_boundary; run-pipeline enabling and overlap handling with comparison_boundary for loop conditions remain deferred (run_command.zig out of scope) and reports need no schema change.",
+      "files_changed": [
+        "src/mutators/loop_boundary.zig",
+        "src/root.zig",
+        "test/mutators/loop_boundary_test.zig",
+        "test/fixtures/mutators/loop_boundary/ops.zig",
+        "test/fixtures/mutators/loop_boundary/infinite.zig",
+        "tests/coverage-gaps/mutators.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutators/loop_boundary_test.zig: a while comparison boundary swap (< -> <=, compiles) plus a for-range end +1/-1 (may_fail) in deterministic canonical order; an infinite loop (while true) yields no candidates; a while-with-continue condition is boundary-swapped (<= -> <); a non-literal range end (0..n) is left alone; and loop boundaries inside a test body are excluded.",
+        "test/fixtures/mutators/loop_boundary/{ops.zig,infinite.zig}: a counted while + a literal for-range, and an infinite while-true loop."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing loop_boundary mutator member while 224 prior tests passed",
+        "zig build test (passing): all tests pass; existing mutator tests unchanged",
+        "zig fmt --check src test build.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 028 was active after the loop_boundary mutator and tests landed, and again after the complete-state transition (106 tasks) with loop_boundary closed -- all 12 stable required mutators are now covered."
+      },
+      "dogfooding_implication": "loop_boundary completes the minimum-product mutator set (all 12 docs/PROJECT_ACCEPTANCE_CRITERIA required mutators implemented), unblocking the Phase 2 semantic dogfood (task 029) which exercises optional/error/integer/loop boundary mutators over fixtures.",
+      "follow_up_tasks": [
+        "tasks/029-phase2-semantic-dogfood.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/mutators.v1.json": [
+          "loop_boundary"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "027",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/integer_boundary_test.zig:3:43: error: struct 'root.mutators' has no member named 'integer_boundary'` (218/218 prior tests passed). implementation_started_after_failure: true; src/mutators/integer_boundary.zig and the root.zig mutators re-export were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests.",
