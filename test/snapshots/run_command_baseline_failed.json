@@ -1,0 +1,64 @@
+{
+  "schema_version": "zentinel.report.v1",
+  "run": {
+    "id": "run_testfixture00000000",
+    "status": "baseline_failed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel run",
+    "config_hash": "sha256:0000000000000000",
+    "project_root": "<project>",
+    "started_at": "1970-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "baseline": {
+    "status": "failed",
+    "commands": [
+      {
+        "command": {
+          "original": "zig build test",
+          "argv": [
+            "zig",
+            "build",
+            "test"
+          ],
+          "cwd": "<project>",
+          "environment_policy": "minimal",
+          "shell": false
+        },
+        "phase": "baseline",
+        "status": "failed",
+        "exit_code": 1,
+        "timed_out": false,
+        "failure_kind": "test_failure",
+        "duration_ms": 0,
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "test failed",
+          "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED"
+        },
+        "skip_reason": null
+      }
+    ]
+  },
+  "diagnostics": {
+    "cache": {
+      "enabled": false,
+      "mode": "disabled",
+      "hits": 0,
+      "misses": 0
+    }
+  },
+  "summary": {
+    "total": 0,
+    "killed": 0,
+    "survived": 0,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "mutants": []
+}

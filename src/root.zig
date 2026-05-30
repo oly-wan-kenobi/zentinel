@@ -31,6 +31,9 @@ pub const mutant = @import("mutant.zig");
 /// Pure byte <-> line/column source mapping (deterministic core).
 pub const source_map = @import("source_map.zig");
 
+/// Config-driven project model + source discovery (deterministic core).
+pub const project_model = @import("project_model.zig");
+
 /// AST parsing adapter over the pinned std.zig.Ast (deterministic core).
 pub const ast_backend = @import("ast_backend.zig");
 
@@ -54,6 +57,9 @@ pub const mutant_runner = @import("mutant_runner.zig");
 
 /// Typed report model + deterministic JSON serialization (deterministic core).
 pub const report = @import("report.zig");
+
+/// `zentinel run` Phase 1 orchestration + report assembly (deterministic core).
+pub const run_command = @import("run_command.zig");
 
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
 /// baseline test command for config-aware `init --test-command`.
@@ -298,10 +304,18 @@ pub const Globals = struct {
 /// the task-005 surface (global options, `check`, and Zig-aware `version`)
 /// without changing `dispatch`. `.passthrough` means the adapter falls back to
 /// `dispatch`, which still rejects options it does not own.
+/// A `run` invocation: parsed globals plus the run-specific argv that follows
+/// the `run` command (parsed by the run command, not the frozen dispatch).
+pub const RunInvocation = struct {
+    globals: Globals,
+    args: []const []const u8,
+};
+
 pub const Route = union(enum) {
     passthrough,
     version,
     check: Globals,
+    run: RunInvocation,
 };
 
 /// Decide how to handle argv. `check` and `version` need environment inputs
@@ -340,6 +354,7 @@ pub fn route(args: []const []const u8) Route {
 
     const cmd = args[i];
     if (eq(cmd, "check")) return .{ .check = globals };
+    if (eq(cmd, "run")) return .{ .run = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "version")) {
         // `version` does not own --config/--root; defer to dispatch when present.
         if (globals.config_explicit or !eq(globals.root, ".")) return .passthrough;

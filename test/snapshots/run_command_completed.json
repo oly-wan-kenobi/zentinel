@@ -1,0 +1,141 @@
+{
+  "schema_version": "zentinel.report.v1",
+  "run": {
+    "id": "run_testfixture00000000",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel run",
+    "config_hash": "sha256:0000000000000000",
+    "project_root": "<project>",
+    "started_at": "1970-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "baseline": {
+    "status": "passed",
+    "commands": [
+      {
+        "command": {
+          "original": "zig build test",
+          "argv": [
+            "zig",
+            "build",
+            "test"
+          ],
+          "cwd": "<project>",
+          "environment_policy": "minimal",
+          "shell": false
+        },
+        "phase": "baseline",
+        "status": "passed",
+        "exit_code": 0,
+        "timed_out": false,
+        "failure_kind": "none",
+        "duration_ms": 0,
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "",
+          "failure_summary": ""
+        },
+        "skip_reason": null
+      }
+    ]
+  },
+  "diagnostics": {
+    "cache": {
+      "enabled": false,
+      "mode": "disabled",
+      "hits": 0,
+      "misses": 0
+    }
+  },
+  "summary": {
+    "total": 1,
+    "killed": 1,
+    "survived": 0,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "mutants": [
+    {
+      "id": "m_pr1jnebyah9ecqy9287pmh346q",
+      "display_id": 1,
+      "backend": "ast",
+      "backend_stability": "stable",
+      "operator": "arithmetic_add_sub",
+      "operator_stability": "stable",
+      "file": "src/calc.zig",
+      "span": {
+        "byte_start": 46,
+        "byte_end": 47,
+        "line_start": 2,
+        "column_start": 14,
+        "line_end": 2,
+        "column_end": 15
+      },
+      "original": "+",
+      "replacement": "-",
+      "diff": [
+        "-     return a + b;",
+        "+     return a - b;"
+      ],
+      "expected_compile": "may_fail",
+      "result": {
+        "status": "killed",
+        "mode": "Debug",
+        "commands": [
+          {
+            "command": {
+              "original": "zig build test",
+              "argv": [
+                "zig",
+                "build",
+                "test"
+              ],
+              "cwd": "<project>",
+              "environment_policy": "minimal",
+              "shell": false
+            },
+            "phase": "mutant",
+            "status": "failed",
+            "exit_code": 1,
+            "timed_out": false,
+            "failure_kind": "test_failure",
+            "duration_ms": 0,
+            "evidence": {
+              "stdout_excerpt": "",
+              "stderr_excerpt": "test failed",
+              "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED"
+            },
+            "skip_reason": null
+          }
+        ],
+        "phase": "mutant",
+        "duration_ms": 0,
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "",
+          "failure_summary": ""
+        },
+        "skip_reason": null
+      },
+      "test_selection": {
+        "strategy": "all",
+        "selected": [],
+        "commands": [
+          "zig build test"
+        ],
+        "preflight_commands": [],
+        "fallback_used": false
+      },
+      "advisory": {
+        "equivalent_risks": [],
+        "ai": null
+      }
+    }
+  ]
+}

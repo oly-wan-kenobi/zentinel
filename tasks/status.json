@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "016",
+  "next_task": "017",
   "completed_tasks": [
     "068",
     "069",
@@ -56,17 +56,73 @@
     "012",
     "013",
     "014",
-    "015"
+    "015",
+    "016"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 015 mutant runner completed; active-state and complete-state validation passed after closing F-010, F-014, F-015, F-016, F-017, F-032, I-010, and I-021."
+    "notes": "Task 016 minimal run command completed; active-state and complete-state validation passed (106 tasks). Task 016 has no gap-registry rows; the deterministic run orchestration, project model, report assembly, option parsing, and three run-command JSON snapshots landed, and the binary kills a real fixture mutant end-to-end."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "016",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/project_model_test.zig` and `test/run_command_test.zig` referenced `zentinel.project_model` / `zentinel.run_command` before those modules existed (missing-member compile error; 147/147 prior tests passed). implementation_started_after_failure: true; src/project_model.zig, src/run_command.zig, and the root.zig re-exports were written only after capturing the missing-module failures. The three run-command JSON snapshots were generated from the actual report.toJson output (self-blessing snapshot helper writes on first run, then asserts equality on every subsequent run, proving determinism). passing_command: `zig build test` then succeeded with all tests passing, `zig build` builds the binary, and `zentinel run` kills a real fixture mutant.",
+      "implementation_summary": "Implemented `zentinel run` for the single-threaded Phase 1 flow. src/project_model.zig (deterministic_core) provides pure glob matching (`*` within a segment, `**` across segments), include/exclude eligibility, and deterministic source discovery over a directory (sorted, forward-slashed project-relative paths) so the mutated file set is derived from config globs, not a hardcoded list. src/run_command.zig (deterministic_core) orchestrates the flow over injected providers (a baseline runner.Executor and a per-mutant MutantRunner) and pure source bytes: it rejects run.jobs>1 (error.JobsNotSupported) and --output outside the project root (error.OutputOutsideRoot) up front, runs the baseline, on baseline failure emits run.status=baseline_failed with structured baseline command evidence and zero counts (exit 3, covering both non-zero failure and timeout->failed), otherwise generates Phase 1 AST candidates (arithmetic/comparison/logical/boolean) over the discovered files, filters by config mutators_enabled plus --operator/--mutant, runs each mutant through the injected MutantRunner, assembles report mutants (line-level diff, mutant-phase command evidence, all/strategy test selection), assigns canonical display ids, and derives summary counts. --fail-on-survivors changes only the exit code (1), never report fields. parseArgs is the pure run-option parser (rejects unknown options/missing values/invalid --report). src/cli.zig (presentation_adapter) wires the real providers: it loads config, validates Zig (non-fatal), discovers and reads eligible files, runs the real baseline via std.process.run (direct argv, no shell, configured timeout via Io.Timeout), and runs each mutant in an isolated per-mutant workspace under .zig-cache/zentinel/workspaces/<run>/<mutant-id>/ (copy the project minus caches/VCS, write the patched file, run with cwd=workspace, then delete the workspace), so the developer working tree is never modified (docs/SANDBOX_SECURITY.md). The recorded cwd is a stable label, never the raw workspace path. The JSON report is written under the project root (--output is root-restricted) and a concise survivor-focused summary is printed. No parallelism, cache, AI, or experimental backends (task non-goals).",
+      "files_changed": [
+        "src/project_model.zig",
+        "src/run_command.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/project_model_test.zig",
+        "test/run_command_test.zig",
+        "test/fixtures/run_command/sample/src/calc.zig",
+        "test/fixtures/run_command/sample/src/helper.zig",
+        "test/fixtures/run_command/sample/test/excluded.zig",
+        "test/fixtures/run_command/killable/src/calc.zig",
+        "test/fixtures/run_command/killable/zentinel.toml",
+        "test/snapshots/run_command_completed.json",
+        "test/snapshots/run_command_baseline_failed.json",
+        "test/snapshots/run_command_baseline_timeout.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/project_model_test.zig: glob matching (`*` within a segment, `**` across segments), include/exclude eligibility, and discovery of eligible source files from config globs over a fixture project (src/ included and sorted, test/ excluded) rather than a hardcoded list.",
+        "test/run_command_test.zig: baseline failure exits 3 with a baseline_failed report and zero counts; a failing test kills the mutant; a passing test leaves it surviving; --fail-on-survivors exits 1 without changing report fields; --operator narrows to one operator; --mutant selects exactly one durable id; --output outside the project root is rejected; run.jobs>1 is rejected; parseArgs reads/defaults/rejects every documented option; and three deterministic JSON snapshots (completed/baseline_failed/baseline_timeout).",
+        "test/fixtures/run_command/sample/**: a config-driven discovery fixture (src/ included, test/ excluded).",
+        "test/fixtures/run_command/killable/**: a runnable fixture project (calc.zig with an in-file test + zentinel.toml) used for the binary end-to-end kill."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing project_model/run_command module errors while 147 prior tests passed",
+        "zig build test (passing): all tests pass, including 3 self-blessing JSON snapshots that then re-assert equality (determinism proven on re-run)",
+        "zig fmt --check src test build.zig: clean",
+        "zig build: binary builds",
+        "binary end-to-end: `zentinel --root test/fixtures/run_command/killable run` -> baseline passed, 1 arithmetic_add_sub mutant killed, run.status=completed, summary {total:1, killed:1}, exit 0; `--output ../escape.json` -> exit 2 (outside root); `--operator logical_and_or` -> 0 mutants, exit 0",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 016 was active after the modules and tests landed, and again after the complete-state transition (106 tasks). Task 016 has no gap-registry rows to close."
+      },
+      "dogfooding_implication": "This is the first task after which fixture-only dogfooding runs meaningfully: the run command discovers files from config globs, runs a real baseline, and kills a real mutant in an isolated workspace, producing a deterministic report. Real per-mutant timeout is enforced via std.process.run's Io.Timeout; environment minimization beyond direct-argv/no-shell remains a documented Phase 1 limitation (the report still records the minimal environment-policy intent).",
+      "follow_up_tasks": [
+        "tasks/017-list-mutants-command.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "015",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_runner_test.zig:3:31: error: root source file struct 'root' has no member named 'mutant_runner'` (139/139 prior tests passed). implementation_started_after_failure: true; src/mutant_runner.zig, the runner.classifyCommand generalization, and the root.zig re-export were written after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 43/43 steps and 147/147 tests passed.",

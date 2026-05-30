@@ -1971,7 +1971,7 @@
       "title": "Minimal Run Command",
       "file": "tasks/016-minimal-run-command.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "015"
       ],

@@ -75,7 +75,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 013 | `tasks/013-patch-sandbox.md` | complete | 1 |
 | 014 | `tasks/014-baseline-runner.md` | complete | 1 |
 | 015 | `tasks/015-mutant-runner.md` | complete | 1 |
-| 016 | `tasks/016-minimal-run-command.md` | queued | 1 |
+| 016 | `tasks/016-minimal-run-command.md` | complete | 1 |
 | 017 | `tasks/017-list-mutants-command.md` | queued | 1 |
 | 018 | `tasks/018-report-renderers.md` | queued | 1 |
 | 020 | `tasks/020-test-selection-same-file.md` | queued | 1 |

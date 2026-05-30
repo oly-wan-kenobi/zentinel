@@ -1,0 +1,12 @@
+[project]
+name = "killable"
+root = "."
+include = ["src/**/*.zig"]
+exclude = [".zig-cache/**", "zig-out/**", "test/**"]
+
+[mutators]
+enabled = ["arithmetic_add_sub"]
+
+[test]
+commands = ["zig test src/calc.zig"]
+timeout_ms = 60000
