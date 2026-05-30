@@ -84,7 +84,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 023 | `tasks/023-optional-null-mutators.md` | complete | 2 |
 | 024 | `tasks/024-error-path-mutators.md` | complete | 2 |
 | 025 | `tasks/025-autonomous-backlog-audit.md` | complete | 0 |
-| 026 | `tasks/026-errdefer-mutator.md` | queued | 2 |
+| 026 | `tasks/026-errdefer-mutator.md` | complete | 2 |
 | 027 | `tasks/027-integer-literal-boundary-mutator.md` | queued | 2 |
 | 028 | `tasks/028-loop-boundary-mutator.md` | queued | 2 |
 | 029 | `tasks/029-phase2-semantic-dogfood.md` | queued | 2 |

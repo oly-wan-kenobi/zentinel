@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "026",
+  "next_task": "027",
   "completed_tasks": [
     "068",
     "069",
@@ -65,17 +65,64 @@
     "022",
     "023",
     "024",
-    "025"
+    "025",
+    "026"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 025 autonomous backlog audit completed; active-state and complete-state validation passed (106 tasks). The audit found the backlog complete and well-formed against docs/ROADMAP.md and docs/PROJECT_ACCEPTANCE_CRITERIA.md, so no queue/task-file changes were made (no concrete missing or stale task). All 12 required mutators, all required commands/reports/doctest/AI/dogfood/CI/performance items, and all roadmap phases 0-7 plus release acceptance (060) and the final dogfood release gate (085) have concrete sequential tasks; no dead-end."
+    "notes": "Task 026 errdefer mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row errdefer_remove. Added the stable errdefer_remove recognizer (errdefer <body> -> errdefer {}, whole-statement span, may_fail) to src/mutators/error_path.zig alongside error_catch_unreachable; defer is unchanged and existing tests still pass. Running autonomously via /loop."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "026",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `'errdefer_test.test.errdefer statement -> errdefer {} candidate, classified may_fail' failed: expected 1, found 0` (3 errdefer tests failed expecting candidates; 3 negative tests passed because no errdefer candidate was generated yet). implementation_started_after_failure: true; the errdefer recognizer (collectErrdefer) was added to src/mutators/error_path.zig only after capturing the no-candidate failure. passing_command: `zig build test` then passed all tests.",
+      "implementation_summary": "Extended src/mutators/error_path.zig (deterministic_core) with the stable errdefer_remove mutator (it remains the narrowest owner per the task). Refactored collect() into a tag switch over `.@\"catch\"` (existing error_catch_unreachable) and `.@\"errdefer\"` (new). collectErrdefer spans the whole `errdefer <body>` statement -- from the `errdefer` keyword (nodeMainToken) through the cleanup body (lastToken) -- and replaces it wholesale with the literal `errdefer {}` (an empty, no-op error cleanup), matching docs/MUTATOR_SPEC.md (Before `errdefer statement;`/`errdefer { statements }`, After `errdefer {}`). It skips an existing `errdefer {}` (no-op), excludes test bodies, and carries may_fail compile expectation because removing the only use of a captured resource can leave it unused (a documented expected compile error, not an invalid candidate). `defer` is a distinct node tag and is never recognized, so defer behavior is unchanged. Operator constants were renamed for clarity (operator_catch_unreachable, operator_errdefer_remove); the emitted operator strings are unchanged. No ast_backend or mutant model change was needed. Re-exported via the existing zentinel.mutators.error_path; run-pipeline enabling remains deferred (run_command.zig out of scope) and reports need no schema change.",
+      "files_changed": [
+        "src/mutators/error_path.zig",
+        "test/mutators/errdefer_test.zig",
+        "test/fixtures/mutators/errdefer/ops.zig",
+        "test/fixtures/mutators/errdefer/survivor.zig",
+        "tests/coverage-gaps/mutators.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutators/errdefer_test.zig: errdefer <body> -> errdefer {} with may_fail compile expectation; an existing errdefer {} is not mutated; a block/expression body is replaced wholesale with errdefer {}; defer (distinct node) is not changed; errdefer inside a test body is excluded; and the survivor fixture (success-only error path) yields the candidate.",
+        "test/fixtures/mutators/errdefer/{ops.zig,survivor.zig}: cleanup-on-error and success-only errdefer paths plus an already-empty errdefer."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the no-candidate failure (expected 1, found 0) while existing tests passed",
+        "zig build test (passing): all tests pass; existing error_path catch tests and defer behavior unchanged",
+        "zig fmt --check src test build.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 026 was active after the errdefer recognizer and tests landed, and again after the complete-state transition (106 tasks) with errdefer_remove closed."
+      },
+      "dogfooding_implication": "errdefer_remove extends Phase 2 semantic dogfood coverage for cleanup-on-error behavior; the survivor fixture shows how a never-exercised error cleanup is surfaced. With this, ten of the twelve minimum-product mutators are implemented (only integer_literal_boundary and loop_boundary remain).",
+      "follow_up_tasks": [
+        "tasks/027-integer-literal-boundary-mutator.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/mutators.v1.json": [
+          "errdefer_remove"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "025",
       "failing_evidence": "This is a verification/audit task (no product behavior change; src/test/docs/scripts/schemas are forbidden). Per the task contract a failing task-system fixture is added ONLY IF the audit changes validator behavior through an inserted prerequisite task, and the task explicitly forbids corrupting the live queue to manufacture a failure. The audit found no concrete missing or stale task, so no task was inserted and no fixture was added; the verification is the validator pass plus JSON syntax validation.",

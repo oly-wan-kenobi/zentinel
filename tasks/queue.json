@@ -2277,7 +2277,7 @@
       "title": "Errdefer Mutator",
       "file": "tasks/026-errdefer-mutator.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "025"
       ],
