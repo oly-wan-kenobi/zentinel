@@ -46,6 +46,7 @@ pub const mutators = struct {
     pub const boolean = @import("mutators/boolean.zig");
     pub const optional = @import("mutators/optional.zig");
     pub const error_path = @import("mutators/error_path.zig");
+    pub const integer_boundary = @import("mutators/integer_boundary.zig");
 };
 
 /// Deterministic patch sandbox: applies one mutant to a source copy (deterministic core).

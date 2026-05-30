@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "027",
+  "next_task": "028",
   "completed_tasks": [
     "068",
     "069",
@@ -66,17 +66,65 @@
     "023",
     "024",
     "025",
-    "026"
+    "026",
+    "027"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 026 errdefer mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row errdefer_remove. Added the stable errdefer_remove recognizer (errdefer <body> -> errdefer {}, whole-statement span, may_fail) to src/mutators/error_path.zig alongside error_catch_unreachable; defer is unchanged and existing tests still pass. Running autonomously via /loop."
+    "notes": "Task 027 integer literal boundary mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row integer_literal_boundary. Added src/mutators/integer_boundary.zig emitting paired +1/-1 candidates for plain-decimal integer literals in comparison (branch/length-check) contexts; protected literals (declarations, enum tags, lengths, alignments) are rejected by the context allowlist. Eleven of twelve minimum-product mutators implemented (only loop_boundary remains). Running autonomously via /loop; the harness recreates .claude/scheduled_tasks.lock on ScheduleWakeup, so it is gitignored and deleted at the start of each iteration to satisfy the no-.claude-directory validator rule."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "027",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/integer_boundary_test.zig:3:43: error: struct 'root.mutators' has no member named 'integer_boundary'` (218/218 prior tests passed). implementation_started_after_failure: true; src/mutators/integer_boundary.zig and the root.zig mutators re-export were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests.",
+      "implementation_summary": "Added src/mutators/integer_boundary.zig (deterministic_core): the stable integer_literal_boundary mutator. It walks comparison nodes (==, !=, <, <=, >, >=) and, for each operand that is a `.number_literal`, emits two boundary candidates: the literal incremented by one and decremented by one (parsed as i128 to avoid overflow when computing +/-1; replacement strings allocated from the collector allocator). Context is an allowlist: only literals that are direct comparison operands are mutated, so this covers branch and length-check boundaries while protected literals -- version numbers, ABI/mask constants, enum tags, array lengths, and align(...) values -- are never examined because they are not comparison operands. Only plain decimal literals are mutated; hex/binary/octal and underscore/suffix forms are skipped as syntax-local (type inference out of scope). Test bodies are excluded. Compile expectation is may_fail because a +/-1 can overflow the operand's integer type (a documented expected compile error, not an invalid candidate). Candidate order is deterministic via the shared collector's canonical sort, giving a stable order for each paired +1/-1. No ast_backend or mutant model change was needed. Re-exported via zentinel.mutators.integer_boundary; run-pipeline enabling remains deferred (run_command.zig out of scope) and reports need no schema change. A separate chore commit gitignored .claude/ (harness scheduling state); the directory is removed at iteration start so the validator's no-.claude rule holds.",
+      "files_changed": [
+        "src/mutators/integer_boundary.zig",
+        "src/root.zig",
+        "test/mutators/integer_boundary_test.zig",
+        "test/fixtures/mutators/integer_boundary/ops.zig",
+        "test/fixtures/mutators/integer_boundary/protected.zig",
+        "tests/coverage-gaps/mutators.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutators/integer_boundary_test.zig: paired +1/-1 candidates for branch (`x < 10`) and length-check (`s.len == 3`) literals in deterministic canonical order with may_fail; protected literals (declarations, enum tags, array length, alignment) yield no candidates; zero is mutated to +1=1 and -1=-1 (negative replacement); hex literals are skipped; literals in plain assignments are not mutated; and integer literals in a test-body comparison are excluded.",
+        "test/fixtures/mutators/integer_boundary/{ops.zig,protected.zig}: boundary comparisons, and protected declaration/enum/length/alignment literals."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing integer_boundary mutator member while 218 prior tests passed",
+        "zig build test (passing): all tests pass; existing mutator tests unchanged",
+        "zig fmt --check src test build.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 027 was active (after removing the harness-created .claude/ scheduling-state directory that the no-.claude rule forbids) and again after the complete-state transition (106 tasks) with integer_literal_boundary closed."
+      },
+      "dogfooding_implication": "Integer boundary fixtures become future dogfood targets for config and report code where off-by-one boundaries are common. Eleven of the twelve minimum-product mutators are now implemented; only loop_boundary (task 028) remains.",
+      "follow_up_tasks": [
+        "tasks/028-loop-boundary-mutator.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/mutators.v1.json": [
+          "integer_literal_boundary"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "026",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `'errdefer_test.test.errdefer statement -> errdefer {} candidate, classified may_fail' failed: expected 1, found 0` (3 errdefer tests failed expecting candidates; 3 negative tests passed because no errdefer candidate was generated yet). implementation_started_after_failure: true; the errdefer recognizer (collectErrdefer) was added to src/mutators/error_path.zig only after capturing the no-candidate failure. passing_command: `zig build test` then passed all tests.",
@@ -831,7 +879,7 @@
     },
     {
       "task": "010",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/arithmetic_test.zig:3:29: error: root source file struct 'root' has no member named 'mutators'` plus `error: embed of file outside package path: '../fixtures/mutators/arithmetic/ops.zig'` (118/118 prior tests passed) — the recognizer module did not exist and @embedFile could not reach the sibling fixtures directory from the test module path. implementation_started_after_failure: true; src/mutators/arithmetic.zig and the root.zig re-export were written after the failure, and the fixture is read at runtime via cwd instead of @embedFile. passing_command: `zig build test` then succeeded with 33/33 steps and 121/121 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/arithmetic_test.zig:3:29: error: root source file struct 'root' has no member named 'mutators'` plus `error: embed of file outside package path: '../fixtures/mutators/arithmetic/ops.zig'` (118/118 prior tests passed) \u2014 the recognizer module did not exist and @embedFile could not reach the sibling fixtures directory from the test module path. implementation_started_after_failure: true; src/mutators/arithmetic.zig and the root.zig re-export were written after the failure, and the fixture is read at runtime via cwd instead of @embedFile. passing_command: `zig build test` then succeeded with 33/33 steps and 121/121 tests passed.",
       "implementation_summary": "Added src/mutators/arithmetic.zig: a deterministic_core recognizer that walks std.zig.Ast nodes and emits arithmetic_add_sub (+<->-) and arithmetic_mul_div (*</>) swap candidates through the shared collector. It recognizes only the non-wrapping binary operator node tags (.add/.sub/.mul/.div), using nodeMainToken for the exact operator token span and source_map for 1-based line/column; unary negation (.negation) and wrapping/saturating operators are ignored. Operators inside test-declaration ranges are skipped via ast_backend.inTestBody. expected_compile is may_fail (the AST layer has no type info to prove unsigned/comptime-negative swaps compile, so a compile-error mutant is a documented expected outcome, not an invalid candidate). Candidates flow through the task-009 collector for canonical ordering, durable id assignment, and dedupe. The mutators namespace is re-exported from root.zig. No patches applied and no mutants executed (task non-goals).",
       "files_changed": [
         "src/mutators/arithmetic.zig",
@@ -925,7 +973,7 @@
     },
     {
       "task": "009",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_candidate_ordering_test.zig:32:33: error: root source file struct 'ast_backend' has no member named 'Collector'` (Build Summary: 26/29 steps succeeded (1 failed); 113/113 tests passed) — the candidate-ordering tests could not compile because the collector did not exist. implementation_started_after_failure: true; mutant.assignId/sortAndDedupe and ast_backend.Collector were written only after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 29/29 steps and 116/116 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_candidate_ordering_test.zig:32:33: error: root source file struct 'ast_backend' has no member named 'Collector'` (Build Summary: 26/29 steps succeeded (1 failed); 113/113 tests passed) \u2014 the candidate-ordering tests could not compile because the collector did not exist. implementation_started_after_failure: true; mutant.assignId/sortAndDedupe and ast_backend.Collector were written only after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 29/29 steps and 116/116 tests passed.",
       "implementation_summary": "Added deterministic candidate collection on top of the shared mutant model. mutant.zig gained assignId (compute and store the durable id) and sortAndDedupe (canonically sort a copy by file/byte span/operator/replacement/backend, then drop exact-identity duplicates which are adjacent after sorting). ast_backend.zig gained Candidate (alias of the shared mutant) and Collector (init/add/finish/deinit): finish assigns durable ids, sorts canonically, and deduplicates by identity. No mutation operators are enabled and no recognizers are connected yet (task non-goals); the collector is the interface future recognizers feed.",
       "files_changed": [
         "src/mutant.zig",
@@ -970,7 +1018,7 @@
     },
     {
       "task": "008",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_parser_test.zig:3:28: error: root source file struct 'root' has no member named 'source_map'` and the same for `ast_backend` (Build Summary: 24/27 steps succeeded (1 failed); 108/108 tests passed) — the parser tests could not compile because src/source_map.zig and src/ast_backend.zig did not exist. implementation_started_after_failure: true; both modules and the root.zig re-exports were written only after capturing the missing-module failure. A subsequent `zig fmt --check test` failure on the deliberately-invalid fixture led to storing it as `.zig.txt` so fmt does not parse it. passing_command: `zig build test` then succeeded with 27/27 steps and 113/113 tests passed and `zig fmt --check src test` is clean.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_parser_test.zig:3:28: error: root source file struct 'root' has no member named 'source_map'` and the same for `ast_backend` (Build Summary: 24/27 steps succeeded (1 failed); 108/108 tests passed) \u2014 the parser tests could not compile because src/source_map.zig and src/ast_backend.zig did not exist. implementation_started_after_failure: true; both modules and the root.zig re-exports were written only after capturing the missing-module failure. A subsequent `zig fmt --check test` failure on the deliberately-invalid fixture led to storing it as `.zig.txt` so fmt does not parse it. passing_command: `zig build test` then succeeded with 27/27 steps and 113/113 tests passed and `zig fmt --check src test` is clean.",
       "implementation_summary": "Added src/source_map.zig (pure byte <-> 1-based line/column mapping with locate/byteOf round-trip and out-of-range guardrails, independent of the parser) and src/ast_backend.zig (a wrapper over the pinned std.zig.Ast that owns a null-terminated source copy, reports parse diagnostics mapped to file + 1-based location, and exposes deterministic node-index traversal). Verified std.zig.Ast API surface against installed Zig 0.16.0: std.zig.Ast.parse(gpa, source: [:0]const u8, mode: .zig) Allocator.Error!Ast; Ast.deinit(gpa); Ast.source: [:0]const u8; Ast.errors: []const Ast.Error with Error.tag (used via @tagName) and Error.is_note; Ast.errorOffset(Error) u32; Ast.nodes: std.MultiArrayList(Node).Slice accessed as nodes.items(.tag) -> []Node.Tag. Also available and recorded for later tasks: Ast.tokenStart, Ast.tokenSlice, Ast.firstToken/lastToken, Ast.nodeToSpan(node) Span{start,end,main}, and Ast.tokenLocation. The adapter wraps these so a future Zig pin change is isolated to one module. No mutation operators are enabled (task non-goal).",
       "files_changed": [
         "src/source_map.zig",
@@ -1020,7 +1068,7 @@
     },
     {
       "task": "007",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_model_test.zig:3:24: error: root source file struct 'root' has no member named 'mutant'` (Build Summary: 22/25 steps succeeded (1 failed); 100/100 tests passed) — the mutant-model tests could not compile because src/mutant.zig did not exist. implementation_started_after_failure: true; src/mutant.zig, the report.zig type aliases, and the root.zig re-export were written only after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 25/25 steps and 108/108 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_model_test.zig:3:24: error: root source file struct 'root' has no member named 'mutant'` (Build Summary: 22/25 steps succeeded (1 failed); 100/100 tests passed) \u2014 the mutant-model tests could not compile because src/mutant.zig did not exist. implementation_started_after_failure: true; src/mutant.zig, the report.zig type aliases, and the root.zig re-export were written only after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 25/25 steps and 108/108 tests passed.",
       "implementation_summary": "Added src/mutant.zig: the shared mutant model and the durable m_... identity algorithm. computeId derives `m_ + first_26(lowercase unpadded Crockford base32(sha256(canonical_bytes)))` over the exact \\n-separated field order (zentinel.mutant.v1, backend_version, file, operator, span_start, span_end, original, replacement); the pinned test vector m_8kjyy9kdjw9zngpb31q659cqmt was computed independently in Python and matches the Zig implementation byte-for-byte. Span.isValid enforces byte_start<=byte_end<=source_len and 1-based non-decreasing lines; Mutant.isValidCandidate adds the structural invalid-candidate contract (span length equals original length, replacement differs from original). lessThan/sort apply canonical candidate ordering (file, byte_start, byte_end, operator, replacement, backend) independent of display index, and display ids are assigned only after sorting. ast_backend_version pins ast.v1.zig-0.16.0 into identity and cache keys. report.zig now consumes the shared Span, Backend, BackendStability, OperatorStability, and ExpectedCompile types from mutant.zig instead of duplicating them, so identity and shared model types have one source of truth. No candidate generation, patching, or execution (task non-goals).",
       "files_changed": [
         "src/mutant.zig",
@@ -1070,7 +1118,7 @@
     },
     {
       "task": "006",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_schema_test.zig:3:24: error: root source file struct 'root' has no member named 'report'` (Build Summary: 20/23 steps succeeded (1 failed); 79/79 tests passed) — the report-schema tests could not compile because src/report.zig did not exist. After implementing the module the snapshot test then failed against a placeholder (`expected PLACEHOLDER ... instead found {...}`), which seeded the canonical snapshot. implementation_started_after_failure: true; src/report.zig and the root.zig re-export were written only after capturing the missing-module failure, and test/snapshots/report_minimal.json was generated from the actual serializer output. passing_command: `zig build test` then succeeded with 23/23 steps and 100/100 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_schema_test.zig:3:24: error: root source file struct 'root' has no member named 'report'` (Build Summary: 20/23 steps succeeded (1 failed); 79/79 tests passed) \u2014 the report-schema tests could not compile because src/report.zig did not exist. After implementing the module the snapshot test then failed against a placeholder (`expected PLACEHOLDER ... instead found {...}`), which seeded the canonical snapshot. implementation_started_after_failure: true; src/report.zig and the root.zig re-export were written only after capturing the missing-module failure, and test/snapshots/report_minimal.json was generated from the actual serializer output. passing_command: `zig build test` then succeeded with 23/23 steps and 100/100 tests passed.",
       "implementation_summary": "Added src/report.zig: the typed zentinel report model (run/baseline/diagnostics/summary/mutants with command evidence, span, result, test_selection, advisory, run_error) whose struct field order is the canonical JSON key order. toJson/writeJson serialize deterministic canonical JSON via std.json.Stringify (indent_2); enums emit as schema enum strings, required nulls emit, run_error.details is always an array. summarize derives counts only from mutants; sortAndAssignDisplayIds applies canonical ordering (file, byte_start, byte_end, operator, replacement, backend) and 1-based display ids. validate is the deterministic second oracle for derived invariants JSON Schema cannot prove: summary total/per-status match, display-id ordering, completed/baseline_failed/internal_error cross-field rules, run.error nullability, baseline not_run + mutants rejection, empty argv0, mutant command phase, skip_reason rules, and invalid failure_summary prefix. normalizeForComparison normalizes only run.id/started_at/all duration_ms for repeated-run comparison. The existing schemas/report.v1.schema.json already matched and was unchanged. No command execution or mutant generation (task non-goal).",
       "files_changed": [
         "src/report.zig",
@@ -1123,7 +1171,7 @@
     },
     {
       "task": "005",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/check_command_test.zig:4:25: error: root source file struct 'root' has no member named 'command'` and the same for `zig_version` and `route` (Build Summary: 16/21 steps succeeded (2 failed); 49/49 tests passed) — the new version/check/command tests could not compile because the modules and route did not yet exist. implementation_started_after_failure: true; src/command.zig, src/zig_version.zig, src/check_command.zig, the config.zig/root.zig wiring, and the cli.zig routing were written only after capturing this failure. passing_command: `zig build test` then succeeded with 21/21 steps and 79/79 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/check_command_test.zig:4:25: error: root source file struct 'root' has no member named 'command'` and the same for `zig_version` and `route` (Build Summary: 16/21 steps succeeded (2 failed); 49/49 tests passed) \u2014 the new version/check/command tests could not compile because the modules and route did not yet exist. implementation_started_after_failure: true; src/command.zig, src/zig_version.zig, src/check_command.zig, the config.zig/root.zig wiring, and the cli.zig routing were written only after capturing this failure. passing_command: `zig build test` then succeeded with 21/21 steps and 79/79 tests passed.",
       "implementation_summary": "Implemented pinned Zig 0.16.0 version policy and `zentinel check`. src/zig_version.zig is the single version-policy module: it owns supported_version=0.16.0 and pure classify/parse/message/statusLine over an injected Discovery (the adapter runs `zig version`, so the core stays testable without invoking Zig). src/command.zig is the shared shell-free command-string parser producing deterministic argv and rejecting unmatched quotes, unsupported escapes, bare backslashes, shell metacharacters/expansion/chaining, env-assignment prefixes, and empty argv (docs/CONFIG_SPEC.md grammar). src/check_command.zig orchestrates check purely over (config bytes, config path, Zig discovery): config-not-found, config parse/validate, Zig policy, include/exclude root containment, and configured-command syntax, without generating mutants, patching, or executing commands. config.zig gained ZNTL_CONFIG_INVALID_COMMAND and a public isOutsideRoot. root.zig re-exports the new modules, centralizes supported_zig_version on zig_version.supported_version, and adds route() plus Globals/Route for --config/--root and check/version, leaving the frozen Phase 0 dispatch (and its cli_test contract) unchanged. cli.zig routes, reads config, runs `zig version`, and renders results. Durable Zig verification evidence: pinned supported version 0.16.0; local `zig version` = 0.16.0; result = match.",
       "files_changed": [
         "src/zig_version.zig",
@@ -1190,7 +1238,7 @@
     },
     {
       "task": "004",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) — the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) \u2014 the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
       "implementation_summary": "Added the fixture system. test/support/fixture.zig enumerates fixture projects under test/fixtures/projects sorted by normalized project-relative path (deterministic regardless of raw directory iteration order) and parses+validates each fixture.toml via the in-tree TOML subset parser re-exported from the zentinel hub (ADR-0009). Added two fixture projects: arithmetic_kill (calc.zig plus metadata, expected outcome killed) and no_eligible_sources (metadata plus README, expected outcome no_eligible_sources for F-006, with no eligible .zig sources). build.zig compiles the minimal arithmetic fixture as a test so `zig build test` proves it compiles through a test command; fixture sources avoid the _test.zig suffix so recursive discovery does not sweep them. No mutant generation was implemented (task non-goal).",
       "files_changed": [
         "build.zig",
@@ -1302,9 +1350,20 @@
       "task": "068",
       "failing_evidence": "No new structural guardrail was added; task 068 aligned existing docs/schema contracts using existing validator and syntax checks.",
       "implementation_summary": "Aligned preimplementation contracts for backlog audit scope, preview mutator roadmap wording, doctest mutation summaries, survivor AI context, pre-041 pipeline wording, and report internal_error schema ownership.",
-      "files_changed": ["task metadata", "contract docs", "report schema", "gap registry rows"],
+      "files_changed": [
+        "task metadata",
+        "contract docs",
+        "report schema",
+        "gap registry rows"
+      ],
       "tests_added": [],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "Markdown JSON fence checks", "git diff --check"],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "Markdown JSON fence checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
@@ -1317,9 +1376,22 @@
       "task": "069",
       "failing_evidence": "Pre-fix validator failed on new guardrails for run-option ownership, config worker-count coverage, mutation-agent compiler_crash wording, baseline timeout semantics, pipeline validator ordering, and doctest snapshot modes.",
       "implementation_summary": "Aligned CLI/config/report/doctest contracts, mutation-agent role profile, and task-system validator guardrails.",
-      "files_changed": ["task metadata", "CLI/config/report/doctest contracts", "mutation agent role profile", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for agent-readiness contracts."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "Markdown JSON fence checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "CLI/config/report/doctest contracts",
+        "mutation agent role profile",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for agent-readiness contracts."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "Markdown JSON fence checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
@@ -1332,9 +1404,25 @@
       "task": "070",
       "failing_evidence": "Pre-fix validator failed on new guardrails for bootstrap test discovery, active-lock artifacts, follow-up execution order, doctest expectation kinds, status prose, and README orientation.",
       "implementation_summary": "Aligned bootstrap/test-harness contracts, pipeline artifact docs, schema registry rows, doctest docs, README, and status prose.",
-      "files_changed": ["task metadata", "validator guardrails", "bootstrap/test-harness task contracts", "pipeline artifact docs", "schema registry rows", "doctest docs", "README", "status prose"],
-      "tests_added": ["Structural validator guardrails for agent-blocker contracts."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "validator guardrails",
+        "bootstrap/test-harness task contracts",
+        "pipeline artifact docs",
+        "schema registry rows",
+        "doctest docs",
+        "README",
+        "status prose"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for agent-blocker contracts."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
@@ -1347,331 +1435,677 @@
       "task": "071",
       "failing_evidence": "Pre-fix validator failed on new guardrails for orchestrator routing, pipeline schema ownership, Zig artifact ignores, and stale baseline status wording.",
       "implementation_summary": "Aligned Codex orchestrator routing, pipeline schema ownership contracts, schema gap registry rows, root gitignore, and stale status history.",
-      "files_changed": ["task metadata", "Codex orchestrator routing", "pipeline schema ownership contracts", "schema gap registry rows", "validator guardrails", ".gitignore", "status history"],
-      "tests_added": ["Structural validator guardrails for agent-contract finalization."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "Codex orchestrator routing",
+        "pipeline schema ownership contracts",
+        "schema gap registry rows",
+        "validator guardrails",
+        ".gitignore",
+        "status history"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for agent-contract finalization."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 071 agent contract finalization."
       },
       "dogfooding_implication": "Removed remaining pre-bootstrap agent-contract drift; no dogfood run expected.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "072",
       "failing_evidence": "Pre-fix validator failed on task 064 missing dependency 062 as expected.",
       "implementation_summary": "Added direct previous-task dependency guardrail, fixed task 064 dependency, synced task 000 guard with task 072, and aligned harness/roadmap/invariant wording.",
-      "files_changed": ["task metadata", "task 064 dependency and guard", "task 000 guard", "validator guardrail", "harness and roadmap wording", "invariant gap row"],
-      "tests_added": ["Structural validator guardrail for direct previous non-superseded execution-order dependencies."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 064 dependency and guard",
+        "task 000 guard",
+        "validator guardrail",
+        "harness and roadmap wording",
+        "invariant gap row"
+      ],
+      "tests_added": [
+        "Structural validator guardrail for direct previous non-superseded execution-order dependencies."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 072 prebootstrap sequencing and contract cleanup."
       },
       "dogfooding_implication": "Removed pre-bootstrap sequencing risk before dogfoodable behavior exists; no dogfood run expected.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "073",
       "failing_evidence": "Pre-fix validator failed on stale startup-order wording that marked tasks active before reading selected task docs.",
       "implementation_summary": "Aligned autonomous task startup ordering so agents read selected task docs before marking active, and added a validator guardrail.",
-      "files_changed": ["task metadata", "task 000 guard", "startup-order docs", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail rejecting mark-active-before-read startup wording."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "startup-order docs",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail rejecting mark-active-before-read startup wording."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 073 agent protocol readiness order."
       },
       "dogfooding_implication": "Removed startup-order ambiguity before dogfoodable behavior exists; no dogfood run expected.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "074",
       "failing_evidence": "Pre-fix validator failed because task 019 executed after task 010 and task 020 lacked both required prerequisites.",
       "implementation_summary": "Moved same-file test exclusion to execution order 009.1 before arithmetic mutators, synchronized dependencies, guards, follow-ups, and validator guardrail.",
-      "files_changed": ["task metadata", "task 000 guard", "task 009/010/018/019/020 sequencing metadata", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail rejecting task 019 after task 010."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "task 009/010/018/019/020 sequencing metadata",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail rejecting task 019 after task 010."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 074 same-file exclusion sequencing."
       },
       "dogfooding_implication": "Future dogfood candidate sets are protected from normal test-body mutation by task order.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "075",
       "failing_evidence": "Pre-fix validator failed on missing mutation-gate availability cutover and pre-gate skip wording.",
       "implementation_summary": "Defined task 043 as mutation-gate availability cutover, added pre-gate unavailable skip reason, and preserved mandatory post-cutover gates for mutation-testable work.",
-      "files_changed": ["task metadata", "task 000 guard", "mutation gate policy", "task 043 wording", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring task 043 cutover and pre-gate unavailable policy wording."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "mutation gate policy",
+        "task 043 wording",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring task 043 cutover and pre-gate unavailable policy wording."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 075 mutation gate availability policy."
       },
       "dogfooding_implication": "Preserves future mutation gates while preventing pre-gate tasks from blocking on nonexistent tooling.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "076",
       "failing_evidence": "Pre-fix validator failed on missing dm_ mutation-aware doctest entry identity wording.",
       "implementation_summary": "Added dm_ mutation-aware doctest entry IDs, kept dt_ as source case identity, preserved ds_ as survivor-only, and updated task 061/067 requirements.",
-      "files_changed": ["task metadata", "task 000 guard", "doctest identity docs", "task 061/067 requirements", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring dm_ mutation-aware doctest entry identity wording."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "doctest identity docs",
+        "task 061/067 requirements",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring dm_ mutation-aware doctest entry identity wording."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 076 doctest mutation entry identity."
       },
       "dogfooding_implication": "Future doctest mutation dogfood and survivor AI can join source cases, mutation entries, and survivor refs without ambiguity.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "077",
       "failing_evidence": "Pre-fix validator failed because task 025 lacked a new-task-file allowance for concrete audit gaps.",
       "implementation_summary": "Allowed task 025 to create next-unused task markdown files only for concrete missing backlog tasks and added validator enforcement.",
-      "files_changed": ["task metadata", "task 000 guard", "task 025 scope and allowed files", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring task 025 task-file creation scope."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "task 025 scope and allowed files",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring task 025 task-file creation scope."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 077 backlog audit task creation scope."
       },
       "dogfooding_implication": "Prevents the audit from becoming a human-coordination blocker before dogfood expansion tasks.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "078",
       "failing_evidence": "Pre-fix validator failed because task 000 did not say to add bootstrap tests before build.zig or name the expected missing-scaffold failure.",
       "implementation_summary": "Aligned task 000 suggested approach with failing-test-first bootstrap order and documented acceptable pre-scaffold failure evidence.",
-      "files_changed": ["task metadata", "task 000 guard and TDD wording", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring task 000 to add bootstrap tests before build.zig."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard and TDD wording",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring task 000 to add bootstrap tests before build.zig."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 078 bootstrap TDD order."
       },
       "dogfooding_implication": "Keeps the first implementation task from bypassing failing evidence before dogfoodable behavior exists.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "079",
       "failing_evidence": "Pre-fix validator failed because tasks/status.json lacked a completion_evidence array.",
       "implementation_summary": "Added status.v1 completion_evidence schema, populated structured evidence for completed tasks, updated protocol/guide wording, and added validator guardrails for evidence and schema presence.",
-      "files_changed": ["task metadata", "task 000 guard", "status schema", "tasks/status.json completion evidence", "protocol and guide wording", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails requiring completion_evidence for every completed task and status schema support."],
-      "tests_run": ["python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "status schema",
+        "tasks/status.json completion evidence",
+        "protocol and guide wording",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails requiring completion_evidence for every completed task and status schema support."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 079 status completion evidence schema."
       },
       "dogfooding_implication": "Fresh agents can verify completed-task evidence before dogfood and pipeline artifact tasks exist.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "080",
       "failing_evidence": "Pre-fix validator failed on doctest_survivor example 1 because mutation_case.id reused the ordinary dt_ doctest case identity instead of a dm_ mutation-aware report entry identity.",
       "implementation_summary": "Added a structural validator guardrail for doctest_survivor JSON examples and aligned the doctest AI integration example with the documented dt_/dm_/ds_ identity split.",
-      "files_changed": ["task metadata", "doctest AI survivor example", "task 000 dependency guard", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring doctest_survivor examples to use dt_ source_case.id and dm_ mutation_case.id."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "doctest AI survivor example",
+        "task 000 dependency guard",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring doctest_survivor examples to use dt_ source_case.id and dm_ mutation_case.id."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 080 doctest survivor example identity guard."
       },
       "dogfooding_implication": "No dogfood run exists yet; future doctest mutation dogfood and survivor AI work now have a valid example identity model.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "081",
       "failing_evidence": "Pre-fix validator failed on tasks 000 through 024, including task 019, because their local Required tests sections omitted python3 scripts/validate_task_system.py.",
       "implementation_summary": "Added a structural validator guardrail for task-local validator requirements and added the validator command to early queued task Required tests without changing task-specific targeted tests.",
-      "files_changed": ["task metadata", "early queued task required-test lists", "task 000 dependency guard", "validator guardrail"],
-      "tests_added": ["Structural validator guardrail requiring non-superseded task files to include python3 scripts/validate_task_system.py in Required tests."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "early queued task required-test lists",
+        "task 000 dependency guard",
+        "validator guardrail"
+      ],
+      "tests_added": [
+        "Structural validator guardrail requiring non-superseded task files to include python3 scripts/validate_task_system.py in Required tests."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 081 task-local validator requirements."
       },
       "dogfooding_implication": "No dogfood run exists yet; future agents see the validator completion gate in every queued task handoff.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "082",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for ambiguous doctest fence-length contracts, missing five-backtick parser coverage, task 000 task-control scope, hard-coded Zig version diagnostics, local-version-only task 005 wording, and legacy Property tests required headings.",
       "implementation_summary": "Clarified doctest fence support as exactly three or four backticks, treated longer fences as documentation-only until extended, standardized doctest task property gate headings, made task 000 task-control lifecycle files explicit, removed hard-coded Zig version diagnostics, and added validator guardrails for those contracts.",
-      "files_changed": ["doctest fence docs", "doctest parser task requirements", "task gate headings", "task 000 scope", "Zig version policy wording", "task-system validator guardrails", "task metadata"],
-      "tests_added": ["Structural validator guardrails for analysis findings closure contracts."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks for task-control files", "stale-contract scan", "git diff --check"],
+      "files_changed": [
+        "doctest fence docs",
+        "doctest parser task requirements",
+        "task gate headings",
+        "task 000 scope",
+        "Zig version policy wording",
+        "task-system validator guardrails",
+        "task metadata"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for analysis findings closure contracts."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks for task-control files",
+        "stale-contract scan",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 082 analysis findings closure."
       },
       "dogfooding_implication": "No dogfood run exists yet; pre-bootstrap ambiguity is resolved before the first Zig scaffold task.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "083",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for missing explicit task orders, bare follow-up task references, queue schema order requirement, report semantic validation wording, and durable latest-stable Zig evidence wording.",
       "implementation_summary": "Inserted and completed task 083 before project bootstrap, made queue order explicit and schema-required for every task, canonicalized follow-up task refs, added validator guardrails, documented report semantic validation ownership, strengthened task 005 latest-stable Zig evidence requirements, and updated task 000 to follow task 083.",
-      "files_changed": ["task metadata", "queue schema and explicit order keys", "follow-up task references", "report and Zig contract docs", "task 005/006 requirements", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for explicit task orders, canonical follow-up refs, report semantic validation wording, and durable Zig release evidence wording."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks for task-control files and schemas", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "queue schema and explicit order keys",
+        "follow-up task references",
+        "report and Zig contract docs",
+        "task 005/006 requirements",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for explicit task orders, canonical follow-up refs, report semantic validation wording, and durable Zig release evidence wording."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks for task-control files and schemas",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 083 agent tooling contract hardening."
       },
       "dogfooding_implication": "No runtime behavior exists yet; this removes pre-bootstrap tooling ambiguity before dogfoodable behavior exists.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "084",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on new guardrails requiring pre-041 lifecycle cutovers, pre-044/pre-062 property-test staging, and pre-artifact completion_evidence subset wording.",
       "implementation_summary": "Inserted and completed task 084 before project bootstrap, clarified task lifecycle cutovers for active locks, required artifacts, verifier evidence, and mutation-gate availability, staged property-test requirements before generated property infrastructure, and aligned pre-artifact handoff docs with the narrower tasks/status.json completion_evidence subset.",
-      "files_changed": ["task metadata", "task lifecycle and property-test policy docs", "pre-artifact handoff docs", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for lifecycle cutovers, staged property-test evidence, and pre-artifact completion evidence wording."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "JSON syntax checks", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "task lifecycle and property-test policy docs",
+        "pre-artifact handoff docs",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for lifecycle cutovers, staged property-test evidence, and pre-artifact completion evidence wording."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "JSON syntax checks",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 084 agent contract cutover closure."
       },
       "dogfooding_implication": "No runtime behavior exists yet; this prevents pre-bootstrap agents from blocking on unavailable pipeline, property, or mutation infrastructure while preserving future gates.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "086",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on missing validator-scope wording in docs/AGENT_GUIDE.md and tasks/STATUS.md, and missing derived-invariants wording in task 006.",
       "implementation_summary": "Clarified that validate_task_system.py checks task-system consistency, not product semantic correctness, strengthened task 006 semantic report validator requirements, and added structural validator guardrails.",
-      "files_changed": ["task metadata", "task 000 guard", "agent guide", "status handoff", "report-schema task wording", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for validator-scope wording and report semantic-validator derived invariants."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "agent guide",
+        "status handoff",
+        "report-schema task wording",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for validator-scope wording and report semantic-validator derived invariants."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 086 validator scope and report semantic clarity."
       },
       "dogfooding_implication": "Prevents future dogfood and report work from treating governance validation as behavioral proof.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "087",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because task 059 still used production dogfood wording and task 085 final release dogfood gate did not exist.",
       "implementation_summary": "Renamed task 059 as initial dogfood CI, added queued task 085 as the final dogfood release gate before task 060, updated release acceptance dependency, and added validator guardrails for the sequence.",
-      "files_changed": ["task metadata", "task 000 guard", "task 058 follow-up", "task 059 rename and scope", "task 085 final dogfood gate", "task 060 dependency", "F-025 gap row", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for dogfood release-gate sequencing."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "task 058 follow-up",
+        "task 059 rename and scope",
+        "task 085 final dogfood gate",
+        "task 060 dependency",
+        "F-025 gap row",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for dogfood release-gate sequencing."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 087 dogfood release gate sequencing."
       },
       "dogfooding_implication": "Initial advisory dogfood CI and the final release dogfood gate are now separate queued tasks.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "088",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because AI command contracts used --report <path> and did not define --input-report <path>.",
       "implementation_summary": "Changed advisory AI report-input contracts to --input-report <path>, preserved zentinel run --report <format>, updated doctest AI docs and task requirements, and added validator guardrails.",
-      "files_changed": ["task metadata", "task 000 guard", "CLI spec", "doctest AI docs", "doctest mutation strategy", "AI task requirements", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for AI --input-report contracts."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "CLI spec",
+        "doctest AI docs",
+        "doctest mutation strategy",
+        "AI task requirements",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for AI --input-report contracts."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 088 AI input report option clarity."
       },
       "dogfooding_implication": "Future AI and doctest dogfood scripts distinguish report input paths from run report format selection.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "089",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed because docs/ZIG_VERSION_POLICY.md and task 005 did not define the unavailable official-source blocker path.",
       "implementation_summary": "Clarified that task 005 must block and insert a prerequisite task instead of guessing when network access or the official Zig release source is unavailable, and added validator guardrails.",
-      "files_changed": ["task metadata", "task 000 guard", "Zig version policy", "task 005 requirements", "validator guardrails"],
-      "tests_added": ["Structural validator guardrails for the Zig latest-stable official-source unavailable blocker path."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py"],
+      "files_changed": [
+        "task metadata",
+        "task 000 guard",
+        "Zig version policy",
+        "task 005 requirements",
+        "validator guardrails"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for the Zig latest-stable official-source unavailable blocker path."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 089 Zig version verification blocker policy."
       },
       "dogfooding_implication": "Historical blocker policy was superseded by task 090's pinned Zig 0.16.0 contract for future dogfood and CI.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "090",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for missing public diagnostic failure-mode traces, moving latest-stable Zig policy, missing validator-as-product-proof warnings, preview mutator end-to-end scope wording, and missing ADR-0007.",
       "implementation_summary": "Added task 090 before bootstrap, traced all public ZNTL error codes through failure modes and gap rows, pinned Zig 0.16.0 across policy/docs/tasks, superseded ADR-0001 with ADR-0007, hardened validator scope/TDD wording, and clarified that preview mutators are outside minimum end-to-end scope.",
-      "files_changed": ["task metadata", "validator guardrails", "Zig policy docs", "ADR records", "diagnostic docs", "failure-mode gap rows", "TDD and agent protocol docs", "preview mutator scope docs", "row-scoped invariant gap row"],
-      "tests_added": ["Structural validator guardrails for public diagnostic traceability, Zig 0.16.0 pinning, task-specific failing evidence, and preview mutator scope."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "jq empty task/gap JSON files", "public error-code traceability scan", "zig version"],
+      "files_changed": [
+        "task metadata",
+        "validator guardrails",
+        "Zig policy docs",
+        "ADR records",
+        "diagnostic docs",
+        "failure-mode gap rows",
+        "TDD and agent protocol docs",
+        "preview mutator scope docs",
+        "row-scoped invariant gap row"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for public diagnostic traceability, Zig 0.16.0 pinning, task-specific failing evidence, and preview mutator scope."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty task/gap JSON files",
+        "public error-code traceability scan",
+        "zig version"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 090 contract traceability and scope hardening."
       },
       "dogfooding_implication": "Future dogfood and release tasks now use a pinned Zig 0.16.0 contract, complete public diagnostic traces, task-specific product evidence, and stable-mutator-only minimum scope.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "091",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails because ADR-0001 lacked a historical supersession note and tasks/STATUS.md still named the pre-bootstrap hardening range as stopping before task 091.",
       "implementation_summary": "Inserted and completed task 091 before bootstrap, added validator guardrails for the final analysis cleanup, clarified ADR-0001 as superseded historical policy governed by ADR-0007, aligned task-status handoff wording through task 091, and moved task 000 behind task 091.",
-      "files_changed": ["task metadata", "validator guardrails", "ADR supersession wording", "status handoff wording", "task 000 dependency and guard"],
-      "tests_added": ["Structural validator guardrails for ADR-0001 supersession clarity and task-status handoff range clarity."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "jq empty task JSON files", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "validator guardrails",
+        "ADR supersession wording",
+        "status handoff wording",
+        "task 000 dependency and guard"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for ADR-0001 supersession clarity and task-status handoff range clarity."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "jq empty task JSON files",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 091 analysis risk cleanup."
       },
       "dogfooding_implication": "Future implementation agents see the current pinned Zig policy and full pre-bootstrap hardening range before starting bootstrap.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "092",
       "failing_evidence": "Pre-fix python3 scripts/validate_task_system.py failed on the new guardrails for status blocked-task detail schema, task 030 doctest fixture evidence, post-041 handoff role coverage, canonical Implementation Reviewer wording, experimental backend report-schema alignment, and stale latest-stable backend wording.",
       "implementation_summary": "Inserted and completed task 092 before bootstrap, added validator guardrails for queue/status shape and active-task diff scope, clarified doctest fixture presence evidence, made handoff names deterministic for every emitting role, defined tests_added as cumulative task-level evidence, aligned Implementation Reviewer wording, and kept ZIR/AIR diagnostics out of report v1.",
-      "files_changed": ["task metadata", "validator guardrails", "status schema", "doctest task contract", "handoff and pipeline docs", "Codex agent role summary", "backend docs", "backend experiment tasks", "report format docs"],
-      "tests_added": ["Structural validator guardrails for doctest fixture evidence, handoff role coverage, canonical reviewer wording, experimental backend report-schema alignment, pinned Zig backend wording, task-state schema shape, completed-task sync, extra Markdown queue rows, blocked-state details, and active-task changed-file scope."],
-      "tests_run": ["python3 scripts/validate_task_system.py (expected pre-fix failure)", "python3 scripts/validate_task_system.py", "python3 -m py_compile scripts/validate_task_system.py", "python3 -m json.tool on edited JSON files", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "validator guardrails",
+        "status schema",
+        "doctest task contract",
+        "handoff and pipeline docs",
+        "Codex agent role summary",
+        "backend docs",
+        "backend experiment tasks",
+        "report format docs"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for doctest fixture evidence, handoff role coverage, canonical reviewer wording, experimental backend report-schema alignment, pinned Zig backend wording, task-state schema shape, completed-task sync, extra Markdown queue rows, blocked-state details, and active-task changed-file scope."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (expected pre-fix failure)",
+        "python3 scripts/validate_task_system.py",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "python3 -m json.tool on edited JSON files",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 092 agent readiness follow-up hardening."
       },
       "dogfooding_implication": "Future implementation agents start bootstrap with stricter task-state validation, closed report-v1 backend contracts, deterministic pipeline handoff names, and executable doctest fixture guardrails.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "093",
       "failing_evidence": "Pre-fix validator failed on new guardrails for active-before-complete scope wording, blocked-task recovery metadata, future completion evidence shape, post-041 artifact references, stale doctest source-reference wording, task 058 safety-mode staging, doctest failure exit semantics, classifier-authority wording, backend version identity, gap registry closure, and affected future task specs.",
       "implementation_summary": "Inserted task 093 before project bootstrap and aligned validator guardrails, status schema, completion workflow docs, lifecycle/protocol/TDD docs, CLI/config/doctest/report/backend/property/gap contracts, and queued task requirements.",
-      "files_changed": ["task metadata", "validator guardrails", "status schema", "agent workflow docs", "lifecycle/protocol/TDD docs", "CLI/config/doctest/report/backend/property/gap contracts", "queued task requirements"],
-      "tests_added": ["Structural validator guardrails for active-before-complete scope wording, blocked-task metadata, completion evidence artifacts, safety-mode staging, doctest exit/source-ref rules, classifier authority, backend version identity, gap registry closure, property evidence cutover, and affected future task specs."],
-      "tests_run": ["Pre-fix python3 scripts/validate_task_system.py failed on task 093 guardrails as expected", "post-fix python3 scripts/validate_task_system.py while task 093 was active", "python3 -m py_compile scripts/validate_task_system.py", "python3 -m json.tool tasks/queue.json tasks/status.json tasks/schema/status.v1.schema.json", "git diff --check"],
+      "files_changed": [
+        "task metadata",
+        "validator guardrails",
+        "status schema",
+        "agent workflow docs",
+        "lifecycle/protocol/TDD docs",
+        "CLI/config/doctest/report/backend/property/gap contracts",
+        "queued task requirements"
+      ],
+      "tests_added": [
+        "Structural validator guardrails for active-before-complete scope wording, blocked-task metadata, completion evidence artifacts, safety-mode staging, doctest exit/source-ref rules, classifier authority, backend version identity, gap registry closure, property evidence cutover, and affected future task specs."
+      ],
+      "tests_run": [
+        "Pre-fix python3 scripts/validate_task_system.py failed on task 093 guardrails as expected",
+        "post-fix python3 scripts/validate_task_system.py while task 093 was active",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "python3 -m json.tool tasks/queue.json tasks/status.json tasks/schema/status.v1.schema.json",
+        "git diff --check"
+      ],
       "validator_result": {
         "command": "python3 scripts/validate_task_system.py",
         "status": "passed",
         "notes": "Validator passed after task 093 implementation while task 093 remained active."
       },
       "dogfooding_implication": "Future dogfood and bootstrap work starts after active-scope validation ordering, typed blocker records, and deterministic classifier/backend-version rules are validator-backed.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "094",
@@ -1716,7 +2150,9 @@
         "tasks/STATUS.md",
         "tasks/status.json"
       ],
-      "tests_added": ["Structural validator guardrails for completed-task scope evidence, blocked-task prerequisite recovery, lifecycle/routing contracts, safety-mode report ownership, command failure_kind classification, staged mutator/test-selection options, sandbox evidence bounds, backend_version visibility, doctest AI stubs, and plain zig doctest expectations."],
+      "tests_added": [
+        "Structural validator guardrails for completed-task scope evidence, blocked-task prerequisite recovery, lifecycle/routing contracts, safety-mode report ownership, command failure_kind classification, staged mutator/test-selection options, sandbox evidence bounds, backend_version visibility, doctest AI stubs, and plain zig doctest expectations."
+      ],
       "tests_run": [
         "Pre-fix python3 scripts/validate_task_system.py failed on task 094 guardrails as expected",
         "python3 scripts/validate_task_system.py while task 094 was active",
@@ -1731,7 +2167,9 @@
         "notes": "Validator passed after task 094 completion and task 000 became next."
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after validator-backed completion scope evidence, blocker recovery, report evidence, option staging, doctest AI, and public/internal schema boundaries.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "095",
@@ -1777,9 +2215,13 @@
         "tasks/status.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/invariants.v1.json": ["I-017"]
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-017"
+        ]
       },
-      "tests_added": ["Structural validator guardrails for active-only task-control states, stale lifecycle wording, inactive dirty-file scope evidence, row-scoped gap-registry diffs, AI context command failure_kind, baseline compiler-crash report schema, pre-041 artifact cutovers, impact_graph task scopes, and I-019 proof scope."],
+      "tests_added": [
+        "Structural validator guardrails for active-only task-control states, stale lifecycle wording, inactive dirty-file scope evidence, row-scoped gap-registry diffs, AI context command failure_kind, baseline compiler-crash report schema, pre-041 artifact cutovers, impact_graph task scopes, and I-019 proof scope."
+      ],
       "tests_run": [
         "Pre-fix python3 scripts/validate_task_system.py failed on task 095 guardrails as expected",
         "python3 scripts/validate_task_system.py while task 095 was active",
@@ -1799,7 +2241,9 @@
         "notes": "Validator passed while task 095 was active after lifecycle, validator, schema, and task-scope repair guardrails were satisfied."
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after stricter autonomous-agent lifecycle, schema, and scope contracts. No zentinel runtime exists yet, so no dogfood run was expected.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "096",
@@ -1843,9 +2287,13 @@
         "tasks/status.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.context.v1"]
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.ai.context.v1"
+        ]
       },
-      "tests_added": ["Structural validator guardrails for task 096 audit findings, including same-file preflight, artifact exception scope, Planner role coverage, AI prompt/context schema alignment, lifecycle wording, routing, report semantics, CLI output bounds, and mode-matrix compatibility."],
+      "tests_added": [
+        "Structural validator guardrails for task 096 audit findings, including same-file preflight, artifact exception scope, Planner role coverage, AI prompt/context schema alignment, lifecycle wording, routing, report semantics, CLI output bounds, and mode-matrix compatibility."
+      ],
       "tests_run": [
         "Pre-fix python3 scripts/validate_task_system.py failed on task 096 guardrails as expected",
         "python3 scripts/validate_task_system.py while task 096 was active",
@@ -1860,7 +2308,9 @@
         "notes": "Validator passed while task 096 was active after audit-finding guardrails and contract fixes."
       },
       "dogfooding_implication": "Future bootstrap and dogfood tasks start after the latest autonomous-agent audit findings are closed. No zentinel runtime exists yet, so no dogfood run was expected.",
-      "follow_up_tasks": ["tasks/000-project-bootstrap.md"]
+      "follow_up_tasks": [
+        "tasks/000-project-bootstrap.md"
+      ]
     },
     {
       "task": "097",
@@ -2411,7 +2861,11 @@
         "tasks/002-config-parser.md"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-036", "F-037", "F-038"]
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-036",
+          "F-037",
+          "F-038"
+        ]
       }
     },
     {
@@ -2448,7 +2902,12 @@
         "tasks/003-test-harness.md"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-003", "F-004", "F-005", "F-040"]
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-003",
+          "F-004",
+          "F-005",
+          "F-040"
+        ]
       }
     },
     {

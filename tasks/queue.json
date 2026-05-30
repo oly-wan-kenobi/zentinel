@@ -2304,7 +2304,7 @@
       "title": "Integer Literal Boundary Mutator",
       "file": "tasks/027-integer-literal-boundary-mutator.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "026"
       ],
