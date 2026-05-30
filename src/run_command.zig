@@ -20,6 +20,7 @@ const mutant_runner = @import("mutant_runner.zig");
 const report = @import("report.zig");
 const command = @import("command.zig");
 const test_selection = @import("test_selection.zig");
+const cache = @import("cache.zig");
 
 pub const ReportFormat = enum { text, json, jsonl, junit };
 
@@ -33,6 +34,10 @@ pub const Options = struct {
     /// the adapter; never changes deterministic report data.
     verbose: bool = false,
     quiet: bool = false,
+    /// Disable the zentinel result cache for this invocation. Reflected only in
+    /// cache metadata/policy, never in mutant correctness; Zig build-cache
+    /// isolation metadata is unaffected.
+    no_cache: bool = false,
 };
 
 /// Observation metadata supplied by the caller. Normalized in snapshots/tests.
@@ -43,6 +48,8 @@ pub const Observation = struct {
     zentinel_version: []const u8,
     zig_version: []const u8,
     config_hash: []const u8,
+    /// Zig compiler cache namespace metadata for cache keys (normalized label).
+    zig_cache_namespace: []const u8 = "",
     duration_ms: u64 = 0,
 };
 
@@ -67,6 +74,9 @@ pub const MutantRunner = struct {
 pub const RunOutcome = struct {
     exit_code: u8,
     report: report.Report,
+    /// Deterministic cache metadata for the run. Separate from the report's
+    /// disabled-cache diagnostics: Phase 1 computes keys but never reuses results.
+    cache: cache.Metadata,
 };
 
 pub const RunError = error{
@@ -90,6 +100,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             opts.verbose = true;
         } else if (std.mem.eql(u8, arg, "--quiet")) {
             opts.quiet = true;
+        } else if (std.mem.eql(u8, arg, "--no-cache")) {
+            opts.no_cache = true;
         } else if (std.mem.eql(u8, arg, "--operator")) {
             i += 1;
             if (i >= args.len) return error.MissingValue;
@@ -157,6 +169,7 @@ pub fn run(
                 .summary = .{},
                 .mutants = &.{},
             },
+            .cache = buildCacheMetadata(&.{}, options.no_cache, obs.zig_cache_namespace),
         };
     }
 
@@ -169,12 +182,33 @@ pub fn run(
     // tests + generated-command preflight) is computed once per file and reused.
     var file_cache: std.ArrayList(FileSelection) = .empty;
     var entries: std.ArrayList(report.Mutant) = .empty;
+    var result_keys: std.ArrayList(cache.ResultKey) = .empty;
     for (candidates) |candidate| {
         const source = sourceFor(files, candidate.file) orelse continue;
         const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
         const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
         const result = mutant_executor.run(candidate, source, resolution.commands, mode);
         try entries.append(arena, try buildEntry(arena, candidate, source, result, mode, resolution.selection));
+
+        // Compute the deterministic result-cache key (metadata only; reuse stays
+        // disabled in Phase 1). --no-cache skips result keys entirely.
+        if (!options.no_cache) {
+            const key = try cache.computeKey(arena, .{
+                .mutant_id = candidate.id,
+                .zentinel_version = obs.zentinel_version,
+                .zig_version = obs.zig_version,
+                .zig_cache_namespace = obs.zig_cache_namespace,
+                .backend = @tagName(candidate.backend),
+                .backend_version = candidate.backend_version,
+                .operator = candidate.operator,
+                .source_hash = try cache.sourceHash(arena, source),
+                .config_hash = obs.config_hash,
+                .test_command = try joinCommands(arena, resolution.commands),
+                .mode = @tagName(mode),
+                .environment = "minimal",
+            });
+            try result_keys.append(arena, .{ .mutant_id = candidate.id, .key = key });
+        }
     }
     const mutants = try entries.toOwnedSlice(arena);
     report.sortAndAssignDisplayIds(mutants);
@@ -191,6 +225,7 @@ pub fn run(
             .summary = summary,
             .mutants = mutants,
         },
+        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), options.no_cache, obs.zig_cache_namespace),
     };
 }
 
@@ -214,6 +249,28 @@ fn sourceFor(files: []const FileSource, path: []const u8) ?[]const u8 {
         if (std.mem.eql(u8, f.path, path)) return f.source;
     }
     return null;
+}
+
+/// Assemble run cache metadata. `--no-cache` disables the result cache (no
+/// result keys, mode disabled) but leaves the Zig build-cache isolation metadata
+/// intact (docs/PERFORMANCE_STRATEGY.md). Result reuse is never enabled here.
+fn buildCacheMetadata(result_keys: []const cache.ResultKey, no_cache: bool, namespace: []const u8) cache.Metadata {
+    return .{
+        .enabled = !no_cache,
+        .mode = if (no_cache) .disabled else .metadata_only,
+        .result_keys = if (no_cache) &.{} else result_keys,
+        .build_cache = .{ .namespace = namespace, .isolated = true },
+    };
+}
+
+/// Join selected commands into one deterministic cache-key field.
+fn joinCommands(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    for (commands, 0..) |c, i| {
+        if (i > 0) try out.appendSlice(arena, " && ");
+        try out.appendSlice(arena, c);
+    }
+    return out.toOwnedSlice(arena);
 }
 
 fn strategyFromConfig(s: []const u8) test_selection.Strategy {
@@ -242,7 +299,7 @@ const FileSelection = struct {
 /// mutant (docs/TEST_SELECTION.md).
 fn selectionForFile(
     arena: std.mem.Allocator,
-    cache: *std.ArrayList(FileSelection),
+    sel_cache: *std.ArrayList(FileSelection),
     strategy: test_selection.Strategy,
     file: []const u8,
     source: []const u8,
@@ -250,7 +307,7 @@ fn selectionForFile(
     baseline_executor: runner.Executor,
     cwd: []const u8,
 ) std.mem.Allocator.Error!FileSelection {
-    for (cache.items) |c| {
+    for (sel_cache.items) |c| {
         if (std.mem.eql(u8, c.file, file)) return c;
     }
 
@@ -276,7 +333,7 @@ fn selectionForFile(
         .preflight = preflight,
         .generated_in_baseline = generated_in_baseline,
     };
-    try cache.append(arena, sel);
+    try sel_cache.append(arena, sel);
     return sel;
 }
 

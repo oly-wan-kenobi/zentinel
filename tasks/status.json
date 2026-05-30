@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "021",
+  "next_task": "022",
   "completed_tasks": [
     "068",
     "069",
@@ -60,17 +60,74 @@
     "016",
     "017",
     "018",
-    "020"
+    "020",
+    "021"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 020 same-file test selection completed; active-state and complete-state validation passed (106 tasks). Closed I-012 (selection never hides an executed mutant). Implemented the default same_file_then_package strategy with an unmutated preflight contract and deterministic fallback, integrated into run; the run report now carries real selection metadata, which regenerated test/snapshots/run_command_completed.json (added to task 020 allowed_files as a downstream consequence of the in-scope run_command.zig change)."
+    "notes": "Task 021 cache key design completed; active-state and complete-state validation passed (106 tasks). Closed F-019 (cache mismatch) and I-013 (cache-key input coverage). Implemented pure deterministic result-cache key construction over all PERFORMANCE_STRATEGY inputs plus cache metadata serialization and run-command --no-cache; result reuse stays disabled and the run report is unchanged (cache metadata exposed via RunOutcome.cache, so no run snapshot changed)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "021",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/cache_key_test.zig:4:23: error: root source file struct 'root' has no member named 'cache'` (192/192 prior tests passed). implementation_started_after_failure: true; src/cache.zig and the root.zig re-export were written only after capturing the missing-module failure; the cache-metadata snapshot was generated from actual toJson output. A shadowing bug (a run_command parameter named `cache` shadowed the new cache import) was then caught by the compiler and fixed by renaming the parameter to sel_cache. passing_command: `zig build test` then passed all tests; `zig build` built the binary and it emitted distinct default vs --no-cache cache metadata.",
+      "implementation_summary": "Added src/cache.zig (deterministic_core, pure: cache key DESIGN, no storage). computeKey hashes the canonical, \\n-separated PERFORMANCE_STRATEGY inputs (mutant_id, zentinel version, Zig version, Zig cache namespace metadata, backend name, backend_version, operator, source content hash, config hash, test command, mode, environment) into a stable hex SHA-256; backend_version is a separate field from the loose backend display name. sourceHash is hex SHA-256 of content (never a bare path). Metadata serializes result-cache keys distinctly from Zig build-cache reuse metadata (BuildCache namespace + isolated), with a CacheMode of disabled/metadata_only/read_write. run_command computes a per-mutant result key and assembles run cache metadata exposed on RunOutcome.cache (NOT the report), so the canonical run report is unchanged and no run snapshot moved. --no-cache is a run option that disables the result cache (mode disabled, no result keys) while leaving build-cache isolation metadata intact, and never changes mutant correctness (identical canonical reports with and without it). Result reuse stays disabled in Phase 1 (mode never read_write), so no stale reuse is possible. cli sets a normalized Zig cache namespace label and writes cache.json alongside the report.",
+      "files_changed": [
+        "src/cache.zig",
+        "src/run_command.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/cache_key_test.zig",
+        "test/run_command_test.zig",
+        "test/snapshots/cache_metadata.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/cache_key_test.zig: key stability across repeated computation; changing any documented input (source hash, config hash, Zig version, mode, test command, Zig cache namespace, zentinel version, operator, environment) changes the key; backend_version changes the key independently of the backend display name; sourceHash determinism + content sensitivity; and a cache-metadata snapshot distinguishing result keys from build-cache metadata.",
+        "test/run_command_test.zig: --no-cache parses as a run option; and --no-cache disables the result cache (mode disabled, no result keys) while keeping build-cache isolation and producing an identical canonical report (mutant correctness unaffected).",
+        "test/snapshots/cache_metadata.json."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing cache module error while 192 prior tests passed",
+        "zig build test (passing): all tests pass; cache-metadata snapshot re-asserts (determinism)",
+        "zig fmt --check src test build.zig: clean",
+        "zig build: binary builds",
+        "binary: `zentinel --root <fixture> run` writes cache.json with mode=metadata_only, 1 result key, build_cache {namespace, isolated:true}; `--no-cache` writes mode=disabled, 0 result keys, build_cache.isolated still true; the run report is unchanged either way",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 021 was active after the cache module and tests landed (the run report was left unchanged so no run snapshot moved and no allowed_files extension was needed), and again after the complete-state transition (106 tasks) with F-019 and I-013 closed."
+      },
+      "dogfooding_implication": "Correct, content-addressed cache keys are the prerequisite for fast, trusted dogfood runs: keys cover every input that can change a result, so a later task can enable reuse safely. Phase 1 keeps reuse disabled, so no stale result can be served yet.",
+      "follow_up_tasks": [
+        "tasks/022-dogfood-fixture-run.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-019"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-013"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "020",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/test_selection_test.zig:4:20: error: root source file struct 'root' has no member named 'test_selection'` (183/183 prior tests passed; the config impact_graph-rejection test compiled and passed against existing config). implementation_started_after_failure: true; src/test_selection.zig, ast_backend.testDecls, and the root.zig re-export were written only after capturing the missing-module failure; the selection-metadata snapshot was generated from actual output. After integrating selection into run, the task-016 run snapshot legitimately changed (test_selection went from the placeholder strategy=all to the real strategy=same_file_then_package with fallback_used=true for the no-same-file-tests fixture); test/snapshots/run_command_completed.json was regenerated and re-asserts deterministically. passing_command: `zig build test` then passed all tests, `zig build` built the binary, and the binary selected same-file tests end-to-end.",

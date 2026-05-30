@@ -89,10 +89,10 @@
     },
     {
       "number": "I-013",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/021-cache-key-design.md",
-      "notes": "Cache-key input coverage lands with cache-key design tests."
+      "covered": true,
+      "tests": ["test/cache_key_test.zig"],
+      "deferred_to": null,
+      "notes": "Cache keys include every deterministic input from docs/PERFORMANCE_STRATEGY.md: zentinel version, Zig version, Zig cache namespace metadata, backend name and backend_version (independently), operator, source content hash, config hash, test command, mode, and environment normalization. cache_key_test asserts the key is stable across repeated computation and that changing any one of these inputs changes the key, and backend_version changes the key independently of the display backend name."
     },
     {
       "number": "I-014",

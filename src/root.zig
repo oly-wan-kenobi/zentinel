@@ -67,6 +67,9 @@ pub const list_mutants_command = @import("list_mutants_command.zig");
 /// Same-file test selection + fallback (deterministic core).
 pub const test_selection = @import("test_selection.zig");
 
+/// Deterministic cache key construction + cache metadata (deterministic core).
+pub const cache = @import("cache.zig");
+
 /// Report renderers: survivor-focused text, streaming JSONL, and JUnit XML
 /// (deterministic core). All derive from the canonical report.v1 model.
 pub const report_text = @import("report_text.zig");

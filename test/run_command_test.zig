@@ -305,6 +305,38 @@ test "--verbose and --quiet parse as run options without affecting report data" 
     try expectEqualStrings(try report.toJson(a, loud.report), try report.toJson(a, hushed.report));
 }
 
+test "--no-cache parses as a run option" {
+    try expect((try rc.parseArgs(&.{"--no-cache"})).no_cache);
+    try expect(!(try rc.parseArgs(&.{})).no_cache);
+}
+
+test "--no-cache disables the result cache but keeps build-cache isolation and report data" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    const cached = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    const uncached = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .no_cache = true }, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    // Default: metadata-only key computation, result keys present, no reuse.
+    try expectEqual(report.CacheMode.metadata_only, cached.cache.mode);
+    try expect(cached.cache.enabled);
+    try expectEqual(@as(usize, 1), cached.cache.result_keys.len);
+
+    // --no-cache: result cache disabled with no result keys, but the Zig
+    // build-cache isolation metadata is still present.
+    try expectEqual(report.CacheMode.disabled, uncached.cache.mode);
+    try expect(!uncached.cache.enabled);
+    try expectEqual(@as(usize, 0), uncached.cache.result_keys.len);
+    try expect(uncached.cache.build_cache.isolated);
+
+    // Cache policy never changes mutant correctness: identical canonical reports.
+    try expectEqualStrings(try report.toJson(a, cached.report), try report.toJson(a, uncached.report));
+}
+
 // --- Deterministic JSON snapshots ------------------------------------------
 
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {

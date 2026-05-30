@@ -21,7 +21,7 @@
     { "number": "F-016", "covered": true, "tests": ["test/mutant_runner_test.zig"], "deferred_to": null, "notes": "Compile-error mutant fixture." },
     { "number": "F-017", "covered": true, "tests": ["test/mutant_runner_test.zig"], "deferred_to": null, "notes": "Timeout classification fixture." },
     { "number": "F-018", "covered": true, "tests": ["test/report_schema_test.zig"], "deferred_to": null, "notes": "Report schema violation test." },
-    { "number": "F-019", "covered": false, "tests": [], "deferred_to": "tasks/021-cache-key-design.md", "notes": "Cache mismatch test." },
+    { "number": "F-019", "covered": true, "tests": ["test/cache_key_test.zig"], "deferred_to": null, "notes": "Cache mismatch: any change to a deterministic input (source content hash, config hash, Zig version, mode, test command, Zig cache namespace, zentinel version, operator, environment, or backend_version) produces a different result-cache key, so a mismatched input can never reuse a stale result; stale reuse is further prevented because Phase 1 keeps result reads disabled (mode metadata_only / disabled)." },
     { "number": "F-020", "covered": false, "tests": [], "deferred_to": "tasks/053-ai-provider-and-context.md", "notes": "AI disabled test." },
     { "number": "F-021", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Malformed AI response test." },
     { "number": "F-022", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Invalid doctest block parser test." },

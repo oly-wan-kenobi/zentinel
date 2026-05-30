@@ -274,6 +274,9 @@ fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, z
         .zentinel_version = zentinel.version,
         .zig_version = zig_label,
         .config_hash = config_hash,
+        // Normalized Zig cache namespace label: per-mutant workspaces are
+        // isolated under this controlled location (docs/SANDBOX_SECURITY.md).
+        .zig_cache_namespace = ".zig-cache/zentinel/workspaces",
         .duration_ms = 0,
     };
 }
@@ -369,6 +372,12 @@ fn runRun(
         try stderr.print("error: could not write report to {s}: {s}\n", .{ out_path, @errorName(err) });
         return 2;
     };
+
+    // Emit deterministic cache metadata alongside the report (best-effort).
+    const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
+    const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.report_output_dir});
+    if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
+    root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
 
     // The canonical JSON report is always written to the output path; --report
     // selects only the stdout rendering, so the canonical report data is the same
