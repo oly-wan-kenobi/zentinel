@@ -2155,7 +2155,7 @@
       "title": "Optional and Null Mutators",
       "file": "tasks/023-optional-null-mutators.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "022"
       ],
