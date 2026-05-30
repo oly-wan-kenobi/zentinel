@@ -24,7 +24,7 @@
     { "number": "F-019", "covered": true, "tests": ["test/cache_key_test.zig"], "deferred_to": null, "notes": "Cache mismatch: any change to a deterministic input (source content hash, config hash, Zig version, mode, test command, Zig cache namespace, zentinel version, operator, environment, or backend_version) produces a different result-cache key, so a mismatched input can never reuse a stale result; stale reuse is further prevented because Phase 1 keeps result reads disabled (mode metadata_only / disabled)." },
     { "number": "F-020", "covered": false, "tests": [], "deferred_to": "tasks/053-ai-provider-and-context.md", "notes": "AI disabled test." },
     { "number": "F-021", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Malformed AI response test." },
-    { "number": "F-022", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Invalid doctest block parser test." },
+    { "number": "F-022", "covered": true, "tests": ["test/doctest_parser_test.zig"], "deferred_to": null, "notes": "Invalid doctest block: an unterminated doctest fence (a doctest-language fence at a doctest fence length with no matching close) emits a ZNTL_DOCTEST_INVALID_BLOCK diagnostic at the opening line; non-doctest unterminated fences are documentation-only and not reported." },
     { "number": "F-023", "covered": false, "tests": [], "deferred_to": "tasks/034-doctest-snapshots.md", "notes": "Doctest output mismatch test." },
     { "number": "F-024", "covered": true, "tests": ["scripts/validate_task_system.py"], "deferred_to": null, "notes": "Task metadata validation exists." },
     { "number": "F-025", "covered": false, "tests": [], "deferred_to": "tasks/059-initial-dogfood-ci.md", "notes": "Repeated report comparison in initial dogfood CI." },
@@ -45,7 +45,7 @@
     { "number": "F-040", "covered": true, "tests": ["test/config_test.zig"], "deferred_to": null, "notes": "Config invalid value validation fixture." },
     { "number": "F-041", "covered": true, "tests": ["test/check_command_test.zig"], "deferred_to": null, "notes": "Shared command parser and check-command invalid command syntax tests." },
     { "number": "F-042", "covered": true, "tests": ["test/runner_baseline_test.zig"], "deferred_to": null, "notes": "Baseline runner failing-command evidence fixture." },
-    { "number": "F-043", "covered": false, "tests": [], "deferred_to": "tasks/031-doctest-parser.md", "notes": "Unsupported executable doctest tag diagnostic fixture." },
+    { "number": "F-043", "covered": true, "tests": ["test/doctest_parser_test.zig"], "deferred_to": null, "notes": "Unsupported executable doctest tag: a doctest-language fence carrying an unrecognized info token (e.g. `zig frobnicate`) emits a ZNTL_DOCTEST_UNSUPPORTED_TAG diagnostic at the opening line and is not treated as an executable doctest; non-doctest languages stay documentation-only without a diagnostic." },
     { "number": "F-044", "covered": false, "tests": [], "deferred_to": "tasks/033-doctest-runner.md", "notes": "Doctest CLI allowlist command-rejection fixture." }
   ]
 }

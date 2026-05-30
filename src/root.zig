@@ -71,6 +71,15 @@ pub const list_mutants_command = @import("list_mutants_command.zig");
 /// Same-file test selection + fallback (deterministic core).
 pub const test_selection = @import("test_selection.zig");
 
+/// Shared error-code tokens (deterministic core).
+pub const error_codes = @import("error_codes.zig");
+
+/// Doctest Markdown fenced-block parser + block model (deterministic core).
+pub const doctest = struct {
+    pub const block = @import("doctest/block.zig");
+    pub const parser = @import("doctest/parser.zig");
+};
+
 /// Deterministic cache key construction + cache metadata (deterministic core).
 pub const cache = @import("cache.zig");
 

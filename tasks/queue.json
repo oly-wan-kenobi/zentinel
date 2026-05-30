@@ -2412,7 +2412,7 @@
       "title": "Doctest Parser",
       "file": "tasks/031-doctest-parser.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "030"
       ],

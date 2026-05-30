@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "031",
+  "next_task": "032",
   "completed_tasks": [
     "068",
     "069",
@@ -70,17 +70,69 @@
     "027",
     "028",
     "029",
-    "030"
+    "030",
+    "031"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 030 doctest conventions completed; active-state and complete-state validation passed (106 tasks). No gap rows. Documentation-only: added test/fixtures/doctest/formats/examples.md covering all eight supported doctest block formats (zig test, zig compile_fail, bash cli, text output, json expected, toml config, zig before, zig after) per docs/DOCTEST_BLOCK_FORMATS.md, plus documented the future doctest properties (extraction order, case ID stability, block classification determinism). The validator-backed fixture-presence check provided the failing evidence (8 missing markers while active) and now passes. No doctest execution code exists."
+    "notes": "Task 031 doctest parser completed; active-state and complete-state validation passed (106 tasks). Closed failure-mode gap rows F-022 (invalid doctest block) and F-043 (unsupported executable doctest tag), both covered by test/doctest_parser_test.zig. Added the deterministic_core Markdown fenced-block parser (src/doctest/block.zig typed metadata, src/doctest/parser.zig line-oriented fence scanner) plus src/error_codes.zig with the ZNTL_DOCTEST_* codes (already in docs/ERROR_CODES.md). No doctest execution, case grouping, or snapshot matching."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "031",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/doctest_parser_test.zig:3:35: error: root source file struct 'root' has no member named 'doctest'` (232/232 prior tests passed). implementation_started_after_failure: true; src/error_codes.zig, src/doctest/block.zig, src/doctest/parser.zig, and the root.zig re-exports were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests (including the parser fixture test that reads test/fixtures/doctest/parser/sample.md).",
+      "implementation_summary": "Added the deterministic_core Markdown fenced-block parser for doctests (no execution, no case grouping, no snapshot matching). src/doctest/block.zig defines typed metadata: Language {zig,bash,json,text,toml,other}, Kind {none,unit_test(test),compile_fail,expected,output,config,before,after,cli}, MatchMode {none,subset,contains,exact}, and a Block struct preserving file, 1-based line_start/line_end, fence_len, raw info, raw content, classified language/kind/match_mode, optional case_label, and is_doctest, with languageFromToken/kindFromToken/matchModeFromToken helpers. src/doctest/parser.zig is a line-oriented, deterministic fence scanner: fenceOf classifies each line by leading-backtick count (after up to three leading spaces) and whether it is a bare closing fence; an opening fence (>=3 backticks) closes only on a fence of >= its own length with no trailing info (CommonMark nesting, so a four-backtick block keeps a nested triple-backtick example as raw content). classify() treats 5+ backtick fences as documentation-only; a plain fence or a non-doctest language (e.g. python) is documentation-only with no diagnostic; a doctest language (zig/bash/json/text/toml) with an unrecognized info token emits ZNTL_DOCTEST_UNSUPPORTED_TAG and is not an executable doctest; case:<label> and key:value tokens are accepted; otherwise the block is a recognized doctest. An unterminated fence is reported as ZNTL_DOCTEST_INVALID_BLOCK only when it is a doctest-language fence at a doctest fence length (<=4), so prose code fences never raise false diagnostics. src/error_codes.zig (new) exposes doctest_unsupported_tag and doctest_invalid_block; the codes already existed in docs/ERROR_CODES.md (unchanged). Re-exported via zentinel.error_codes and zentinel.doctest.{block,parser}. No extractor/runner/snapshot/runner.zig/ai changes (forbidden); those remain for tasks 032+.",
+      "files_changed": [
+        "src/error_codes.zig",
+        "src/doctest/block.zig",
+        "src/doctest/parser.zig",
+        "src/root.zig",
+        "test/doctest_parser_test.zig",
+        "test/fixtures/doctest/parser/sample.md",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_parser_test.zig: parses a supported `zig test` block preserving 1-based line numbers and raw content (fence_len 3); an unsupported executable tag (`zig frobnicate`) emits ZNTL_DOCTEST_UNSUPPORTED_TAG at the opening line and is not a doctest; an ordinary non-doctest language (python) stays documentation-only with no diagnostic; a quadruple-backtick block keeps a nested triple-backtick example as content (fence_len 4); five-backtick fences are documentation-only even with a doctest tag; an unclosed doctest fence emits ZNTL_DOCTEST_INVALID_BLOCK; info-string variants classify language/kind/match-mode/case label across six doctests (bash cli case:help, json expected subset, text output contains, toml config, zig before, zig after); parses test/fixtures/doctest/parser/sample.md into the expected doctest blocks; and property tests for parse determinism, comparison-serialization independence from map iteration, and prose-invariance of extracted content/line numbers.",
+        "test/fixtures/doctest/parser/sample.md: a realistic markdown mix of a `zig test` doctest, a `bash cli case:version` doctest, and a documentation-only python block."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing doctest member while 232 prior tests passed",
+        "zig build test (passing): all tests pass; the parser fixture test reads and classifies sample.md",
+        "zig build: binary builds",
+        "zig fmt --check src test build.zig: clean",
+        "git diff --check: clean",
+        "python3 scripts/validate_task_system.py: passed (106 tasks) in both active and complete states"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 031 was active after the parser, block metadata, error codes, tests, and fixture landed, and again after the complete-state transition (106 tasks) with F-022 and F-043 closed in the failure-mode registry."
+      },
+      "dogfooding_implication": "The doctest parser turns zentinel docs into machine-readable blocks that later tasks (032 extraction, 033 runner, 034 snapshots, 066 public-docs coverage) extract, execute, and snapshot. No execution yet; this is the deterministic front end the doctest lane builds on.",
+      "follow_up_tasks": [
+        "tasks/032-doctest-extraction.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-022",
+          "F-043"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "030",
       "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: with task 030 active, the validator reported `task 030 requires doctest markdown fixtures under test/fixtures/doctest` plus eight `task 030 doctest fixtures must include marker '<format>'` failures (zig test, zig compile_fail, bash cli, text output, json expected, toml config, zig before, zig after). implementation_started_after_failure: true; the fixture markdown was created only after capturing the validator-backed fixture-presence failure (the TDD instructions designate this conventions task's failing evidence as task-system validation around fixture-file presence, not implementation tests). passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks).",
