@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "017",
+  "next_task": "018",
   "completed_tasks": [
     "068",
     "069",
@@ -57,17 +57,63 @@
     "013",
     "014",
     "015",
-    "016"
+    "016",
+    "017"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 016 minimal run command completed; active-state and complete-state validation passed (106 tasks). Task 016 has no gap-registry rows; the deterministic run orchestration, project model, report assembly, option parsing, and three run-command JSON snapshots landed, and the binary kills a real fixture mutant end-to-end."
+    "notes": "Task 017 list-mutants command completed; active-state and complete-state validation passed (106 tasks). Task 017 has no gap-registry rows; deterministic candidate listing (text + JSON over shared mutant fields), pure operator filtering, and the execution-free guarantee landed, verified by the binary producing a listing without creating a .zig-cache."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "017",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/list_mutants_command_test.zig:4:20: error: root source file struct 'root' has no member named 'list_mutants_command'` (Build Summary: 46/49 steps succeeded (1 failed); 164/164 prior tests passed). implementation_started_after_failure: true; src/list_mutants_command.zig and the root.zig re-export were written only after capturing the missing-module failure, and the two list snapshots were generated from the actual renderText/renderJson output (self-blessing helper writes on first run then asserts equality on every re-run). passing_command: `zig build test` then succeeded with all tests passing, and the binary produced a deterministic listing with no .zig-cache created.",
+      "implementation_summary": "Added src/list_mutants_command.zig (deterministic_core): generate() reuses the stable AST backend + the four Phase 1 mutator recognizers through the shared collector to produce the deterministic, deduplicated, canonically-ordered candidate set over the discovered files, keeping only config-enabled operators and the optional --operator filter. It takes source bytes and NO executor, so listing can never run a test command or patch a file (acceptance: no patching, no execution). renderText emits one compact line per candidate (durable id, operator, file:line:col, original -> replacement) plus a count; renderJson emits {total, mutants:[...]} reusing the shared mutant.Mutant model fields directly (durable id, backend, stability, span, original, replacement, expected_compile), so the durable id is byte-identical to the run command's report (cross-command determinism). parseArgs is the pure option parser for --operator and --format text|json. cli.zig + route() wire `list-mutants`: load config, discover eligible files from config globs, generate candidates, and render to stdout; no baseline, executor, or workspace is constructed. Only the stable AST backend is used; experimental backends are never generated (forbidden zir/air backends untouched). No runner/sandbox/cache/AI changes (forbidden files).",
+      "files_changed": [
+        "src/list_mutants_command.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/list_mutants_command_test.zig",
+        "test/snapshots/list_mutants_basic.txt",
+        "test/snapshots/list_mutants_basic.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/list_mutants_command_test.zig: deterministic generation in canonical order with identical durable ids across repeated runs and no executor (no execution possible); operator filtering narrows the listing; parseArgs reads/defaults/rejects --operator/--format; and text + JSON deterministic snapshots.",
+        "test/snapshots/list_mutants_basic.txt and test/snapshots/list_mutants_basic.json: the deterministic two-candidate listing (shared mutant fields in JSON)."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing list_mutants_command module error while 164 prior tests passed",
+        "zig build test (passing): all tests pass; the two list snapshots self-bless then re-assert equality on re-run (determinism proven)",
+        "zig fmt --check src test build.zig: clean",
+        "zig build: binary builds",
+        "binary: `zentinel --root test/fixtures/run_command/killable list-mutants` and `--format json` print a deterministic listing (durable id matches the run command's mutant id); `--operator logical_and_or` prints 0 mutants; no .zig-cache is created (no test command executed)",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 017 was active after the module and tests landed, and again after the complete-state transition (106 tasks). Task 017 has no gap-registry rows to close."
+      },
+      "dogfooding_implication": "Candidate listing lets the self-mutation scope be reviewed before any execution; the listing is deterministic and shares durable ids with run reports, so dogfood triage can reference the same m_... ids across list-mutants and run.",
+      "follow_up_tasks": [
+        "tasks/018-report-renderers.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "016",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/project_model_test.zig` and `test/run_command_test.zig` referenced `zentinel.project_model` / `zentinel.run_command` before those modules existed (missing-member compile error; 147/147 prior tests passed). implementation_started_after_failure: true; src/project_model.zig, src/run_command.zig, and the root.zig re-exports were written only after capturing the missing-module failures. The three run-command JSON snapshots were generated from the actual report.toJson output (self-blessing snapshot helper writes on first run, then asserts equality on every subsequent run, proving determinism). passing_command: `zig build test` then succeeded with all tests passing, `zig build` builds the binary, and `zentinel run` kills a real fixture mutant.",

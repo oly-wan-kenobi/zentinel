@@ -46,6 +46,7 @@ pub fn run(
             return result.exit_code;
         },
         .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr),
+        .list_mutants => |inv| return runListMutants(gpa, io, dir, inv, stdout, stderr),
     }
 }
 
@@ -378,4 +379,59 @@ fn runRun(
         try stdout.writeAll(summary);
     }
     return outcome.exit_code;
+}
+
+// --- `zentinel list-mutants` (Phase 1) -------------------------------------
+
+/// `zentinel list-mutants`: load config, discover eligible files from config
+/// globs, generate the stable AST candidate set, and render a deterministic
+/// text or JSON listing. No baseline, no executor, no workspace: listing never
+/// patches a file or runs a test command.
+fn runListMutants(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    const options = zentinel.list_mutants_command.parseArgs(inv.args) catch |err| {
+        const detail = switch (err) {
+            error.MissingValue => "missing option value",
+            error.UnknownOption => "unknown list-mutants option",
+            error.InvalidFormat => "--format must be 'text' or 'json'",
+        };
+        try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
+        return 2;
+    };
+
+    const cfg_path = try resolveConfigPath(gpa, inv.globals);
+    const cfg_bytes = readConfig(gpa, io, dir, cfg_path) orelse {
+        try stderr.print("error: config not found at {s}\n", .{cfg_path});
+        return 2;
+    };
+    var diag: zentinel.config.Diagnostic = .{};
+    const cfg = zentinel.config.load(gpa, cfg_bytes, &diag) catch {
+        try stderr.print("error[{s}]: {s}\n", .{ diag.code.token(), diag.message });
+        return 2;
+    };
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+
+    const discovered = try zentinel.project_model.discover(gpa, io, root_dir, cfg.include, cfg.exclude);
+    var files: std.ArrayList(zentinel.list_mutants_command.FileSource) = .empty;
+    for (discovered) |rel| {
+        const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch continue;
+        try files.append(gpa, .{ .path = rel, .source = bytes });
+    }
+
+    const candidates = try zentinel.list_mutants_command.generate(gpa, cfg, files.items, options.operator_filter);
+    const rendered = switch (options.format) {
+        .text => try zentinel.list_mutants_command.renderText(gpa, candidates),
+        .json => try zentinel.list_mutants_command.renderJson(gpa, candidates),
+    };
+    try stdout.writeAll(rendered);
+    if (options.format == .json) try stdout.writeAll("\n");
+    return 0;
 }

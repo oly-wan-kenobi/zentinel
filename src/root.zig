@@ -61,6 +61,9 @@ pub const report = @import("report.zig");
 /// `zentinel run` Phase 1 orchestration + report assembly (deterministic core).
 pub const run_command = @import("run_command.zig");
 
+/// `zentinel list-mutants` candidate generation + rendering (deterministic core).
+pub const list_mutants_command = @import("list_mutants_command.zig");
+
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
 /// baseline test command for config-aware `init --test-command`.
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
@@ -316,6 +319,7 @@ pub const Route = union(enum) {
     version,
     check: Globals,
     run: RunInvocation,
+    list_mutants: RunInvocation,
 };
 
 /// Decide how to handle argv. `check` and `version` need environment inputs
@@ -355,6 +359,7 @@ pub fn route(args: []const []const u8) Route {
     const cmd = args[i];
     if (eq(cmd, "check")) return .{ .check = globals };
     if (eq(cmd, "run")) return .{ .run = .{ .globals = globals, .args = args[i + 1 ..] } };
+    if (eq(cmd, "list-mutants")) return .{ .list_mutants = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "version")) {
         // `version` does not own --config/--root; defer to dispatch when present.
         if (globals.config_explicit or !eq(globals.root, ".")) return .passthrough;

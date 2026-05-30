@@ -1,0 +1,3 @@
+m_pr1jnebyah9ecqy9287pmh346q arithmetic_add_sub src/calc.zig:2:14 + -> -
+m_7tk74ym55f6xw5m342bxvnyhe2 arithmetic_mul_div src/helper.zig:2:14 * -> /
+2 mutants

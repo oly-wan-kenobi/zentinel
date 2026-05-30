@@ -2004,7 +2004,7 @@
       "title": "List Mutants Command",
       "file": "tasks/017-list-mutants-command.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "016"
       ],

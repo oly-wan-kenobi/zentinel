@@ -1,0 +1,47 @@
+{
+  "total": 2,
+  "mutants": [
+    {
+      "id": "m_pr1jnebyah9ecqy9287pmh346q",
+      "backend": "ast",
+      "backend_version": "ast.v1.zig-0.16.0",
+      "backend_stability": "stable",
+      "operator": "arithmetic_add_sub",
+      "operator_stability": "stable",
+      "file": "src/calc.zig",
+      "span": {
+        "byte_start": 46,
+        "byte_end": 47,
+        "line_start": 2,
+        "column_start": 14,
+        "line_end": 2,
+        "column_end": 15
+      },
+      "original": "+",
+      "replacement": "-",
+      "expected_compile": "may_fail",
+      "equivalent_risks": []
+    },
+    {
+      "id": "m_7tk74ym55f6xw5m342bxvnyhe2",
+      "backend": "ast",
+      "backend_version": "ast.v1.zig-0.16.0",
+      "backend_stability": "stable",
+      "operator": "arithmetic_mul_div",
+      "operator_stability": "stable",
+      "file": "src/helper.zig",
+      "span": {
+        "byte_start": 41,
+        "byte_end": 42,
+        "line_start": 2,
+        "column_start": 14,
+        "line_end": 2,
+        "column_end": 15
+      },
+      "original": "*",
+      "replacement": "/",
+      "expected_compile": "may_fail",
+      "equivalent_risks": []
+    }
+  ]
+}
