@@ -2440,7 +2440,7 @@
       "title": "Doctest Extraction",
       "file": "tasks/032-doctest-extraction.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "031"
       ],

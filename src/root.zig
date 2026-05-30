@@ -74,10 +74,13 @@ pub const test_selection = @import("test_selection.zig");
 /// Shared error-code tokens (deterministic core).
 pub const error_codes = @import("error_codes.zig");
 
-/// Doctest Markdown fenced-block parser + block model (deterministic core).
+/// Doctest Markdown fenced-block parser + block model + case extraction
+/// (deterministic core).
 pub const doctest = struct {
     pub const block = @import("doctest/block.zig");
     pub const parser = @import("doctest/parser.zig");
+    pub const case = @import("doctest/case.zig");
+    pub const extractor = @import("doctest/extractor.zig");
 };
 
 /// Deterministic cache key construction + cache metadata (deterministic core).

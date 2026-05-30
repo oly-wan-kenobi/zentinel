@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "032",
+  "next_task": "033",
   "completed_tasks": [
     "068",
     "069",
@@ -71,17 +71,70 @@
     "028",
     "029",
     "030",
-    "031"
+    "031",
+    "032"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 031 doctest parser completed; active-state and complete-state validation passed (106 tasks). Closed failure-mode gap rows F-022 (invalid doctest block) and F-043 (unsupported executable doctest tag), both covered by test/doctest_parser_test.zig. Added the deterministic_core Markdown fenced-block parser (src/doctest/block.zig typed metadata, src/doctest/parser.zig line-oriented fence scanner) plus src/error_codes.zig with the ZNTL_DOCTEST_* codes (already in docs/ERROR_CODES.md). No doctest execution, case grouping, or snapshot matching."
+    "notes": "Task 032 doctest extraction completed; active-state and complete-state validation passed (106 tasks). Closed invariant gap row I-016 (doctest deterministic case IDs), covered by test/doctest_extraction_test.zig. Added the deterministic_core case extractor: src/doctest/case.zig (typed Case model + durable dt_ id via sha256 + Crockford base32, line-number-free) and src/doctest/extractor.zig (deterministic block grouping into cli/config/zig_test/zig_compile_fail/zig_compile_pass/mutation cases, ZNTL_DOCTEST_INVALID_BLOCK diagnostics for orphan expectations, before-without-after, compile-pass+output, and duplicate unlabeled identical cases, plus a serializable JSON inventory). No command or compiler execution."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "032",
+      "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_extraction_test.zig:3:35: error: struct 'root.doctest' has no member named 'extractor'` (241/241 prior tests passed). implementation_started_after_failure: true; src/doctest/case.zig, src/doctest/extractor.zig, and the root.zig re-exports were written only after capturing the missing-member failure. After the modules landed, the two snapshot tests (durable case-id snapshot and case-inventory snapshot) failed with the actual `dt_` id and rendered JSON; both were self-blessed from the real output. passing_command: `zig build test` then passed all tests.",
+      "implementation_summary": "Added deterministic doctest case extraction (deterministic_core; no command or compiler execution, no case mutation, no snapshot matching). src/doctest/case.zig defines the canonical CaseKind enum (zig_compile_pass, zig_test, zig_compile_fail, cli, config, config_fail, mutation), the typed Case struct (durable id, file, kind, label, anchor source_ref, secondary block_refs, line_start/line_end/anchor_line kept separate from the id), and the durable `dt_...` id derivation: `dt_ + first_26(lowercase_unpadded_crockford_base32(sha256(canonical_bytes)))` over namespace `zentinel.doctest_case.v1`, the project-relative doc path, case kind, explicit label (\"\" when absent), normalized block grouping metadata, and a hex content hash of the grouped blocks -- line numbers are deliberately excluded so unrelated prose never renumbers cases (same base32 packing discipline as src/mutant.zig). src/doctest/extractor.zig groups parser blocks deterministically: a producer block (zig test -> zig_test, zig compile_fail -> zig_compile_fail, bash cli -> cli, toml config -> config, zig before -> mutation, plain zig -> zig_compile_pass) opens a case; following expectation blocks (text output / json expected) and a `zig after` for a `before` attach as secondary block_refs; a documentation-only block ends implicit grouping. Invalid groupings emit ZNTL_DOCTEST_INVALID_BLOCK diagnostics (orphan expectation with no producer, `zig after` without a preceding `zig before`, `zig before` without a matching `zig after`, an expected-output block on a compile-pass producer, and duplicate unlabeled identical cases -- detected by durable-id collision and rejected as ambiguous rather than receiving occurrence-based ids). Output is sorted by file, anchor line, block start, then id, and extractor.renderInventory serializes a deterministic JSON inventory (cases + diagnostics) for future reports. extractSource parses then extracts and folds parser diagnostics in. Re-exported via zentinel.doctest.{case,extractor}. No runner/snapshot/cli/ai changes (forbidden).",
+      "files_changed": [
+        "src/doctest/case.zig",
+        "src/doctest/extractor.zig",
+        "src/root.zig",
+        "test/doctest_extraction_test.zig",
+        "test/fixtures/doctest/extraction/cases.md",
+        "test/fixtures/doctest/extraction/cases.inventory.json",
+        "test/fixtures/doctest/extraction/orphan.md",
+        "test/fixtures/doctest/extraction/duplicate.md",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_extraction_test.zig: groups `bash cli` + following `text output` into one cli case (2 block_refs, anchor source_ref == block_refs[0] == producer line, anchor_line == line_start); `zig before` + `zig after` group into a mutation case while a standalone `toml config` and a `zig test` are their own cases (4 cases, 0 diagnostics); `json expected` with no producer is invalid (0 cases, 1 ZNTL_DOCTEST_INVALID_BLOCK diagnostic); a pinned durable case-id snapshot (`dt_` + 26 base32 chars); a case-inventory JSON snapshot recording id, source_ref, block_refs, and location fields as separate fields; duplicate unlabeled identical cases are rejected as ambiguous (0 cases, all-invalid diagnostics) instead of occurrence-numbered; and property tests for repeated-extraction determinism, id-changes-with-content/label but stable-under-outside-prose, and stable duplicate/ambiguous diagnostics.",
+        "test/fixtures/doctest/extraction/{cases.md,cases.inventory.json,orphan.md,duplicate.md}: a multi-case fixture and its expected inventory, an orphan-expectation fixture, and a duplicate-unlabeled-cases fixture."
+      ],
+      "tests_run": [
+        "zig build test (failing, zigars MCP): missing doctest.extractor member while 241 prior tests passed",
+        "zig build test (passing, zigars MCP): all tests pass; the two snapshots self-bless then re-assert equality",
+        "zig build (zigars MCP): binary builds",
+        "zig fmt --check src test build.zig: clean",
+        "git diff --check: clean",
+        "python3 scripts/validate_task_system.py: passed (106 tasks) in both active and complete states"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 032 was active (after correcting next_task to the active task 032 and STATUS.md to match) and again after the complete-state transition (106 tasks) with I-016 closed in the invariants registry."
+      },
+      "dogfooding_implication": "Extraction is the first deterministic surface for doctest dogfood: it turns parsed blocks into typed, stably-identified cases with a serializable inventory that the doctest runner (033), snapshots (034), and report (035) build on, and that public-docs coverage (066) and AI doctest flows (055/067) join against by durable dt_ id. No execution yet.",
+      "follow_up_tasks": [
+        "tasks/033-doctest-runner.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-016"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "031",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/doctest_parser_test.zig:3:35: error: root source file struct 'root' has no member named 'doctest'` (232/232 prior tests passed). implementation_started_after_failure: true; src/error_codes.zig, src/doctest/block.zig, src/doctest/parser.zig, and the root.zig re-exports were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests (including the parser fixture test that reads test/fixtures/doctest/parser/sample.md).",

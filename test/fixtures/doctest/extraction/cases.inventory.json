@@ -1,0 +1,49 @@
+{
+  "cases": [
+    {
+      "id": "dt_hszypy3emq5e1qngetceqbvgj4",
+      "file": "test/fixtures/doctest/extraction/cases.md",
+      "kind": "cli",
+      "label": null,
+      "source_ref": "test/fixtures/doctest/extraction/cases.md:8",
+      "block_refs": ["test/fixtures/doctest/extraction/cases.md:8", "test/fixtures/doctest/extraction/cases.md:12"],
+      "line_start": 8,
+      "line_end": 14,
+      "anchor_line": 8
+    },
+    {
+      "id": "dt_bmwvqbpm44k9fzcrgy1b3xmkea",
+      "file": "test/fixtures/doctest/extraction/cases.md",
+      "kind": "config",
+      "label": null,
+      "source_ref": "test/fixtures/doctest/extraction/cases.md:18",
+      "block_refs": ["test/fixtures/doctest/extraction/cases.md:18"],
+      "line_start": 18,
+      "line_end": 21,
+      "anchor_line": 18
+    },
+    {
+      "id": "dt_47aewbqh1js36dsnfnnra4z2x1",
+      "file": "test/fixtures/doctest/extraction/cases.md",
+      "kind": "zig_test",
+      "label": null,
+      "source_ref": "test/fixtures/doctest/extraction/cases.md:25",
+      "block_refs": ["test/fixtures/doctest/extraction/cases.md:25"],
+      "line_start": 25,
+      "line_end": 31,
+      "anchor_line": 25
+    },
+    {
+      "id": "dt_z0zvbqd6j2man2yxrq106c59mm",
+      "file": "test/fixtures/doctest/extraction/cases.md",
+      "kind": "mutation",
+      "label": null,
+      "source_ref": "test/fixtures/doctest/extraction/cases.md:35",
+      "block_refs": ["test/fixtures/doctest/extraction/cases.md:35", "test/fixtures/doctest/extraction/cases.md:39"],
+      "line_start": 35,
+      "line_end": 41,
+      "anchor_line": 35
+    }
+  ],
+  "diagnostics": []
+}

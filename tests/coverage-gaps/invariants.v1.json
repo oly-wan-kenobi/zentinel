@@ -112,10 +112,10 @@
     },
     {
       "number": "I-016",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/032-doctest-extraction.md",
-      "notes": "Doctest deterministic case IDs land with extraction tests."
+      "covered": true,
+      "tests": ["test/doctest_extraction_test.zig"],
+      "deferred_to": null,
+      "notes": "Doctest deterministic case IDs: the extractor derives a durable `dt_` id (sha256 + lowercase Crockford base32, 26 chars) from the project-relative doc path, case kind, explicit label, normalized block grouping metadata, and grouped-block content hash, deliberately excluding line numbers. Tests pin a case-id snapshot, prove the id changes with grouped content and labels but is stable under unrelated surrounding prose, and that repeated extraction is byte-deterministic."
     },
     {
       "number": "I-017",

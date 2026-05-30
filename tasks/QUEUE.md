@@ -90,7 +90,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 029 | `tasks/029-phase2-semantic-dogfood.md` | complete | 2 |
 | 030 | `tasks/030-doctest-conventions.md` | complete | 0 |
 | 031 | `tasks/031-doctest-parser.md` | complete | 1 |
-| 032 | `tasks/032-doctest-extraction.md` | queued | 1 |
+| 032 | `tasks/032-doctest-extraction.md` | complete | 1 |
 | 033 | `tasks/033-doctest-runner.md` | queued | 1 |
 | 034 | `tasks/034-doctest-snapshots.md` | queued | 1 |
 | 035 | `tasks/035-cli-doctests.md` | queued | 1 |
