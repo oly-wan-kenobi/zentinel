@@ -2358,7 +2358,7 @@
       "title": "Phase 2 Semantic Dogfood",
       "file": "tasks/029-phase2-semantic-dogfood.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "028"
       ],

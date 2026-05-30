@@ -87,7 +87,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 026 | `tasks/026-errdefer-mutator.md` | complete | 2 |
 | 027 | `tasks/027-integer-literal-boundary-mutator.md` | complete | 2 |
 | 028 | `tasks/028-loop-boundary-mutator.md` | complete | 2 |
-| 029 | `tasks/029-phase2-semantic-dogfood.md` | queued | 2 |
+| 029 | `tasks/029-phase2-semantic-dogfood.md` | complete | 2 |
 | 030 | `tasks/030-doctest-conventions.md` | queued | 0 |
 | 031 | `tasks/031-doctest-parser.md` | queued | 1 |
 | 032 | `tasks/032-doctest-extraction.md` | queued | 1 |
