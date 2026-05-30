@@ -2467,7 +2467,7 @@
       "title": "Doctest Runner",
       "file": "tasks/033-doctest-runner.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "032"
       ],
