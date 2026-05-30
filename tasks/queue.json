@@ -2129,7 +2129,7 @@
       "title": "Dogfood Fixture Run",
       "file": "tasks/022-dogfood-fixture-run.md",
       "phase": 3,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "021"
       ],

@@ -80,7 +80,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 018 | `tasks/018-report-renderers.md` | complete | 1 |
 | 020 | `tasks/020-test-selection-same-file.md` | complete | 1 |
 | 021 | `tasks/021-cache-key-design.md` | complete | 3 |
-| 022 | `tasks/022-dogfood-fixture-run.md` | queued | 3 |
+| 022 | `tasks/022-dogfood-fixture-run.md` | complete | 3 |
 | 023 | `tasks/023-optional-null-mutators.md` | queued | 2 |
 | 024 | `tasks/024-error-path-mutators.md` | queued | 2 |
 | 025 | `tasks/025-autonomous-backlog-audit.md` | queued | 0 |

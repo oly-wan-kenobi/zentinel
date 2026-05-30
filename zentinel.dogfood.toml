@@ -1,0 +1,18 @@
+# Stage 1 dogfood config: run zentinel over the mutation fixtures.
+# Used with `scripts/dogfood.sh` (see tasks/022). No network, no AI; production
+# zentinel modules are out of dogfood scope for now.
+[project]
+name = "dogfood"
+root = "."
+include = ["src/**/*.zig"]
+exclude = [".zig-cache/**", "zig-out/**", "test/**"]
+
+[mutators]
+enabled = ["arithmetic_add_sub", "comparison_boundary"]
+
+[test]
+commands = ["zig test src/calc.zig"]
+timeout_ms = 60000
+
+[report]
+output_dir = "zig-out/zentinel-dogfood"
