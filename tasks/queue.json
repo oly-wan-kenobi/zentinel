@@ -2034,7 +2034,7 @@
       "title": "Report Renderers",
       "file": "tasks/018-report-renderers.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "017"
       ],

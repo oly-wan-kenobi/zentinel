@@ -264,6 +264,47 @@ test "parseArgs rejects unknown options and missing values instead of ignoring t
     try expectError(error.InvalidReportFormat, rc.parseArgs(&.{ "--report", "yaml" }));
 }
 
+test "parseArgs accepts jsonl and junit report formats" {
+    try expectEqual(rc.ReportFormat.jsonl, (try rc.parseArgs(&.{ "--report", "jsonl" })).report_format);
+    try expectEqual(rc.ReportFormat.junit, (try rc.parseArgs(&.{ "--report", "junit" })).report_format);
+}
+
+test "report format selection does not change canonical report data" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    const as_text = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .report_format = .text }, baselineExecutor(&env), mutantRunner(&env), observation());
+    const as_junit = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .report_format = .junit }, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    // The report data (and its canonical JSON) is identical regardless of the
+    // chosen render format; --report only selects the renderer in the adapter.
+    try expectEqualStrings(try report.toJson(a, as_text.report), try report.toJson(a, as_junit.report));
+}
+
+test "--verbose and --quiet parse as run options without affecting report data" {
+    const verbose = try rc.parseArgs(&.{"--verbose"});
+    try expect(verbose.verbose);
+    try expect(!verbose.quiet);
+
+    const quiet = try rc.parseArgs(&.{"--quiet"});
+    try expect(quiet.quiet);
+    try expect(!quiet.verbose);
+
+    // Verbosity is not an input to the deterministic run: identical reports.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+    const loud = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .verbose = true }, baselineExecutor(&env), mutantRunner(&env), observation());
+    const hushed = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .quiet = true }, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqualStrings(try report.toJson(a, loud.report), try report.toJson(a, hushed.report));
+}
+
 // --- Deterministic JSON snapshots ------------------------------------------
 
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {

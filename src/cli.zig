@@ -300,7 +300,7 @@ fn runRun(
         const detail = switch (err) {
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
-            error.InvalidReportFormat => "--report must be 'text' or 'json'",
+            error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
         return 2;
@@ -370,14 +370,20 @@ fn runRun(
         return 2;
     };
 
-    // Concise, survivor-focused stdout (or the JSON when explicitly requested).
-    if (options.report_format == .json) {
-        try stdout.writeAll(json);
-        try stdout.writeAll("\n");
-    } else {
-        const summary = try zentinel.run_command.textSummary(gpa, outcome.report);
-        try stdout.writeAll(summary);
-    }
+    // The canonical JSON report is always written to the output path; --report
+    // selects only the stdout rendering, so the canonical report data is the same
+    // regardless of format. --verbose/--quiet affect only the text rendering.
+    const verbosity: zentinel.report_text.Verbosity =
+        if (options.quiet) .quiet else if (options.verbose) .verbose else .normal;
+    const rendered = switch (options.report_format) {
+        .text => try zentinel.report_text.render(gpa, outcome.report, verbosity),
+        .json => json,
+        .jsonl => try zentinel.report_jsonl.render(gpa, outcome.report),
+        .junit => try zentinel.report_junit.render(gpa, outcome.report, options.fail_on_survivors),
+    };
+    try stdout.writeAll(rendered);
+    // Canonical JSON has no trailing newline; the other renderers already end in one.
+    if (options.report_format == .json) try stdout.writeAll("\n");
     return outcome.exit_code;
 }
 

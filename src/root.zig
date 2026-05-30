@@ -64,6 +64,12 @@ pub const run_command = @import("run_command.zig");
 /// `zentinel list-mutants` candidate generation + rendering (deterministic core).
 pub const list_mutants_command = @import("list_mutants_command.zig");
 
+/// Report renderers: survivor-focused text, streaming JSONL, and JUnit XML
+/// (deterministic core). All derive from the canonical report.v1 model.
+pub const report_text = @import("report_text.zig");
+pub const report_jsonl = @import("report_jsonl.zig");
+pub const report_junit = @import("report_junit.zig");
+
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
 /// baseline test command for config-aware `init --test-command`.
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {

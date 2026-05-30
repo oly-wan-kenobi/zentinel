@@ -19,7 +19,7 @@ const runner = @import("runner.zig");
 const mutant_runner = @import("mutant_runner.zig");
 const report = @import("report.zig");
 
-pub const ReportFormat = enum { text, json };
+pub const ReportFormat = enum { text, json, jsonl, junit };
 
 pub const Options = struct {
     operator_filter: ?[]const u8 = null,
@@ -27,6 +27,10 @@ pub const Options = struct {
     fail_on_survivors: bool = false,
     report_format: ReportFormat = .text,
     output: ?[]const u8 = null,
+    /// Terminal verbosity (docs/CLI_SPEC.md). Affects only the text rendering in
+    /// the adapter; never changes deterministic report data.
+    verbose: bool = false,
+    quiet: bool = false,
 };
 
 /// Observation metadata supplied by the caller. Normalized in snapshots/tests.
@@ -80,6 +84,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         const arg = args[i];
         if (std.mem.eql(u8, arg, "--fail-on-survivors")) {
             opts.fail_on_survivors = true;
+        } else if (std.mem.eql(u8, arg, "--verbose")) {
+            opts.verbose = true;
+        } else if (std.mem.eql(u8, arg, "--quiet")) {
+            opts.quiet = true;
         } else if (std.mem.eql(u8, arg, "--operator")) {
             i += 1;
             if (i >= args.len) return error.MissingValue;
@@ -95,6 +103,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
                 opts.report_format = .text;
             } else if (std.mem.eql(u8, args[i], "json")) {
                 opts.report_format = .json;
+            } else if (std.mem.eql(u8, args[i], "jsonl")) {
+                opts.report_format = .jsonl;
+            } else if (std.mem.eql(u8, args[i], "junit")) {
+                opts.report_format = .junit;
             } else {
                 return error.InvalidReportFormat;
             }
@@ -293,20 +305,4 @@ fn computeDiff(arena: std.mem.Allocator, source: []const u8, candidate: mutant.M
     const minus = try std.fmt.allocPrint(arena, "- {s}", .{original_line});
     const plus = try std.fmt.allocPrint(arena, "+ {s}", .{patched.items});
     return try arena.dupe([]const u8, &.{ minus, plus });
-}
-
-/// Compact survivor-focused text summary (docs/REPORT_FORMAT.md Text Output).
-pub fn textSummary(arena: std.mem.Allocator, rep: report.Report) std.mem.Allocator.Error![]u8 {
-    var out: std.ArrayList(u8) = .empty;
-    if (rep.run.status == .baseline_failed) {
-        try out.appendSlice(arena, "baseline failed; no mutants run\n");
-        return out.toOwnedSlice(arena);
-    }
-    for (rep.mutants) |m| {
-        if (m.result.status != .survived) continue;
-        try out.print(arena, "survived {d} {s} {s}:{d}\n", .{ m.display_id, m.operator, m.file, m.span.line_start });
-    }
-    const s = rep.summary;
-    try out.print(arena, "{d} mutants: {d} killed, {d} survived\n", .{ s.total, s.killed, s.survived });
-    return out.toOwnedSlice(arena);
 }

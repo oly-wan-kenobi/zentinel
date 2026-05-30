@@ -19,10 +19,10 @@
     },
     {
       "number": "I-003",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/018-report-renderers.md",
-      "notes": "Canonical report ordering lands with report renderer snapshots."
+      "covered": true,
+      "tests": ["test/report_renderers_test.zig"],
+      "deferred_to": null,
+      "notes": "Reports sort mutants by canonical order (file, byte start/end, operator, replacement, backend) before assigning display ids and summary counts; report_renderers_test exercises out-of-order mutants through sortAndAssignDisplayIds and asserts the sorted order and 1..N display ids, and the renderer snapshots emit canonical order."
     },
     {
       "number": "I-004",
@@ -105,10 +105,10 @@
     },
     {
       "number": "I-015",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/018-report-renderers.md",
-      "notes": "Snapshot normalization lands with report and doctest snapshots."
+      "covered": true,
+      "tests": ["test/report_renderers_test.zig"],
+      "deferred_to": null,
+      "notes": "Snapshot outputs normalize durations, ids, and timestamps: report_renderers_test asserts the JUnit renderer emits time=\"0\" (no raw duration leaks) and that report.normalizeForComparison replaces run id, started_at, and every duration_ms with <run-id>/<started-at>/<duration> for repeated-run comparison. Doctest snapshot normalization remains tracked by its own invariants under the doctest tasks."
     },
     {
       "number": "I-016",

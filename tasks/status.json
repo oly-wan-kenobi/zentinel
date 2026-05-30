@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "018",
+  "next_task": "020",
   "completed_tasks": [
     "068",
     "069",
@@ -58,17 +58,75 @@
     "014",
     "015",
     "016",
-    "017"
+    "017",
+    "018"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 017 list-mutants command completed; active-state and complete-state validation passed (106 tasks). Task 017 has no gap-registry rows; deterministic candidate listing (text + JSON over shared mutant fields), pure operator filtering, and the execution-free guarantee landed, verified by the binary producing a listing without creating a .zig-cache."
+    "notes": "Task 018 report renderers completed; active-state and complete-state validation passed (106 tasks). Closed I-003 (canonical report ordering) and I-015 (snapshot normalization). Added survivor-focused text, streaming JSONL, and JUnit XML renderers plus run-local --verbose/--quiet, all derived from the canonical report without changing its data."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "018",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_renderers_test.zig:5:29: error: root source file struct 'root' has no member named 'report_text'` (and report_jsonl/report_junit; 169/169 prior tests passed). implementation_started_after_failure: true; src/report_text.zig, src/report_jsonl.zig, src/report_junit.zig and the root.zig re-exports were written only after capturing the missing-module failures. A real dangling-pointer bug was then caught by the tests (a `&.{ runtimeCall() }` literal in the test builders pointed at a freed temporary, segfaulting the JSONL/JUnit serializers) and fixed by moving the command arrays to comptime container-scope consts. The three renderer snapshots were generated from actual renderer output (self-blessing helper writes on first run then re-asserts equality). passing_command: `zig build test` then succeeded with all tests passing and `zig build` produced a binary rendering all four formats.",
+      "implementation_summary": "Completed Phase 1 report rendering. src/report_text.zig (deterministic_core) renders survivor-focused text (one block per survivor with the line-level diff and selected tests, then a compact 'N mutants: K killed, S survived' summary; baseline_failed prints the failing baseline command), with a Verbosity enum (quiet=summary only, normal=survivors, verbose=all mutants). src/report_jsonl.zig emits one stable minified JSON object per line: a header line (the report envelope without the mutants array) then one line per mutant, each independently parseable and reusing the canonical fields. src/report_junit.zig renders the JUnit testsuite per docs/REPORT_FORMAT.md: one testcase per mutant in canonical order with classname/name, properties for the mutant and each command's structured evidence (original, argv, cwd, environment_policy, shell, status, phase, skip_reason), the exact status mapping (killed/compile_error/survived -> passing; compiler_crash/timeout/invalid -> <error>; skipped -> <skipped>; run baseline_failed -> a single `baseline` testcase with <error type=\"zentinel.baseline_failed\"> and no mutant testcases), suite counts derived from the emitted testcases, time normalized to 0, and XML escaping; strict survivor-failing mode (the run command's --fail-on-survivors) is the only mode that adds <failure type=\"zentinel.survived\">. run_command.ReportFormat gained jsonl and junit and run-local --verbose/--quiet options; the canonical JSON report is unchanged by format or verbosity. cli.zig always writes the canonical JSON to the output path and selects only the stdout renderer (text/json/jsonl/junit) and text verbosity. --verbose/--quiet are run-local (not global) so the existing `--verbose check` -> passthrough contract from task 005 is preserved. No runner/mutators/cache/AI changes (forbidden files).",
+      "files_changed": [
+        "src/report_text.zig",
+        "src/report_jsonl.zig",
+        "src/report_junit.zig",
+        "src/run_command.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/report_renderers_test.zig",
+        "test/run_command_test.zig",
+        "test/snapshots/report_survivors.txt",
+        "test/snapshots/report_basic.jsonl",
+        "test/snapshots/report_diagnostic.xml",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/report_renderers_test.zig: survivor-focused text snapshot; JSONL snapshot with a per-line JSON-parse assertion (header + one line per mutant); JUnit XML snapshot; JUnit status mapping for killed/compile_error/compiler_crash/survived/skipped/timeout/invalid plus run-level baseline_failed; JUnit strict survivor-failing mode (<failure type=zentinel.survived>); JUnit structured command-evidence properties; JSON schema-compatibility (canonical schema_version + validate ok); summary counts derived not trusted (validator catches a manually wrong summary); canonical mutant ordering after sorting (I-003); and snapshot normalization of durations/ids (I-015).",
+        "test/run_command_test.zig: parseArgs accepts jsonl/junit; report-format selection does not change canonical report data; and --verbose/--quiet parse as run options without changing canonical report data.",
+        "test/snapshots/report_survivors.txt, report_basic.jsonl, report_diagnostic.xml."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing report_text/report_jsonl/report_junit module errors while 169 prior tests passed; then a real dangling-pointer segfault in the test builders, fixed",
+        "zig build test (passing): all tests pass; the 3 renderer snapshots self-bless then re-assert equality (determinism proven)",
+        "zig fmt --check src test build.zig: clean",
+        "zig build: binary builds",
+        "binary: `zentinel --root <fixture> run --report junit|jsonl` and `--verbose|--quiet` render all formats; canonical JSON report is written unchanged regardless of format; cwd label is the stable project root, never a raw workspace path",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 018 was active after the renderers and tests landed, and again after the complete-state transition (106 tasks) with I-003 and I-015 closed."
+      },
+      "dogfooding_implication": "Dogfood reports depend on clear survivor output; the survivor-focused text plus JSONL/JUnit give human, streaming, and CI review surfaces over the same canonical report. JUnit diagnostic mode never reports survivors as test failures (only strict --fail-on-survivors does), so CI integration does not falsely claim the project's unit tests failed.",
+      "follow_up_tasks": [
+        "tasks/020-test-selection-same-file.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-003",
+          "I-015"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "017",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/list_mutants_command_test.zig:4:20: error: root source file struct 'root' has no member named 'list_mutants_command'` (Build Summary: 46/49 steps succeeded (1 failed); 164/164 prior tests passed). implementation_started_after_failure: true; src/list_mutants_command.zig and the root.zig re-export were written only after capturing the missing-module failure, and the two list snapshots were generated from the actual renderText/renderJson output (self-blessing helper writes on first run then asserts equality on every re-run). passing_command: `zig build test` then succeeded with all tests passing, and the binary produced a deterministic listing with no .zig-cache created.",

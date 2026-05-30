@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="zentinel.mutation" tests="2" failures="0" errors="0" skipped="0" time="0">
+  <testcase classname="zentinel.mutant" name="1 comparison_boundary src/calc.zig:12">
+    <properties>
+      <property name="mutant_id" value="m_0000000000000000000000000a"/>
+      <property name="backend" value="ast"/>
+      <property name="backend_stability" value="stable"/>
+      <property name="operator" value="comparison_boundary"/>
+      <property name="operator_stability" value="stable"/>
+      <property name="status" value="killed"/>
+      <property name="phase" value="mutant"/>
+      <property name="command_count" value="1"/>
+      <property name="command_0_original" value="zig test src/range.zig"/>
+      <property name="command_0_argv" value="zig test src/range.zig"/>
+      <property name="command_0_cwd" value="&lt;project&gt;"/>
+      <property name="command_0_environment_policy" value="minimal"/>
+      <property name="command_0_shell" value="false"/>
+      <property name="command_0_status" value="failed"/>
+      <property name="command_0_phase" value="mutant"/>
+      <property name="command_0_skip_reason" value=""/>
+    </properties>
+  </testcase>
+  <testcase classname="zentinel.mutant" name="2 comparison_boundary src/range.zig:12">
+    <properties>
+      <property name="mutant_id" value="m_0000000000000000000000000a"/>
+      <property name="backend" value="ast"/>
+      <property name="backend_stability" value="stable"/>
+      <property name="operator" value="comparison_boundary"/>
+      <property name="operator_stability" value="stable"/>
+      <property name="status" value="survived"/>
+      <property name="phase" value="mutant"/>
+      <property name="command_count" value="0"/>
+    </properties>
+  </testcase>
+</testsuite>
