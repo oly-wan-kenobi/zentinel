@@ -82,7 +82,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 021 | `tasks/021-cache-key-design.md` | complete | 3 |
 | 022 | `tasks/022-dogfood-fixture-run.md` | complete | 3 |
 | 023 | `tasks/023-optional-null-mutators.md` | complete | 2 |
-| 024 | `tasks/024-error-path-mutators.md` | queued | 2 |
+| 024 | `tasks/024-error-path-mutators.md` | complete | 2 |
 | 025 | `tasks/025-autonomous-backlog-audit.md` | queued | 0 |
 | 026 | `tasks/026-errdefer-mutator.md` | queued | 2 |
 | 027 | `tasks/027-integer-literal-boundary-mutator.md` | queued | 2 |

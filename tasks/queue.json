@@ -2183,7 +2183,7 @@
       "title": "Error Path Mutators",
       "file": "tasks/024-error-path-mutators.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "023"
       ],

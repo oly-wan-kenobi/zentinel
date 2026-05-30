@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "024",
+  "next_task": "025",
   "completed_tasks": [
     "068",
     "069",
@@ -63,17 +63,67 @@
     "020",
     "021",
     "022",
-    "023"
+    "023",
+    "024"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 023 optional/null mutators completed; active-state and complete-state validation passed (106 tasks). Closed mutators-registry rows optional_orelse_unreachable and optional_null_check. Added the first Phase 2 optional mutators (recognizers) with fixtures and tests; existing Phase 1 fixtures still pass. The recognizers are available via zentinel.mutators.optional; run-pipeline enabling is deferred (run_command.zig is out of task 023 scope)."
+    "notes": "Task 024 error-path mutator completed; active-state and complete-state validation passed (106 tasks). Closed the mutators-registry row error_catch_unreachable. Added the Phase 2 error_catch_unreachable recognizer (catch handler -> unreachable, handler-span-exact, |err|-payload aware) with killed/survived fixtures; existing Phase 1 and optional mutator tests still pass. A stray untracked MISSING_COMMENT_INVENTORY.md (an external scan artifact, never committed) was removed to restore a clean tree."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "024",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/error_path_test.zig:3:37: error: struct 'root.mutators' has no member named 'error_path'` (207/207 prior tests passed). implementation_started_after_failure: true; src/mutators/error_path.zig and the root.zig mutators re-export were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests.",
+      "implementation_summary": "Added src/mutators/error_path.zig (deterministic_core): the Phase 2 error_catch_unreachable mutator. It walks `.@\"catch\"` nodes, takes the catch handler (right-hand side) via tree.nodeData(node).node_and_node[1] over firstToken..lastToken, and replaces it with `unreachable`, preserving the EXACT handler source span. For a `catch |err| handler` form only the handler expression is replaced (the |err| capture is token-determined and excluded from the span). It skips an existing `catch unreachable` (forbidden context) and test bodies, carries may_fail compile expectation (the AST layer cannot prove `unreachable` coerces, and a payload form may produce an unused-capture compile error -- a documented expected outcome, not an invalid candidate), and carries MUTATOR_SPEC equivalent-risk hints. Flows through the shared collector for canonical ordering/dedupe/ids. No ast_backend or mutant model change was needed. Re-exported under zentinel.mutators.error_path; run-pipeline enabling and broad use are deferred (run_command.zig out of task 024 scope) and reports need no schema change because operator names are free strings. Reports distinguish error-path survivors via the error_catch_unreachable operator metadata.",
+      "files_changed": [
+        "src/mutators/error_path.zig",
+        "src/root.zig",
+        "test/mutators/error_path_test.zig",
+        "test/fixtures/mutators/error_path/ops.zig",
+        "test/fixtures/mutators/error_path/survivor.zig",
+        "test/fixtures/mutators/error_path/killed.zig",
+        "tests/coverage-gaps/mutators.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/mutators/error_path_test.zig: catch handler -> unreachable in canonical order (handlers `0` and `-1`); an existing `catch unreachable` is not mutated; a `catch |err| handler` form replaces only the handler expression (`handle(err)`), not the capture; the survivor fixture yields the catch candidate; and the killed fixture yields the production catch candidate with the test body excluded.",
+        "test/fixtures/mutators/error_path/{ops.zig,survivor.zig,killed.zig}: handled error paths, an existing catch unreachable, a never-exercised error path (survivor), and a same-file test that exercises the error path (killed)."
+      ],
+      "tests_run": [
+        "zig build test (failing): captured the missing error_path mutator member while 207 prior tests passed",
+        "zig build test (passing): all tests pass; existing Phase 1 and optional mutator tests still pass",
+        "zig fmt --check src test build.zig: clean",
+        "python3 scripts/validate_task_system.py"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 024 was active after the error-path mutator and tests landed (after removing a stray untracked MISSING_COMMENT_INVENTORY.md scan artifact that the active-task changed-file-scope check flagged), and again after the complete-state transition (106 tasks) with error_catch_unreachable closed."
+      },
+      "dogfooding_implication": "Error-path mutators will later target zentinel's runner and config diagnostics, where missing error tests are especially costly; the survivor fixture shows how a never-exercised catch branch is surfaced. Broad enabling and run-pipeline integration are deferred to a later task.",
+      "follow_up_tasks": [
+        "tasks/025-autonomous-backlog-audit.md",
+        "tasks/026-errdefer-mutator.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/mutators.v1.json": [
+          "error_catch_unreachable"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "023",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/optional_test.zig:3:35: error: struct 'root.mutators' has no member named 'optional'` (201/201 prior tests passed). implementation_started_after_failure: true; src/mutators/optional.zig and the root.zig mutators re-export were written only after capturing the missing-member failure. passing_command: `zig build test` then passed all tests.",
