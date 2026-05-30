@@ -2384,7 +2384,7 @@
       "title": "Doctest Conventions",
       "file": "tasks/030-doctest-conventions.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "029"
       ],

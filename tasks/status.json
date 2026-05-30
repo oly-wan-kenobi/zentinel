@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "030",
+  "next_task": "031",
   "completed_tasks": [
     "068",
     "069",
@@ -69,17 +69,56 @@
     "026",
     "027",
     "028",
-    "029"
+    "029",
+    "030"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 029 Phase 2 semantic dogfood completed; active-state and complete-state validation passed (106 tasks). No gap rows. Added test/dogfood_semantic_test.zig + a semantic fixture exercising all six stable Phase 2 operators through the recognizers/collector, proving every Phase 2 mutator fires, repeated runs are deterministic (same ids/order), and no invalid mutants appear. Flagged a concrete follow-up: the Phase 2 recognizers are not yet wired into run_command.generateCandidates or list_mutants.generate (both run only the 4 Phase 1 recognizers), so enabling Phase 2 operators in config currently yields nothing from the run/list commands."
+    "notes": "Task 030 doctest conventions completed; active-state and complete-state validation passed (106 tasks). No gap rows. Documentation-only: added test/fixtures/doctest/formats/examples.md covering all eight supported doctest block formats (zig test, zig compile_fail, bash cli, text output, json expected, toml config, zig before, zig after) per docs/DOCTEST_BLOCK_FORMATS.md, plus documented the future doctest properties (extraction order, case ID stability, block classification determinism). The validator-backed fixture-presence check provided the failing evidence (8 missing markers while active) and now passes. No doctest execution code exists."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "030",
+      "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: with task 030 active, the validator reported `task 030 requires doctest markdown fixtures under test/fixtures/doctest` plus eight `task 030 doctest fixtures must include marker '<format>'` failures (zig test, zig compile_fail, bash cli, text output, json expected, toml config, zig before, zig after). implementation_started_after_failure: true; the fixture markdown was created only after capturing the validator-backed fixture-presence failure (the TDD instructions designate this conventions task's failing evidence as task-system validation around fixture-file presence, not implementation tests). passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks).",
+      "implementation_summary": "Documentation-only conventions task introducing doctest authoring conventions without any execution code. Created test/fixtures/doctest/formats/examples.md (placed in a subdirectory so it matches the task's allowed glob test/fixtures/doctest/**/*.md under fnmatch) containing one representative fenced block for every supported doctest format from docs/DOCTEST_BLOCK_FORMATS.md: `zig test` (executable test), `zig compile_fail` (must not compile), `bash cli case:help` (CLI invocation), `text output contains` (expected text), `json expected subset` (expected JSON), `toml config` (config), and paired `zig before`/`zig after` (mutator example). The blocks are short and deterministic and use the documented info-string grammar `<language> [kind] [match-mode] [case:<label>] [key:value ...]` with three-backtick fences. Also documented the future doctest properties future parser tasks must preserve: extraction order (sort by file path, 1-based block line start, block index), case ID stability (a function of file path/anchor line/tags/content so unrelated edits do not renumber cases), and block classification determinism (one block kind per info string; unknown tags invalid; a plain zig block never consumes a text-output block). No Markdown parser, doctest runner, zentinel doctest command, or schema changes (task non-goals); no src/build.zig/schemas/scripts/*.zig changes.",
+      "files_changed": [
+        "test/fixtures/doctest/formats/examples.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "None executable (conventions task; TDD instructions forbid implementation tests until the parser work in task 031). The failing/passing evidence is the validator's doctest fixture-presence and marker checks.",
+        "test/fixtures/doctest/formats/examples.md: representative fixtures for all eight supported doctest block formats, the stable targets future doctest extraction tests will parse."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (failing): task 030 doctest fixtures missing + eight missing-marker failures while active",
+        "python3 scripts/validate_task_system.py (passing): 106 tasks after the fixture markdown landed",
+        "zig build test: unchanged and green (Markdown fixtures are invisible to the Zig build/test)",
+        "zig fmt --check src test build.zig: clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator failed with task 030 active until the doctest markdown fixtures with all eight format markers existed, then passed (106 tasks) on both the active and complete states."
+      },
+      "dogfooding_implication": "Creates the deterministic documentation samples that later doctest dogfood runs (tasks 031+ parser/extraction, 035/036 CLI/config doctests, 066 public-docs coverage) will parse and execute. No execution yet.",
+      "follow_up_tasks": [
+        "tasks/031-doctest-parser.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "029",
       "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: the three dogfood tests failed with `error.FileNotFound` because the dogfood had no semantic fixture to run on (test/fixtures/dogfood/semantic/sample.zig did not exist). implementation_started_after_failure: true; the fixture was created only after capturing the FileNotFound failure (and after fixing a compile error where the test referenced report-only display_id on the candidate mutant.Mutant). passing_command: `zig build test` then passed all tests.",
