@@ -235,3 +235,160 @@ test "snapshot: selection metadata has exactly the documented fields" {
     };
     try expectEqualStrings(existing, json);
 }
+
+// --- Soundness: narrowed-selection survivors re-verified (task 106) ----------
+//
+// The default `same_file_then_package` strategy may run `zig test <file>` instead
+// of the configured `zig build test`. That generated command is weaker: a mutant
+// whose function is covered only by a sibling `*_test.zig` survives `zig test
+// <file>` but is killed by the configured suite. A `survived` verdict from the
+// narrowed selection is therefore unsound until the configured suite is confirmed
+// to also miss the mutant.
+
+const SoundEnv = struct { arena: std.mem.Allocator };
+
+/// Baseline + same-file preflight run against the UNMUTATED project and pass.
+fn soundBaseline(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = ctx;
+    _ = argv;
+    return okOutcome();
+}
+
+/// The configured suite (`zig build test`, exercising a sibling `*_test.zig`)
+/// KILLS the mutant; the narrowed same-file command (`zig test src/range.zig`)
+/// does NOT. Branch on the parsed argv so the executor models a real project
+/// where the same-file tests are insufficient.
+fn killedByConfiguredCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = ctx;
+    for (argv) |part| {
+        if (std.mem.eql(u8, part, "build")) return failOutcome();
+    }
+    return okOutcome();
+}
+
+/// Every command passes: a genuine survivor that must still be re-verified
+/// against, and recorded with, the configured suite.
+fn survivesEverythingCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = ctx;
+    _ = argv;
+    return okOutcome();
+}
+
+fn killedByConfiguredRun(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *SoundEnv = @ptrCast(@alignCast(ctx));
+    const ex = runner.Executor{ .ctx = env, .runFn = killedByConfiguredCmd };
+    return mutant_runner.run(env.arena, m, source, .created, commands, "<project>", ex, mode) catch @panic("mutant run failed");
+}
+
+fn survivesEverythingRun(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *SoundEnv = @ptrCast(@alignCast(ctx));
+    const ex = runner.Executor{ .ctx = env, .runFn = survivesEverythingCmd };
+    return mutant_runner.run(env.arena, m, source, .created, commands, "<project>", ex, mode) catch @panic("mutant run failed");
+}
+
+fn soundCfg(a: std.mem.Allocator) !config.Config {
+    var diag: config.Diagnostic = .{};
+    return config.load(a,
+        \\[project]
+        \\name = "sel"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\
+    , &diag);
+}
+
+test "needsConfiguredReverification: a narrowed selection needs re-verification, the configured set does not" {
+    const configured_set = [_][]const u8{"zig build test"};
+    const narrowed = [_][]const u8{"zig test src/range.zig"};
+    // A generated same-file command differs from the configured suite -> escalate.
+    try expect(ts.needsConfiguredReverification(&narrowed, &configured_set));
+    // The configured set against itself (the `all` strategy / a fallback) -> no escalation.
+    try expect(!ts.needsConfiguredReverification(&configured_set, &configured_set));
+    // A strict subset of a multi-command configured suite is still narrowed, even
+    // when the generated command happens to be one of the baseline commands.
+    const multi = [_][]const u8{ "zig build test", "zig test src/range.zig" };
+    const subset = [_][]const u8{"zig test src/range.zig"};
+    try expect(ts.needsConfiguredReverification(&subset, &multi));
+}
+
+test "a same-file survivor the configured suite kills is reported killed, not survived" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const source = try readFixture(a, "test/fixtures/test_selection/with_tests.zig");
+    const files = [_]rc.FileSource{.{ .path = "src/range.zig", .source = source }};
+    const cfg = try soundCfg(a);
+
+    var env = SoundEnv{ .arena = a };
+    const baseline_executor = runner.Executor{ .ctx = &env, .runFn = soundBaseline };
+    const mutant_executor = rc.MutantRunner{ .ctx = &env, .runFn = killedByConfiguredRun };
+
+    const outcome = try rc.run(a, cfg, &files, .{}, baseline_executor, mutant_executor, runObservation());
+
+    try expectEqual(@as(usize, 1), outcome.report.mutants.len);
+    const m = outcome.report.mutants[0];
+
+    // The selection still narrowed to the same-file command...
+    try expectEqual(report.Strategy.same_file_then_package, m.test_selection.strategy);
+    try expectEqual(@as(usize, 1), m.test_selection.commands.len);
+    try expectEqualStrings("zig test src/range.zig", m.test_selection.commands[0]);
+
+    // ...but the configured suite kills the mutant, so the sound verdict is
+    // `killed`, never `survived` (task 106 soundness guarantee). Without
+    // re-verification the narrowed `zig test src/range.zig` passes and the mutant
+    // is falsely reported `survived`.
+    try expectEqual(report.ResultStatus.killed, m.result.status);
+    try expectEqual(@as(u64, 0), outcome.report.summary.survived);
+    try expectEqual(@as(u64, 1), outcome.report.summary.killed);
+
+    // The configured re-verification command is recorded in the evidence and is
+    // the killing command (I-012: nothing is hidden from the report).
+    var saw_configured_kill = false;
+    for (m.result.commands) |c| {
+        if (std.mem.eql(u8, c.command.original, "zig build test") and c.status == .failed) saw_configured_kill = true;
+    }
+    try expect(saw_configured_kill);
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
+
+test "a genuine same-file survivor is confirmed against and recorded with the configured suite" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const source = try readFixture(a, "test/fixtures/test_selection/with_tests.zig");
+    const files = [_]rc.FileSource{.{ .path = "src/range.zig", .source = source }};
+    const cfg = try soundCfg(a);
+
+    var env = SoundEnv{ .arena = a };
+    const baseline_executor = runner.Executor{ .ctx = &env, .runFn = soundBaseline };
+    const mutant_executor = rc.MutantRunner{ .ctx = &env, .runFn = survivesEverythingRun };
+
+    const outcome = try rc.run(a, cfg, &files, .{}, baseline_executor, mutant_executor, runObservation());
+
+    try expectEqual(@as(usize, 1), outcome.report.mutants.len);
+    const m = outcome.report.mutants[0];
+
+    // The mutant survives the configured suite too, so it stays `survived` -- the
+    // re-verification must not over-kill a genuine survivor.
+    try expectEqual(report.ResultStatus.survived, m.result.status);
+    try expectEqual(@as(u64, 1), outcome.report.summary.survived);
+
+    // The recorded survivor was confirmed against the configured suite: both the
+    // narrowed command and the configured command appear (passing) in the
+    // evidence, so a `survived` verdict is never based only on the narrowed subset.
+    var saw_narrowed = false;
+    var saw_configured = false;
+    for (m.result.commands) |c| {
+        if (std.mem.eql(u8, c.command.original, "zig test src/range.zig")) saw_narrowed = true;
+        if (std.mem.eql(u8, c.command.original, "zig build test")) saw_configured = true;
+    }
+    try expect(saw_narrowed);
+    try expect(saw_configured);
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}

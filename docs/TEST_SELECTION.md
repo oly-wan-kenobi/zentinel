@@ -49,6 +49,18 @@ zig build test
 
 When selection cannot prove a narrower command, it must fall back to configured full test commands.
 
+## Soundness Guarantee
+
+A narrowed selection is a performance optimization and must never make a mutant *look* survived when the user's configured command set would kill it. A generated `zig test <file>` command is weaker than the configured suite: a mutant whose function is exercised only by a sibling `*_test.zig` survives the same-file command but is killed by `zig build test`. Recording that mutant as `survived` would be a false survivor, inflating the survivor count and deflating the mutation score.
+
+Therefore the default `same_file_then_package` strategy (and any narrowed strategy, including `same_file` and `impact_graph`) is **sound**: a `survived` verdict produced by a narrowed selection is **re-verified against the full configured command set before it is recorded**.
+
+- When a mutant survives a narrowed selection, zentinel re-runs the configured commands for that mutant. The mutant keeps `survived` only if the configured suite also fails to kill it; otherwise it is recorded with the verdict the configured suite produced (e.g. `killed`).
+- Only survivors of a narrowed selection pay this re-verification cost. A selection that already runs the configured set — the `all` strategy, or a same-file selection that fell back — runs no extra commands.
+- The configured re-verification commands are appended to the mutant's `result.commands` (at `phase = "mutant"`), so the recorded verdict always reflects the configured suite and the evidence shows it ran. A recorded `survived` therefore means the mutant survived the configured suite, not merely the selected subset.
+
+This guarantee covers the recorded mutant verdict and the derived survivor counts and mutation score. The additive safety-mode matrix (`result.mode_matrix`) reports per-mode statuses for the selected commands and is advisory, not the primary verdict.
+
 ## Impact Graph
 
 Before task `051`, `impact_graph` is not available and must be rejected by config validation. Agents must not accept it as an alias for `same_file_then_package` or silently fall back to all tests.

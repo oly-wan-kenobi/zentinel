@@ -260,6 +260,23 @@ pub fn run(
     var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode };
     worker_pool.run(requested_jobs, jobs.len, &pctx, runOneMutant);
 
+    // Phase B.5 (serial): re-verify narrowed-selection survivors against the full
+    // configured command set. A same-file/impact selection may run a command
+    // weaker than the configured suite (docs/TEST_SELECTION.md), so a `survived`
+    // verdict from a narrowed selection is unsound until the configured suite is
+    // confirmed to also miss the mutant. Only survivors pay this cost, and only
+    // when the selection actually narrowed; the configured re-verification
+    // commands are appended to the mutant's evidence so the recorded
+    // `survived`/`killed` verdict always reflects the configured suite (I-012:
+    // nothing is hidden). The primary mode is re-verified here before the mode
+    // matrix reads it.
+    for (jobs, 0..) |job, ji| {
+        if (results[ji].status != .survived) continue;
+        if (!test_selection.needsConfiguredReverification(job.commands, cfg.test_commands)) continue;
+        const reverify = mutant_executor.run(job.candidate, job.source, cfg.test_commands, mode);
+        results[ji] = try mergeReverification(arena, results[ji], reverify);
+    }
+
     // Mode matrix: when more than one mode is run, record each mode's per-mutant
     // status. The primary mode reuses the parallel results above; additional
     // modes run serially and deterministically (matrix output, not the report's
@@ -495,6 +512,32 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         try kept.append(arena, c);
     }
     return kept.toOwnedSlice(arena);
+}
+
+/// Merge a narrowed-selection survivor with its configured-suite re-verification.
+/// The narrowed commands all passed (the mutant survived them), so the configured
+/// suite is authoritative for the final verdict: its command results are appended
+/// after the narrowed ones and its status replaces the survivor's. The combined
+/// command list keeps every command at `phase = .mutant` (report invariant) and
+/// records the full evidence chain that produced the recorded status, so a mutant
+/// the configured suite kills is never left reported as `survived`.
+fn mergeReverification(
+    arena: std.mem.Allocator,
+    narrowed: mutant_runner.MutationResult,
+    reverify: mutant_runner.MutationResult,
+) std.mem.Allocator.Error!mutant_runner.MutationResult {
+    const commands = try arena.alloc(report.CommandResult, narrowed.commands.len + reverify.commands.len);
+    @memcpy(commands[0..narrowed.commands.len], narrowed.commands);
+    @memcpy(commands[narrowed.commands.len..], reverify.commands);
+    return .{
+        .mutant_id = narrowed.mutant_id,
+        .status = reverify.status,
+        .mode = narrowed.mode,
+        .classifier_source = reverify.classifier_source,
+        .commands = commands,
+        .evidence = reverify.evidence,
+        .skip_reason = reverify.skip_reason,
+    };
 }
 
 fn buildEntry(

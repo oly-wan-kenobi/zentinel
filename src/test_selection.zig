@@ -119,3 +119,23 @@ pub fn resolve(
         .commands = configured_commands,
     };
 }
+
+/// True when `commands` is a narrowed selection distinct from the full configured
+/// command set, so a `survived` verdict produced by running only `commands` is
+/// unsound until it is re-verified against the configured commands
+/// (docs/TEST_SELECTION.md soundness guarantee). A generated `zig test <file>`
+/// command can miss a mutant that a sibling test in the configured suite kills,
+/// so a same-file `survived` must be escalated to the configured commands before
+/// it is recorded. When the selection already runs the configured set (the `all`
+/// strategy, or a same-file fallback), no re-verification is needed.
+pub fn needsConfiguredReverification(commands: []const []const u8, configured_commands: []const []const u8) bool {
+    return !commandsEqual(commands, configured_commands);
+}
+
+fn commandsEqual(a: []const []const u8, b: []const []const u8) bool {
+    if (a.len != b.len) return false;
+    for (a, b) |x, y| {
+        if (!std.mem.eql(u8, x, y)) return false;
+    }
+    return true;
+}

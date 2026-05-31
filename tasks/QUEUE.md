@@ -127,7 +127,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 059.7 | `tasks/067-ai-doctest-survivor-assistance.md` | complete | 4 |
 | 059.8 | `tasks/085-final-dogfood-release-gate.md` | complete | 7 |
 | 060 | `tasks/060-release-acceptance-verification.md` | complete | 7 |
-| 061 | `tasks/106-fix-false-survivor-test-selection.md` | queued | 8 |
+| 061 | `tasks/106-fix-false-survivor-test-selection.md` | complete | 8 |
 | 062 | `tasks/107-bound-untrusted-report-integer-casts.md` | queued | 8 |
 | 063 | `tasks/108-deterministic-evidence-excerpts.md` | queued | 8 |
 | 064 | `tasks/109-wire-phase2-mutators.md` | queued | 8 |

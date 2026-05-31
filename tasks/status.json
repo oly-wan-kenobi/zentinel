@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "106",
+  "next_task": "107",
   "completed_tasks": [
     "068",
     "069",
@@ -108,14 +108,15 @@
     "066",
     "067",
     "085",
-    "060"
+    "060",
+    "106"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 060 release acceptance verification completed; active-state and complete-state validation passed. scripts/release_acceptance.py confirms every docs/PROJECT_ACCEPTANCE_CRITERIA.md criterion is satisfied from archived deterministic evidence (commands, 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests, task-085 final dogfood gate, network-free CI, advisory-only AI, AST-stable-default/experimental-opt-in). No release blockers; the implementation queue is complete (106 tasks)."
+    "notes": "Task 106 fix false-survivor test selection completed; active-state and complete-state validation passed. The default same_file_then_package strategy now re-verifies a narrowed-selection survivor against the full configured command set before recording `survived`, so a mutant the configured suite kills is reported `killed` (proven by a test that fails with `expected .killed, found .survived` without the fix). Full suite green: zig build test (490 tests), zig build, zig fmt --check src test build.zig, git diff --check."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5221,6 +5222,51 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/060/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "106",
+      "failing_evidence": "failing_command: `zig build test` with the soundness cases in test/test_selection_test.zig written first. failing_output_excerpt: 'test.a same-file survivor the configured suite kills is reported killed, not survived' failed with `expected .killed, found .survived` at test/test_selection_test.zig:331 -- the narrowed `zig test src/range.zig` passes, so a mutant the configured `zig build test` kills was falsely reported `survived`; the companion 'genuine survivor' case also failed because the configured command was absent from the evidence (saw_configured was false). 488 of 490 tests passed; only the two new soundness cases failed, for the real behavior, not a wording pin. implementation_started_after_failure: true. passing_command: after adding the re-verification pass and test_selection.needsConfiguredReverification, `zig build test` passed (490 tests green), and the genuine-survivor case confirms a survivor that survives the configured suite stays `survived` with the configured command recorded as evidence.",
+      "implementation_summary": "Made the default same_file_then_package strategy (and any narrowed strategy) sound so a `survived` verdict can never hide a mutant the configured command set would kill. src/run_command.zig adds a serial Phase B.5 after the parallel mutant phase: for each mutant whose narrowed-selection result is `survived` and whose selected commands differ from the full configured command set (test_selection.needsConfiguredReverification), it re-runs cfg.test_commands through the injected mutant runner and merges via mergeReverification -- the configured suite is authoritative for the final status and its command results are appended (phase = .mutant) so the recorded `survived`/`killed` verdict always reflects the configured suite (I-012, nothing hidden). src/test_selection.zig adds the pure needsConfiguredReverification predicate plus a commandsEqual helper. Only survivors of a narrowed selection pay the re-verification cost; the `all` strategy and same-file fallbacks already run the configured set and are skipped. The recording reuses result.commands rather than a new report field, so schemas/report.v1.schema.json and the test_selection.commands/selection_metadata snapshot are unchanged (report.v1 TestSelection is a closed object). docs/TEST_SELECTION.md documents the soundness guarantee and the re-verification behavior. Non-goals respected: no new selection strategies and no change to configured-command semantics. src/ai/**, build.zig, and build.zig.zon were not touched (forbidden); src/report.zig was allowed but needed no change.",
+      "files_changed": [
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "docs/TEST_SELECTION.md",
+        "test/test_selection_test.zig",
+        "artifacts/pipeline/106/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/test_selection_test.zig: 'a same-file survivor the configured suite kills is reported killed, not survived' -- the audit repro; with same-file tests present the selection narrows to `zig test src/range.zig`, the mutant survives it but the configured `zig build test` kills it, and the recorded verdict is `killed` (survived=0, killed=1) with the configured command recorded as the failing command.",
+        "test/test_selection_test.zig: 'a genuine same-file survivor is confirmed against and recorded with the configured suite' -- a mutant that survives both the narrowed and the configured commands stays `survived` and records both commands (passing) in its evidence, proving re-verification does not over-kill and a `survived` verdict reflects the configured suite.",
+        "test/test_selection_test.zig: 'needsConfiguredReverification: a narrowed selection needs re-verification, the configured set does not' -- the pure predicate: a generated same-file command and a strict subset of a multi-command configured suite need re-verification, while the configured set against itself does not."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): 488 pass / 2 fail -- the soundness repro failed with `expected .killed, found .survived` and the genuine-survivor case failed on the missing configured-command evidence",
+        "zig build test (passing, after the fix): 490 tests green",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 106 was active and again after the complete-state transition with next_task advanced to 107 (107 depends on the now-complete 106). The task-106 verification artifact validates and no coverage-gap rows are deferred to task 106."
+      },
+      "dogfooding_implication": "zentinel's own survivor counts and mutation score become trustworthy under the shipped default strategy: a survivor reported by a narrowed same-file selection is re-verified against the configured suite, so a mutant the configured commands kill is recorded as killed rather than inflating the survivor count. Later dogfood and release gates can trust same_file_then_package without falling back to the full suite for every mutant.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/106/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

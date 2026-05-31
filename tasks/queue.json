@@ -3527,7 +3527,7 @@
       "title": "Fix False-Survivor Test Selection",
       "file": "tasks/106-fix-false-survivor-test-selection.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "060"
       ],
