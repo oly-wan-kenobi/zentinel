@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zentinel.dev/schemas/pipeline.stale_context.v1.schema.json",
   "title": "zentinel pipeline stale context marker v1",
+  "description": "Emitted by a subagent that stops because its context packet no longer matches repository state. It names the packet that went stale and the inputs the Orchestrator must refresh before issuing a replacement packet. See docs/AGENT_CONTEXT_PACKETS.md for the staleness conditions that trigger this marker.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,11 +14,34 @@
     "required_refresh"
   ],
   "properties": {
-    "schema_version": { "const": "zentinel.pipeline.stale_context.v1" },
-    "task_id": { "type": "string", "pattern": "^[0-9]{3}$" },
-    "role": { "type": "string", "minLength": 1 },
-    "reason": { "type": "string", "minLength": 1 },
-    "packet_id": { "type": "string", "minLength": 1 },
-    "required_refresh": { "type": "array", "items": { "type": "string" } }
+    "schema_version": {
+      "description": "Pinned schema identity for this artifact.",
+      "const": "zentinel.pipeline.stale_context.v1"
+    },
+    "task_id": {
+      "description": "Three-digit task id the stale packet was scoped to.",
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "role": {
+      "description": "Pipeline role that detected the stale context.",
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "description": "Why the packet is stale (for example task state changed, allowed_files differ from queue metadata, referenced prior artifact missing, repository tests no longer match packet evidence).",
+      "type": "string",
+      "minLength": 1
+    },
+    "packet_id": {
+      "description": "packet_id of the context packet that went stale, so the Orchestrator can record it as superseded.",
+      "type": "string",
+      "minLength": 1
+    },
+    "required_refresh": {
+      "description": "Inputs the Orchestrator must re-read before issuing a fresh packet (for example tasks/queue.json, tasks/status.json, a specific prior handoff).",
+      "type": "array",
+      "items": { "type": "string" }
+    }
   }
 }

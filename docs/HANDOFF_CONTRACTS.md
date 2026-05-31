@@ -174,3 +174,7 @@ artifacts/pipeline/<task-id>/handoffs/15-task-queue-manager-complete.json
 If a role is not required, the Verifier records the skip reason instead of creating a fake passing handoff.
 
 Optional Markdown summaries use the same basename with `.md` only when useful for human review. The JSON file remains the authority.
+
+## Context Packets
+
+Handoffs are the output a role leaves behind; context packets are the input a role receives. Before a role produces the handoff described above, the Orchestrator hands it a context packet (`schemas/pipeline.context.v1.schema.json`) naming the task, role, allowed and forbidden files, relevant docs, required prior handoffs, constraints, verification expectations, and stop conditions. A role that detects its packet no longer matches repository state stops and emits a stale-context marker (`schemas/pipeline.stale_context.v1.schema.json`) instead of a handoff. The packet format, per-role profiles, and staleness rules are specified in `docs/AGENT_CONTEXT_PACKETS.md`.

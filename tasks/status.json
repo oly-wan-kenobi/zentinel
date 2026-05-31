@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "042",
+  "next_task": "043",
   "completed_tasks": [
     "068",
     "069",
@@ -82,7 +82,8 @@
     "039",
     "040",
     "041",
-    "063"
+    "063",
+    "042"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -93,6 +94,70 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "042",
+      "failing_evidence": "failing_command: a standard-library-only check that imports subset_validate from scripts/validate_task_system.py and validates test/fixtures/pipeline/context_packet/{valid,invalid}/*.json against schemas/pipeline.context.v1.schema.json and schemas/pipeline.stale_context.v1.schema.json. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid context packet fixtures` and exited 1. implementation_started_after_failure: true; the per-role valid fixtures, the required-field-violation invalid fixtures, and the non-breaking schema description refinements were written only after capturing that failure. passing_command: the same check then printed `valid=6 invalid=7 roles=['Doctest Agent', 'Implementer', 'Mutation Agent', 'Test Author', 'Verifier']` and `PASS` (exit 0), with a deterministic key-order permutation property (24 permutations) proving key order does not control validity and dropping task/role/allowed_files fails regardless of order, plus a non-breaking proof that the task-041 context/stale_context fixtures and the task-063 metadata_validator context packet still validate against the refined schemas. This is a docs/schema/fixtures task; no context packet validation code was added to the deterministic core, so mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified the context packet system that fresh stateless subagents receive before a pipeline role, refining (not recreating) the task-041 baseline schemas. schemas/pipeline.context.v1.schema.json and schemas/pipeline.stale_context.v1.schema.json gained a top-level description and per-field descriptions only -- no new required fields and no tightened constraints -- so every existing post-041 artifact (the 041 fixtures and the 063 metadata_validator context packet) keeps validating; the 13 context fields (schema_version, packet_id, created_from_queue_revision, task{id,title,file}, role, allowed_files, forbidden_files, relevant_docs, prior_artifacts, known_constraints, verification_expectations, handoff_required, stop_conditions) and the 6 stale-context fields are unchanged in shape. Added per-role valid fixtures under test/fixtures/pipeline/context_packet/valid/ for Test Author, Implementer, Mutation Agent, Doctest Agent, and Verifier plus a stale-context marker, and required-field-violation fixtures under test/fixtures/pipeline/context_packet/invalid/ for missing task.id, missing role, missing allowed_files, a bad task.id pattern, an additional property, a bad schema_version const, and a stale marker missing reason -- all checked by the task-063 subset validator (jsonschema is not installed). Cross-linked the packet format from docs/ORCHESTRATION_SPEC.md (Subagent Rules) and docs/HANDOFF_CONTRACTS.md (new Context Packets section); docs/AGENT_GUIDE.md already linked it and docs/AGENT_CONTEXT_PACKETS.md already specified all nine role profiles, the priority-ordered size/summarization strategy, and the deterministic four-condition staleness checks, so no doc-body change was required there. Dogfooded the contract by writing a real task-042 context packet at artifacts/pipeline/042/context/test-author.json and a verification record at artifacts/pipeline/042/verification/report.json. The schemas.v1.json context/stale_context rows stay deferred to task 041 per the schema-ownership guardrail, with their existing notes recording baseline ownership and the superseding task 042. No subagent spawning, prompt router, or reliance on conversation history (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST docs changes (forbidden).",
+      "files_changed": [
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "docs/ORCHESTRATION_SPEC.md",
+        "docs/HANDOFF_CONTRACTS.md",
+        "test/fixtures/pipeline/context_packet/valid/test_author.json",
+        "test/fixtures/pipeline/context_packet/valid/implementer.json",
+        "test/fixtures/pipeline/context_packet/valid/mutation_agent.json",
+        "test/fixtures/pipeline/context_packet/valid/doctest_agent.json",
+        "test/fixtures/pipeline/context_packet/valid/verifier.json",
+        "test/fixtures/pipeline/context_packet/valid/stale_mutation_agent.json",
+        "test/fixtures/pipeline/context_packet/invalid/missing_task_id.json",
+        "test/fixtures/pipeline/context_packet/invalid/missing_role.json",
+        "test/fixtures/pipeline/context_packet/invalid/missing_allowed_files.json",
+        "test/fixtures/pipeline/context_packet/invalid/bad_task_id_pattern.json",
+        "test/fixtures/pipeline/context_packet/invalid/additional_property.json",
+        "test/fixtures/pipeline/context_packet/invalid/bad_schema_version.json",
+        "test/fixtures/pipeline/context_packet/invalid/stale_missing_reason.json",
+        "artifacts/pipeline/042/context/test-author.json",
+        "artifacts/pipeline/042/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/context_packet/valid/**: six valid packets (Test Author, Implementer, Mutation Agent, Doctest Agent, Verifier, and a stale-context marker) accepted by the task-063 subset validator against the refined context/stale_context schemas.",
+        "test/fixtures/pipeline/context_packet/invalid/**: seven required-field/constraint violations (missing task.id, missing role, missing allowed_files, bad task.id pattern, additional property, bad schema_version const, stale marker missing reason), each rejected by the subset validator.",
+        "Deterministic key-order permutation property over a valid packet: validity is unchanged across 24 key permutations and dropping task, role, or allowed_files fails regardless of key order -- semantic content, not JSON object key order, controls validity."
+      ],
+      "tests_run": [
+        "stdlib subset_validate over test/fixtures/pipeline/context_packet/ (failing): before fixtures existed -> 'FAIL: no valid context packet fixtures', exit 1",
+        "stdlib subset_validate (passing): valid=6 invalid=7 roles=[Doctest Agent, Implementer, Mutation Agent, Test Author, Verifier], PASS, exit 0",
+        "key-order permutation property: PASS (validity invariant under key order; required-field removal fails in every order)",
+        "non-breaking proof: test/fixtures/pipeline/context/{valid,invalid}.json, test/fixtures/pipeline/stale_context/{valid,invalid}.json, and test/fixtures/pipeline/metadata_validator/valid/artifacts/pipeline/043/context/orchestrator.json validate as expected against the refined schemas",
+        "artifacts/pipeline/042/{context/test-author.json,verification/report.json} validate against pipeline.context.v1 and pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 042 was active and again after the complete-state transition. The context/stale_context schema-ownership rows remain deferred to task 041 with superseded-by-042 notes; no gap-registry rows were changed by this task."
+      },
+      "dogfooding_implication": "Context packets are now dogfooded for zentinel's own pipeline: artifacts/pipeline/042/context/test-author.json is a real task-042 packet and the per-role fixtures give later agents concrete, schema-validated examples to audit why a role made a decision. Runtime subagent spawning and prompt routing remain later work.",
+      "follow_up_tasks": [
+        "tasks/043-mutation-gate.md",
+        "tasks/047-sequential-task-locking.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/042/context/test-author.json",
+        "artifacts/pipeline/042/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "063",
       "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: with the new metadata self-test in place but the I-019 chronology check temporarily neutralized (the `ta_t >= impl_t` comparison forced to a no-op), the validator reported `task system validation failed: - invalid pipeline fixture chronology must be rejected by the metadata validator`, proving the chronology fixture is only rejected when the role-timestamp check runs. implementation_started_after_failure: true; the fixtures and the subset validator were written first, and this captured the self-test catching a missing chronology check before the check was restored. passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks). This is a validator/fixtures task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

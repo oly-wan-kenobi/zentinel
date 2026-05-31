@@ -52,7 +52,7 @@ Markdown handoff summaries may be written next to JSON handoffs, but JSON handof
 
 ## Subagent Rules
 
-Fresh subagents receive context packets and produce artifacts. They should not assume access to previous conversation beyond packet content.
+Fresh subagents receive context packets and produce artifacts. They should not assume access to previous conversation beyond packet content. The context packet format, per-role packet profiles, size strategy, and stale-context handling are specified in `docs/AGENT_CONTEXT_PACKETS.md` and schema-pinned by `schemas/pipeline.context.v1.schema.json` and `schemas/pipeline.stale_context.v1.schema.json`.
 
 Subagents must:
 

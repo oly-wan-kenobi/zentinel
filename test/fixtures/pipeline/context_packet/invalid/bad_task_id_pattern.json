@@ -1,0 +1,21 @@
+{
+  "schema_version": "zentinel.pipeline.context.v1",
+  "packet_id": "043-test-author-001",
+  "created_from_queue_revision": "working-tree",
+  "task": {
+    "id": "43",
+    "title": "Mutation Gate",
+    "file": "tasks/043-mutation-gate.md"
+  },
+  "role": "Test Author",
+  "allowed_files": [],
+  "forbidden_files": [],
+  "relevant_docs": [],
+  "prior_artifacts": [],
+  "known_constraints": [],
+  "verification_expectations": [],
+  "handoff_required": true,
+  "stop_conditions": [
+    "task state changed"
+  ]
+}
