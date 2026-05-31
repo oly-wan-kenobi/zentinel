@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/pipeline.escalation.v1.schema.json",
+  "title": "zentinel pipeline escalation record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "trigger",
+    "evidence",
+    "attempted_recovery",
+    "required_decision",
+    "recommended_autonomous_action",
+    "user_input_required"
+  ],
+  "properties": {
+    "schema_version": { "const": "zentinel.pipeline.escalation.v1" },
+    "task_id": { "type": "string", "pattern": "^[0-9]{3}$" },
+    "trigger": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "attempted_recovery": { "type": "array", "items": { "type": "string" } },
+    "required_decision": { "type": "string", "minLength": 1 },
+    "recommended_autonomous_action": { "type": "string" },
+    "user_input_required": { "type": "boolean" }
+  }
+}

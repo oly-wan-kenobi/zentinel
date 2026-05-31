@@ -1,0 +1,11 @@
+{
+  "schema_version": "zentinel.pipeline.stale_context.v1",
+  "task_id": "043",
+  "role": "Mutation Agent",
+  "reason": "allowed_files differ from queue metadata",
+  "packet_id": "043-mutation-agent-001",
+  "required_refresh": [
+    "tasks/queue.json",
+    "tasks/status.json"
+  ]
+}

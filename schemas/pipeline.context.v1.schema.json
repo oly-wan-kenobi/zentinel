@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/pipeline.context.v1.schema.json",
+  "title": "zentinel pipeline context packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "packet_id",
+    "created_from_queue_revision",
+    "task",
+    "role",
+    "allowed_files",
+    "forbidden_files",
+    "relevant_docs",
+    "prior_artifacts",
+    "known_constraints",
+    "verification_expectations",
+    "handoff_required",
+    "stop_conditions"
+  ],
+  "properties": {
+    "schema_version": { "const": "zentinel.pipeline.context.v1" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "created_from_queue_revision": { "type": "string" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "file"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9]{3}$" },
+        "title": { "type": "string" },
+        "file": { "type": "string" }
+      }
+    },
+    "role": { "type": "string", "minLength": 1 },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "forbidden_files": { "type": "array", "items": { "type": "string" } },
+    "relevant_docs": { "type": "array", "items": { "type": "string" } },
+    "prior_artifacts": { "type": "array", "items": { "type": "string" } },
+    "known_constraints": { "type": "array", "items": { "type": "string" } },
+    "verification_expectations": { "type": "array", "items": { "type": "string" } },
+    "handoff_required": { "type": "boolean" },
+    "stop_conditions": { "type": "array", "items": { "type": "string" } }
+  }
+}

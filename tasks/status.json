@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "041",
+  "next_task": "063",
   "completed_tasks": [
     "068",
     "069",
@@ -80,17 +80,87 @@
     "037",
     "038",
     "039",
-    "040"
+    "040",
+    "041"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 040 agent pipeline foundation completed; active-state and complete-state validation passed (106 tasks). Documentation + validator-guardrail task only (no src/test/build changes; mutation testing not applicable). Added a structural guardrail to scripts/validate_task_system.py (validate_pipeline_contracts) enforcing the pipeline foundation: docs/AGENT_PIPELINE_ARCHITECTURE.md names the canonical stages (Phase Planner -> Task Queue Manager -> Orchestrator -> Stateless Subagents), every named pipeline role appears in docs/AGENT_ROLE_SPEC.md, docs/AGENT_GUIDE.md links docs/AGENT_PIPELINE_ARCHITECTURE.md, and invariant I-019 preserves its TDD-first wording while staying uncovered (chronology proof deferred to task 063). The guardrail failed first on the missing AGENT_GUIDE link; the fix added the Agent task pipeline architecture row to AGENT_GUIDE.md's 'Where to look' table. No gap rows closed (I-019 intentionally remains covered=false)."
+    "notes": "Task 041 handoff artifacts completed; active-state and complete-state validation passed (106 tasks). Schema + documentation task only (no src/test/build changes; mutation testing not applicable). Created the six baseline pipeline schema files (schemas/pipeline.{handoff,active_lock,context,stale_context,verification,escalation}.v1.schema.json) as JSON Schema draft 2020-12 matching the existing handoff/artifact/context/verification/escalation doc contracts, plus a valid/invalid (one required field removed) fixture pair per schema under test/fixtures/pipeline/**. Closed the handoff and active_lock schema-registry rows (covered=true with fixture tests); the context/stale_context/verification/escalation rows stay deferred to task 041 per the validator guardrail, noting the baseline schema exists and full coverage refines in tasks 042/046/049. Validation tooling: jsonschema is not installed, so a standard-library-only check (required fields present in valid, a required field missing in invalid, additionalProperties:false, const schema_version) validated all six schemas against their fixtures; it failed first when the schema files were absent and passed after creation. No runtime writer or product report schema change."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "041",
+      "failing_evidence": "failing_command: a standard-library-only Python check (jsonschema is not installed) that, for each pipeline schema, loads schemas/pipeline.<name>.v1.schema.json and asserts the valid fixture has every required field with no extras and the const schema_version, and that the invalid fixture omits at least one required field. failing_output_excerpt: before the schema files existed it printed `FAIL handoff: [Errno 2] No such file or directory: 'schemas/pipeline.handoff.v1.schema.json'` for all six schemas and exited 1. implementation_started_after_failure: true; the six schema files and the valid/invalid fixtures were created only after capturing that failure. passing_command: the same `python3` stdlib check then printed `PASS` and exited 0. This is a schema/documentation task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Defined and validated the persistent pipeline handoff artifact structure as concrete, validator-tracked schema targets so the first post-041 pipeline task has baseline schemas (no runtime writer, no orchestrator integration, no product report schema change). Created six JSON Schema draft 2020-12 files: schemas/pipeline.handoff.v1.schema.json (the canonical machine-readable handoff with required schema_version/task_id/role/status/files_changed/tests_added/commands_executed/artifacts_produced/known_risks/assumptions/mutation_results/property_results/doctest_results/next_step_instructions, command objects, and additionalProperties:false), schemas/pipeline.active_lock.v1.schema.json (the locks/active-task-lock.json evidence: task_id/state/queue_order/queue_file/status_file/context_packet/created_by_role/source_commit/working_tree_state), and baseline schemas for context, stale_context, verification, and escalation matching docs/AGENT_CONTEXT_PACKETS.md, docs/VERIFICATION_PIPELINE.md, and docs/PIPELINE_ESCALATION_POLICY.md. Added a valid fixture (from each doc example) and an invalid fixture (one required field removed) per schema under test/fixtures/pipeline/{handoff,active_lock,context,stale_context,verification,escalation}/. Updated only the matching pipeline schema-registry rows: handoff and active_lock are closed (covered=true with fixture tests); the context/stale_context/verification/escalation rows stay deferred to task 041 per the validator guardrail, with notes recording the baseline schema exists and full coverage refines in tasks 042/046/049. The existing handoff/artifact docs already documented the deterministic per-role names, the active-lock path, the cumulative tests_added rule, and JSON-as-canonical, so no doc edits were required. tests_added is documented as cumulative task-level evidence in docs/HANDOFF_CONTRACTS.md. No src/test/*.zig, build.zig, docs/MUTATOR_SPEC.md, or docs/DOCTEST_*.md changes (forbidden).",
+      "files_changed": [
+        "schemas/pipeline.handoff.v1.schema.json",
+        "schemas/pipeline.active_lock.v1.schema.json",
+        "schemas/pipeline.context.v1.schema.json",
+        "schemas/pipeline.stale_context.v1.schema.json",
+        "schemas/pipeline.verification.v1.schema.json",
+        "schemas/pipeline.escalation.v1.schema.json",
+        "test/fixtures/pipeline/handoff/valid.json",
+        "test/fixtures/pipeline/handoff/invalid.json",
+        "test/fixtures/pipeline/active_lock/valid.json",
+        "test/fixtures/pipeline/active_lock/invalid.json",
+        "test/fixtures/pipeline/context/valid.json",
+        "test/fixtures/pipeline/context/invalid.json",
+        "test/fixtures/pipeline/stale_context/valid.json",
+        "test/fixtures/pipeline/stale_context/invalid.json",
+        "test/fixtures/pipeline/verification/valid.json",
+        "test/fixtures/pipeline/verification/invalid.json",
+        "test/fixtures/pipeline/escalation/valid.json",
+        "test/fixtures/pipeline/escalation/invalid.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/{handoff,active_lock,context,stale_context,verification,escalation}/valid.json: a passing baseline artifact per schema (from the documented examples).",
+        "test/fixtures/pipeline/{handoff,active_lock,context,stale_context,verification,escalation}/invalid.json: a failing artifact per schema with exactly one required field removed, proving rejection.",
+        "Validation command (recorded; jsonschema unavailable): python3 stdlib check asserting, per schema, valid has all required fields and no extras and the const schema_version, and invalid omits >= 1 required field."
+      ],
+      "tests_run": [
+        "python3 stdlib schema/fixture check (failing): all six schema files absent (FileNotFoundError), exit 1",
+        "python3 stdlib schema/fixture check (passing): PASS, exit 0 after schemas + fixtures created",
+        "python3 scripts/validate_task_system.py: failed first on the schema-registry guardrail (verification/escalation must stay deferred to 041 with baseline+later-task notes), then passed (106 tasks) after the four refinement-deferred rows were corrected; passed in both active and complete states",
+        "JSON parse of all six schemas, all twelve fixtures, and tests/coverage-gaps/schemas.v1.json",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 041 was active and again after the complete-state transition (106 tasks). The schema-registry guardrail requires the context/stale_context/verification/escalation rows to remain deferred to task 041 with notes naming the baseline schema and the later refinement task (042/046/049); handoff and active_lock are fully closed."
+      },
+      "dogfooding_implication": "Future dogfood runs archive these pipeline artifacts (handoffs, active lock, context packets, verification, escalation) under artifacts/pipeline/<task-id>/ for survivor triage and release review. This task defines the validator-backed shape only; the runtime writer and role-specific refinements (tasks 042/046/049) come later, and task 041 completing enables the post-041 artifacts/pipeline/<active-task-id>/** validator exception for subsequent tasks.",
+      "follow_up_tasks": [
+        "tasks/063-pipeline-metadata-validator.md",
+        "tasks/042-context-packet-system.md",
+        "tasks/046-verification-pipeline.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.pipeline.handoff.v1",
+          "zentinel.pipeline.active_lock.v1",
+          "zentinel.pipeline.context.v1",
+          "zentinel.pipeline.stale_context.v1",
+          "zentinel.pipeline.verification.v1",
+          "zentinel.pipeline.escalation.v1"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "040",
       "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: `task system validation failed: - docs/AGENT_GUIDE.md must point future agents to docs/AGENT_PIPELINE_ARCHITECTURE.md`. implementation_started_after_failure: true; the pipeline-foundation guardrail was added to the validator first and captured the missing AGENT_GUIDE -> AGENT_PIPELINE_ARCHITECTURE link before the doc was patched. passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks) after adding the link. This is a documentation-only task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

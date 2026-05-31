@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/pipeline.stale_context.v1.schema.json",
+  "title": "zentinel pipeline stale context marker v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "task_id",
+    "role",
+    "reason",
+    "packet_id",
+    "required_refresh"
+  ],
+  "properties": {
+    "schema_version": { "const": "zentinel.pipeline.stale_context.v1" },
+    "task_id": { "type": "string", "pattern": "^[0-9]{3}$" },
+    "role": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "required_refresh": { "type": "array", "items": { "type": "string" } }
+  }
+}
