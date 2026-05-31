@@ -95,7 +95,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 034 | `tasks/034-doctest-snapshots.md` | complete | 1 |
 | 035 | `tasks/035-cli-doctests.md` | complete | 1 |
 | 036 | `tasks/036-config-doctests.md` | complete | 1 |
-| 037 | `tasks/037-mutator-spec-doctests.md` | queued | 2 |
+| 037 | `tasks/037-mutator-spec-doctests.md` | complete | 2 |
 | 038 | `tasks/038-doctest-cache.md` | queued | 3 |
 | 039 | `tasks/039-doctest-mutation-experiments.md` | queued | 2 |
 | 040 | `tasks/040-agent-pipeline-foundation.md` | queued | 0 |

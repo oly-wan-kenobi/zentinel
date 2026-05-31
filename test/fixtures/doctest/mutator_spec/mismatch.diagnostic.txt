@@ -1,0 +1,10 @@
+ZNTL_DOCTEST_SNAPSHOT_MISMATCH at test/fixtures/doctest/mutator_spec/mismatch.md:5 (dt_pw5xqssdxx1dtjfb5b4rye6v6c)
+documented transformation is not produced by any stable mutator
+--- before ---
+fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+--- documented after ---
+fn add(a: i32, b: i32) i32 {
+    return a * b;
+}

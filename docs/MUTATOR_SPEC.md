@@ -87,6 +87,20 @@ Transformations:
 + return lhs + rhs;
 ```
 
+Executable contract:
+
+```zig before
+fn add(a: i32, b: i32) i32 {
+    return a + b;
+}
+```
+
+```zig after
+fn add(a: i32, b: i32) i32 {
+    return a - b;
+}
+```
+
 ### `arithmetic_mul_div`
 
 | Field | Contract |
@@ -132,6 +146,20 @@ a <= b -> a < b
 a < b  -> a <= b
 ```
 
+Executable contract:
+
+```zig before
+fn lt(a: i32, b: i32) bool {
+    return a < b;
+}
+```
+
+```zig after
+fn lt(a: i32, b: i32) bool {
+    return a <= b;
+}
+```
+
 ### `logical_and_or`
 
 | Field | Contract |
@@ -155,6 +183,20 @@ a < b  -> a <= b
 | Equivalent risks | Literal used in dead code; literal overwritten before observation. |
 | Compile expectation | `compiles`. |
 | Fixture requirements | Include return literal, branch condition literal, and struct field default literal. |
+
+Executable contract:
+
+```zig before
+fn flag() bool {
+    return true;
+}
+```
+
+```zig after
+fn flag() bool {
+    return false;
+}
+```
 
 ## Phase 2 Zig-Native Operators
 

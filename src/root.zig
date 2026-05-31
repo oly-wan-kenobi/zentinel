@@ -87,6 +87,7 @@ pub const doctest = struct {
     pub const matcher = @import("doctest/matcher.zig");
     pub const snapshot = @import("doctest/snapshot.zig");
     pub const report = @import("doctest/report.zig");
+    pub const mutator_doctest = @import("doctest/mutator_doctest.zig");
 };
 
 /// `zentinel doctest` command orchestration (deterministic core).

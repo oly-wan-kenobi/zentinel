@@ -2585,7 +2585,7 @@
       "title": "Mutator Spec Doctests",
       "file": "tasks/037-mutator-spec-doctests.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "036"
       ],
