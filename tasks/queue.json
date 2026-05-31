@@ -3687,7 +3687,7 @@
       "title": "Truthful Environment Policy",
       "file": "tasks/112-truthful-environment-policy.md",
       "phase": 8,
-      "state": "queued",
+      "state": "blocked",
       "dependencies": [
         "111"
       ],

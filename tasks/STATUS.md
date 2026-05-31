@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `112` (`tasks/112-truthful-environment-policy.md`) |
+| Next task | none |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |
@@ -146,7 +146,12 @@ This file records implementation task state and handoffs. Documentation bootstra
 
 ## Blockers
 
-No known blockers.
+Task `112` (Truthful Environment Policy) is **blocked** (scope_gap), pending a user decision. Both fixes the task sanctions require editing a file outside `tasks/112`'s `allowed_files`:
+
+- **Implement the minimal allowlist** (keep `environment_policy: "minimal"`, make it true): needs the parent environment to copy `PATH/HOME/TMPDIR/ZIG_*` from. In Zig 0.16 the only portable source is `std.process.Init.environ_map`, which reaches the executors through `src/main.zig` → `cli.run` — and `src/main.zig` is not in `allowed_files`. There is no ambient env-read API; `std.c.environ` needs libc linkage in `build.zig` (forbidden) and the project links no libc.
+- **Relabel to `environment_policy: "inherited"`**: changes the serialized value, but `schemas/report.v1.schema.json` pins it to `enum ["minimal"]` and six `test/snapshots/**` files plus `test/report_renderers_test.zig` embed `"minimal"` — none are in `allowed_files`.
+
+Recommended resolution: add `src/main.zig` to task 112's `allowed_files` (Path A — implement). See `blocked_task_details[0]` in `tasks/status.json`. No implementation files were edited.
 
 ## Handoff Notes
 

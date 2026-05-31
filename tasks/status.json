@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "112",
+  "next_task": null,
   "completed_tasks": [
     "068",
     "069",
@@ -116,12 +116,27 @@
     "110",
     "111"
   ],
-  "blocked_tasks": [],
-  "blocked_task_details": [],
+  "blocked_tasks": [
+    "112"
+  ],
+  "blocked_task_details": [
+    {
+      "task": "112",
+      "reason": "Both fixes the task sanctions require editing a file outside task 112's allowed_files, so the task cannot be completed within its declared scope without a decision from the user.",
+      "blocker_type": "scope_gap",
+      "evidence": "The finding is that every command record labels environment_policy=minimal (src/runner.zig) while the real executor passes environ_map=null (src/cli.zig:146), inheriting the full developer env. Path A (IMPLEMENT the documented minimal allowlist so the label is true): the allowlist must copy PATH/HOME/TMPDIR/ZIG_GLOBAL_CACHE_DIR/ZIG_LOCAL_CACHE_DIR from the parent environment, but in Zig 0.16 the parent env is only available via std.process.Init.environ_map, which reaches the code through main.zig -> cli.run; main.zig is NOT in allowed_files and cli.run's signature cannot change without it. There is no ambient env-read API in this std (no std.process.getEnvMap/getEnvVarOwned, no std.posix.environ); the only ambient option is std.c.environ, which requires libc linkage set in build.zig (also forbidden) and the project links no libc (grep found no link_libc/std.c usage), so it would be non-portable and break non-macOS CI. Path B (RELABEL the report to environment_policy=inherited): this changes the serialized value, but report.v1.schema.json constrains command_evidence.environment_policy to enum [\"minimal\"] (schemas/ is not in allowed_files) and six committed test/snapshots/** files (report_minimal.json, report_basic.jsonl, run_command_completed.json, run_command_baseline_failed.json, run_command_baseline_timeout.json, report_diagnostic.xml) plus test/report_renderers_test.zig hard-code \"minimal\" and are not in allowed_files, so relabeling would fail zig build test on out-of-scope files.",
+      "attempted_recovery": "Searched std for any ambient env-read API (none in Zig 0.16; only std.c.environ behind libc). Confirmed the project links no libc and cannot add it (build.zig forbidden). Confirmed report.v1.schema.json pins environment_policy to [\"minimal\"] and six snapshots + report_renderers_test embed the value, all outside allowed_files. No clean path exists within {src/cli.zig, src/runner.zig, src/mutant_runner.zig, src/report.zig, docs/SANDBOX_SECURITY.md, test/runner_baseline_test.zig}.",
+      "prerequisite_task": null,
+      "required_prerequisite_task": null,
+      "requires_user_input": true,
+      "edits_state": "no_edits",
+      "notes": "Recommend Path A (implement): add src/main.zig to task 112 allowed_files so std.process.Init.environ_map can be threaded through cli.run into the executors (the portable, Io-model-correct env source). The report keeps environment_policy=minimal -- now truthful -- with no schema or snapshot churn, and it adds real LC_ALL=C/LANG=C locale normalization (a determinism win). Alternative Path B (relabel): add schemas/report.v1.schema.json, the six test/snapshots/** files, and test/report_renderers_test.zig to allowed_files so the value can become \"inherited\". No implementation files were edited (edits_state=no_edits); only task-control files mark the block."
+    }
+  ],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 111 add real-binary integration tests completed; active-state and complete-state validation passed. test/integration_run_test.zig (wired explicitly in build.zig with the built binary's path, excluded from generic *_test.zig discovery) spawns the actual zentinel binary against the committed fixture project test/fixtures/integration/sample in an isolated tmp copy, then asserts the JSON report's total=2/killed=1/survived=1 -- exercising the real src/cli.zig adapters (process exec, per-mutant workspace tree-copy, report writing) under `zig build test`. Failed to compile ('no module named integration_options') before the build wiring; passes after (500 tests). A regression demo confirmed substance: covering mul made the real binary report killed=2 and the test failed ('expected 1, found 2'). docs/CI_STRATEGY.md documents the new coverage; ci.sh's unit_tests stage runs it. zig build, zig fmt --check, git diff --check, validator all green. (The .claude/ lock recreated by the loop wakeup, which the repo validator forbids, is removed at the start of each turn.)"
+    "notes": "Task 112 truthful environment policy is BLOCKED (scope_gap) pending a user decision; no implementation files were edited. Both sanctioned fixes need a file outside task 112's allowed_files: IMPLEMENT the minimal allowlist needs the parent env, whose only portable Zig-0.16 source (std.process.Init.environ_map) is threaded via main.zig -> cli.run (main.zig forbidden; std.c.environ needs libc set in build.zig, also forbidden, and the project links no libc); RELABEL to environment_policy=inherited changes the serialized value, which report.v1.schema.json (enum [\"minimal\"]) and six test/snapshots/** plus test/report_renderers_test.zig pin -- all outside allowed_files. See blocked_task_details[0]. Recommend adding src/main.zig to allowed_files (Path A). The loop stopped to ask. Tasks 106-111 remain complete and green."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [

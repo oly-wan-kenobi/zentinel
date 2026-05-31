@@ -133,7 +133,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 064 | `tasks/109-wire-phase2-mutators.md` | complete | 8 |
 | 065 | `tasks/110-behavioral-release-gates.md` | complete | 8 |
 | 066 | `tasks/111-real-binary-integration-tests.md` | complete | 8 |
-| 067 | `tasks/112-truthful-environment-policy.md` | queued | 8 |
+| 067 | `tasks/112-truthful-environment-policy.md` | blocked | 8 |
 | 068 | `tasks/113-wire-doctest-survivor-path.md` | queued | 8 |
 | 069 | `tasks/114-scope-experimental-backends.md` | queued | 8 |
 | 070 | `tasks/115-harden-ai-redaction.md` | queued | 8 |
