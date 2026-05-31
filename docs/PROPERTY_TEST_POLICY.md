@@ -67,7 +67,7 @@ Property Test Agent and Test Reviewer check:
 
 ## Reports
 
-The property-test report is written to `artifacts/pipeline/<task-id>/property/report.json`. Task `044` defines this contract and ships example artifacts; the durable JSON Schema and `docs/SCHEMA_REGISTRY.md` row land with the generated property infrastructure in task `062`, so no schema file is registered yet.
+The property-test report is written to `artifacts/pipeline/<task-id>/property/report.json`. Task `044` defines this contract and ships example artifacts; task `062` adds the deterministic seeded generator and the executable structural validator `src/property/report.zig` (exposed as `zentinel.property.report`), which is the enforced contract for report validity. The report shape is checked in Zig rather than by a registered JSON Schema file, so `zentinel.pipeline.property_report.v1` is intentionally absent from `docs/SCHEMA_REGISTRY.md`.
 
 Each property entry records, at minimum:
 

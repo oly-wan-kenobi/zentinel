@@ -120,7 +120,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 058 | `tasks/058-safety-mode-matrix.md` | complete | 6 |
 | 059 | `tasks/059-initial-dogfood-ci.md` | complete | 7 |
 | 059.1 | `tasks/061-doctest-mutate-stabilization.md` | complete | 2 |
-| 059.2 | `tasks/062-property-generator-infrastructure.md` | queued | 1 |
+| 059.2 | `tasks/062-property-generator-infrastructure.md` | complete | 1 |
 | 059.4 | `tasks/064-pipeline-artifact-ci-integration.md` | queued | 7 |
 | 059.5 | `tasks/065-failure-recovery-validator.md` | queued | 0 |
 | 059.6 | `tasks/066-public-docs-doctest-coverage.md` | queued | 1 |

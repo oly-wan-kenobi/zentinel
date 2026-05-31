@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "062",
+  "next_task": "064",
   "completed_tasks": [
     "068",
     "069",
@@ -101,14 +101,15 @@
     "057",
     "058",
     "059",
-    "061"
+    "061",
+    "062"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 063 pipeline metadata validator completed; active-state and complete-state validation passed (106 tasks). Validator + fixtures task only (no src/test/build changes; mutation testing not applicable). Added a project-owned, standard-library-only JSON Schema SUBSET validator to scripts/validate_task_system.py (validate_pipeline_metadata + subset_validate + validate_pipeline_artifact_tree): type/required/additionalProperties:false/const/enum/pattern/nested + task-and-path ownership, Markdown-only handoff rejection, active-lock task/context ownership, wrong-task-id rejection, and I-019 role-timestamp chronology (Test Author handoff must precede Implementer). It consumes (does not create) the task-041 baseline schemas and self-tests them against test/fixtures/pipeline/metadata_validator/ (a valid artifact tree passes; seven invalid trees are each rejected). Added an optional created_at to the handoff schema for chronology. Closed invariant I-019 (covered=true) and updated the two I-019 deferral guardrails to require covered now that role-timestamp validation exists. The docs already document the subset validator and that full Draft 2020-12 is not claimed."
+    "notes": "Task 062 property generator infrastructure completed; active-state and complete-state validation passed. Added the deterministic seeded generator (src/property/generator.zig) and the executable structural validator for zentinel.pipeline.property_report.v1 (src/property/report.zig), exported via src/root.zig. No coverage-gap rows are deferred to task 062. The property report contract is enforced in Zig rather than by a registered JSON Schema, so zentinel.pipeline.property_report.v1 stays out of docs/SCHEMA_REGISTRY.md (schemas/ is outside this task's scope)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -206,7 +207,9 @@
         "artifacts/pipeline/059/dogfood/report.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-025"]
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-025"
+        ]
       },
       "task_control_changes": [
         "tasks/QUEUE.md",
@@ -430,8 +433,16 @@
         "artifacts/pipeline/055/verification/report.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.doctest.context.v1", "zentinel.ai.doctest.suggest.response.v1", "zentinel.ai.doctest.snapshot_review.response.v1"],
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-029", "F-030", "F-031"]
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.ai.doctest.context.v1",
+          "zentinel.ai.doctest.suggest.response.v1",
+          "zentinel.ai.doctest.snapshot_review.response.v1"
+        ],
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-029",
+          "F-030",
+          "F-031"
+        ]
       },
       "task_control_changes": [
         "tasks/QUEUE.md",
@@ -489,8 +500,18 @@
         "artifacts/pipeline/054/verification/report.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.prompt.v1", "zentinel.ai.explain.response.v1", "zentinel.ai.suggest.response.v1", "zentinel.ai.review_tests.response.v1"],
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-021", "F-026", "F-027", "F-028"]
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.ai.prompt.v1",
+          "zentinel.ai.explain.response.v1",
+          "zentinel.ai.suggest.response.v1",
+          "zentinel.ai.review_tests.response.v1"
+        ],
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-021",
+          "F-026",
+          "F-027",
+          "F-028"
+        ]
       },
       "task_control_changes": [
         "tasks/QUEUE.md",
@@ -542,9 +563,15 @@
         "artifacts/pipeline/053/verification/report.json"
       ],
       "gap_registry_rows_changed": {
-        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.context.v1"],
-        "tests/coverage-gaps/failure_modes.v1.json": ["F-020"],
-        "tests/coverage-gaps/invariants.v1.json": ["I-004"]
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.ai.context.v1"
+        ],
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-020"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-004"
+        ]
       },
       "task_control_changes": [
         "tasks/QUEUE.md",
@@ -2762,7 +2789,7 @@
     },
     {
       "task": "010",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/arithmetic_test.zig:3:29: error: root source file struct 'root' has no member named 'mutators'` plus `error: embed of file outside package path: '../fixtures/mutators/arithmetic/ops.zig'` (118/118 prior tests passed) \u2014 the recognizer module did not exist and @embedFile could not reach the sibling fixtures directory from the test module path. implementation_started_after_failure: true; src/mutators/arithmetic.zig and the root.zig re-export were written after the failure, and the fixture is read at runtime via cwd instead of @embedFile. passing_command: `zig build test` then succeeded with 33/33 steps and 121/121 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutators/arithmetic_test.zig:3:29: error: root source file struct 'root' has no member named 'mutators'` plus `error: embed of file outside package path: '../fixtures/mutators/arithmetic/ops.zig'` (118/118 prior tests passed) — the recognizer module did not exist and @embedFile could not reach the sibling fixtures directory from the test module path. implementation_started_after_failure: true; src/mutators/arithmetic.zig and the root.zig re-export were written after the failure, and the fixture is read at runtime via cwd instead of @embedFile. passing_command: `zig build test` then succeeded with 33/33 steps and 121/121 tests passed.",
       "implementation_summary": "Added src/mutators/arithmetic.zig: a deterministic_core recognizer that walks std.zig.Ast nodes and emits arithmetic_add_sub (+<->-) and arithmetic_mul_div (*</>) swap candidates through the shared collector. It recognizes only the non-wrapping binary operator node tags (.add/.sub/.mul/.div), using nodeMainToken for the exact operator token span and source_map for 1-based line/column; unary negation (.negation) and wrapping/saturating operators are ignored. Operators inside test-declaration ranges are skipped via ast_backend.inTestBody. expected_compile is may_fail (the AST layer has no type info to prove unsigned/comptime-negative swaps compile, so a compile-error mutant is a documented expected outcome, not an invalid candidate). Candidates flow through the task-009 collector for canonical ordering, durable id assignment, and dedupe. The mutators namespace is re-exported from root.zig. No patches applied and no mutants executed (task non-goals).",
       "files_changed": [
         "src/mutators/arithmetic.zig",
@@ -2856,7 +2883,7 @@
     },
     {
       "task": "009",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_candidate_ordering_test.zig:32:33: error: root source file struct 'ast_backend' has no member named 'Collector'` (Build Summary: 26/29 steps succeeded (1 failed); 113/113 tests passed) \u2014 the candidate-ordering tests could not compile because the collector did not exist. implementation_started_after_failure: true; mutant.assignId/sortAndDedupe and ast_backend.Collector were written only after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 29/29 steps and 116/116 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_candidate_ordering_test.zig:32:33: error: root source file struct 'ast_backend' has no member named 'Collector'` (Build Summary: 26/29 steps succeeded (1 failed); 113/113 tests passed) — the candidate-ordering tests could not compile because the collector did not exist. implementation_started_after_failure: true; mutant.assignId/sortAndDedupe and ast_backend.Collector were written only after capturing the missing-member failure. passing_command: `zig build test` then succeeded with 29/29 steps and 116/116 tests passed.",
       "implementation_summary": "Added deterministic candidate collection on top of the shared mutant model. mutant.zig gained assignId (compute and store the durable id) and sortAndDedupe (canonically sort a copy by file/byte span/operator/replacement/backend, then drop exact-identity duplicates which are adjacent after sorting). ast_backend.zig gained Candidate (alias of the shared mutant) and Collector (init/add/finish/deinit): finish assigns durable ids, sorts canonically, and deduplicates by identity. No mutation operators are enabled and no recognizers are connected yet (task non-goals); the collector is the interface future recognizers feed.",
       "files_changed": [
         "src/mutant.zig",
@@ -2901,7 +2928,7 @@
     },
     {
       "task": "008",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_parser_test.zig:3:28: error: root source file struct 'root' has no member named 'source_map'` and the same for `ast_backend` (Build Summary: 24/27 steps succeeded (1 failed); 108/108 tests passed) \u2014 the parser tests could not compile because src/source_map.zig and src/ast_backend.zig did not exist. implementation_started_after_failure: true; both modules and the root.zig re-exports were written only after capturing the missing-module failure. A subsequent `zig fmt --check test` failure on the deliberately-invalid fixture led to storing it as `.zig.txt` so fmt does not parse it. passing_command: `zig build test` then succeeded with 27/27 steps and 113/113 tests passed and `zig fmt --check src test` is clean.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/ast_parser_test.zig:3:28: error: root source file struct 'root' has no member named 'source_map'` and the same for `ast_backend` (Build Summary: 24/27 steps succeeded (1 failed); 108/108 tests passed) — the parser tests could not compile because src/source_map.zig and src/ast_backend.zig did not exist. implementation_started_after_failure: true; both modules and the root.zig re-exports were written only after capturing the missing-module failure. A subsequent `zig fmt --check test` failure on the deliberately-invalid fixture led to storing it as `.zig.txt` so fmt does not parse it. passing_command: `zig build test` then succeeded with 27/27 steps and 113/113 tests passed and `zig fmt --check src test` is clean.",
       "implementation_summary": "Added src/source_map.zig (pure byte <-> 1-based line/column mapping with locate/byteOf round-trip and out-of-range guardrails, independent of the parser) and src/ast_backend.zig (a wrapper over the pinned std.zig.Ast that owns a null-terminated source copy, reports parse diagnostics mapped to file + 1-based location, and exposes deterministic node-index traversal). Verified std.zig.Ast API surface against installed Zig 0.16.0: std.zig.Ast.parse(gpa, source: [:0]const u8, mode: .zig) Allocator.Error!Ast; Ast.deinit(gpa); Ast.source: [:0]const u8; Ast.errors: []const Ast.Error with Error.tag (used via @tagName) and Error.is_note; Ast.errorOffset(Error) u32; Ast.nodes: std.MultiArrayList(Node).Slice accessed as nodes.items(.tag) -> []Node.Tag. Also available and recorded for later tasks: Ast.tokenStart, Ast.tokenSlice, Ast.firstToken/lastToken, Ast.nodeToSpan(node) Span{start,end,main}, and Ast.tokenLocation. The adapter wraps these so a future Zig pin change is isolated to one module. No mutation operators are enabled (task non-goal).",
       "files_changed": [
         "src/source_map.zig",
@@ -2951,7 +2978,7 @@
     },
     {
       "task": "007",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_model_test.zig:3:24: error: root source file struct 'root' has no member named 'mutant'` (Build Summary: 22/25 steps succeeded (1 failed); 100/100 tests passed) \u2014 the mutant-model tests could not compile because src/mutant.zig did not exist. implementation_started_after_failure: true; src/mutant.zig, the report.zig type aliases, and the root.zig re-export were written only after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 25/25 steps and 108/108 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/mutant_model_test.zig:3:24: error: root source file struct 'root' has no member named 'mutant'` (Build Summary: 22/25 steps succeeded (1 failed); 100/100 tests passed) — the mutant-model tests could not compile because src/mutant.zig did not exist. implementation_started_after_failure: true; src/mutant.zig, the report.zig type aliases, and the root.zig re-export were written only after capturing the missing-module failure. passing_command: `zig build test` then succeeded with 25/25 steps and 108/108 tests passed.",
       "implementation_summary": "Added src/mutant.zig: the shared mutant model and the durable m_... identity algorithm. computeId derives `m_ + first_26(lowercase unpadded Crockford base32(sha256(canonical_bytes)))` over the exact \\n-separated field order (zentinel.mutant.v1, backend_version, file, operator, span_start, span_end, original, replacement); the pinned test vector m_8kjyy9kdjw9zngpb31q659cqmt was computed independently in Python and matches the Zig implementation byte-for-byte. Span.isValid enforces byte_start<=byte_end<=source_len and 1-based non-decreasing lines; Mutant.isValidCandidate adds the structural invalid-candidate contract (span length equals original length, replacement differs from original). lessThan/sort apply canonical candidate ordering (file, byte_start, byte_end, operator, replacement, backend) independent of display index, and display ids are assigned only after sorting. ast_backend_version pins ast.v1.zig-0.16.0 into identity and cache keys. report.zig now consumes the shared Span, Backend, BackendStability, OperatorStability, and ExpectedCompile types from mutant.zig instead of duplicating them, so identity and shared model types have one source of truth. No candidate generation, patching, or execution (task non-goals).",
       "files_changed": [
         "src/mutant.zig",
@@ -3001,7 +3028,7 @@
     },
     {
       "task": "006",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_schema_test.zig:3:24: error: root source file struct 'root' has no member named 'report'` (Build Summary: 20/23 steps succeeded (1 failed); 79/79 tests passed) \u2014 the report-schema tests could not compile because src/report.zig did not exist. After implementing the module the snapshot test then failed against a placeholder (`expected PLACEHOLDER ... instead found {...}`), which seeded the canonical snapshot. implementation_started_after_failure: true; src/report.zig and the root.zig re-export were written only after capturing the missing-module failure, and test/snapshots/report_minimal.json was generated from the actual serializer output. passing_command: `zig build test` then succeeded with 23/23 steps and 100/100 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/report_schema_test.zig:3:24: error: root source file struct 'root' has no member named 'report'` (Build Summary: 20/23 steps succeeded (1 failed); 79/79 tests passed) — the report-schema tests could not compile because src/report.zig did not exist. After implementing the module the snapshot test then failed against a placeholder (`expected PLACEHOLDER ... instead found {...}`), which seeded the canonical snapshot. implementation_started_after_failure: true; src/report.zig and the root.zig re-export were written only after capturing the missing-module failure, and test/snapshots/report_minimal.json was generated from the actual serializer output. passing_command: `zig build test` then succeeded with 23/23 steps and 100/100 tests passed.",
       "implementation_summary": "Added src/report.zig: the typed zentinel report model (run/baseline/diagnostics/summary/mutants with command evidence, span, result, test_selection, advisory, run_error) whose struct field order is the canonical JSON key order. toJson/writeJson serialize deterministic canonical JSON via std.json.Stringify (indent_2); enums emit as schema enum strings, required nulls emit, run_error.details is always an array. summarize derives counts only from mutants; sortAndAssignDisplayIds applies canonical ordering (file, byte_start, byte_end, operator, replacement, backend) and 1-based display ids. validate is the deterministic second oracle for derived invariants JSON Schema cannot prove: summary total/per-status match, display-id ordering, completed/baseline_failed/internal_error cross-field rules, run.error nullability, baseline not_run + mutants rejection, empty argv0, mutant command phase, skip_reason rules, and invalid failure_summary prefix. normalizeForComparison normalizes only run.id/started_at/all duration_ms for repeated-run comparison. The existing schemas/report.v1.schema.json already matched and was unchanged. No command execution or mutant generation (task non-goal).",
       "files_changed": [
         "src/report.zig",
@@ -3054,7 +3081,7 @@
     },
     {
       "task": "005",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/check_command_test.zig:4:25: error: root source file struct 'root' has no member named 'command'` and the same for `zig_version` and `route` (Build Summary: 16/21 steps succeeded (2 failed); 49/49 tests passed) \u2014 the new version/check/command tests could not compile because the modules and route did not yet exist. implementation_started_after_failure: true; src/command.zig, src/zig_version.zig, src/check_command.zig, the config.zig/root.zig wiring, and the cli.zig routing were written only after capturing this failure. passing_command: `zig build test` then succeeded with 21/21 steps and 79/79 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/check_command_test.zig:4:25: error: root source file struct 'root' has no member named 'command'` and the same for `zig_version` and `route` (Build Summary: 16/21 steps succeeded (2 failed); 49/49 tests passed) — the new version/check/command tests could not compile because the modules and route did not yet exist. implementation_started_after_failure: true; src/command.zig, src/zig_version.zig, src/check_command.zig, the config.zig/root.zig wiring, and the cli.zig routing were written only after capturing this failure. passing_command: `zig build test` then succeeded with 21/21 steps and 79/79 tests passed.",
       "implementation_summary": "Implemented pinned Zig 0.16.0 version policy and `zentinel check`. src/zig_version.zig is the single version-policy module: it owns supported_version=0.16.0 and pure classify/parse/message/statusLine over an injected Discovery (the adapter runs `zig version`, so the core stays testable without invoking Zig). src/command.zig is the shared shell-free command-string parser producing deterministic argv and rejecting unmatched quotes, unsupported escapes, bare backslashes, shell metacharacters/expansion/chaining, env-assignment prefixes, and empty argv (docs/CONFIG_SPEC.md grammar). src/check_command.zig orchestrates check purely over (config bytes, config path, Zig discovery): config-not-found, config parse/validate, Zig policy, include/exclude root containment, and configured-command syntax, without generating mutants, patching, or executing commands. config.zig gained ZNTL_CONFIG_INVALID_COMMAND and a public isOutsideRoot. root.zig re-exports the new modules, centralizes supported_zig_version on zig_version.supported_version, and adds route() plus Globals/Route for --config/--root and check/version, leaving the frozen Phase 0 dispatch (and its cli_test contract) unchanged. cli.zig routes, reads config, runs `zig version`, and renders results. Durable Zig verification evidence: pinned supported version 0.16.0; local `zig version` = 0.16.0; result = match.",
       "files_changed": [
         "src/zig_version.zig",
@@ -3121,7 +3148,7 @@
     },
     {
       "task": "004",
-      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) \u2014 the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
+      "failing_evidence": "failing_command: `zig build test`. failing_output_excerpt: `test/support/fixture.zig:1:1: error: unable to load 'fixture.zig': FileNotFound` with note `test/fixture_system_test.zig:2:25: file imported here` (Build Summary: 12/15 steps succeeded (1 failed); 44/44 tests passed) — the new fixture-system test could not compile because the loader module and fixtures did not yet exist. implementation_started_after_failure: true; test/support/fixture.zig, the two fixture projects, and the build.zig fixture-check were written only after capturing this failure. passing_command: `zig build test` then succeeded with 17/17 steps and 49/49 tests passed.",
       "implementation_summary": "Added the fixture system. test/support/fixture.zig enumerates fixture projects under test/fixtures/projects sorted by normalized project-relative path (deterministic regardless of raw directory iteration order) and parses+validates each fixture.toml via the in-tree TOML subset parser re-exported from the zentinel hub (ADR-0009). Added two fixture projects: arithmetic_kill (calc.zig plus metadata, expected outcome killed) and no_eligible_sources (metadata plus README, expected outcome no_eligible_sources for F-006, with no eligible .zig sources). build.zig compiles the minimal arithmetic fixture as a test so `zig build test` proves it compiles through a test command; fixture sources avoid the _test.zig suffix so recursive discovery does not sweep them. No mutant generation was implemented (task non-goal).",
       "files_changed": [
         "build.zig",
@@ -4821,6 +4848,56 @@
       "dogfooding_implication": "The harness normalizes volatile output (absolute paths, durations) so future dogfood and report snapshots are stable across machines. No dogfood run yet.",
       "follow_up_tasks": [
         "tasks/004-fixture-system.md"
+      ]
+    },
+    {
+      "task": "062",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/property_generator_test.zig was written first and failed to compile -- `unable to load 'property.zig': FileNotFound` for the referenced test/support/property.zig helper -- while the rest of the suite stayed green (451/451 tests passed). The test references zentinel.property.generator (a seeded Generator) and zentinel.property.report (a structural report validator), neither of which existed yet. implementation_started_after_failure: true; src/property/generator.zig, src/property/report.zig, test/support/property.zig, and the src/root.zig `property` export were written only after capturing that failure. passing_command: `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean.",
+      "implementation_summary": "Added deterministic property-generator infrastructure. src/property/generator.zig is a pure splitmix64 seeded stream (Generator.init(seed)/next()/intRange/boolean/bytes) with no wall-clock, OS randomness, or global state, so the same seed reproduces the same sequence byte-for-byte and a recorded failing seed is reproducible. src/property/report.zig is the executable structural validator for the zentinel.pipeline.property_report.v1 contract (docs/PROPERTY_TEST_POLICY.md): validate(std.json.Value) returns the first Violation or .ok, enforcing schema_version, scope (property_required/not_property_required), task_class, the six mandatory invariant categories (Determinism, Stability, Round-trip, Isolation, Monotonicity, Collision resistance), a non-empty explicit integer seed list, a generator summary plus generated_cases count, shrink status (not_triggered/minimized/unsupported), the derived rule that report status is failed iff some property failed (status_mismatch otherwise), the missing-evidence rule that a property_required report with no properties is rejected (empty_property_required), a required skip_reason for not_property_required reports, and the rule that a failed property must carry a non-null counterexample plus a minimized/unsupported shrink status. Both modules are exported via the new src/root.zig `property` namespace. test/support/property.zig adds the forAllU64 helper that drives the seeded stream over a predicate and records the seed, generated case count, pass/fail, and a reproducible first-failing counterexample. test/property_generator_test.zig proves: same seed -> identical 256-draw sequence while a neighbouring seed diverges within 16 draws; the helper records seed/case-count/counterexample deterministically; a fully-populated failed report is accepted while a failed report missing its counterexample (failed_without_counterexample) or whose status disagrees with results (status_mismatch) is rejected; the task-044 high-risk missing-evidence fixture is rejected (empty_property_required) and the not_property_required skip fixture is accepted; the task-062 property artifact is contract-valid; and the whole task-044 fixture suite (5 valid accepted, 8 invalid rejected) round-trips through the validator. Integrated property evidence with the pipeline artifacts: artifacts/pipeline/062/property/report.json carries real generated evidence (seeded_generator_determinism over 256 cases and forall_counterexample_reproducibility over 64 cases, both Determinism, both passing) and artifacts/pipeline/062/verification/report.json records the passing property stage. docs/PROPERTY_TEST_POLICY.md and docs/VERIFICATION_PIPELINE.md were corrected to state that task 062 ships the deterministic generator plus the Zig structural validator as the enforced contract, and that zentinel.pipeline.property_report.v1 is validated in Zig rather than by a registered JSON Schema (so it is intentionally absent from docs/SCHEMA_REGISTRY.md, which is outside this task's scope). Non-goals respected: no third-party property dependency, no arbitrary Zig program generation, no replacement of focused unit/fixture tests; src/ai/**, src/zir_backend.zig, src/air_backend.zig, and docs/MUTATOR_SPEC.md were not touched (forbidden).",
+      "files_changed": [
+        "src/property/generator.zig",
+        "src/property/report.zig",
+        "src/root.zig",
+        "test/support/property.zig",
+        "test/property_generator_test.zig",
+        "docs/PROPERTY_TEST_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "artifacts/pipeline/062/property/report.json",
+        "artifacts/pipeline/062/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/property_generator_test.zig: same-seed determinism over 256 draws with neighbouring-seed divergence; the forAllU64 helper records seed, generated case count, and a reproducible counterexample; a fully-populated failed report is accepted while failed-without-counterexample and status-mismatch reports are rejected; high-risk missing property evidence is rejected (empty_property_required) and a not_property_required skip is accepted; the task-062 property artifact is contract-valid; the full task-044 fixture suite (5 valid / 8 invalid) validates correctly.",
+        "test/support/property.zig: forAllU64 seeded-property runner recording seed, generated case count, pass/fail, and first-failing counterexample."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): test/support/property.zig FileNotFound with 451/451 other tests passing",
+        "zig build test (zigars MCP, passing): full suite green after adding the generator, validator, support helper, and root export",
+        "zig build (zigars MCP): the binary builds",
+        "zig fmt --check src test build.zig (zigars MCP): clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 062 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 062. The property report contract is enforced by the Zig validator src/property/report.zig; zentinel.pipeline.property_report.v1 is intentionally not a registered JSON Schema (schemas/ is outside this task's scope), and docs/PROPERTY_TEST_POLICY.md and docs/VERIFICATION_PIPELINE.md were corrected to match."
+      },
+      "dogfooding_implication": "Deterministic seeded generation plus an executable property-report validator make zentinel's own deterministic surfaces -- mutant/doctest IDs, candidate ordering, cache keys, source spans -- harder to regress during dogfood, and give task 064 (pipeline artifact CI) and task 085 (final dogfood gate) a real, contract-checked property artifact to enforce rather than enumerated or fixture-only evidence.",
+      "follow_up_tasks": [
+        "tasks/064-pipeline-artifact-ci-integration.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/062/property/report.json",
+        "artifacts/pipeline/062/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
       ]
     }
   ],

@@ -3325,7 +3325,7 @@
       "title": "Property Generator Infrastructure",
       "file": "tasks/062-property-generator-infrastructure.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "061"
       ],

@@ -130,7 +130,7 @@ The canonical CI entrypoint is `scripts/ci.sh` (see `docs/CI_STRATEGY.md`). CI r
 - mutation fixture dogfood when implemented
 - performance smoke checks when implemented
 
-Before task `062`, property evidence may be enumerated or fixture-based when generated property infrastructure does not exist. After task `062`, generated property evidence must include the seed list, invariant list, and generated case count.
+Before task `062`, property evidence may be enumerated or fixture-based when generated property infrastructure does not exist. After task `062`, generated property evidence must include the seed list, invariant list, and generated case count. Task `062` ships the deterministic seeded generator (`zentinel.property.generator`) and the structural report validator (`zentinel.property.report`); the validator distinguishes passing property evidence from missing or malformed evidence and is the executable check behind this stage.
 
 CI must not require remote AI providers.
 

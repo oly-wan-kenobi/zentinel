@@ -32,6 +32,15 @@ pub const mutant = @import("mutant.zig");
 /// task 058).
 pub const safety_modes = @import("safety_modes.zig");
 
+/// Deterministic seeded property-test generator + structural validator for the
+/// `zentinel.pipeline.property_report.v1` contract (deterministic core, task
+/// 062). The generator is a pure seeded stream; the validator distinguishes
+/// passing property evidence from missing/malformed evidence. Neither uses AI.
+pub const property = struct {
+    pub const generator = @import("property/generator.zig");
+    pub const report = @import("property/report.zig");
+};
+
 /// Pure byte <-> line/column source mapping (deterministic core).
 pub const source_map = @import("source_map.zig");
 
