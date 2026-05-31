@@ -104,7 +104,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 042 | `tasks/042-context-packet-system.md` | complete | 0 |
 | 043 | `tasks/043-mutation-gate.md` | complete | 1 |
 | 044 | `tasks/044-property-test-policy.md` | complete | 1 |
-| 045 | `tasks/045-doctest-policy.md` | queued | 1 |
+| 045 | `tasks/045-doctest-policy.md` | complete | 1 |
 | 046 | `tasks/046-verification-pipeline.md` | queued | 1 |
 | 047 | `tasks/047-sequential-task-locking.md` | queued | 0 |
 | 048 | `tasks/048-failure-recovery.md` | queued | 0 |

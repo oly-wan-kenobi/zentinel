@@ -1,6 +1,6 @@
 # Doctest Block Formats
 
-This document defines every supported doctest fenced block format. Agents must use these formats for executable documentation.
+This document defines every supported doctest fenced block format. Agents must use these formats for executable documentation. When executable examples are required and how their evidence is recorded are defined in `docs/DOCTEST_POLICY.md`, and the case kinds, identity, and report shape are in `docs/DOCTEST_SPEC.md`.
 
 ## Info String Grammar
 

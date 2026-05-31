@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "045",
+  "next_task": "046",
   "completed_tasks": [
     "068",
     "069",
@@ -85,7 +85,8 @@
     "063",
     "042",
     "043",
-    "044"
+    "044",
+    "045"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -96,6 +97,70 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "045",
+      "failing_evidence": "failing_command: a standard-library-only doctest-evidence checker that loads test/fixtures/pipeline/doctest_policy/{valid,invalid}/*.json and asserts each valid report is internally consistent (every case names a canonical case.kind, a durable dt_ id, and a docs/<path>.md:line source_ref; expectation and snapshot are from the allowed sets; report status equals failed iff any case failed or any snapshot mismatched; every changed Required Doc is covered by at least one case; and an updated snapshot carries recorded approval) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid doctest policy fixtures` and exited 1. implementation_started_after_failure: true; the five consistent fixtures, the eight inconsistent fixtures (including the canonical public-CLI-doc-change-missing-doctest-evidence case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=8 kinds=['cli', 'config', 'config_fail', 'zig_compile_fail', 'zig_compile_pass', 'zig_test'] expectations=['diagnostic_expected', 'json_expected', 'none', 'text_output'] snapshots=['matched', 'mismatch', 'not_applicable', 'updated']` and `PASS` (exit 0), demonstrating the compile-pass, compile-fail, CLI, JSON-expected, config, and snapshot case requirements and proving via a case-order permutation that report status and coverage are independent of case ordering. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and implements no doctest parsing or execution (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified how doctests participate in the AI-agent pipeline and when executable documentation becomes mandatory, refining docs/DOCTEST_POLICY.md without recreating its Mandatory Points / Required Docs / Agent Rules / Verification sections. Added a `## Block Formats and Spec` cross-link (the canonical case.kind enum zig_compile_pass/zig_test/zig_compile_fail/cli/config/config_fail/mutation, with text output / json expected / diagnostic expected as snapshot evidence on the producer case), explicit `## Snapshot Update Rules` (updates are never automatic; an updated expected block requires recorded Doctest Agent diff plus Verifier approval; a mismatch blocks completion), and a `## Doctest Evidence Handoff` section defining artifacts/pipeline/<task-id>/doctest/report.json (`zentinel.pipeline.doctest_evidence.v1`) whose status is failed iff any case fails or any snapshot mismatches, which requires every changed Required Doc to be covered by a case, requires approval for an updated snapshot, and feeds the final verifier report. Connected requirements to docs/VERIFICATION_PIPELINE.md (the Doctests stage mirrors the evidence status and blocks on uncovered changed docs or unreviewed snapshots), docs/DOCTEST_SPEC.md and docs/DOCTEST_BLOCK_FORMATS.md (mutual cross-links to the policy, spec, and block formats), and docs/AGENT_GUIDE.md (added Property test policy and Doctest policy rows to the where-to-look table). Added fixtures under test/fixtures/pipeline/doctest_policy/ demonstrating all six documented case requirements across passed, snapshot-mismatch-failed, snapshot-updated-approved, and not_doctest_required cases, plus eight inconsistent reports each rejected by the checker. Dogfooded the contract with artifacts/pipeline/045/doctest/report.json (a real not_doctest_required record for this prose/cross-link task) and artifacts/pipeline/045/verification/report.json. The durable product report schema stays zentinel.doctest.report.v1 from task 035; no new schema file is registered. No doctest parsing/execution, no rewrite of all public docs, and no mutation-aware doctests enabled (non-goals); no src/test/build/MUTATOR_SPEC changes (forbidden).",
+      "files_changed": [
+        "docs/DOCTEST_POLICY.md",
+        "docs/DOCTEST_SPEC.md",
+        "docs/DOCTEST_BLOCK_FORMATS.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/AGENT_GUIDE.md",
+        "test/fixtures/pipeline/doctest_policy/valid/cli_doc_with_evidence.json",
+        "test/fixtures/pipeline/doctest_policy/valid/all_case_kinds.json",
+        "test/fixtures/pipeline/doctest_policy/valid/snapshot_mismatch_failed.json",
+        "test/fixtures/pipeline/doctest_policy/valid/snapshot_updated_approved.json",
+        "test/fixtures/pipeline/doctest_policy/valid/not_doctest_required_skip.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/cli_doc_missing_evidence.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/changed_doc_uncovered.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/bad_kind.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/bad_case_id.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/missing_source_ref.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/bad_expectation.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/snapshot_updated_without_approval.json",
+        "test/fixtures/pipeline/doctest_policy/invalid/failed_snapshot_marked_passed.json",
+        "artifacts/pipeline/045/doctest/report.json",
+        "artifacts/pipeline/045/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/doctest_policy/valid/**: five internally-consistent doctest evidence reports demonstrating the compile-pass, compile-fail, CLI, JSON-expected, config, config-fail, snapshot-matched, snapshot-updated-approved, and not_doctest_required requirements.",
+        "test/fixtures/pipeline/doctest_policy/invalid/**: eight inconsistent reports each rejected by the checker (CLI doc change missing evidence, changed doc uncovered, bad case kind, bad case id, missing source_ref, bad expectation, snapshot updated without approval, failed snapshot marked passed).",
+        "Doctest-evidence checker: enforces case kind/id/source_ref/expectation/snapshot validity, changed-Required-Doc coverage, snapshot-update approval, and status derivation, and proves via a case-order permutation that status and coverage are independent of case ordering."
+      ],
+      "tests_run": [
+        "doctest-evidence checker over test/fixtures/pipeline/doctest_policy/ (failing): before fixtures existed -> 'FAIL: no valid doctest policy fixtures', exit 1",
+        "doctest-evidence checker (passing): valid=5 invalid=8, all six case requirements demonstrated, PASS, exit 0",
+        "case-order permutation property: PASS (report status and coverage invariant under case ordering)",
+        "artifacts/pipeline/045/doctest/report.json validated by the checker; artifacts/pipeline/045/verification/report.json validated against pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 045 was active and again after the complete-state transition. The task added the doctest evidence handoff contract, snapshot update rules, and cross-links; the DOCTEST_POLICY -> DOCTEST_AI_INTEGRATION reference required by the guardrail was already present. No gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Defines when zentinel's own CLI, config, report, mutator, and AI docs become executable contracts and how doctest evidence is handed off and feeds the verifier; task 066 (public-docs doctest coverage) and task 046 (verification pipeline) consume the contract.",
+      "follow_up_tasks": [
+        "tasks/046-verification-pipeline.md",
+        "tasks/066-public-docs-doctest-coverage.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/045/doctest/report.json",
+        "artifacts/pipeline/045/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "044",
       "failing_evidence": "failing_command: a standard-library-only property-report invariant checker that loads test/fixtures/pipeline/property_tests/{valid,invalid}/*.json and asserts each valid report is internally consistent (every property names a mandatory invariant category, carries an explicit non-empty seed list, a generator summary with an integer case count, and a shrinking status; a failed property carries a minimized counterexample; report status equals failed iff any property failed; and a high-risk or compiler-internal property_required report lists at least one property) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid property-test report fixtures` and exited 1. implementation_started_after_failure: true; the five consistent fixtures, the eight inconsistent fixtures (including the canonical high-risk-missing-property-evidence case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=8 categories=['Collision resistance', 'Determinism', 'Isolation', 'Monotonicity', 'Round-trip', 'Stability']` and `PASS` (exit 0), demonstrating all six mandatory invariant categories and proving via a property-order permutation that report status is independent of property ordering. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and chooses no property-test library or generator (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

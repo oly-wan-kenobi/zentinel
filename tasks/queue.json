@@ -2853,7 +2853,7 @@
       "title": "Doctest Policy",
       "file": "tasks/045-doctest-policy.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "044"
       ],

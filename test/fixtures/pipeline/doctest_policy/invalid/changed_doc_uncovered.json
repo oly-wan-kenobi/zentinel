@@ -1,0 +1,22 @@
+{
+  "schema_version": "zentinel.pipeline.doctest_evidence.v1",
+  "task_id": "045",
+  "scope": "doctest_required",
+  "status": "passed",
+  "mutation_aware": false,
+  "deterministic": true,
+  "changed_public_docs": [
+    "docs/CLI_SPEC.md",
+    "docs/CONFIG_SPEC.md"
+  ],
+  "cases": [
+    {
+      "kind": "cli",
+      "id": "dt_cliaa11bb22cc33dd44ee55ff6677",
+      "source_ref": "docs/CLI_SPEC.md:42",
+      "result": "passed",
+      "expectation": "text_output",
+      "snapshot": "matched"
+    }
+  ]
+}

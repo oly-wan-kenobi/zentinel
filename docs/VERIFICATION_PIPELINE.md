@@ -40,6 +40,8 @@ The Mutation checks stage runs the mutation gate defined in `docs/MUTATION_GATE_
 
 The Property tests stage follows `docs/PROPERTY_TEST_POLICY.md`. Evidence is recorded in `artifacts/pipeline/<task-id>/property/report.json` with each property's invariant category, explicit seed list, generator summary and case count, and shrinking status; the stage `status` is `failed` if any property fails. High-risk and compiler-internal tasks that touch a Required For surface must carry property evidence, and a missing seed or invariant blocks the stage.
 
+The Doctests stage follows `docs/DOCTEST_POLICY.md`. Evidence is recorded in `artifacts/pipeline/<task-id>/doctest/report.json` with each case's kind, durable `dt_` id, `source_ref`, result, and snapshot status; the stage `status` mirrors the evidence `status` and is `failed` if any case fails or any snapshot mismatches. A task that changes a public CLI, config, report, or AI doc must cover each changed doc with at least one case, and an `updated` snapshot requires recorded Verifier approval.
+
 ## Fail-Fast Rules
 
 - Stop immediately on task-system validation failure.

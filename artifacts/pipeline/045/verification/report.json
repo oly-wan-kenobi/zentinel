@@ -1,0 +1,35 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "045",
+  "status": "passed",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/045/verification/report.json"
+    },
+    {
+      "name": "doctest_evidence_fixture_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 - (doctest-evidence checker over test/fixtures/pipeline/doctest_policy/{valid,invalid}/*.json)",
+      "artifact": "test/fixtures/pipeline/doctest_policy"
+    },
+    {
+      "name": "doctests",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "task changes doctest policy and spec prose only; no executable public example block is added or changed"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "no executable product behavior changed"
+    }
+  ],
+  "residual_risk": [],
+  "recommendation": "complete"
+}

@@ -269,6 +269,8 @@ Task `041` is the cutover point for durable handoff artifacts. After it is compl
 | Context packet format | `docs/AGENT_CONTEXT_PACKETS.md` |
 | Verification order | `docs/VERIFICATION_PIPELINE.md` |
 | Mutation gate | `docs/MUTATION_GATE_POLICY.md` |
+| Property test policy | `docs/PROPERTY_TEST_POLICY.md` |
+| Doctest policy | `docs/DOCTEST_POLICY.md` |
 | Escalation rules | `docs/PIPELINE_ESCALATION_POLICY.md` |
 | Failure recovery | `docs/FAILURE_RECOVERY.md` |
 | Sequential locking | `docs/SEQUENTIAL_EXECUTION_POLICY.md` |
