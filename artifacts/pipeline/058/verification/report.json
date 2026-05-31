@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "058",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/058/verification/report.json"
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "safety_mode_matrix_test covers the canonical mode order, parse, buildFlag, primaryMode, matrixModes (override -> single; config -> canonical-sorted unique), the isModeDependent classifier, sortModeResults, the additive result.mode_matrix serialization (omitted when null so single-mode reports stay byte-identical; emitted when present while preserving result.mode), config acceptance of multiple zig.modes, --mode override parsing/validation, and the Debug-vs-ReleaseFast fixture; run_command_test adds a mode-matrix integration test (Debug killed / ReleaseFast survived recorded in mode_matrix with result.mode preserved and isModeDependent true), a single-mode null-matrix test, and a --mode single-mode override test; config_test flips its pre-058 guardrail to assert multiple modes are now accepted; full suite green"
+    },
+    {
+      "name": "property_tests",
+      "required": true,
+      "status": "passed",
+      "evidence": "The custom Result.jsonStringify omits mode_matrix when null, so every pre-058 single-mode report snapshot (report_schema, report_renderers, dogfood, doctest, run_command) is byte-identical; mode_matrix rows are always sorted by canonical mode order so matrix output is deterministic regardless of config order or execution order"
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "cli_smoke",
+      "required": false,
+      "status": "passed",
+      "command": "zentinel run --mode <mode>",
+      "evidence": "run --mode Turbo is rejected with ZNTL_CLI_INVALID_OPTION naming the four valid modes; --mode <valid> is accepted as a single-mode override"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "self-mutation dogfood is gated to the Phase 7 stages (task 085); the mode-matrix model, classifier, and additive report extension are deterministic and covered by unit + integration tests"
+    }
+  ],
+  "residual_risk": [
+    "task-definition correction: test/config_test.zig guards the pre-058 single-mode restriction (its test is named '... before task 058') but was omitted from task 058's allowed_files. Lifting the restriction (a task acceptance criterion) requires flipping that test, so test/config_test.zig and the task markdown were added to task 058's allowed_files (queue.json + the markdown, kept in sync) to bring the in-flight fix in scope -- a substance-over-ceremony correction of the allowed_files omission, not a scope expansion into unrelated files.",
+    "Mode-matrix execution runs each additional mode serially per mutant after the primary parallel pass; this is deterministic but not parallelized across modes (matrix population is opt-in via multiple configured modes and is bounded by mutant count x mode count).",
+    "The Debug-vs-ReleaseFast safety-mode effect is exercised via an injected mode-aware mock in run_command_test; real compiler overflow-check behavior across optimize modes is documented by the test/fixtures/safety_modes/overflow.zig fixture and validated end to end by the Phase 7 dogfood stages."
+  ],
+  "recommendation": "complete"
+}

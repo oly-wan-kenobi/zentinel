@@ -22,6 +22,7 @@ const command = @import("command.zig");
 const test_selection = @import("test_selection.zig");
 const cache = @import("cache.zig");
 const worker_pool = @import("worker_pool.zig");
+const safety_modes = @import("safety_modes.zig");
 
 pub const ReportFormat = enum { text, json, jsonl, junit };
 
@@ -43,6 +44,10 @@ pub const Options = struct {
     /// overrides normalized `run.jobs`. Chooses only concurrency, never report
     /// ordering or mutation semantics; `null` falls back to `run.jobs`.
     jobs: ?usize = null,
+    /// Single-invocation safety/optimization mode override (`--mode <...>`,
+    /// task 058). When set it replaces the configured `zig.modes` for this run and
+    /// yields a single-mode report; `null` uses the configured modes.
+    mode_override: ?report.Mode = null,
 };
 
 /// Observation metadata supplied by the caller. Normalized in snapshots/tests.
@@ -123,7 +128,7 @@ pub const RunError = error{
     OutputOutsideRoot,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs };
+pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -173,6 +178,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             const n = std.fmt.parseInt(usize, args[i], 10) catch return error.InvalidJobs;
             if (n < 1) return error.InvalidJobs; // worker count must be a positive integer
             opts.jobs = n;
+        } else if (std.mem.eql(u8, arg, "--mode")) {
+            i += 1;
+            if (i >= args.len) return error.MissingValue;
+            opts.mode_override = safety_modes.parse(args[i]) orelse return error.InvalidMode;
         } else {
             return error.UnknownOption;
         }
@@ -195,7 +204,12 @@ pub fn run(
         if (config.isOutsideRoot(out)) return error.OutputOutsideRoot;
     }
 
-    const mode: report.Mode = .Debug; // single-mode until task 058
+    // Safety/optimization mode matrix (task 058). `mode` is the primary mode
+    // reflected in `result.mode`; `matrix_modes` is the full set run for the
+    // additive `result.mode_matrix` (just the override, or the configured modes).
+    const mode = safety_modes.primaryMode(cfg.zig_modes, options.mode_override);
+    const matrix_modes = try safety_modes.matrixModes(arena, cfg.zig_modes, options.mode_override);
+    const multi_mode = matrix_modes.len > 1;
 
     // Baseline.
     const baseline = runner.runBaseline(arena, baseline_executor, cfg.test_commands, obs.project_root) catch |err| switch (err) {
@@ -246,13 +260,38 @@ pub fn run(
     var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode };
     worker_pool.run(requested_jobs, jobs.len, &pctx, runOneMutant);
 
+    // Mode matrix: when more than one mode is run, record each mode's per-mutant
+    // status. The primary mode reuses the parallel results above; additional
+    // modes run serially and deterministically (matrix output, not the report's
+    // primary status). `mode_grid[mode_index][job_index]` holds the status.
+    var mode_grid: [][]report.ResultStatus = &.{};
+    if (multi_mode) {
+        const grid = try arena.alloc([]report.ResultStatus, matrix_modes.len);
+        for (matrix_modes, 0..) |m, mi| {
+            const col = try arena.alloc(report.ResultStatus, jobs.len);
+            if (m == mode) {
+                for (results, 0..) |r, ji| col[ji] = r.status;
+            } else {
+                for (jobs, 0..) |job, ji| col[ji] = mutant_executor.run(job.candidate, job.source, job.commands, m).status;
+            }
+            grid[mi] = col;
+        }
+        mode_grid = grid;
+    }
+
     // Phase C (serial): build report entries and result-cache keys in mutant
     // order, then sort into canonical report order. Because the report is sorted
     // here, serial and parallel runs produce equivalent reports.
     var entries: std.ArrayList(report.Mutant) = .empty;
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
-    for (jobs, results) |job, result| {
-        try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, job.selection));
+    for (jobs, results, 0..) |job, result, ji| {
+        const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
+            const rows = try arena.alloc(report.ModeResult, matrix_modes.len);
+            for (matrix_modes, 0..) |m, mi| rows[mi] = .{ .mode = m, .status = mode_grid[mi][ji] };
+            safety_modes.sortModeResults(rows);
+            break :blk rows;
+        } else null;
+        try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, mode_matrix, job.selection));
 
         // Compute the deterministic result-cache key (metadata only; reuse stays
         // disabled in Phase 1). --no-cache skips result keys entirely.
@@ -464,6 +503,7 @@ fn buildEntry(
     source: []const u8,
     result: mutant_runner.MutationResult,
     mode: report.Mode,
+    mode_matrix: ?[]const report.ModeResult,
     selection: report.TestSelection,
 ) std.mem.Allocator.Error!report.Mutant {
     var duration: u64 = 0;
@@ -490,6 +530,7 @@ fn buildEntry(
             .duration_ms = duration,
             .evidence = result.evidence,
             .skip_reason = result.skip_reason,
+            .mode_matrix = mode_matrix,
         },
         .test_selection = selection,
         .advisory = .{ .equivalent_risks = candidate.equivalent_risks, .ai = null },

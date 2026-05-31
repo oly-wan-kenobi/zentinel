@@ -121,12 +121,18 @@ test "invalid Zig mode is rejected" {
     try expect(diag.code == .invalid_value);
 }
 
-test "multiple Zig modes are rejected before task 058" {
+test "multiple Zig modes are accepted by the safety-mode matrix (task 058)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    // Task 058 lifts the pre-058 single-mode restriction: more than one
+    // configured zig.modes entry is now accepted.
     var diag: config.Diagnostic = .{};
-    try expectError(error.Invalid, load(arena.allocator(), "[zig]\nmodes = [\"Debug\", \"ReleaseSafe\"]\n", &diag));
-    try expect(diag.code == .invalid_value);
+    const cfg = try load(arena.allocator(), "[zig]\nmodes = [\"Debug\", \"ReleaseSafe\"]\n", &diag);
+    try expect(cfg.zig_modes.len == 2);
+    // Unknown modes are still rejected, with or without multiple entries.
+    var diag2: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena.allocator(), "[zig]\nmodes = [\"Debug\", \"Turbo\"]\n", &diag2));
+    try expect(diag2.code == .invalid_value);
 }
 
 test "experimental backend without opt-in is rejected" {

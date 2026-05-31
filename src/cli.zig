@@ -311,6 +311,7 @@ fn runRun(
             error.UnknownOption => "unknown run option",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
+            error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
         return 2;

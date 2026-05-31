@@ -27,7 +27,9 @@ Implement safety and optimization mode matrix execution and reporting.
 - `schemas/report.v1.schema.json`
 - `test/safety_mode_matrix_test.zig`
 - `test/run_command_test.zig`
+- `test/config_test.zig`
 - `test/fixtures/safety_modes/**`
+- `tasks/058-safety-mode-matrix.md`
 - `tasks/STATUS.md`
 - `tasks/status.json`
 

@@ -401,7 +401,20 @@
         "phase": { "const": "mutant" },
         "duration_ms": { "type": "integer", "minimum": 0 },
         "evidence": { "$ref": "#/$defs/evidence" },
-        "skip_reason": { "type": ["string", "null"] }
+        "skip_reason": { "type": ["string", "null"] },
+        "mode_matrix": {
+          "comment": "Optional additive task-058 extension. Omitted for single-mode runs; present (sorted by canonical mode order) when more than one mode is run. Never replaces result.mode.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mode", "status"],
+            "properties": {
+              "mode": { "enum": ["Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall"] },
+              "status": { "enum": ["killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"] }
+            }
+          }
+        }
       }
     },
     "mutant": {

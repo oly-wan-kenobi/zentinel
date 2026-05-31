@@ -28,6 +28,10 @@ pub const check_command = @import("check_command.zig");
 /// Shared mutant model + durable `m_...` identity algorithm (deterministic core).
 pub const mutant = @import("mutant.zig");
 
+/// Safety/optimization mode matrix model + classification (deterministic core,
+/// task 058).
+pub const safety_modes = @import("safety_modes.zig");
+
 /// Pure byte <-> line/column source mapping (deterministic core).
 pub const source_map = @import("source_map.zig");
 

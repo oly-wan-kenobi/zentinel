@@ -3235,7 +3235,7 @@
       "title": "Safety Mode Matrix",
       "file": "tasks/058-safety-mode-matrix.md",
       "phase": 6,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "057"
       ],
@@ -3251,7 +3251,9 @@
         "schemas/report.v1.schema.json",
         "test/safety_mode_matrix_test.zig",
         "test/run_command_test.zig",
+        "test/config_test.zig",
         "test/fixtures/safety_modes/**",
+        "tasks/058-safety-mode-matrix.md",
         "tasks/STATUS.md",
         "tasks/status.json"
       ],

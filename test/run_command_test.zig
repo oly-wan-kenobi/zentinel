@@ -103,6 +103,93 @@ fn mutantRunner(env: *Env) rc.MutantRunner {
     return .{ .ctx = env, .runFn = mutantRunFn };
 }
 
+// --- Safety-mode matrix harness (task 058) ---------------------------------
+
+const mode_matrix_cfg =
+    \\[project]
+    \\name = "sample"
+    \\
+    \\[zig]
+    \\modes = ["Debug", "ReleaseFast"]
+    \\
+    \\[mutators]
+    \\enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+    \\
+    \\[test]
+    \\commands = ["zig build test"]
+    \\
+;
+
+/// A per-call command outcome so the mock can return a mode-dependent result
+/// while still going through the real `mutant_runner.run` classification.
+const ModeCmdCtx = struct { outcome: runner.RawOutcome };
+fn modeCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = argv;
+    return @as(*ModeCmdCtx, @ptrCast(@alignCast(ctx))).outcome;
+}
+
+/// Mode-aware mutant runner: the mutant's test fails (killed) under Debug/
+/// ReleaseSafe safety checks but passes (survived) under ReleaseFast where the
+/// check is elided -- a Debug-vs-ReleaseFast safety-mode effect.
+fn modeAwareRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *Env = @ptrCast(@alignCast(ctx));
+    spinLock(&env.lock);
+    defer spinUnlock(&env.lock);
+    var mc = ModeCmdCtx{ .outcome = if (mode == .ReleaseFast) pass() else failure() };
+    const ex = runner.Executor{ .ctx = &mc, .runFn = modeCmd };
+    return mutant_runner.run(env.arena, m, source, .created, commands, env.cwd, ex, mode) catch @panic("mutant run failed");
+}
+
+test "mode matrix records per-mode status, preserves result.mode, and flags mode effects" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+    const mr = rc.MutantRunner{ .ctx = &env, .runFn = modeAwareRunFn };
+
+    const outcome = try rc.run(a, loadCfg(a, mode_matrix_cfg), &files, .{}, baselineExecutor(&env), mr, observation());
+
+    try expectEqual(report.RunStatus.completed, outcome.report.run.status);
+    try expect(outcome.report.mutants.len > 0);
+    const m0 = outcome.report.mutants[0];
+    // result.mode stays the primary (first configured) mode, with the primary status.
+    try expectEqual(report.Mode.Debug, m0.result.mode);
+    try expectEqual(report.ResultStatus.killed, m0.result.status);
+    // The additive matrix records both modes, sorted by canonical order.
+    const mm = m0.result.mode_matrix orelse return error.TestUnexpectedResult;
+    try expectEqual(@as(usize, 2), mm.len);
+    try expectEqual(report.Mode.Debug, mm[0].mode);
+    try expectEqual(report.ResultStatus.killed, mm[0].status);
+    try expectEqual(report.Mode.ReleaseFast, mm[1].mode);
+    try expectEqual(report.ResultStatus.survived, mm[1].status);
+    try expect(zentinel.safety_modes.isModeDependent(mm));
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
+
+test "single-mode runs do not populate result.mode_matrix" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expect(outcome.report.mutants[0].result.mode_matrix == null);
+}
+
+test "the --mode override yields a single-mode report in the chosen mode" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+    // Config has two modes, but --mode forces a single mode (no matrix).
+    const outcome = try rc.run(a, loadCfg(a, mode_matrix_cfg), &files, .{ .mode_override = .ReleaseFast }, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(report.Mode.ReleaseFast, outcome.report.mutants[0].result.mode);
+    try expect(outcome.report.mutants[0].result.mode_matrix == null);
+}
+
 // --- Orchestration / classification ---------------------------------------
 
 test "baseline failure exits 3 with a baseline_failed report and no mutants" {

@@ -113,6 +113,14 @@ pub const SelectedTest = struct {
     line: u32,
 };
 
+/// One mode's outcome for a mutant in the safety/optimization mode matrix
+/// (task 058). An additive `zentinel.report.v1` extension carried only inside the
+/// optional `Result.mode_matrix`; it never replaces `result.mode`.
+pub const ModeResult = struct {
+    mode: Mode,
+    status: ResultStatus,
+};
+
 pub const Result = struct {
     status: ResultStatus,
     mode: Mode,
@@ -121,6 +129,36 @@ pub const Result = struct {
     duration_ms: u64,
     evidence: Evidence,
     skip_reason: ?[]const u8,
+    /// Optional safety/optimization mode matrix (task 058). Null (and omitted
+    /// from JSON) for single-mode runs, so existing single-mode reports are
+    /// byte-identical; populated only when more than one mode is run.
+    mode_matrix: ?[]const ModeResult = null,
+
+    /// Custom serialization so the additive `mode_matrix` is omitted entirely when
+    /// null (preserving single-mode report bytes) while every other field keeps
+    /// the default reflection-based encoding and order.
+    pub fn jsonStringify(self: Result, jws: *std.json.Stringify) std.json.Stringify.Error!void {
+        try jws.beginObject();
+        try jws.objectField("status");
+        try jws.write(self.status);
+        try jws.objectField("mode");
+        try jws.write(self.mode);
+        try jws.objectField("commands");
+        try jws.write(self.commands);
+        try jws.objectField("phase");
+        try jws.write(self.phase);
+        try jws.objectField("duration_ms");
+        try jws.write(self.duration_ms);
+        try jws.objectField("evidence");
+        try jws.write(self.evidence);
+        try jws.objectField("skip_reason");
+        try jws.write(self.skip_reason);
+        if (self.mode_matrix) |mm| {
+            try jws.objectField("mode_matrix");
+            try jws.write(mm);
+        }
+        try jws.endObject();
+    }
 };
 
 pub const TestSelection = struct {

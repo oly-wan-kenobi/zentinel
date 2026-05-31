@@ -278,9 +278,8 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         return fail(diag, .invalid_value, "zig", "version", "only Zig 0.16.0 is supported");
     }
     const zig_modes = try look.getArray("zig", "modes", &.{"Debug"}, diag);
-    if (zig_modes.len > 1) {
-        return fail(diag, .invalid_value, "zig", "modes", "multiple modes require task 058 safety-mode matrix");
-    }
+    // Multiple modes are accepted now that the safety-mode matrix exists (task
+    // 058); each entry must still be a known Zig mode.
     for (zig_modes) |m| {
         if (!inList(&known_modes, m)) return fail(diag, .invalid_value, "zig", "modes", "unknown Zig mode");
     }
