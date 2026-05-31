@@ -108,10 +108,13 @@ fn runConfig(ctx: Context, c: case.Case, content: []const u8, expect_pass: bool)
 }
 
 fn runCli(ctx: Context, c: case.Case, content: []const u8) RunError!CaseResult {
-    const parsed = try command.parse(ctx.arena, content);
+    // A CLI doctest is a single command line; fenced block content carries a
+    // trailing newline that is not an argv delimiter, so trim it first.
+    const cmd_line = std.mem.trim(u8, content, " \t\r\n");
+    const parsed = try command.parse(ctx.arena, cmd_line);
     const argv = switch (parsed) {
         .ok => |a| a,
-        .invalid => return rejected(ctx, c, content, "doctest CLI command is not valid shell-free argv"),
+        .invalid => return rejected(ctx, c, cmd_line, "doctest CLI command is not valid shell-free argv"),
     };
     if (argv.len == 0 or !std.mem.eql(u8, argv[0], "zentinel")) {
         return rejected(ctx, c, content, "doctest CLI command must invoke zentinel");
@@ -121,7 +124,7 @@ fn runCli(ctx: Context, c: case.Case, content: []const u8) RunError!CaseResult {
     return base(
         c,
         status,
-        content,
+        cmd_line,
         argv,
         if (raw.timed_out or raw.crashed) null else raw.exit_code,
         raw.timed_out,

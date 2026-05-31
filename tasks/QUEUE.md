@@ -93,7 +93,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 032 | `tasks/032-doctest-extraction.md` | complete | 1 |
 | 033 | `tasks/033-doctest-runner.md` | complete | 1 |
 | 034 | `tasks/034-doctest-snapshots.md` | complete | 1 |
-| 035 | `tasks/035-cli-doctests.md` | queued | 1 |
+| 035 | `tasks/035-cli-doctests.md` | complete | 1 |
 | 036 | `tasks/036-config-doctests.md` | queued | 1 |
 | 037 | `tasks/037-mutator-spec-doctests.md` | queued | 2 |
 | 038 | `tasks/038-doctest-cache.md` | queued | 3 |

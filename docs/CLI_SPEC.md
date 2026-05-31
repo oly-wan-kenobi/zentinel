@@ -89,10 +89,12 @@ Help output is snapshot-tested.
 
 ## `version`
 
-Output:
+```bash cli
+zentinel version
+```
 
-```text
-zentinel 0.1.0
+```text output
+zentinel 0.0.0
 zig 0.16.0
 ```
 

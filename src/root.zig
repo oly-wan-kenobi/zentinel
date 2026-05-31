@@ -86,7 +86,11 @@ pub const doctest = struct {
     pub const normalizer = @import("doctest/normalizer.zig");
     pub const matcher = @import("doctest/matcher.zig");
     pub const snapshot = @import("doctest/snapshot.zig");
+    pub const report = @import("doctest/report.zig");
 };
+
+/// `zentinel doctest` command orchestration (deterministic core).
+pub const doctest_command = @import("doctest_command.zig");
 
 /// Deterministic cache key construction + cache metadata (deterministic core).
 pub const cache = @import("cache.zig");
@@ -353,6 +357,7 @@ pub const Route = union(enum) {
     check: Globals,
     run: RunInvocation,
     list_mutants: RunInvocation,
+    doctest: RunInvocation,
 };
 
 /// Decide how to handle argv. `check` and `version` need environment inputs
@@ -393,6 +398,7 @@ pub fn route(args: []const []const u8) Route {
     if (eq(cmd, "check")) return .{ .check = globals };
     if (eq(cmd, "run")) return .{ .run = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "list-mutants")) return .{ .list_mutants = .{ .globals = globals, .args = args[i + 1 ..] } };
+    if (eq(cmd, "doctest")) return .{ .doctest = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "version")) {
         // `version` does not own --config/--root; defer to dispatch when present.
         if (globals.config_explicit or !eq(globals.root, ".")) return .passthrough;

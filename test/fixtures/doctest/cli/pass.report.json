@@ -1,0 +1,77 @@
+{
+  "schema_version": "zentinel.doctest.report.v1",
+  "run": {
+    "id": "doctest_run_test",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel doctest",
+    "project_root": ".",
+    "started_at": "2026-05-31T00:00:00Z",
+    "duration_ms": 0
+  },
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "compile_error": 0,
+    "expected_compile_error": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "cases": [
+    {
+      "id": "dt_eysvk0msapsjdt5fr4nbxaanff",
+      "file": "test/fixtures/doctest/cli/pass.md",
+      "line_start": 3,
+      "line_end": 10,
+      "source_ref": "test/fixtures/doctest/cli/pass.md:3",
+      "block_refs": [
+        "test/fixtures/doctest/cli/pass.md:3",
+        "test/fixtures/doctest/cli/pass.md:7"
+      ],
+      "kind": "cli",
+      "status": "passed",
+      "expectation": {
+        "mode": "exact",
+        "block_ref": "test/fixtures/doctest/cli/pass.md:7"
+      },
+      "command": {
+        "original": "zentinel version",
+        "argv": [
+          "zentinel",
+          "version"
+        ],
+        "cwd": ".",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+      "result": {
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_ms": 0,
+        "stdout_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+        "stderr_excerpt": "",
+        "normalized_stdout_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+        "normalized_stderr_excerpt": "",
+        "snapshot": {
+          "expected_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+          "actual_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+          "normalized_expected_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+          "normalized_actual_excerpt": "zentinel 0.0.0\nzig 0.16.0\n",
+          "match_mode": "exact",
+          "expected_block_ref": "test/fixtures/doctest/cli/pass.md:7",
+          "actual_ref": "stdout",
+          "matched": true
+        },
+        "failure_summary": ""
+      },
+      "diagnostics": [],
+      "advisory": {
+        "ai": null
+      }
+    }
+  ]
+}

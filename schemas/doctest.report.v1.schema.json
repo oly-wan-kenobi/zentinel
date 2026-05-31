@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/doctest.report.v1.schema.json",
+  "title": "zentinel doctest report v1",
+  "type": "object",
+  "required": ["schema_version", "run", "summary", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "zentinel.doctest.report.v1" },
+    "run": { "$ref": "#/$defs/run" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "cases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "error", "zentinel_version", "zig_version", "command", "project_root", "started_at", "duration_ms"],
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "enum": ["completed", "failed", "internal_error"] },
+        "error": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/run_error" }
+          ]
+        },
+        "zentinel_version": { "type": "string" },
+        "zig_version": { "type": "string" },
+        "command": { "type": "string" },
+        "project_root": { "type": "string" },
+        "started_at": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "run_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "phase", "details"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "phase": { "enum": ["internal", "parser", "extractor", "runner", "snapshot", "report"] },
+        "details": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed", "compile_error", "expected_compile_error", "timeout", "skipped", "invalid"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "compile_error": { "type": "integer", "minimum": 0 },
+        "expected_compile_error": { "type": "integer", "minimum": 0 },
+        "timeout": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "invalid": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "line_start", "line_end", "source_ref", "block_refs", "kind", "status", "expectation", "command", "result", "diagnostics", "advisory"],
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string" },
+        "line_start": { "type": "integer", "minimum": 1 },
+        "line_end": { "type": "integer", "minimum": 1 },
+        "source_ref": { "type": "string" },
+        "block_refs": { "type": "array", "items": { "type": "string" } },
+        "kind": { "enum": ["zig_compile_pass", "zig_test", "zig_compile_fail", "cli", "config", "config_fail", "mutation"] },
+        "status": { "enum": ["passed", "failed", "compile_error", "expected_compile_error", "timeout", "skipped", "invalid"] },
+        "expectation": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mode", "block_ref"],
+              "properties": {
+                "mode": { "$ref": "#/$defs/match_mode" },
+                "block_ref": { "type": "string" }
+              }
+            }
+          ]
+        },
+        "command": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/command" }
+          ]
+        },
+        "result": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/result" }
+          ]
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "advisory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ai"],
+          "properties": {
+            "ai": {
+              "oneOf": [
+                { "type": "null" },
+                { "type": "object", "additionalProperties": false }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["original", "argv", "cwd", "environment_policy", "shell"],
+      "properties": {
+        "original": { "type": "string" },
+        "argv": { "type": "array", "items": { "type": "string" } },
+        "cwd": { "type": "string" },
+        "environment_policy": { "const": "minimal" },
+        "shell": { "type": "boolean" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exit_code", "timed_out", "duration_ms", "stdout_excerpt", "stderr_excerpt", "normalized_stdout_excerpt", "normalized_stderr_excerpt", "snapshot", "failure_summary"],
+      "properties": {
+        "exit_code": { "type": ["integer", "null"] },
+        "timed_out": { "type": "boolean" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "stdout_excerpt": { "type": "string" },
+        "stderr_excerpt": { "type": "string" },
+        "normalized_stdout_excerpt": { "type": "string" },
+        "normalized_stderr_excerpt": { "type": "string" },
+        "snapshot": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/snapshot" }
+          ]
+        },
+        "failure_summary": { "type": "string" }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_excerpt", "actual_excerpt", "normalized_expected_excerpt", "normalized_actual_excerpt", "match_mode", "expected_block_ref", "actual_ref", "matched"],
+      "properties": {
+        "expected_excerpt": { "type": "string" },
+        "actual_excerpt": { "type": "string" },
+        "normalized_expected_excerpt": { "type": "string" },
+        "normalized_actual_excerpt": { "type": "string" },
+        "match_mode": { "$ref": "#/$defs/match_mode" },
+        "expected_block_ref": { "type": ["string", "null"] },
+        "actual_ref": { "enum": ["stdout", "stderr", "diagnostic", "json", "report"] },
+        "matched": { "type": "boolean" }
+      }
+    },
+    "match_mode": { "enum": ["exact", "contains", "regex", "json", "json_subset", "json_unordered", "diagnostic"] }
+  }
+}

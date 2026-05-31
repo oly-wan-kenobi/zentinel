@@ -47,6 +47,7 @@ pub fn run(
         },
         .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr),
         .list_mutants => |inv| return runListMutants(gpa, io, dir, inv, stdout, stderr),
+        .doctest => |inv| return runDoctest(gpa, io, dir, inv, stdout, stderr),
     }
 }
 
@@ -449,4 +450,147 @@ fn runListMutants(
     try stdout.writeAll(rendered);
     if (options.format == .json) try stdout.writeAll("\n");
     return 0;
+}
+
+// --- `zentinel doctest` (Phase 1, normal doctests) -------------------------
+
+const default_doctest_file = "docs/CLI_SPEC.md";
+
+const DoctestCtx = struct {
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    root_dir: std.Io.Dir,
+    timeout: std.Io.Timeout,
+};
+
+/// Execute a doctest CLI command (already validated to begin with `zentinel`)
+/// via direct argv, no shell. The deterministic runner owns the verdict.
+fn doctestExecFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.RawOutcome {
+    const rt: *DoctestCtx = @ptrCast(@alignCast(ctx));
+    const result = std.process.run(rt.gpa, rt.io, .{
+        .argv = argv,
+        .cwd = .{ .dir = rt.root_dir },
+        .stdout_limit = run_output_limit,
+        .stderr_limit = run_output_limit,
+        .timeout = rt.timeout,
+        .environ_map = null,
+    }) catch |err| {
+        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
+        return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
+    };
+    return switch (result.term) {
+        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+    };
+}
+
+const DoctestWsCtx = struct { gpa: std.mem.Allocator, io: std.Io, root_dir: std.Io.Dir };
+
+/// Materialize a doctest workspace under the zentinel-controlled cache location.
+/// Every planned path is confined under the workspace dir, so repository sources
+/// are never written.
+fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.doctest.workspace.MaterializeError!void {
+    const w: *DoctestWsCtx = @ptrCast(@alignCast(ctx));
+    if (!zentinel.doctest.workspace.isConfined(plan)) return error.WorkspaceCreateFailed;
+    w.root_dir.createDirPath(w.io, plan.dir) catch return error.WorkspaceCreateFailed;
+    for (plan.files) |f| {
+        if (std.fs.path.dirname(f.rel_path)) |parent| {
+            w.root_dir.createDirPath(w.io, parent) catch return error.WorkspaceCreateFailed;
+        }
+        w.root_dir.writeFile(w.io, .{ .sub_path = f.rel_path, .data = f.contents }) catch return error.WorkspaceCreateFailed;
+    }
+}
+
+fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) ![]const u8 {
+    const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
+    const es = std.time.epoch.EpochSeconds{ .secs = secs };
+    const yd = es.getEpochDay().calculateYearDay();
+    const md = yd.calculateMonthDay();
+    const day = es.getDaySeconds();
+    return std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
+        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
+    });
+}
+
+/// `zentinel doctest`: read the target doc, execute its normal doctests through
+/// real process/workspace adapters, and emit a deterministic text or JSON
+/// zentinel.doctest.report.v1 report.
+fn runDoctest(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {
+        const detail = switch (err) {
+            error.MissingValue => "missing option value",
+            error.UnknownOption => "unknown doctest option",
+            error.InvalidFormat => "--format must be 'text' or 'json'",
+            error.UnsupportedSubcommand => "doctest subcommand not implemented yet",
+        };
+        try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
+        return 2;
+    };
+
+    const doc_file = options.file orelse default_doctest_file;
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+
+    const source = root_dir.readFileAlloc(io, doc_file, gpa, read_limit) catch {
+        try stderr.print("error: documentation file not found at {s}\n", .{doc_file});
+        return 2;
+    };
+
+    const zig = discoverZig(gpa, io);
+    const zig_label: []const u8 = switch (zig) {
+        .version => |v| v,
+        .not_found => zentinel.supported_zig_version,
+    };
+
+    const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
+    const run_id = try std.fmt.allocPrint(gpa, "doctest_run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
+    const started_at = try isoTimestamp(gpa, ts);
+    const fmt_label: []const u8 = switch (options.format) {
+        .text => "text",
+        .json => "json",
+    };
+    const command = try std.fmt.allocPrint(gpa, "zentinel doctest --file {s} --format {s}", .{ doc_file, fmt_label });
+
+    var dctx = DoctestCtx{ .gpa = gpa, .io = io, .root_dir = root_dir, .timeout = .none };
+    var wctx = DoctestWsCtx{ .gpa = gpa, .io = io, .root_dir = root_dir };
+    const deps = zentinel.doctest_command.Deps{
+        .executor = .{ .ctx = &dctx, .runFn = doctestExecFn },
+        .provider = .{ .ctx = &wctx, .materializeFn = doctestWsFn },
+    };
+    const obs = zentinel.doctest_command.Observation{
+        .run_id = run_id,
+        .started_at = started_at,
+        .zentinel_version = zentinel.version,
+        .zig_version = zig_label,
+        .project_root = inv.globals.root,
+        .command = command,
+    };
+
+    const out = zentinel.doctest_command.run(gpa, options, doc_file, source, obs, deps) catch |err| switch (err) {
+        error.CaseNotFound => {
+            try stderr.print("error[ZNTL_DOCTEST_CASE_NOT_FOUND]: --case did not resolve to exactly one case\n", .{});
+            return 2;
+        },
+        error.WorkspaceCreateFailed => {
+            try stderr.writeAll("error: could not create doctest workspace\n");
+            return 4;
+        },
+        error.OutOfMemory => return err,
+    };
+
+    const rendered = switch (options.format) {
+        .text => try zentinel.doctest_command.renderText(gpa, out.report),
+        .json => try zentinel.doctest.report.toJson(gpa, out.report),
+    };
+    try stdout.writeAll(rendered);
+    if (options.format == .json) try stdout.writeAll("\n");
+    return out.exit_code;
 }

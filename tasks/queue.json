@@ -2528,7 +2528,7 @@
       "title": "CLI Doctests",
       "file": "tasks/035-cli-doctests.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "034"
       ],
