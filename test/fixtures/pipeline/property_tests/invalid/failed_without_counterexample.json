@@ -1,0 +1,26 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "property_required",
+  "task_class": "high_risk",
+  "deterministic": true,
+  "status": "failed",
+  "properties": [
+    {
+      "name": "p",
+      "invariant": "Determinism",
+      "seeds": [
+        1
+      ],
+      "generator": {
+        "summary": "enumerated inputs for p",
+        "generated_cases": 10
+      },
+      "shrinking": {
+        "status": "not_triggered"
+      },
+      "result": "failed",
+      "counterexample": null
+    }
+  ]
+}

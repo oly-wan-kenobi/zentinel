@@ -1,0 +1,10 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "not_property_required",
+  "task_class": "low_risk",
+  "deterministic": true,
+  "status": "passed",
+  "skip_reason": "task scope is documentation and JSON fixtures only; no deterministic product surface is changed",
+  "properties": []
+}

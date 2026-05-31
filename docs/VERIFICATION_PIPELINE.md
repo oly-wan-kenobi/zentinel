@@ -38,6 +38,8 @@ The task-system validator also checks governance bootstrap files, ADR index cons
 
 The Mutation checks stage runs the mutation gate defined in `docs/MUTATION_GATE_POLICY.md`. The gate report at `artifacts/pipeline/<task-id>/mutation/report.json` records a derived `gate_status`: a `passed` gate maps this stage to `passed`, and a `blocked` gate maps it to `failed` with the gate's `blocking_reasons` (baseline failure, invalid mutants present, nondeterministic mutation report, or an untriaged survivor). After task `043`, a mutation-testable task may not record this stage as skipped with `pre-gate unavailable`.
 
+The Property tests stage follows `docs/PROPERTY_TEST_POLICY.md`. Evidence is recorded in `artifacts/pipeline/<task-id>/property/report.json` with each property's invariant category, explicit seed list, generator summary and case count, and shrinking status; the stage `status` is `failed` if any property fails. High-risk and compiler-internal tasks that touch a Required For surface must carry property evidence, and a missing seed or invariant blocks the stage.
+
 ## Fail-Fast Rules
 
 - Stop immediately on task-system validation failure.

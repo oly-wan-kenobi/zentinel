@@ -104,6 +104,8 @@ Required deterministic surfaces:
 - doctest extraction order
 - doctest normalized output
 
+These deterministic surfaces are also the Required For surfaces of `docs/PROPERTY_TEST_POLICY.md`; determinism and stability coverage for them is recorded as property evidence with explicit seeds, and the same seed must reproduce the same generated case sequence.
+
 ## Fixture Rules
 
 Mutation fixtures must be small and explicit:

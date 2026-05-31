@@ -1,0 +1,30 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "property_required",
+  "task_class": "high_risk",
+  "deterministic": true,
+  "status": "failed",
+  "properties": [
+    {
+      "name": "sandbox_isolation",
+      "invariant": "Isolation",
+      "seeds": [
+        3
+      ],
+      "generator": {
+        "summary": "randomized sandbox outputs checked against source immutability",
+        "generated_cases": 200
+      },
+      "shrinking": {
+        "status": "minimized"
+      },
+      "result": "failed",
+      "counterexample": {
+        "seed": 3,
+        "minimized_input": "mutate stdout buffer then read source",
+        "note": "source input changed after sandbox write"
+      }
+    }
+  ]
+}

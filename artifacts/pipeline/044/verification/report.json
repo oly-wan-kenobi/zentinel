@@ -1,0 +1,35 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "044",
+  "status": "passed",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/044/verification/report.json"
+    },
+    {
+      "name": "property_report_fixture_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 - (property-report invariant checker over test/fixtures/pipeline/property_tests/{valid,invalid}/*.json)",
+      "artifact": "test/fixtures/pipeline/property_tests"
+    },
+    {
+      "name": "property_tests",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "task scope is property-test policy and fixtures only; no Required For surface changed"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "no executable product behavior changed"
+    }
+  ],
+  "residual_risk": [],
+  "recommendation": "complete"
+}

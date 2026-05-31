@@ -1,0 +1,25 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "property_required",
+  "task_class": "normal",
+  "deterministic": true,
+  "status": "passed",
+  "properties": [
+    {
+      "name": "p",
+      "seeds": [
+        1
+      ],
+      "generator": {
+        "summary": "x",
+        "generated_cases": 10
+      },
+      "shrinking": {
+        "status": "not_triggered"
+      },
+      "result": "passed",
+      "counterexample": null
+    }
+  ]
+}

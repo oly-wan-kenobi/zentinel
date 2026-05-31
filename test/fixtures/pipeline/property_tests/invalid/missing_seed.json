@@ -1,0 +1,24 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "property_required",
+  "task_class": "normal",
+  "deterministic": true,
+  "status": "passed",
+  "properties": [
+    {
+      "name": "id_determinism",
+      "invariant": "Determinism",
+      "seeds": [],
+      "generator": {
+        "summary": "enumerated inputs for id_determinism",
+        "generated_cases": 128
+      },
+      "shrinking": {
+        "status": "not_triggered"
+      },
+      "result": "passed",
+      "counterexample": null
+    }
+  ]
+}

@@ -30,6 +30,7 @@ Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the 
 | Public contract ambiguity | Contract Editor drafts the contract update, then Architecture Reviewer reviews it. |
 | Dependency request | Apply `docs/DEPENDENCY_POLICY.md`. |
 | Compiler internal risk | Architecture Reviewer required. |
+| Missing property evidence on a high-risk or compiler-internal task | Verifier blocks completion until property evidence is added per `docs/PROPERTY_TEST_POLICY.md` or a narrower deterministic reason is recorded. |
 | Security boundary uncertainty | Apply `docs/SANDBOX_SECURITY.md`; ask user only if policy is insufficient. |
 
 ## Reviewer Requirements

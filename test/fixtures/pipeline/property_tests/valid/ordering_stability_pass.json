@@ -1,0 +1,44 @@
+{
+  "schema_version": "zentinel.pipeline.property_report.v1",
+  "task_id": "044",
+  "scope": "property_required",
+  "task_class": "normal",
+  "deterministic": true,
+  "status": "passed",
+  "properties": [
+    {
+      "name": "candidate_ordering_stability",
+      "invariant": "Stability",
+      "seeds": [
+        42
+      ],
+      "generator": {
+        "summary": "shuffled candidate sets compared against canonical ordering",
+        "generated_cases": 128
+      },
+      "shrinking": {
+        "status": "not_triggered"
+      },
+      "result": "passed",
+      "counterexample": null
+    },
+    {
+      "name": "span_round_trip",
+      "invariant": "Round-trip",
+      "seeds": [
+        5,
+        6,
+        7
+      ],
+      "generator": {
+        "summary": "byte offset to line/column and back",
+        "generated_cases": 300
+      },
+      "shrinking": {
+        "status": "not_triggered"
+      },
+      "result": "passed",
+      "counterexample": null
+    }
+  ]
+}

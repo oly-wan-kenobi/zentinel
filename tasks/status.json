@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "044",
+  "next_task": "045",
   "completed_tasks": [
     "068",
     "069",
@@ -84,7 +84,8 @@
     "041",
     "063",
     "042",
-    "043"
+    "043",
+    "044"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -95,6 +96,69 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "044",
+      "failing_evidence": "failing_command: a standard-library-only property-report invariant checker that loads test/fixtures/pipeline/property_tests/{valid,invalid}/*.json and asserts each valid report is internally consistent (every property names a mandatory invariant category, carries an explicit non-empty seed list, a generator summary with an integer case count, and a shrinking status; a failed property carries a minimized counterexample; report status equals failed iff any property failed; and a high-risk or compiler-internal property_required report lists at least one property) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid property-test report fixtures` and exited 1. implementation_started_after_failure: true; the five consistent fixtures, the eight inconsistent fixtures (including the canonical high-risk-missing-property-evidence case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=8 categories=['Collision resistance', 'Determinism', 'Isolation', 'Monotonicity', 'Round-trip', 'Stability']` and `PASS` (exit 0), demonstrating all six mandatory invariant categories and proving via a property-order permutation that report status is independent of property ordering. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and chooses no property-test library or generator (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified when property tests are required and how seeds, invariants, shrinking, and reports must work, refining docs/PROPERTY_TEST_POLICY.md without recreating its existing Required For / Availability Cutover / Invariant Categories / Seed Policy / Review sections. Added the two missing Required For surfaces (report rendering; schedulers and work ordering), a `## Task Complexity Classes` table mapping property evidence to low/normal/high-risk/compiler-internal classes (high-risk and compiler-internal must carry evidence; compiler-internal missing evidence is an escalation trigger), and a `## Reports` artifact contract defining artifacts/pipeline/<task-id>/property/report.json (`zentinel.pipeline.property_report.v1`) whose status is failed iff any property fails, where each property records its mandatory invariant category, explicit seed list, generator summary and case count, and shrinking status, and a failed property must carry a minimized counterexample. The durable JSON Schema and SCHEMA_REGISTRY row are deferred to the task-062 generated property infrastructure, so no schema file is registered here. Connected requirements to docs/VERIFICATION_PIPELINE.md (the Property tests stage maps to the report artifact and blocks on missing seed or invariant), docs/TDD_POLICY.md (the deterministic surfaces are the property Required For surfaces; same seed reproduces the same generated sequence), and docs/PIPELINE_ESCALATION_POLICY.md (a new trigger row: missing property evidence on a high-risk or compiler-internal task blocks completion). Added per-category fixtures under test/fixtures/pipeline/property_tests/ demonstrating all six invariant categories across passed and failed-with-counterexample reports plus a not_property_required skip, and eight inconsistent reports each rejected by the checker. Dogfooded the contract with artifacts/pipeline/044/property/report.json (a real not_property_required skip for this docs/fixtures task) and artifacts/pipeline/044/verification/report.json. No property generator or library chosen, no runtime mutation behavior changed (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST changes (forbidden).",
+      "files_changed": [
+        "docs/PROPERTY_TEST_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/TDD_POLICY.md",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "test/fixtures/pipeline/property_tests/valid/id_determinism_pass.json",
+        "test/fixtures/pipeline/property_tests/valid/ordering_stability_pass.json",
+        "test/fixtures/pipeline/property_tests/valid/scheduler_and_report_rendering_pass.json",
+        "test/fixtures/pipeline/property_tests/valid/failed_with_counterexample.json",
+        "test/fixtures/pipeline/property_tests/valid/not_property_required_skip.json",
+        "test/fixtures/pipeline/property_tests/invalid/high_risk_missing_property_evidence.json",
+        "test/fixtures/pipeline/property_tests/invalid/missing_seed.json",
+        "test/fixtures/pipeline/property_tests/invalid/missing_invariant.json",
+        "test/fixtures/pipeline/property_tests/invalid/bad_invariant_category.json",
+        "test/fixtures/pipeline/property_tests/invalid/missing_generator_summary.json",
+        "test/fixtures/pipeline/property_tests/invalid/missing_shrinking_status.json",
+        "test/fixtures/pipeline/property_tests/invalid/failed_without_counterexample.json",
+        "test/fixtures/pipeline/property_tests/invalid/status_mismatch.json",
+        "artifacts/pipeline/044/property/report.json",
+        "artifacts/pipeline/044/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/property_tests/valid/**: five internally-consistent property reports covering all six mandatory invariant categories (Determinism, Stability, Round-trip, Isolation, Monotonicity, Collision resistance) across passed reports, a failed report with a minimized counterexample, and a not_property_required skip.",
+        "test/fixtures/pipeline/property_tests/invalid/**: eight inconsistent reports each rejected by the checker (high-risk missing evidence, missing seed, missing/invalid invariant, missing generator summary, missing shrinking status, failed without counterexample, status mismatch).",
+        "Property-report invariant checker: enforces seed/invariant/generator/shrinking presence, failed-counterexample coupling, and status derivation, and proves via a property-order permutation that report status is independent of property ordering."
+      ],
+      "tests_run": [
+        "property-report invariant checker over test/fixtures/pipeline/property_tests/ (failing): before fixtures existed -> 'FAIL: no valid property-test report fixtures', exit 1",
+        "property-report invariant checker (passing): valid=5 invalid=8, all six invariant categories demonstrated, PASS, exit 0",
+        "property-order permutation property: PASS (report status invariant under property ordering)",
+        "artifacts/pipeline/044/property/report.json validated by the checker; artifacts/pipeline/044/verification/report.json validated against pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 044 was active and again after the complete-state transition. The task added the property-report contract, complexity-class mapping, the two missing Required For surfaces, and cross-links. No gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Property tests become required for zentinel's own deterministic surfaces (IDs, ordering, source spans, cache keys, schedulers, config normalization, report rendering) before dogfood gates can be trusted; the property report contract and fixtures give task 062 (generated property infrastructure) and task 046 (verification pipeline) a deterministic artifact to emit and validate.",
+      "follow_up_tasks": [
+        "tasks/046-verification-pipeline.md",
+        "tasks/062-property-generator-infrastructure.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/044/property/report.json",
+        "artifacts/pipeline/044/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "043",
       "failing_evidence": "failing_command: a standard-library-only gate-invariant checker that loads test/fixtures/pipeline/mutation_gate/{valid,invalid}/*.json and asserts each valid gate report is internally consistent (summary counts sum to total, survivors length equals the survived count, retry limit matches the task class, classifications are in the allowed set, and the declared gate_status plus blocking_reasons equal the values derived from baseline/invalid/nondeterministic/untriaged-survivor conditions) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid mutation gate fixtures` and exited 1. implementation_started_after_failure: true; the seven internally-consistent fixtures, the eight inconsistent fixtures (including the canonical untriaged-survivor-marked-passed case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=7 invalid=8 statuses_demonstrated=['compile_error', 'compiler_crash', 'invalid', 'killed', 'survived', 'timeout']` and `PASS` (exit 0), with a survivor-order permutation property proving the gate decision is independent of survivor ordering. This task changes no executable product code (docs, JSON fixtures, and pipeline artifacts only); no mutation execution is implemented (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

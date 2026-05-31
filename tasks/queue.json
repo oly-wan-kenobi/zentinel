@@ -2826,7 +2826,7 @@
       "title": "Property Test Policy",
       "file": "tasks/044-property-test-policy.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "043"
       ],
