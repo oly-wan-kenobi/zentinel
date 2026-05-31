@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `113` (`tasks/113-wire-doctest-survivor-path.md`) |
+| Next task | `114` (`tasks/114-scope-experimental-backends.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |

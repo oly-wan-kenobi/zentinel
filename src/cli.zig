@@ -1077,11 +1077,8 @@ fn runDoctestMutate(
         try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: doctest --mutate requires --file\n");
         return 2;
     };
-    // Experimental and opt-in: only run over fixture documentation.
-    if (std.mem.indexOf(u8, doc, "fixtures/doctest") == null) {
-        try stderr.writeAll("error: doctest --mutate is experimental and only runs over fixture docs (test/fixtures/doctest/**)\n");
-        return 2;
-    }
+    // Opt-in: passing `--mutate` explicitly is the opt-in (task 113 retired the
+    // hardcoded fixtures-only gate, so it now runs over any --file documentation).
 
     var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
     defer root_dir.close(io);
@@ -1092,11 +1089,19 @@ fn runDoctestMutate(
 
     var ctx = DoctestMutateCtx{ .gpa = gpa, .io = io, .root_dir = root_dir, .timeout = .none };
     const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn };
-    const r = try zentinel.doctest.mutation_experiment.run(gpa, doc, source, sr);
-    const json = try zentinel.doctest.mutation_experiment.toJson(gpa, r);
+    // Produce the STABLE mutation-aware report (durable `dm_` ids, `ds_` survivor
+    // refs) and PERSIST it to the survivor report path so `doctest
+    // explain-survivor` can resolve a real survivor (task 113).
+    const json = try zentinel.doctest.mutation_experiment.mutateReportJson(gpa, doc, source, sr);
+    const out_path = zentinel.ai.doctest_command.default_report_path;
+    if (std.fs.path.dirname(out_path)) |parent| root_dir.createDirPath(io, parent) catch {};
+    root_dir.writeFile(io, .{ .sub_path = out_path, .data = json }) catch |err| {
+        try stderr.print("error: could not write doctest mutation report to {s}: {s}\n", .{ out_path, @errorName(err) });
+        return 2;
+    };
     try stdout.writeAll(json);
     try stdout.writeAll("\n");
-    // Experimental prototype: surviving documentation mutants are reported but do
-    // not fail the command (stabilization is a later task).
+    // Surviving documentation mutants are reported but do not fail the command;
+    // they are resolved advisorily via `doctest explain-survivor`.
     return 0;
 }

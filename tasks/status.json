@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "113",
+  "next_task": "114",
   "completed_tasks": [
     "068",
     "069",
@@ -115,14 +115,15 @@
     "109",
     "110",
     "111",
-    "112"
+    "112",
+    "113"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 112 truthful environment policy completed (implement path, user-authorized). It was briefly blocked on a scope_gap; the user authorized adding src/main.zig (and this task file) to allowed_files, so 112 resumed active and was implemented. runner.minimalEnviron builds the documented allowlist (PATH/HOME/TMPDIR/ZIG_GLOBAL_CACHE_DIR/ZIG_LOCAL_CACHE_DIR + forced LC_ALL=C/LANG=C) from the parent env; main.zig threads std.process.Init.environ_map into cli.run, and the run command's executors now pass that minimal map as environ_map for every test command, so environment_policy=minimal is truthful. Proven by a unit test that fails under the pre-fix inherit-all behavior (LC_ALL not forced, secret leaks) and by the task-111 real-binary integration test passing under the restricted env (zig test works with the allowlist). docs/SANDBOX_SECURITY.md states the policy is implemented. Full suite green (501 tests); zig build, zig fmt --check, git diff --check, validator all clean."
+    "notes": "Task 113 wire the mutation-aware doctest survivor path completed. `doctest --mutate` was fenced to fixtures and wrote stdout only, and `doctest explain-survivor` read a report no command produced. It now routes through mutation_experiment.mutateReportJson (a thin entry over the existing stableMutationRun) and PERSISTS the stable zentinel.doctest.report.v1 report (ds_ survivor refs) to the default survivor path zig-out/zentinel/doctest/report.json; the hardcoded fixtures gate is removed (the explicit --mutate flag is the opt-in). Proven by a module test (produces the report via mutateReportJson, then runSurvivor resolves a ds_ extracted from it; the producer entry point did not exist before, so it did not compile) AND a real-binary end-to-end run: `doctest --mutate` over survived.md persisted a report with a real zig-test survivor, and `doctest explain-survivor <ds_> --ai-provider stub` resolved+explained it (bogus ref -> ZNTL_DOCTEST_SURVIVOR_NOT_FOUND). CLI_SPEC and DOCTEST_AI_INTEGRATION document the reachable end-to-end path. Full suite green (502 tests); zig build, zig fmt --check, git diff --check, validator all clean."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5549,6 +5550,51 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/112/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "113",
+      "failing_evidence": "failing_command: `zig build test` with the end-to-end test in test/ai_doctest_survivor_cli_test.zig written first. failing_output_excerpt: the test references zentinel.doctest.mutation_experiment.mutateReportJson -- the producer entry point the CLI persists -- which did not exist before this task, so the test failed to compile ('no member named mutateReportJson'). This mirrors the dead CLI path: `doctest --mutate` produced only the experimental report to stdout (no ds_ survivor refs, no persist), so `doctest explain-survivor` against the default report path always dead-ended. implementation_started_after_failure: true. passing_command: after adding mutateReportJson and persisting the stable report from runDoctestMutate, `zig build test` passed (502 tests) -- the test produces a stable report and dc.runSurvivor resolves a ds_ extracted from it. A real-binary end-to-end run confirmed it: `zentinel doctest --mutate --file test/fixtures/doctest/mutation/survived.md` persisted a zentinel.doctest.report.v1 report with a real zig-test survivor (ds_d11j6nvjc75dssk5a1ttvbpf85), and `zentinel doctest explain-survivor ds_d11j... --ai-provider stub` resolved+explained it (classification doctest_survivor_missing_assertion), while a bogus ds_ ref returned ZNTL_DOCTEST_SURVIVOR_NOT_FOUND.",
+      "implementation_summary": "Made `zentinel doctest explain-survivor` reachable end-to-end by wiring the mutation-aware doctest producer into the CLI (the preferred path over marking it unimplemented). src/doctest/mutation_experiment.zig adds mutateReportJson(arena, file, source, snippet_runner): a thin entry over the existing stableMutationRun (always opted-in) + stableToJson that returns the persistable stable zentinel.doctest.report.v1 JSON (durable dm_ ids, ds_ survivor refs). src/cli.zig runDoctestMutate now (1) removes the hardcoded fixtures-only path gate -- the explicit --mutate flag is the opt-in -- and (2) builds the stable report via mutateReportJson and PERSISTS it to ai.doctest_command.default_report_path (zig-out/zentinel/doctest/report.json under the project root, creating the parent dir), in addition to printing it to stdout. runDoctestSurvivorAi already reads that default path, so `doctest explain-survivor` resolves a ds_ survivor from a report the tool actually produces. The experimental mutation_experiment.run/toJson surface is left unchanged (still covered by doctest_mutation_experiment_test) and is simply no longer the CLI's --mutate engine. docs/CLI_SPEC.md and docs/DOCTEST_AI_INTEGRATION.md document the persisted report and the reachable produce->resolve path. Non-goals respected: no new doctest mutation operators; AI stays advisory-only (explain-survivor never changes a status, report, snapshot, or doc). src/report.zig, build.zig, build.zig.zon untouched (forbidden); src/ai/doctest_command.zig was in allowed_files but needed no change (runSurvivor already resolves the stable report shape). A spawn-based automated CLI test would need build.zig (out of scope, as in task 111), so the CLI adapter wiring is verified by the recorded real-binary end-to-end run plus the module producer->consumer test.",
+      "files_changed": [
+        "src/doctest/mutation_experiment.zig",
+        "src/cli.zig",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "artifacts/pipeline/113/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_doctest_survivor_cli_test.zig: 'a mutation-aware report the tool produces resolves a real survivor via explain-survivor' -- produces the stable report via mutation_experiment.mutateReportJson over the survived.md fixture (the exact producer the CLI persists), extracts a ds_ survivor_ref from the produced report, and asserts dc.runSurvivor resolves it (classification doctest_survivor_missing_assertion). It did not compile before the producer entry point existed."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): test/ai_doctest_survivor_cli_test.zig did not compile (no mutation_experiment.mutateReportJson)",
+        "zig build test (passing, after the fix): 502 tests green",
+        "real-binary end-to-end (passing): doctest --mutate persisted a stable report with a real zig-test survivor; doctest explain-survivor <ds_> --ai-provider stub resolved+explained it; bogus ref -> ZNTL_DOCTEST_SURVIVOR_NOT_FOUND",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 113 was active and again after the complete-state transition with next_task advanced to 114 (114 depends on the now-complete 113). The task-113 verification artifact validates and no coverage-gap rows are deferred to task 113. The gitignored .claude/ lock recreated by the loop wakeup, and the gitignored zig-out/zentinel runtime output from the end-to-end run, were removed before validating."
+      },
+      "dogfooding_implication": "zentinel's doctest survivor assistance now works on real documentation, not only a test-only code path: `zentinel doctest --mutate --file <doc>` produces and persists a mutation-aware report, and `zentinel doctest explain-survivor <ds_...>` resolves a real survivor from it -- so an advertised CLI subcommand no longer dead-ends with no possible input, and zentinel can advise on documentation mutants that survive its own docs.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/113/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

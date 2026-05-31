@@ -3716,7 +3716,7 @@
       "title": "Wire The Mutation-Aware Doctest Survivor Path",
       "file": "tasks/113-wire-doctest-survivor-path.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "112"
       ],

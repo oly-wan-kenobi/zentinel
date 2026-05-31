@@ -2,6 +2,8 @@ const std = @import("std");
 const zentinel = @import("zentinel");
 const dc = zentinel.ai.doctest_command;
 const command = zentinel.ai.command;
+const me = zentinel.doctest.mutation_experiment;
+const runner = zentinel.runner;
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -157,6 +159,62 @@ test "survivor stub output uses the doctest survivor classification label" {
     try expectEqual(@as(u8, 0), out.exit_code);
     try expect(contains(out.body, "classification: doctest_survivor_missing_assertion"));
     try expect(contains(out.body, "next action:"));
+}
+
+// 9. End-to-end (task 113): the report the mutation-aware doctest path PRODUCES
+//    is resolvable by explain-survivor. Before this task, `doctest --mutate`
+//    produced the experimental report (no ds_ refs) to stdout only and persisted
+//    nothing, so explain-survivor against the default path was a dead-end. Now
+//    `doctest --mutate` builds the stable report via mutation_experiment.mutateReportJson
+//    (the exact producer the CLI persists) and explain-survivor resolves a survivor
+//    from it.
+
+// A mutated snippet that becomes `return a - b` fails (exit 1); everything else
+// passes, so the surviving mutant of the survived.md fixture survives.
+const SurvivingMock = struct {
+    fn run(ctx: *anyopaque, mutated: []const u8) runner.RawOutcome {
+        _ = ctx;
+        const broke = std.mem.indexOf(u8, mutated, "return a - b") != null;
+        return .{ .exit_code = if (broke) 1 else 0, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = if (broke) "doctest assertion failed" else "" };
+    }
+};
+
+test "a mutation-aware report the tool produces resolves a real survivor via explain-survivor" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    // Produce the stable mutation-aware report exactly as `doctest --mutate` now
+    // does (mutation_experiment.mutateReportJson is the persisted producer).
+    const src = try readFile(arena, "test/fixtures/doctest/mutation/survived.md");
+    const snippet_runner = me.SnippetRunner{ .ctx = undefined, .runFn = SurvivingMock.run };
+    const json = try me.mutateReportJson(arena, "docs/survived.md", src, snippet_runner);
+
+    // Extract a ds_ survivor ref from the PRODUCED report (not a hand-authored
+    // fixture), so the resolution is over a report the tool actually emits.
+    const produced = parseValue(arena, json);
+    var produced_ref: ?[]const u8 = null;
+    for (produced.object.get("cases").?.array.items) |c| {
+        if (std.mem.eql(u8, c.object.get("status").?.string, "survived")) {
+            if (c.object.get("mutation").?.object.get("survivor_ref")) |sref| {
+                if (sref == .string) produced_ref = sref.string;
+            }
+        }
+    }
+    const ds = produced_ref orelse return error.NoSurvivorProduced;
+    try expect(std.mem.startsWith(u8, ds, "ds_"));
+
+    // explain-survivor resolves the produced survivor (was always
+    // ZNTL_DOCTEST_SURVIVOR_NOT_FOUND because no command produced this report).
+    const out = try dc.runSurvivor(arena, .{
+        .survivor_ref = ds,
+        .provider_override = .stub,
+        .report_json = json,
+        .settings = settings(),
+    }, .json);
+    try expectEqual(@as(u8, 0), out.exit_code);
+    const value = parseValue(arena, out.body);
+    try expectEqualStrings("doctest_survivor_missing_assertion", value.object.get("classification").?.string);
 }
 
 // 8. advisory only: no change to survivor status, the report, or expected blocks.

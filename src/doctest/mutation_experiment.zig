@@ -439,3 +439,15 @@ pub fn stableMutationRun(
 pub fn stableToJson(arena: std.mem.Allocator, r: StableReport) std.mem.Allocator.Error![]u8 {
     return std.json.Stringify.valueAlloc(arena, r, .{ .whitespace = .indent_2 });
 }
+
+/// Produce the persistable stable mutation-aware doctest report JSON for one doc:
+/// the report `zentinel doctest --mutate` writes to the survivor report path so
+/// `doctest explain-survivor` can resolve a `ds_` survivor (task 113). The explicit
+/// `--mutate` invocation is the opt-in, so this always runs opted-in.
+pub fn mutateReportJson(arena: std.mem.Allocator, file: []const u8, source: []const u8, snippet_runner: SnippetRunner) std.mem.Allocator.Error![]u8 {
+    const r = stableMutationRun(arena, file, source, snippet_runner, true) catch |err| switch (err) {
+        error.NotOptedIn => unreachable, // always opted in from this entry point
+        error.OutOfMemory => return error.OutOfMemory,
+    };
+    return stableToJson(arena, r);
+}
