@@ -1,0 +1,23 @@
+{
+  "schema_version": "zentinel.pipeline.escalation.v1",
+  "task_id": "049",
+  "task_class": "low_risk",
+  "trigger": "docs_only_clarification",
+  "evidence": [
+    "artifacts/pipeline/049/escalation/low_risk.txt"
+  ],
+  "attempted_recovery": [
+    "bounded fix within task scope"
+  ],
+  "required_decision": "retry_same_task",
+  "recommended_autonomous_action": "create focused follow-up task",
+  "user_input_required": false,
+  "outcome": "retry_same_task",
+  "required_gates": [
+    "task_system_validation",
+    "targeted_check"
+  ],
+  "required_reviewers": [
+    "Verifier"
+  ]
+}

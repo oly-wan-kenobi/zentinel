@@ -108,7 +108,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 046 | `tasks/046-verification-pipeline.md` | complete | 1 |
 | 047 | `tasks/047-sequential-task-locking.md` | complete | 0 |
 | 048 | `tasks/048-failure-recovery.md` | complete | 0 |
-| 049 | `tasks/049-pipeline-escalation.md` | queued | 0 |
+| 049 | `tasks/049-pipeline-escalation.md` | complete | 0 |
 | 050 | `tasks/050-parallel-worker-pool.md` | queued | 3 |
 | 051 | `tasks/051-fail-fast-impact-analysis.md` | queued | 3 |
 | 052 | `tasks/052-performance-benchmarks.md` | queued | 3 |

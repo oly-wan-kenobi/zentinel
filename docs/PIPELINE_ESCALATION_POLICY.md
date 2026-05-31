@@ -74,14 +74,34 @@ Machine-readable variant:
 {
   "schema_version": "zentinel.pipeline.escalation.v1",
   "task_id": "043",
+  "task_class": "compiler_internal",
   "trigger": "survivor_after_retry_limit",
   "evidence": ["artifacts/pipeline/043/mutation/report.json"],
   "attempted_recovery": ["added boundary fixture", "reran mutation gate"],
   "required_decision": "architecture_review",
   "recommended_autonomous_action": "create focused source-mapping follow-up task",
-  "user_input_required": false
+  "user_input_required": false,
+  "outcome": "architecture_review_required",
+  "required_gates": [
+    "task_system_validation",
+    "targeted_check",
+    "unit_tests",
+    "property_tests",
+    "mutation_gate",
+    "source_mapping_fixtures",
+    "architecture_review"
+  ],
+  "required_reviewers": [
+    "Test Reviewer",
+    "Implementation Reviewer",
+    "Verifier",
+    "Architecture Reviewer",
+    "Property Test Agent"
+  ]
 }
 ```
+
+Task `049` refined this record (`schemas/pipeline.escalation.v1.schema.json`) with the optional `task_class`, `outcome`, `required_gates`, and `required_reviewers` fields. `required_gates` is monotonic across the Escalation Classes chain (a higher class includes every gate of every lower class), and a `compiler_internal` escalation must list both `Architecture Reviewer` and `Property Test Agent` in `required_reviewers`.
 
 ## Escalation Outcomes
 

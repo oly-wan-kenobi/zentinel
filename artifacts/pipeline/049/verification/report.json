@@ -1,0 +1,36 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "049",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/049/verification/report.json"
+    },
+    {
+      "name": "escalation_fixture_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 - (escalation checker over test/fixtures/pipeline/escalation/{valid,invalid}/*.json and the 041 flat pair)",
+      "artifact": "test/fixtures/pipeline/escalation"
+    },
+    {
+      "name": "non_breaking_schema_refinement",
+      "required": true,
+      "status": "passed",
+      "evidence": "the task-041 escalation valid.json still validates and invalid.json is still rejected against the refined pipeline.escalation.v1 schema"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "docs, schema, and JSON fixtures only; no executable behavior changed"
+    }
+  ],
+  "residual_risk": [],
+  "recommendation": "complete"
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "zentinel.pipeline.escalation.v1",
+  "task_id": "049",
+  "task_class": "high_risk",
+  "trigger": "survivor_after_retry_limit",
+  "evidence": [
+    "artifacts/pipeline/049/escalation/high_risk.txt"
+  ],
+  "attempted_recovery": [
+    "bounded fix within task scope"
+  ],
+  "required_decision": "architecture_review",
+  "recommended_autonomous_action": "create focused follow-up task",
+  "user_input_required": false,
+  "outcome": "architecture_review_required",
+  "required_gates": [
+    "task_system_validation",
+    "targeted_check",
+    "unit_tests",
+    "property_tests",
+    "mutation_gate"
+  ],
+  "required_reviewers": [
+    "Test Reviewer",
+    "Implementation Reviewer",
+    "Verifier",
+    "Property Test Agent"
+  ]
+}

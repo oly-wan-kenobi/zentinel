@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "049",
+  "next_task": "050",
   "completed_tasks": [
     "068",
     "069",
@@ -89,7 +89,8 @@
     "045",
     "046",
     "047",
-    "048"
+    "048",
+    "049"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -100,6 +101,66 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "049",
+      "failing_evidence": "failing_command: a standard-library-only escalation checker that imports subset_validate from scripts/validate_task_system.py, validates each test/fixtures/pipeline/escalation/{valid,invalid}/*.json against the refined schemas/pipeline.escalation.v1.schema.json, and adds per-class semantic rules (required_gates must include the canonical minimum gate set for the task_class; required_reviewers must include the canonical minimum reviewers; a high_risk record must include Property Test Agent or Mutation Agent; a compiler_internal record must include both Architecture Reviewer and Property Test Agent; outcome must be one of the five documented outcomes) plus a monotonicity check that the canonical gate sets form a strict low_risk subset normal subset high_risk subset compiler_internal chain. failing_output_excerpt: before the comprehensive fixtures existed it printed `FAIL: no comprehensive escalation class fixtures (valid/ subdir)` and exited 1. implementation_started_after_failure: true; the seven per-class and trigger fixtures, the seven invalid fixtures (including the canonical compiler-internal missing Architecture Reviewer and missing Property Test Agent cases), and the non-breaking schema refinement were written only after capturing that failure. passing_command: the checker then printed `valid=7 invalid=7 classes=['architecture', 'compiler_internal', 'high_risk', 'low_risk', 'normal']` and `PASS` (exit 0), proving all five complexity classes, the canonical-chain monotonicity, a property that escalating normal to high_risk without adding the higher class's gates is rejected, and that the task-041 escalation valid.json still validates and invalid.json is still rejected under the refined schema. The policy's machine-readable escalation example also validates against the refined schema. This task changes no executable product code (docs, schema, JSON fixtures, pipeline artifacts only) and implements no automated classifier (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Finalized complexity escalation and refined the baseline task-041 escalation schema with final outcomes, triggers, and monotonic gate evidence, without weakening it (no new required fields). schemas/pipeline.escalation.v1.schema.json gained per-field descriptions and four optional fields: task_class (low_risk/normal/high_risk/compiler_internal/architecture), outcome (the five terminal outcomes retry_same_task/return_to_test_author/create_prerequisite_task/architecture_review_required/blocked_needs_user), required_gates (monotonic across the class chain), and required_reviewers -- every existing escalation artifact still validates. docs/PIPELINE_ESCALATION_POLICY.md already documented the Escalation Classes table with the monotonic-gates statement, the Trigger Matrix, Reviewer Requirements, the AskUserQuestion boundary, the both-specialized-roles-only-when-both-triggers rule, and the five Escalation Outcomes, so the only doc change was updating the machine-readable escalation example to show the refined task_class/outcome/required_gates/required_reviewers fields and noting the monotonicity and compiler_internal reviewer requirement. Added fixtures under test/fixtures/pipeline/escalation/{valid,invalid}/ demonstrating all five classes, two trigger examples, and seven rejections (compiler-internal missing Architecture Reviewer, compiler-internal missing Property Test Agent, high-risk missing the property gate, a monotonicity violation that drops a lower-class gate, a bad outcome, a bad task_class, and a missing required field), and kept the task-041 flat valid/invalid pair as the non-breaking baseline. Dogfooded with artifacts/pipeline/049/verification/report.json (task 049 passed cleanly with no escalation, so no escalation artifact was fabricated). The schemas.v1.json escalation row stays deferred to task 041 per the schema-ownership guardrail with its existing superseded-by-049 notes. No automated classifier, runtime orchestration, or relaxation of sequential execution (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST changes (forbidden).",
+      "files_changed": [
+        "schemas/pipeline.escalation.v1.schema.json",
+        "docs/PIPELINE_ESCALATION_POLICY.md",
+        "test/fixtures/pipeline/escalation/valid/low_risk.json",
+        "test/fixtures/pipeline/escalation/valid/normal.json",
+        "test/fixtures/pipeline/escalation/valid/high_risk.json",
+        "test/fixtures/pipeline/escalation/valid/compiler_internal.json",
+        "test/fixtures/pipeline/escalation/valid/architecture.json",
+        "test/fixtures/pipeline/escalation/valid/trigger_survivor_after_retry.json",
+        "test/fixtures/pipeline/escalation/valid/trigger_security_boundary.json",
+        "test/fixtures/pipeline/escalation/invalid/compiler_internal_missing_architecture_reviewer.json",
+        "test/fixtures/pipeline/escalation/invalid/compiler_internal_missing_property_test_agent.json",
+        "test/fixtures/pipeline/escalation/invalid/high_risk_missing_property_gate.json",
+        "test/fixtures/pipeline/escalation/invalid/monotonicity_violation.json",
+        "test/fixtures/pipeline/escalation/invalid/bad_outcome.json",
+        "test/fixtures/pipeline/escalation/invalid/bad_task_class.json",
+        "test/fixtures/pipeline/escalation/invalid/missing_trigger.json",
+        "artifacts/pipeline/049/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/escalation/valid/**: seven escalation records covering all five complexity classes plus survivor-after-retry and security-boundary triggers, each with its monotonic required_gates and required_reviewers.",
+        "test/fixtures/pipeline/escalation/invalid/**: seven rejected records (compiler-internal missing Architecture Reviewer, compiler-internal missing Property Test Agent, high-risk missing the property gate, a monotonicity violation, a bad outcome, a bad task_class, and a missing required field).",
+        "Escalation checker: subset_validate against the refined schema plus per-class gate/reviewer minimums and outcome enum, a canonical-chain monotonicity check, and a property that escalating a class without adding its gates is rejected, with a non-breaking proof on the task-041 flat pair."
+      ],
+      "tests_run": [
+        "escalation checker over the comprehensive fixture set (failing): before the valid/ subdir existed -> 'FAIL: no comprehensive escalation class fixtures', exit 1",
+        "escalation checker (passing): valid=7 invalid=7 classes=[architecture, compiler_internal, high_risk, low_risk, normal], PASS, exit 0",
+        "monotonicity of the canonical gate chain and the escalation-cannot-remove-gates property: PASS",
+        "non-breaking proof: the task-041 escalation valid/invalid pair and the policy machine-readable example validate against the refined schema",
+        "artifacts/pipeline/049/verification/report.json validated against pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 049 was active and again after the complete-state transition. The escalation.v1 schema-ownership row stays deferred to task 041 with superseded-by-049 notes per the guardrail; the policy's required phrases were already present; no gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Escalation rules determine when zentinel's own development tasks require mutation gates, property evidence, doctest evidence, or architecture review, and the monotonic required-gate evidence keeps escalation from silently dropping a gate; task 064 (pipeline artifact CI integration) consumes the refined records.",
+      "follow_up_tasks": [
+        "tasks/064-pipeline-artifact-ci-integration.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/049/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "048",
       "failing_evidence": "failing_command: a standard-library-only recovery-transition checker that loads test/fixtures/pipeline/failure_recovery/{valid,invalid}/*.json and asserts each transition (from_state, trigger, to_state) is in the deterministic valid set, that retry.limit matches the task class, that a retry cycle exceeding the limit may only transition to escalated, that a rollback scope is only agent_owned, and that every transition records non-empty auditable evidence. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid failure recovery fixtures` and exited 1. implementation_started_after_failure: true; the nine valid transitions, the nine invalid transitions (including the canonical failed_mutation_gate -> complete), and the Recovery Transitions policy section were written only after capturing that failure. passing_command: the checker then printed `valid=9 invalid=9 property_transitions_checked=1000` and `PASS` (exit 0); a property over the full from x trigger x to space of 1000 generated transitions proved acceptance happens if and only if the transition is in the valid set, and that no failure state is ever accepted transitioning directly to complete. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and adds no rollback commands or git history changes (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
