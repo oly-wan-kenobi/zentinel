@@ -1,0 +1,68 @@
+{
+  "schema_version": "zentinel.doctest.mutation_experiment.v1",
+  "experimental": true,
+  "summary": {
+    "cases": 3,
+    "skipped_cases": 1,
+    "mutants": 2,
+    "killed": 1,
+    "survived": 1,
+    "other": 0
+  },
+  "cases": [
+    {
+      "doctest_case_id": "dt_2za44pvd1c3sjfdykv9neah8f8",
+      "file": "test/fixtures/doctest/mutation/report.md",
+      "line": 5,
+      "skipped": false,
+      "skip_reason": null,
+      "mutants": [
+        {
+          "mutant_id": "m_03fm4q804wf7emg71yrk0dbmzz",
+          "operator": "arithmetic_add_sub",
+          "status": "killed",
+          "survivor_ref": null,
+          "runner_evidence": {
+            "status": "killed",
+            "failure_kind": "test_failure",
+            "exit_code": 1,
+            "timed_out": false,
+            "stdout_excerpt": "",
+            "stderr_excerpt": "doctest assertion failed"
+          }
+        }
+      ]
+    },
+    {
+      "doctest_case_id": "dt_kapqb43khn06g9hvgt7gzcgxmv",
+      "file": "test/fixtures/doctest/mutation/report.md",
+      "line": 17,
+      "skipped": false,
+      "skip_reason": null,
+      "mutants": [
+        {
+          "mutant_id": "m_8gjkdzyacjhze4s5smk9mbbgmr",
+          "operator": "comparison_boundary",
+          "status": "survived",
+          "survivor_ref": "m_8gjkdzyacjhze4s5smk9mbbgmr",
+          "runner_evidence": {
+            "status": "survived",
+            "failure_kind": "none",
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout_excerpt": "",
+            "stderr_excerpt": ""
+          }
+        }
+      ]
+    },
+    {
+      "doctest_case_id": "dt_0k4anz38ta286jzptj6pv9jva4",
+      "file": "test/fixtures/doctest/mutation/report.md",
+      "line": 29,
+      "skipped": true,
+      "skip_reason": "no_behavioral_assertion",
+      "mutants": []
+    }
+  ]
+}

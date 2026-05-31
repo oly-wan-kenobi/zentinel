@@ -523,6 +523,12 @@ fn runDoctest(
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
 ) !u8 {
+    // Experimental opt-in: `zentinel doctest --mutate` runs the mutation-aware
+    // doctest prototype over fixture docs only (task 039).
+    for (inv.args) |arg| {
+        if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr);
+    }
+
     const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {
         const detail = switch (err) {
             error.MissingValue => "missing option value",
@@ -593,4 +599,95 @@ fn runDoctest(
     try stdout.writeAll(rendered);
     if (options.format == .json) try stdout.writeAll("\n");
     return out.exit_code;
+}
+
+// --- `zentinel doctest --mutate` (experimental, fixture docs only) ----------
+
+const DoctestMutateCtx = struct {
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    root_dir: std.Io.Dir,
+    timeout: std.Io.Timeout,
+};
+
+/// Real snippet runner for the mutation experiment: write the mutated snippet to
+/// a content-addressed file under the zentinel cache and run `zig test` on it.
+/// Confined to the cache dir, so the documentation file is never modified.
+fn doctestMutateRunFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.runner.RawOutcome {
+    const rt: *DoctestMutateCtx = @ptrCast(@alignCast(ctx));
+    const crash: zentinel.runner.RawOutcome = .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
+    var digest: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(mutated_source, &digest, .{});
+    const rel = std.fmt.allocPrint(rt.gpa, ".zig-cache/zentinel/doctest-mutate/{s}.zig", .{std.fmt.bytesToHex(digest[0..8], .lower)}) catch return crash;
+    if (std.fs.path.dirname(rel)) |parent| rt.root_dir.createDirPath(rt.io, parent) catch return crash;
+    rt.root_dir.writeFile(rt.io, .{ .sub_path = rel, .data = mutated_source }) catch return crash;
+    const result = std.process.run(rt.gpa, rt.io, .{
+        .argv = &.{ "zig", "test", rel },
+        .cwd = .{ .dir = rt.root_dir },
+        .stdout_limit = run_output_limit,
+        .stderr_limit = run_output_limit,
+        .timeout = rt.timeout,
+        .environ_map = null,
+    }) catch |err| {
+        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
+        return crash;
+    };
+    return switch (result.term) {
+        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+    };
+}
+
+fn runDoctestMutate(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    var file: ?[]const u8 = null;
+    var i: usize = 0;
+    while (i < inv.args.len) : (i += 1) {
+        const arg = inv.args[i];
+        if (std.mem.eql(u8, arg, "--mutate")) continue;
+        if (std.mem.eql(u8, arg, "--file")) {
+            i += 1;
+            if (i >= inv.args.len) {
+                try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --file requires a value\n");
+                return 2;
+            }
+            file = inv.args[i];
+        } else {
+            try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: unsupported doctest --mutate option {s}\n", .{arg});
+            return 2;
+        }
+    }
+
+    const doc = file orelse {
+        try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: doctest --mutate requires --file\n");
+        return 2;
+    };
+    // Experimental and opt-in: only run over fixture documentation.
+    if (std.mem.indexOf(u8, doc, "fixtures/doctest") == null) {
+        try stderr.writeAll("error: doctest --mutate is experimental and only runs over fixture docs (test/fixtures/doctest/**)\n");
+        return 2;
+    }
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+    const source = root_dir.readFileAlloc(io, doc, gpa, read_limit) catch {
+        try stderr.print("error: documentation file not found at {s}\n", .{doc});
+        return 2;
+    };
+
+    var ctx = DoctestMutateCtx{ .gpa = gpa, .io = io, .root_dir = root_dir, .timeout = .none };
+    const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn };
+    const r = try zentinel.doctest.mutation_experiment.run(gpa, doc, source, sr);
+    const json = try zentinel.doctest.mutation_experiment.toJson(gpa, r);
+    try stdout.writeAll(json);
+    try stdout.writeAll("\n");
+    // Experimental prototype: surviving documentation mutants are reported but do
+    // not fail the command (stabilization is a later task).
+    return 0;
 }
