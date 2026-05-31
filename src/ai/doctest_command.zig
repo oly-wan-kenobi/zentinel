@@ -60,13 +60,14 @@ pub fn responseSchemaName(flow: Flow) []const u8 {
 
 /// AI-only and doctest-only command failures. The AI failures are shared with the
 /// mutation engine; the two doctest failures carry their documented codes.
-pub const Failure = command.Failure || error{ DoctestCaseNotFound, DoctestDocNotFound };
+pub const Failure = command.Failure || error{ DoctestCaseNotFound, DoctestDocNotFound, DoctestSurvivorNotFound };
 pub const RunError = Failure || error{OutOfMemory};
 
 pub fn failureToken(err: Failure) []const u8 {
     return switch (err) {
         error.DoctestCaseNotFound => "ZNTL_DOCTEST_CASE_NOT_FOUND",
         error.DoctestDocNotFound => "ZNTL_DOCTEST_DOC_NOT_FOUND",
+        error.DoctestSurvivorNotFound => "ZNTL_DOCTEST_SURVIVOR_NOT_FOUND",
         error.AiDisabled => "ZNTL_AI_DISABLED",
         error.AiProviderNotAllowed => "ZNTL_AI_PROVIDER_NOT_ALLOWED",
         error.AiReportNotFound => "ZNTL_AI_REPORT_NOT_FOUND",
@@ -897,4 +898,269 @@ fn renderText(arena: std.mem.Allocator, response: Response) ![]u8 {
             break :blk body;
         },
     };
+}
+
+// ===========================================================================
+// Survivor flow (task 067): advisory explanation for a mutation-aware doctest
+// survivor. This is a SEPARATE path from the four task-055 non-survivor flows.
+// `validateContext`/`validatePrompt`/`run`/`Flow` are intentionally unchanged
+// and still treat `explain_doctest_survivor` as their out-of-scope flow; the
+// functions below own the survivor flow. AI stays advisory only: this reads
+// deterministic `zentinel doctest --mutate` report evidence and never changes a
+// survivor's status, the report, a snapshot, or any documentation.
+// ===========================================================================
+
+const RunnerEvidence = struct {
+    status: []const u8,
+    command: ?CommandEv,
+    exit_code: ?i64,
+    timed_out: bool,
+    failure_kind: []const u8,
+    stdout_excerpt: []const u8,
+    stderr_excerpt: []const u8,
+    failure_summary: []const u8,
+    skip_reason: ?[]const u8,
+};
+const SourceCase = struct {
+    doctest_case_id: ?[]const u8,
+    file: []const u8,
+    source_ref: ?[]const u8,
+};
+const MutationCase = struct {
+    case_id: []const u8,
+    mutant_id: []const u8,
+    operator: []const u8,
+    mutated_diff: []const []const u8,
+    backend_stability: []const u8,
+    runner_evidence: RunnerEvidence,
+};
+const SurvivorEvidence = struct {
+    kind: []const u8 = "doctest_survivor",
+    survivor_ref: []const u8,
+    source_case: SourceCase,
+    mutation_case: MutationCase,
+};
+
+/// Resolve `<survivor-ref>` against the selected mutation-aware doctest report.
+/// Matches only a `survived` case whose `mutation.survivor_ref` is a non-null
+/// `ds_` value equal to `ref`; killed, skipped, invalid, compile-error,
+/// compiler-crash, and timeout documentation mutants never resolve.
+pub fn resolveSurvivor(report: std.json.Value, ref: []const u8) ?std.json.Value {
+    const cases = arr(get(report, "cases")) orelse return null;
+    for (cases) |c| {
+        if (!eqStr(s(get(c, "status")), "survived")) continue;
+        const mutation = present(get(c, "mutation")) orelse continue;
+        const sref = optStr(present(get(mutation, "survivor_ref"))) orelse continue;
+        if (eqStr(sref, ref)) return c;
+    }
+    return null;
+}
+
+fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patterns: []const []const u8) !RunnerEvidence {
+    const re = present(get(mutation, "runner_evidence")) orelse return RunnerEvidence{
+        .status = "survived",
+        .command = null,
+        .exit_code = null,
+        .timed_out = false,
+        .failure_kind = "none",
+        .stdout_excerpt = "",
+        .stderr_excerpt = "",
+        .failure_summary = "",
+        .skip_reason = null,
+    };
+    return RunnerEvidence{
+        .status = sOr(get(re, "status"), "survived"),
+        .command = try readCommand(arena, get(re, "command")),
+        .exit_code = switch (get(re, "exit_code") orelse std.json.Value{ .null = {} }) {
+            .integer => |n| n,
+            else => null,
+        },
+        .timed_out = switch (get(re, "timed_out") orelse std.json.Value{ .bool = false }) {
+            .bool => |b| b,
+            else => false,
+        },
+        .failure_kind = sOr(get(re, "failure_kind"), "none"),
+        .stdout_excerpt = try context.redactAndCap(arena, s(get(re, "stdout_excerpt")), patterns, context.excerpt_limit),
+        .stderr_excerpt = try context.redactAndCap(arena, s(get(re, "stderr_excerpt")), patterns, context.excerpt_limit),
+        .failure_summary = try context.redactAndCap(arena, s(get(re, "failure_summary")), patterns, context.excerpt_limit),
+        .skip_reason = optStr(present(get(re, "skip_reason"))),
+    };
+}
+
+fn survivorMeta(case: std.json.Value) DoctestMeta {
+    return .{
+        .id = optStr(get(case, "id")),
+        .file = s(get(case, "file")),
+        .line_start = optU32(get(case, "line_start")),
+        .line_end = optU32(get(case, "line_end")),
+        .source_ref = optStr(get(case, "source_ref")),
+        .block_refs = &.{},
+        .kind = "mutation",
+        .status = "survived",
+    };
+}
+
+const SurvivorContextT = struct {
+    schema_version: []const u8 = "zentinel.ai.doctest.context.v1",
+    flow: []const u8 = "explain_doctest_survivor",
+    created_by: []const u8 = "zentinel",
+    provider_mode: []const u8,
+    project: Project,
+    doctest: DoctestMeta,
+    evidence: SurvivorEvidence,
+    privacy: Privacy,
+};
+
+/// Build the survivor context as a validated JSON value from a survived case.
+pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std.json.Value, settings: Settings) !std.json.Value {
+    const patterns = settings.redact_patterns;
+    const mutation = present(get(case, "mutation")) orelse return error.DoctestSurvivorNotFound;
+    const ev = SurvivorEvidence{
+        .survivor_ref = s(get(mutation, "survivor_ref")),
+        .source_case = .{
+            .doctest_case_id = optStr(get(mutation, "doctest_case_id")),
+            .file = s(get(case, "file")),
+            .source_ref = optStr(get(case, "source_ref")),
+        },
+        .mutation_case = .{
+            .case_id = s(get(case, "id")),
+            .mutant_id = s(get(mutation, "mutant_id")),
+            .operator = s(get(mutation, "operator")),
+            .mutated_diff = try readStrArray(arena, get(mutation, "mutated_diff")),
+            .backend_stability = "stable",
+            .runner_evidence = try readRunnerEvidence(arena, mutation, patterns),
+        },
+    };
+    const ctx = SurvivorContextT{
+        .provider_mode = provider.modeName(mode),
+        .project = projectOf(settings, null),
+        .doctest = survivorMeta(case),
+        .evidence = ev,
+        .privacy = privacyOf(settings),
+    };
+    const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
+    return std.json.parseFromSliceLeaky(std.json.Value, arena, bytes, .{});
+}
+
+/// Structural validator for the survivor `zentinel.ai.doctest.context.v1` value.
+pub fn validateSurvivorContext(value: std.json.Value) ContextViolation {
+    const obj = objOf(value) orelse return .not_object;
+    if (!requireKeys(obj, &.{ "schema_version", "flow", "created_by", "provider_mode", "project", "doctest", "evidence", "privacy" })) return .missing_field;
+    if (!enumOk(obj, "schema_version", &.{"zentinel.ai.doctest.context.v1"})) return .bad_enum;
+    if (!enumOk(obj, "flow", &.{"explain_doctest_survivor"})) return .bad_enum;
+    if (!enumOk(obj, "created_by", &.{"zentinel"})) return .bad_enum;
+    if (!enumOk(obj, "provider_mode", &.{ "disabled", "stub", "local", "remote" })) return .bad_enum;
+
+    const doctest = objOf(obj.get("doctest").?) orelse return .not_object;
+    if (!requireKeys(doctest, &.{ "id", "file", "line_start", "line_end", "source_ref", "block_refs", "kind", "status" })) return .missing_field;
+    if (!enumOk(doctest, "kind", &.{"mutation"})) return .bad_enum;
+    if (!enumOk(doctest, "status", &.{"survived"})) return .bad_enum;
+
+    const ev = objOf(obj.get("evidence").?) orelse return .not_object;
+    if (!enumOk(ev, "kind", &.{"doctest_survivor"})) return .bad_evidence;
+    if (!requireKeys(ev, &.{ "kind", "survivor_ref", "source_case", "mutation_case" })) return .bad_evidence;
+    if (!std.mem.startsWith(u8, s(ev.get("survivor_ref")), "ds_")) return .bad_evidence;
+    const sc = objOf(ev.get("source_case").?) orelse return .bad_evidence;
+    if (!requireKeys(sc, &.{ "doctest_case_id", "file", "source_ref" })) return .bad_evidence;
+    const mc = objOf(ev.get("mutation_case").?) orelse return .bad_evidence;
+    if (!requireKeys(mc, &.{ "case_id", "mutant_id", "operator", "mutated_diff", "backend_stability", "runner_evidence" })) return .bad_evidence;
+    if (!std.mem.startsWith(u8, s(mc.get("case_id")), "dm_")) return .bad_evidence;
+    if (!std.mem.startsWith(u8, s(mc.get("mutant_id")), "m_")) return .bad_evidence;
+    const re = objOf(mc.get("runner_evidence").?) orelse return .bad_evidence;
+    if (!requireKeys(re, &.{ "status", "failure_kind" })) return .bad_evidence;
+
+    const project = objOf(obj.get("project").?) orelse return .not_object;
+    if (!requireKeys(project, &.{ "name", "root_label", "zig_version", "zentinel_version" })) return .missing_field;
+    const privacy = objOf(obj.get("privacy").?) orelse return .not_object;
+    if (!requireKeys(privacy, &.{ "remote_allowed", "source_context_policy", "redactions_applied" })) return .missing_field;
+    return .ok;
+}
+
+pub fn buildSurvivorPromptValue(arena: std.mem.Allocator, ctx: std.json.Value) !std.json.Value {
+    const prompt = Prompt{
+        .flow = "explain_doctest_survivor",
+        .instructions = &prompt_instructions,
+        .context = ctx,
+        .response_schema = .{ .name = "zentinel.ai.explain.response.v1" },
+    };
+    const bytes = try std.json.Stringify.valueAlloc(arena, prompt, .{ .whitespace = .indent_2 });
+    return std.json.parseFromSliceLeaky(std.json.Value, arena, bytes, .{});
+}
+
+/// Validate the survivor prompt envelope.
+pub fn validateSurvivorPrompt(value: std.json.Value) PromptViolation {
+    const obj = objOf(value) orelse return .not_object;
+    if (!requireKeys(obj, &.{ "schema_version", "flow", "instructions", "context", "response_schema" })) return .missing_field;
+    if (!eqStr(s(obj.get("schema_version")), "zentinel.ai.prompt.v1")) return .bad_schema_version;
+    if (!eqStr(s(obj.get("flow")), "explain_doctest_survivor")) return .bad_flow;
+    const instr = arr(obj.get("instructions")) orelse return .no_instructions;
+    if (instr.len == 0) return .no_instructions;
+    const ctx = obj.get("context").?;
+    const ctx_obj = objOf(ctx) orelse return .bad_context;
+    if (!eqStr(s(ctx_obj.get("schema_version")), "zentinel.ai.doctest.context.v1")) return .unknown_context_schema;
+    if (validateSurvivorContext(ctx) != .ok) return .bad_context;
+    const rs = objOf(obj.get("response_schema").?) orelse return .bad_response_schema;
+    if (!eqStr(s(rs.get("name")), "zentinel.ai.explain.response.v1")) return .bad_response_schema;
+    return .ok;
+}
+
+fn stubSurvivorExplain(arena: std.mem.Allocator, case: std.json.Value) !Response {
+    const mutation = get(case, "mutation");
+    const survivor_ref = s(getO(mutation, "survivor_ref"));
+    const dm = s(get(case, "id"));
+    const operator = s(getO(mutation, "operator"));
+    const refs = try arena.alloc(EvidenceRef, 2);
+    refs[0] = .{ .kind = "doctest_survivor", .ref = survivor_ref };
+    refs[1] = .{ .kind = "mutation_case", .ref = dm };
+    return .{ .explain = .{
+        .classification = "doctest_survivor_missing_assertion",
+        .confidence = "medium",
+        .summary = try std.fmt.allocPrint(arena, "Documentation mutant {s} ({s}) survived: the example does not assert the mutated behavior. Survivor ref {s}.", .{ dm, operator, survivor_ref }),
+        .evidence_refs = refs,
+        .next_action = "Strengthen the documentation example to assert the mutated behavior, then re-run zentinel doctest --mutate; do not mark the survivor equivalent, killed, or skipped without human review.",
+    } };
+}
+
+pub const SurvivorInput = struct {
+    survivor_ref: ?[]const u8,
+    provider_override: ?Mode,
+    report_json: ?[]const u8,
+    settings: Settings,
+};
+
+/// Advisory survivor explanation. Reads the deterministic mutation-aware doctest
+/// report, resolves the `ds_` survivor ref, builds + validates the context and
+/// prompt, runs the deterministic stub, validates the explain response, and
+/// renders it. Never writes a report, status, snapshot, or documentation.
+pub fn runSurvivor(arena: std.mem.Allocator, input: SurvivorInput, format: Format) RunError!Outcome {
+    const mode = try command.resolveMode(input.settings, input.provider_override);
+    const bytes = input.report_json orelse return error.AiReportNotFound;
+    const report = std.json.parseFromSliceLeaky(std.json.Value, arena, bytes, .{}) catch return error.AiReportNotFound;
+    if (objOf(report) == null or get(report, "cases") == null) return error.AiReportNotFound;
+    const ref = input.survivor_ref orelse return error.DoctestSurvivorNotFound;
+    const case = resolveSurvivor(report, ref) orelse return error.DoctestSurvivorNotFound;
+
+    const ctx = buildSurvivorContextValue(arena, mode, case, input.settings) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.AiResponseInvalid,
+    };
+    if (validateSurvivorContext(ctx) != .ok) return error.AiResponseInvalid;
+    const prompt = buildSurvivorPromptValue(arena, ctx) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return error.AiResponseInvalid,
+    };
+    if (validateSurvivorPrompt(prompt) != .ok) return error.AiResponseInvalid;
+
+    const response = stubSurvivorExplain(arena, case) catch |e| switch (e) {
+        error.OutOfMemory => return error.OutOfMemory,
+    };
+    const json = try responseJson(arena, response);
+    const value = std.json.parseFromSliceLeaky(std.json.Value, arena, json, .{}) catch return error.AiResponseInvalid;
+    if (command.validateResponse(.explain, value) != .ok) return error.AiResponseInvalid;
+
+    const body = switch (format) {
+        .json => json,
+        .text => try renderText(arena, response),
+    };
+    return .{ .exit_code = 0, .body = body, .format = format };
 }

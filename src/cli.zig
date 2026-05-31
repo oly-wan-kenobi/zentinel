@@ -824,6 +824,82 @@ fn runDoctestAi(
     return out.exit_code;
 }
 
+/// Adapter for `zentinel doctest explain-survivor <survivor-ref>` (task 067).
+/// Reads config and the selected mutation-aware doctest report read-only and
+/// delegates to the deterministic survivor engine. Advisory only: it never
+/// changes a survivor's status, the report, snapshots, or documentation.
+fn runDoctestSurvivorAi(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    var arena_state = std.heap.ArenaAllocator.init(gpa);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var survivor_ref: ?[]const u8 = null;
+    var input_report: ?[]const u8 = null;
+    var provider_override: ?zentinel.ai.command.Mode = null;
+    var format: zentinel.ai.command.Format = .text;
+
+    var i: usize = 1; // skip the subcommand token at inv.args[0]
+    while (i < inv.args.len) : (i += 1) {
+        const a = inv.args[i];
+        if (std.mem.eql(u8, a, "--ai-provider")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
+            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
+                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
+        } else if (std.mem.eql(u8, a, "--input-report")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
+            input_report = inv.args[i];
+        } else if (std.mem.eql(u8, a, "--format")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
+            if (std.mem.eql(u8, inv.args[i], "text")) {
+                format = .text;
+            } else if (std.mem.eql(u8, inv.args[i], "json")) {
+                format = .json;
+            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
+        } else if (std.mem.startsWith(u8, a, "--")) {
+            return aiOptionError(stderr, "unknown doctest AI option");
+        } else if (survivor_ref == null) {
+            survivor_ref = a;
+        } else {
+            return aiOptionError(stderr, "unexpected positional argument");
+        }
+    }
+    if (survivor_ref == null) return aiOptionError(stderr, "missing <survivor-ref>");
+
+    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+    const report_path = input_report orelse zentinel.ai.doctest_command.default_report_path;
+    const report_json: ?[]const u8 = root_dir.readFileAlloc(io, report_path, arena, read_limit) catch null;
+
+    const out = zentinel.ai.doctest_command.runSurvivor(arena, .{
+        .survivor_ref = survivor_ref,
+        .provider_override = provider_override,
+        .report_json = report_json,
+        .settings = settings,
+    }, format) catch |err| switch (err) {
+        error.OutOfMemory => return err,
+        else => |f| {
+            try stderr.print("error[{s}]: advisory doctest AI command failed\n", .{zentinel.ai.doctest_command.failureToken(f)});
+            return zentinel.ai.doctest_command.failureExit(f);
+        },
+    };
+
+    try stdout.writeAll(out.body);
+    if (out.format == .json) try stdout.writeAll("\n");
+    return out.exit_code;
+}
+
 fn runDoctest(
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -838,18 +914,15 @@ fn runDoctest(
         if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr);
     }
 
-    // Advisory doctest-AI subcommands (task 055): explain/suggest/review-snapshot/
-    // suggest-missing. explain-survivor is reserved for task 067.
+    // Advisory doctest-AI subcommands: explain/suggest/review-snapshot/
+    // suggest-missing (task 055) and explain-survivor (task 067).
     if (inv.args.len > 0 and !std.mem.startsWith(u8, inv.args[0], "-")) {
         const sub = inv.args[0];
         if (std.mem.eql(u8, sub, "explain")) return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr);
         if (std.mem.eql(u8, sub, "suggest")) return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr);
         if (std.mem.eql(u8, sub, "review-snapshot")) return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr);
         if (std.mem.eql(u8, sub, "suggest-missing")) return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr);
-        if (std.mem.eql(u8, sub, "explain-survivor")) {
-            try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: doctest explain-survivor is owned by task 067 and not implemented yet\n", .{});
-            return 2;
-        }
+        if (std.mem.eql(u8, sub, "explain-survivor")) return runDoctestSurvivorAi(gpa, io, dir, inv, stdout, stderr);
     }
 
     const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {

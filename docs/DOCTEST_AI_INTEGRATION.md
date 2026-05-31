@@ -30,7 +30,7 @@ zentinel doctest explain-survivor <survivor-ref> [--input-report <path>] [--ai-p
 
 `review-snapshot` resolves `<case-ref>` like `explain` and requires the selected report. It is valid only for a case whose report entry contains exact `case.result.snapshot` evidence. It returns `zentinel.ai.doctest.snapshot_review.response.v1` and must not approve or apply snapshot updates.
 
-`explain-survivor` resolves `<survivor-ref>` against a mutation-aware doctest report produced by `zentinel doctest --mutate`. It is intentionally deferred to task `067` so task `055` does not speculate about mutation-aware report fields before task `061` defines them.
+`explain-survivor` resolves `<survivor-ref>` against a mutation-aware doctest report produced by `zentinel doctest --mutate`. Task `067` implements it, reusing the deterministic mutation-aware report fields task `061` defines; it resolves only a non-null `case.mutation.survivor_ref` (`ds_...`) on a `survived` documentation mutant and never resolves killed, skipped, invalid, compile-error, compiler-crash, or timeout mutants. It returns an advisory `zentinel.ai.explain.response.v1` and never changes a survivor's status, the report, snapshots, or documentation. Missing reports use `ZNTL_AI_REPORT_NOT_FOUND` and unresolved refs use `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 
 An unresolved `<survivor-ref>` fails with `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 
@@ -156,7 +156,7 @@ Closed evidence object rules:
 | `docs_target` | `kind`, `target_file`, `heading_context`, `docs_metadata`, `report_summary` | `report_summary` is `null` when no report context is supplied. |
 | `snapshot_diff` | `kind`, `case_status`, `snapshot` | None. `snapshot` is copied exactly from `case.result.snapshot`. |
 | `missing_doctests` | `kind`, `docs`, `candidates` | `candidate.line_hint` may be `null`. |
-| `doctest_survivor` | `kind`, `survivor_ref`, `source_case`, `mutation_case`, `mutant_id`, `mutated_diff`, `operator`, `operator_stability`, `backend`, `backend_stability`, `runner_evidence` | Deferred to task `067`; not accepted by the task `055` schema. |
+| `doctest_survivor` | `kind`, `survivor_ref`, `source_case` (`doctest_case_id`, `file`, `source_ref`), `mutation_case` (`case_id`, `mutant_id`, `operator`, `mutated_diff`, `backend_stability`, `runner_evidence`) | Implemented by task `067` as an additive variant of the task `055` schema. `source_case` is the original ordinary doctest; `mutation_case` and `runner_evidence` are copied from the survived `case.mutation` entry of a `zentinel doctest --mutate` report. |
 
 `docs_metadata` is a closed object with:
 

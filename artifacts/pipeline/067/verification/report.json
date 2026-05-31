@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "067",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/067/verification/report.json",
+      "evidence": "coverage-gap F-034 (doctest survivor AI survivor-ref resolution) closed against test/ai_doctest_survivor_cli_test.zig."
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "test/ai_doctest_survivor_cli_test covers: explain-survivor explains a survivor from an explicit mutation-aware report and consumes the default doctest report path; a missing report is ZNTL_AI_REPORT_NOT_FOUND; an unresolved survivor ref is ZNTL_DOCTEST_SURVIVOR_NOT_FOUND; the ai.doctest.context.v1 schema adds the explain_doctest_survivor flow and doctest_survivor evidence without weakening the task-055 variants; the survivor context records flow=explain_doctest_survivor, top-level doctest.kind=mutation/status=survived, evidence.kind=doctest_survivor with a ds_ survivor_ref, dt_ source_case, and a mutation_case carrying the dm_ case id, m_ mutant id, operator, mutated diff, backend_stability=stable, and runner_evidence copied from case.mutation; resolution matches only a non-null survived survivor_ref and rejects killed/skipped (and unknown) mutants; the stub output uses the doctest_survivor_missing_assertion classification; and the command emits advisory output only (no status/apply/kill fields) and leaves the survivor classified survived."
+    },
+    {
+      "name": "advisory_only_boundary",
+      "required": true,
+      "status": "passed",
+      "evidence": "runSurvivor reads the deterministic zentinel doctest --mutate report read-only, builds and validates the zentinel.ai.doctest.context.v1 survivor context and zentinel.ai.prompt.v1 envelope, runs a deterministic stub provider, and validates the zentinel.ai.explain.response.v1 response before rendering. It never writes a report, survivor status, snapshot, or documentation, and the advisory response schema has no status/apply/kill verdict field, so AI cannot mark a survivor equivalent, killed, skipped, or invalid."
+    },
+    {
+      "name": "out_of_scope_isolation",
+      "required": true,
+      "status": "passed",
+      "evidence": "the survivor flow is a separate path: src/ai/doctest_command.zig's task-055 validateContext/validatePrompt/run/Flow are unchanged and still return ContextViolation.survivor_flow / PromptViolation.survivor_flow for the survivor flow, so the task-055 ai_doctest_test rejection tests stay green; the survivor flow is owned by the new validateSurvivorContext/validateSurvivorPrompt/runSurvivor."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "task 067 adds an advisory-only CLI surface plus deterministic context/prompt/response plumbing and additive schema variants; it changes no mutator or deterministic-core decision code. The final release dogfood gate is task 085."
+    }
+  ],
+  "residual_risk": [
+    "explain_doctest_survivor is intentionally a separate code path from the four task-055 doctest AI flows because the task-055 ai_doctest_test.zig (out of this task's scope) pins validateContext/validatePrompt to reject the survivor flow; the new validateSurvivorContext/validateSurvivorPrompt own survivor validation and the existing functions are unchanged.",
+    "Survivor evidence is copied verbatim from the deterministic case.mutation entry (dm_/m_/operator/mutated_diff/runner_evidence) and the original ordinary doctest identity (dt_); backend_stability is recorded as 'stable' because doctest mutation uses the stable AST operator set, and the AI never recomputes mutation correctness.",
+    "The CLI adapter loads the mutation-aware doctest report read-only from --input-report or the default zig-out/zentinel/doctest/report.json; resolution is restricted to survived cases with a non-null ds_ survivor_ref, so killed, skipped, invalid, compile-error, compiler-crash, and timeout mutants cannot be explained as survivors."
+  ],
+  "recommendation": "complete"
+}

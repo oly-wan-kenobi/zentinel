@@ -8,8 +8,8 @@
   "properties": {
     "schema_version": { "const": "zentinel.ai.doctest.context.v1" },
     "flow": {
-      "comment": "Task 055 owns these four non-survivor flows. explain_doctest_survivor is deferred to task 067 and is intentionally absent.",
-      "enum": ["explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests"]
+      "comment": "Task 055 owns the four non-survivor flows; task 067 adds explain_doctest_survivor without weakening them.",
+      "enum": ["explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests", "explain_doctest_survivor"]
     },
     "created_by": { "const": "zentinel" },
     "provider_mode": { "enum": ["disabled", "stub", "local", "remote"] },
@@ -50,7 +50,7 @@
       }
     },
     "evidence": {
-      "comment": "Discriminated by kind. Task 055 owns these four variants; doctest_survivor is deferred to task 067 and is not accepted here.",
+      "comment": "Discriminated by kind. Task 055 owns the first four variants; task 067 adds the doctest_survivor variant.",
       "oneOf": [
         {
           "type": "object",
@@ -99,11 +99,60 @@
             "docs": { "type": "array", "items": { "$ref": "#/$defs/docs_entry" } },
             "candidates": { "type": "array", "items": { "$ref": "#/$defs/candidate" } }
           }
+        },
+        {
+          "comment": "Task 067 survivor evidence: built only from deterministic zentinel doctest --mutate report fields (task 061). source_case is the original ordinary doctest; mutation_case is the survived report entry.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "survivor_ref", "source_case", "mutation_case"],
+          "properties": {
+            "kind": { "const": "doctest_survivor" },
+            "survivor_ref": { "type": "string", "pattern": "^ds_" },
+            "source_case": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["doctest_case_id", "file", "source_ref"],
+              "properties": {
+                "doctest_case_id": { "type": ["string", "null"] },
+                "file": { "type": "string" },
+                "source_ref": { "type": ["string", "null"] }
+              }
+            },
+            "mutation_case": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["case_id", "mutant_id", "operator", "mutated_diff", "backend_stability", "runner_evidence"],
+              "properties": {
+                "case_id": { "type": "string", "pattern": "^dm_" },
+                "mutant_id": { "type": "string", "pattern": "^m_" },
+                "operator": { "type": "string" },
+                "mutated_diff": { "type": "array", "items": { "type": "string" } },
+                "backend_stability": { "enum": ["stable", "experimental"] },
+                "runner_evidence": { "$ref": "#/$defs/mutation_runner_evidence" }
+              }
+            }
+          }
         }
       ]
     }
   },
   "$defs": {
+    "mutation_runner_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "command", "exit_code", "timed_out", "failure_kind", "stdout_excerpt", "stderr_excerpt", "failure_summary", "skip_reason"],
+      "properties": {
+        "status": { "type": "string" },
+        "command": { "$ref": "#/$defs/command_or_null" },
+        "exit_code": { "type": ["integer", "null"] },
+        "timed_out": { "type": "boolean" },
+        "failure_kind": { "type": "string" },
+        "stdout_excerpt": { "type": "string" },
+        "stderr_excerpt": { "type": "string" },
+        "failure_summary": { "type": "string" },
+        "skip_reason": { "type": ["string", "null"] }
+      }
+    },
     "command_or_null": {
       "oneOf": [
         { "type": "null" },

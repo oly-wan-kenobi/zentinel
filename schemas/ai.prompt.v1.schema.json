@@ -57,9 +57,24 @@
       }
     },
     {
-      "description": "Task 055 non-survivor doctest AI flows embed a registered zentinel.ai.doctest.context.v1 payload; the deterministic core additionally validates the context against schemas/ai.doctest.context.v1.schema.json before any provider call. explain_doctest_survivor is reserved for task 067.",
+      "description": "Task 055 non-survivor doctest AI flows embed a registered zentinel.ai.doctest.context.v1 payload; the deterministic core additionally validates the context against schemas/ai.doctest.context.v1.schema.json before any provider call.",
       "if": {
         "properties": { "flow": { "enum": ["explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests"] } }
+      },
+      "then": {
+        "properties": {
+          "context": {
+            "properties": {
+              "schema_version": { "const": "zentinel.ai.doctest.context.v1" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Task 067 explain_doctest_survivor embeds a registered zentinel.ai.doctest.context.v1 payload carrying doctest_survivor evidence; the deterministic core validates it against schemas/ai.doctest.context.v1.schema.json before any provider call and returns a zentinel.ai.explain.response.v1 advisory response.",
+      "if": {
+        "properties": { "flow": { "const": "explain_doctest_survivor" } }
       },
       "then": {
         "properties": {

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "067",
+  "next_task": "085",
   "completed_tasks": [
     "068",
     "069",
@@ -105,14 +105,15 @@
     "062",
     "064",
     "065",
-    "066"
+    "066",
+    "067"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 066 public docs doctest coverage completed; active-state and complete-state validation passed. test/public_docs_doctest_test runs CLI_SPEC/CONFIG_SPEC/REPORT_FORMAT/DOCTEST_AI_INTEGRATION and test/fixtures/doctest/public_docs fixtures through the doctest engine; JSON examples validate as supported subsets. No coverage-gap rows are deferred to task 066; no src/doctest change was required."
+    "notes": "Task 067 AI doctest survivor assistance completed; active-state and complete-state validation passed. Added the advisory zentinel doctest explain-survivor flow (runSurvivor + validateSurvivorContext/Prompt) as a separate path from the task-055 doctest AI flows, extended ai.doctest.context.v1 and ai.prompt.v1 additively, and closed coverage-gap F-034. AI stays advisory-only."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5060,6 +5061,59 @@
       "artifacts": [
         "artifacts/pipeline/066/verification/report.json"
       ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "067",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP (filter survivor). failing_output_excerpt: test/ai_doctest_survivor_cli_test referenced zentinel.ai.doctest_command.runSurvivor / resolveSurvivor / buildSurvivorContextValue / validateSurvivorContext / SurvivorInput, none of which existed, so the test failed to compile before the survivor path was added. The existing task-055 ai_doctest_test rejection tests pinned validateContext/validatePrompt to return survivor_flow, which the survivor path leaves untouched. implementation_started_after_failure: true. passing_command: after adding the survivor path, schema extensions, and CLI wiring, the survivor tests passed and `zig build test` was fully green (470+ tests, including the unchanged task-055 rejection tests).",
+      "implementation_summary": "Exposed advisory-only AI explanation for mutation-aware doctest survivors (task 067). Because the task-055 ai_doctest_test.zig (out of this task's scope) pins validateContext/validatePrompt to reject the explain_doctest_survivor flow, the survivor flow is implemented as a SEPARATE path in src/ai/doctest_command.zig: the existing validateContext/validatePrompt/run/Flow are byte-unchanged (still returning survivor_flow for the survivor flow) and the new resolveSurvivor/buildSurvivorContextValue/validateSurvivorContext/buildSurvivorPromptValue/validateSurvivorPrompt/stubSurvivorExplain/runSurvivor own it. resolveSurvivor matches only a non-null case.mutation.survivor_ref (ds_) on a survived documentation mutant, so killed/skipped/invalid/compile-error/compiler-crash/timeout mutants never resolve (ZNTL_DOCTEST_SURVIVOR_NOT_FOUND); a missing report is ZNTL_AI_REPORT_NOT_FOUND. buildSurvivorContextValue builds a zentinel.ai.doctest.context.v1 packet with flow=explain_doctest_survivor, top-level doctest.kind=mutation/status=survived, and doctest_survivor evidence carrying the ds_ survivor_ref, a source_case for the original ordinary doctest (dt_, file, source_ref), and a mutation_case with the survived entry's dm_ case id, m_ mutant id, operator, mutated diff, backend_stability=stable, and deterministic runner_evidence (with failure_kind) copied from case.mutation; excerpts are redacted and capped via the shared context plumbing. The prompt envelope reuses zentinel.ai.prompt.v1 and the response is the shared zentinel.ai.explain.response.v1 with the doctest_survivor_missing_assertion classification; the stub provider is deterministic. src/cli.zig adds the user-facing `zentinel doctest explain-survivor <survivor-ref>` subcommand (read-only report load from --input-report or the default doctest report path) replacing the prior task-067 placeholder. schemas/ai.doctest.context.v1.schema.json adds the explain_doctest_survivor flow and the doctest_survivor evidence oneOf variant plus a mutation_runner_evidence def (additive, non-survivor variants unchanged); schemas/ai.prompt.v1.schema.json maps the survivor flow to the doctest context. docs/DOCTEST_AI_INTEGRATION.md is updated to mark the flow implemented and align the evidence field list. AI is advisory-only: the command reads deterministic report evidence read-only and never changes survivor status, the report, snapshots, or documentation, and the response schema has no status/apply/kill verdict. Non-goals respected: no change to task-061 mutation report fields, no new mutators, no remote provider tests, no automatic doctest edits/snapshot updates/survivor suppression; src/mutators/**, src/zir_backend.zig, src/air_backend.zig, and docs/MUTATOR_SPEC.md were not touched (forbidden).",
+      "files_changed": [
+        "src/ai/doctest_command.zig",
+        "src/cli.zig",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/ai.prompt.v1.schema.json",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/fixtures/ai/doctest_survivor/report.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "artifacts/pipeline/067/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_doctest_survivor_cli_test.zig: eight cases -- explain-survivor with an explicit mutation-aware report and the default report path; ZNTL_AI_REPORT_NOT_FOUND for a missing report; ZNTL_DOCTEST_SURVIVOR_NOT_FOUND for an unresolved ref; the ai.doctest.context.v1 schema adds the survivor flow + evidence without weakening task 055; the survivor context records flow/doctest.kind=mutation/doctest_survivor evidence with ds_/dt_/dm_/m_/operator/mutated_diff/backend_stability/runner_evidence; resolution matches only non-null survived survivor_refs (rejects killed/skipped/unknown); the stub uses doctest_survivor_missing_assertion; and the command makes no status/apply/kill change.",
+        "test/fixtures/ai/doctest_survivor/report.json: a mutation-aware doctest report with a survived case (ds_ survivor_ref), a killed case, and a skipped case (both null survivor_ref) for resolution coverage."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing, filter survivor): test referenced the not-yet-existing runSurvivor/resolveSurvivor/validateSurvivorContext API and failed to compile",
+        "zig build test (zigars MCP, passing): full suite green including the unchanged task-055 ai_doctest_test rejection tests",
+        "zig build (zigars MCP): binary builds; zig fmt --check src test build.zig clean",
+        "python3 scripts/validate_task_system.py (passing) active then complete; coverage-gap F-034 closed"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 067 was active and again after the complete-state transition. Coverage-gap F-034 (doctest survivor AI survivor-ref resolution) is closed against test/ai_doctest_survivor_cli_test.zig. Schema extensions are additive; the survivor flow is a separate path so the task-055 schema and tests are unchanged."
+      },
+      "dogfooding_implication": "Mutation-aware doctest survivors are now diagnosable by autonomous agents through an advisory CLI without making AI a correctness oracle: the explanation is built from deterministic case.mutation evidence and cannot mark a survivor equivalent, killed, skipped, or invalid.",
+      "follow_up_tasks": [
+        "tasks/085-final-dogfood-release-gate.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/067/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-034"
+        ]
+      },
       "task_control_changes": [
         "tasks/QUEUE.md",
         "tasks/queue.json",
