@@ -1,0 +1,12 @@
+{
+  "schema_version": "zentinel.pipeline.active_lock.v1",
+  "task_id": "044",
+  "state": "active",
+  "queue_order": "044",
+  "queue_file": "tasks/queue.json",
+  "status_file": "tasks/status.json",
+  "context_packet": "artifacts/pipeline/044/context/orchestrator.json",
+  "created_by_role": "Task Queue Manager",
+  "source_commit": "0000000000000000000000000000000000000000",
+  "working_tree_state": "clean"
+}

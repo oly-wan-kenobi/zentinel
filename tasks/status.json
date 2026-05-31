@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "063",
+  "next_task": "042",
   "completed_tasks": [
     "068",
     "069",
@@ -81,17 +81,81 @@
     "038",
     "039",
     "040",
-    "041"
+    "041",
+    "063"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 041 handoff artifacts completed; active-state and complete-state validation passed (106 tasks). Schema + documentation task only (no src/test/build changes; mutation testing not applicable). Created the six baseline pipeline schema files (schemas/pipeline.{handoff,active_lock,context,stale_context,verification,escalation}.v1.schema.json) as JSON Schema draft 2020-12 matching the existing handoff/artifact/context/verification/escalation doc contracts, plus a valid/invalid (one required field removed) fixture pair per schema under test/fixtures/pipeline/**. Closed the handoff and active_lock schema-registry rows (covered=true with fixture tests); the context/stale_context/verification/escalation rows stay deferred to task 041 per the validator guardrail, noting the baseline schema exists and full coverage refines in tasks 042/046/049. Validation tooling: jsonschema is not installed, so a standard-library-only check (required fields present in valid, a required field missing in invalid, additionalProperties:false, const schema_version) validated all six schemas against their fixtures; it failed first when the schema files were absent and passed after creation. No runtime writer or product report schema change."
+    "notes": "Task 063 pipeline metadata validator completed; active-state and complete-state validation passed (106 tasks). Validator + fixtures task only (no src/test/build changes; mutation testing not applicable). Added a project-owned, standard-library-only JSON Schema SUBSET validator to scripts/validate_task_system.py (validate_pipeline_metadata + subset_validate + validate_pipeline_artifact_tree): type/required/additionalProperties:false/const/enum/pattern/nested + task-and-path ownership, Markdown-only handoff rejection, active-lock task/context ownership, wrong-task-id rejection, and I-019 role-timestamp chronology (Test Author handoff must precede Implementer). It consumes (does not create) the task-041 baseline schemas and self-tests them against test/fixtures/pipeline/metadata_validator/ (a valid artifact tree passes; seven invalid trees are each rejected). Added an optional created_at to the handoff schema for chronology. Closed invariant I-019 (covered=true) and updated the two I-019 deferral guardrails to require covered now that role-timestamp validation exists. The docs already document the subset validator and that full Draft 2020-12 is not claimed."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "063",
+      "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: with the new metadata self-test in place but the I-019 chronology check temporarily neutralized (the `ta_t >= impl_t` comparison forced to a no-op), the validator reported `task system validation failed: - invalid pipeline fixture chronology must be rejected by the metadata validator`, proving the chronology fixture is only rejected when the role-timestamp check runs. implementation_started_after_failure: true; the fixtures and the subset validator were written first, and this captured the self-test catching a missing chronology check before the check was restored. passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks). This is a validator/fixtures task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Implemented a deterministic, standard-library-only project-owned schema SUBSET validator for pipeline metadata artifacts in scripts/validate_task_system.py (no runtime orchestration, no subagent spawning, no CI). subset_validate covers type, required, additionalProperties:false, const, enum, pattern, nested properties, and array items (explicitly NOT full Draft 2020-12: no conditionals, no arbitrary $ref traversal, no derived invariants). validate_pipeline_artifact_tree walks a fixture root's artifacts/pipeline/<task-id>/ tree and, per task: validates each handoff JSON against the task-041 handoff schema, rejects a Markdown handoff lacking its canonical JSON, rejects a handoff whose task_id does not match its directory, validates the active lock against the active_lock schema with task and context-packet ownership, validates context packets, and enforces I-019 chronology (the Test Author handoff created_at must precede the Implementer handoff). validate_pipeline_metadata self-tests it: the valid fixture tree must pass with zero violations and each of the seven invalid trees (markdown_only_handoff, missing_field, active_lock_mismatch, unknown_field, bad_const, wrong_task_id_path, chronology) must be rejected. It consumes -- does not create -- the task-041 baseline schemas; the only schema change was adding an optional created_at field to the handoff schema so chronology fixtures carry role timestamps. Closed invariant I-019 (covered=true, tests reference the chronology fixture and the validator) and updated both I-019 deferral guardrails (the task-040 one and the pre-existing one) to require covered=true now that role-timestamp validation exists, preserving the TDD-first and role-timestamp wording. No src/test/*.zig, build.zig, docs/MUTATOR_SPEC.md, or docs/DOCTEST_*.md changes (forbidden).",
+      "files_changed": [
+        "scripts/validate_task_system.py",
+        "schemas/pipeline.handoff.v1.schema.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "artifacts/pipeline/063/verification/report.json",
+        "test/fixtures/pipeline/metadata_validator/valid/artifacts/pipeline/043/locks/active-task-lock.json",
+        "test/fixtures/pipeline/metadata_validator/valid/artifacts/pipeline/043/context/orchestrator.json",
+        "test/fixtures/pipeline/metadata_validator/valid/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/valid/artifacts/pipeline/043/handoffs/07-implementer.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/markdown_only_handoff/artifacts/pipeline/043/handoffs/05-test-author.md",
+        "test/fixtures/pipeline/metadata_validator/invalid/missing_field/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/active_lock_mismatch/artifacts/pipeline/043/locks/active-task-lock.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/unknown_field/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/bad_const/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/wrong_task_id_path/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/chronology/artifacts/pipeline/043/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/metadata_validator/invalid/chronology/artifacts/pipeline/043/handoffs/07-implementer.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/metadata_validator/valid/**: a well-formed artifact tree (active lock, context packet, Test Author + Implementer handoffs with ordered created_at) that the metadata validator accepts.",
+        "test/fixtures/pipeline/metadata_validator/invalid/{markdown_only_handoff,missing_field,active_lock_mismatch,unknown_field,bad_const,wrong_task_id_path,chronology}/**: one invalid artifact tree per required failing case, each rejected by the validator.",
+        "scripts/validate_task_system.py validate_pipeline_metadata: self-tests the subset validator (valid tree -> 0 violations; each invalid tree -> >=1 violation). The I-019 chronology check rejects a Test-Author-after-Implementer ordering."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (failing): with the chronology check neutralized, 'invalid pipeline fixture chronology must be rejected'",
+        "python3 scripts/validate_task_system.py (passing): 106 tasks after restoring the chronology check, in both active and complete states",
+        "python3 -m py_compile scripts/validate_task_system.py: ok",
+        "standalone per-fixture check: valid tree PASS; all seven invalid trees rejected",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 063 was active and again after the complete-state transition (106 tasks). The metadata self-test exercises the subset validator over valid and invalid fixture trees; I-019 is now covered and both I-019 deferral guardrails were updated to require coverage."
+      },
+      "dogfooding_implication": "Pipeline metadata validation keeps long-running dogfood and release work restartable by fresh agents: post-041 JSON handoffs, context packets, the active lock, and verification/escalation records are validated for required fields, schema_version const, additional-property policy, task/path ownership, and I-019 TDD-first chronology before later pipeline tasks (042 context packets, 046 verification, 049 escalation, 064 CI) consume them. Runtime orchestration and CI wiring remain later tasks.",
+      "follow_up_tasks": [
+        "tasks/042-context-packet-system.md",
+        "tasks/064-pipeline-artifact-ci-integration.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-019"
+        ]
+      },
+      "artifacts": [
+        "artifacts/pipeline/063/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "041",
       "failing_evidence": "failing_command: a standard-library-only Python check (jsonschema is not installed) that, for each pipeline schema, loads schemas/pipeline.<name>.v1.schema.json and asserts the valid fixture has every required field with no extras and the const schema_version, and that the invalid fixture omits at least one required field. failing_output_excerpt: before the schema files existed it printed `FAIL handoff: [Errno 2] No such file or directory: 'schemas/pipeline.handoff.v1.schema.json'` for all six schemas and exited 1. implementation_started_after_failure: true; the six schema files and the valid/invalid fixtures were created only after capturing that failure. passing_command: the same `python3` stdlib check then printed `PASS` and exited 0. This is a schema/documentation task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

@@ -1398,9 +1398,176 @@ def validate_pipeline_contracts(errors: list[str]) -> None:
         i019 = next((e for e in idata.get("entries", []) if e.get("number") == "I-019"), None)
         require(i019 is not None, errors, "invariants registry must keep I-019")
         if i019 is not None:
-            require(i019.get("covered") is False, errors, "I-019 must remain uncovered; mechanical chronology proof is deferred to task 063")
-            require(i019.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, "I-019 must defer chronology proof to tasks/063-pipeline-metadata-validator.md")
+            # Task 063 implements and self-tests the role-timestamp chronology
+            # validator (validate_pipeline_metadata), so I-019 is now covered; the
+            # TDD-first wording must still be preserved.
+            require(i019.get("covered") is True, errors, "I-019 is covered by the task 063 role-timestamp chronology validator")
             require("before implementation" in (i019.get("notes") or ""), errors, "I-019 must preserve TDD-first wording (failing evidence recorded before implementation)")
+
+
+PIPELINE_SCHEMA_BY_VERSION = {
+    "zentinel.pipeline.handoff.v1": "schemas/pipeline.handoff.v1.schema.json",
+    "zentinel.pipeline.active_lock.v1": "schemas/pipeline.active_lock.v1.schema.json",
+    "zentinel.pipeline.context.v1": "schemas/pipeline.context.v1.schema.json",
+    "zentinel.pipeline.stale_context.v1": "schemas/pipeline.stale_context.v1.schema.json",
+    "zentinel.pipeline.verification.v1": "schemas/pipeline.verification.v1.schema.json",
+    "zentinel.pipeline.escalation.v1": "schemas/pipeline.escalation.v1.schema.json",
+}
+_PIPELINE_SCHEMA_CACHE: dict[str, object] = {}
+
+
+def _subset_type_ok(instance: object, type_name: str) -> bool:
+    if type_name == "string":
+        return isinstance(instance, str)
+    if type_name == "integer":
+        return isinstance(instance, int) and not isinstance(instance, bool)
+    if type_name == "number":
+        return isinstance(instance, (int, float)) and not isinstance(instance, bool)
+    if type_name == "boolean":
+        return isinstance(instance, bool)
+    if type_name == "null":
+        return instance is None
+    if type_name == "object":
+        return isinstance(instance, dict)
+    if type_name == "array":
+        return isinstance(instance, list)
+    return True
+
+
+def subset_validate(instance: object, schema: dict, loc: str) -> list[str]:
+    """Project-owned JSON Schema SUBSET validator for pipeline artifacts. NOT full
+    Draft 2020-12: it supports type, required, additionalProperties:false, const,
+    enum, pattern, nested properties, and array items only -- no conditionals,
+    no arbitrary $ref traversal, no derived invariants. Returns violation strings."""
+    out: list[str] = []
+    if "const" in schema and instance != schema["const"]:
+        out.append(f"{loc}: value does not match const {schema['const']!r}")
+        return out
+    if "enum" in schema and instance not in schema["enum"]:
+        out.append(f"{loc}: value {instance!r} not in enum {schema['enum']}")
+    declared_type = schema.get("type")
+    if declared_type is not None:
+        types = declared_type if isinstance(declared_type, list) else [declared_type]
+        if not any(_subset_type_ok(instance, t) for t in types):
+            out.append(f"{loc}: type {type(instance).__name__} not allowed (expected {types})")
+            return out
+    if "pattern" in schema and isinstance(instance, str):
+        if re.match(schema["pattern"], instance) is None:
+            out.append(f"{loc}: value {instance!r} does not match pattern {schema['pattern']}")
+    if isinstance(instance, dict) and ("properties" in schema or schema.get("type") == "object"):
+        props = schema.get("properties", {})
+        for field in schema.get("required", []):
+            if field not in instance:
+                out.append(f"{loc}.{field}: missing required field")
+        if schema.get("additionalProperties") is False:
+            for key in instance:
+                if key not in props:
+                    out.append(f"{loc}.{key}: unknown field not allowed by schema")
+        for key, value in instance.items():
+            if key in props:
+                out += subset_validate(value, props[key], f"{loc}.{key}")
+    if isinstance(instance, list) and "items" in schema:
+        for idx, item in enumerate(instance):
+            out += subset_validate(item, schema["items"], f"{loc}[{idx}]")
+    return out
+
+
+def _load_pipeline_schema(version: str):
+    rel = PIPELINE_SCHEMA_BY_VERSION.get(version)
+    if rel is None:
+        return None
+    if rel not in _PIPELINE_SCHEMA_CACHE:
+        try:
+            _PIPELINE_SCHEMA_CACHE[rel] = json.loads((ROOT / rel).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+    schema = _PIPELINE_SCHEMA_CACHE[rel]
+    return schema if isinstance(schema, dict) else None
+
+
+def _load_json_or_none(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def validate_pipeline_artifact_tree(root) -> list[str]:
+    """Validate one artifact tree rooted at <root>/artifacts/pipeline/<task-id>/.
+    Deterministic and task-scoped; returns a list of violations (empty = valid)."""
+    violations: list[str] = []
+    pipeline_root = root / "artifacts" / "pipeline"
+    if not pipeline_root.is_dir():
+        return ["no artifacts/pipeline directory"]
+    for task_dir in sorted(p for p in pipeline_root.iterdir() if p.is_dir()):
+        task_id = task_dir.name
+        handoff_dir = task_dir / "handoffs"
+        handoffs: list = []
+        if handoff_dir.is_dir():
+            json_stems = {p.stem for p in handoff_dir.glob("*.json")}
+            for md in sorted(handoff_dir.glob("*.md")):
+                if md.stem not in json_stems:
+                    violations.append(f"{md.relative_to(root)}: Markdown handoff without the required canonical JSON handoff")
+            for hj in sorted(handoff_dir.glob("*.json")):
+                data = _load_json_or_none(hj)
+                if not isinstance(data, dict):
+                    violations.append(f"{hj.relative_to(root)}: not a JSON object")
+                    continue
+                schema = _load_pipeline_schema("zentinel.pipeline.handoff.v1")
+                if schema is not None:
+                    violations += subset_validate(data, schema, str(hj.relative_to(root)))
+                if data.get("task_id") != task_id:
+                    violations.append(f"{hj.relative_to(root)}: task_id {data.get('task_id')!r} does not match artifact directory task {task_id}")
+                handoffs.append((hj.name, data))
+            ta = next((d for n, d in handoffs if "test-author" in n), None)
+            impl = next((d for n, d in handoffs if "implementer" in n), None)
+            if ta is not None and impl is not None:
+                ta_t, impl_t = ta.get("created_at"), impl.get("created_at")
+                if isinstance(ta_t, str) and isinstance(impl_t, str) and ta_t >= impl_t:
+                    violations.append(f"{task_dir.relative_to(root)}: I-019 chronology violation: Test Author handoff {ta_t} is not before Implementer handoff {impl_t}")
+        lock = task_dir / "locks" / "active-task-lock.json"
+        if lock.is_file():
+            data = _load_json_or_none(lock)
+            if not isinstance(data, dict):
+                violations.append(f"{lock.relative_to(root)}: not a JSON object")
+            else:
+                schema = _load_pipeline_schema("zentinel.pipeline.active_lock.v1")
+                if schema is not None:
+                    violations += subset_validate(data, schema, str(lock.relative_to(root)))
+                if data.get("task_id") != task_id:
+                    violations.append(f"{lock.relative_to(root)}: active lock task_id {data.get('task_id')!r} does not match artifact directory task {task_id}")
+                cp = data.get("context_packet")
+                if isinstance(cp, str) and f"/pipeline/{task_id}/" not in cp:
+                    violations.append(f"{lock.relative_to(root)}: context_packet {cp!r} is not under task {task_id}")
+        context_dir = task_dir / "context"
+        if context_dir.is_dir():
+            for cj in sorted(context_dir.glob("*.json")):
+                data = _load_json_or_none(cj)
+                if not isinstance(data, dict):
+                    violations.append(f"{cj.relative_to(root)}: not a JSON object")
+                    continue
+                schema = _load_pipeline_schema("zentinel.pipeline.context.v1")
+                if schema is not None:
+                    violations += subset_validate(data, schema, str(cj.relative_to(root)))
+    return violations
+
+
+def validate_pipeline_metadata(errors: list[str]) -> None:
+    """Self-test the project-owned pipeline metadata subset validator: the valid
+    fixture tree must pass with no violations, and every invalid fixture tree
+    must be rejected by at least one deterministic violation."""
+    base = ROOT / "test" / "fixtures" / "pipeline" / "metadata_validator"
+    if not base.is_dir():
+        return
+    valid_root = base / "valid"
+    if valid_root.is_dir():
+        valid_violations = validate_pipeline_artifact_tree(valid_root)
+        require(not valid_violations, errors, f"valid pipeline artifact tree must pass the metadata validator but found: {valid_violations}")
+    invalid_root = base / "invalid"
+    if invalid_root.is_dir():
+        for case in sorted(p for p in invalid_root.iterdir() if p.is_dir()):
+            case_violations = validate_pipeline_artifact_tree(case)
+            require(bool(case_violations), errors, f"invalid pipeline fixture {case.name} must be rejected by the metadata validator")
 
 
 def validate_task_order_contracts(errors: list[str]) -> None:
@@ -3522,8 +3689,8 @@ def validate_agent_implementation_blocker_closure_contracts(tasks: list[dict[str
             i019 = next((entry for entry in entries if isinstance(entry, dict) and entry.get("number") == "I-019"), None)
             require(isinstance(i019, dict), errors, "invariant gap registry must include I-019")
             if isinstance(i019, dict):
-                require(i019.get("covered") is False, errors, "I-019 gap row must remain uncovered until role timestamp validation exists")
-                require(i019.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, "I-019 must defer mechanical chronology proof to task 063")
+                # Role timestamp validation now exists (task 063), so I-019 is covered.
+                require(i019.get("covered") is True, errors, "I-019 gap row is covered now that task 063 role timestamp validation exists")
                 notes = i019.get("notes")
                 require(isinstance(notes, str) and "role timestamps" in notes, errors, "I-019 gap row notes must mention role timestamp validation")
 
@@ -4250,6 +4417,7 @@ def main() -> int:
     validate_gap_registries(errors)
     validate_schema_gap_ownership(tasks, errors)
     validate_gap_registry_deferred_task_closure(tasks, errors)
+    validate_pipeline_metadata(errors)
 
     if errors:
         print("task system validation failed:", file=sys.stderr)

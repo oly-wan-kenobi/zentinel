@@ -100,7 +100,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 039 | `tasks/039-doctest-mutation-experiments.md` | complete | 2 |
 | 040 | `tasks/040-agent-pipeline-foundation.md` | complete | 0 |
 | 041 | `tasks/041-handoff-artifacts.md` | complete | 0 |
-| 041.1 | `tasks/063-pipeline-metadata-validator.md` | queued | 0 |
+| 041.1 | `tasks/063-pipeline-metadata-validator.md` | complete | 0 |
 | 042 | `tasks/042-context-packet-system.md` | queued | 0 |
 | 043 | `tasks/043-mutation-gate.md` | queued | 1 |
 | 044 | `tasks/044-property-test-policy.md` | queued | 1 |

@@ -1,0 +1,28 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "063",
+  "status": "passed",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/063/verification/report.json"
+    },
+    {
+      "name": "pipeline_metadata_self_test",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "validator and fixtures only; no mutation engine change"
+    }
+  ],
+  "residual_risk": [],
+  "recommendation": "complete"
+}

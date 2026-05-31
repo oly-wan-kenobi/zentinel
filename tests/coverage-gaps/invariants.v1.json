@@ -137,10 +137,10 @@
     },
     {
       "number": "I-019",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/063-pipeline-metadata-validator.md",
-      "notes": "Pipeline artifact role timestamps will prove failing evidence was recorded before implementation."
+      "covered": true,
+      "tests": ["test/fixtures/pipeline/metadata_validator/invalid/chronology/", "scripts/validate_task_system.py"],
+      "deferred_to": null,
+      "notes": "Task 063 added the deterministic pipeline metadata validator (validate_pipeline_metadata): it checks pipeline artifact role timestamps so a Test Author handoff's created_at must come before the Implementer handoff's, proving failing evidence was recorded before implementation. A chronology fixture (test/fixtures/pipeline/metadata_validator/invalid/chronology) is rejected when the order is reversed, and the valid tree passes."
     },
     {
       "number": "I-020",

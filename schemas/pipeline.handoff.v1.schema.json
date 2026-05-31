@@ -47,6 +47,7 @@
     "mutation_results": { "type": ["object", "null"] },
     "property_results": { "type": ["object", "null"] },
     "doctest_results": { "type": ["object", "null"] },
-    "next_step_instructions": { "type": "string", "minLength": 1 }
+    "next_step_instructions": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string" }
   }
 }
