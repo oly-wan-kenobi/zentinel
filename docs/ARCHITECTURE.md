@@ -260,7 +260,7 @@ Error messages must be compiler-like: direct, scoped, and actionable.
 | experimental | Available only behind explicit opt-in. Output may change between releases. |
 | internal | Not exposed in config, CLI, or report contracts. |
 
-The AST backend is stable by default. ZIR and AIR backends are experimental until their source mapping, version coupling, and semantic behavior are proven.
+The AST backend is stable by default. ZIR and AIR are experimental **relabel prototypes**: they re-tag the stable AST candidate set with `backend = zir|air` and do **no IR lowering or compiler-internal analysis** (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). They are reachable only through `list-mutants --backend <zir|air>`; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error. Real IR-level analysis is future work, not current behavior.
 
 ## Architecture Invariants
 

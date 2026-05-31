@@ -132,7 +132,7 @@ pub const RunError = error{
     OutputOutsideRoot,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode };
+pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -186,6 +186,12 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.mode_override = safety_modes.parse(args[i]) orelse return error.InvalidMode;
+        } else if (std.mem.eql(u8, arg, "--backend")) {
+            // The experimental ZIR/AIR backends re-tag the AST candidate set and
+            // are reachable only from `list-mutants`; `run` always uses the stable
+            // AST backend, so `run --backend` is an explicit usage error rather
+            // than a silently ignored no-op (task 114).
+            return error.BackendNotInRun;
         } else {
             return error.UnknownOption;
         }

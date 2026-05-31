@@ -319,6 +319,7 @@ fn runRun(
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
+            error.BackendNotInRun => "--backend is list-mutants-only; run always uses the stable AST backend (the experimental ZIR/AIR backends re-tag AST candidates and do no IR analysis)",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
         return 2;

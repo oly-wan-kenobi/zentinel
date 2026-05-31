@@ -573,3 +573,32 @@ test "snapshot: baseline timeout" {
     const json = try report.toJson(a, outcome.report);
     try checkSnapshot(a, "test/snapshots/run_command_baseline_timeout.json", json);
 }
+
+// --- `run --backend` is list-mutants-only (task 114) -----------------------
+
+fn readDoc(a: std.mem.Allocator, path: []const u8) ![]const u8 {
+    return std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));
+}
+
+test "run rejects --backend with a dedicated error and the backend docs state the honest re-tag, list-mutants-only scope" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The experimental ZIR/AIR backends are reachable only from `list-mutants`
+    // (they re-tag AST candidates, they do no IR analysis). `run --backend <...>`
+    // is rejected with a dedicated error -- not the generic UnknownOption, and
+    // never silently ignored.
+    try expectError(error.BackendNotInRun, rc.parseArgs(&.{ "--backend", "zir" }));
+    try expectError(error.BackendNotInRun, rc.parseArgs(&.{ "--backend", "air" }));
+    // A real run option still parses (the dedicated rejection is specific to --backend).
+    _ = try rc.parseArgs(&.{"--fail-on-survivors"});
+
+    // The backend docs describe the prototypes honestly: they re-tag AST
+    // candidates and `--backend` is list-mutants-only (no IR-level analysis).
+    for ([_][]const u8{ "docs/ZIR_BACKEND.md", "docs/AIR_BACKEND.md" }) |doc| {
+        const text = try readDoc(a, doc);
+        try expect(std.mem.indexOf(u8, text, "re-tag") != null);
+        try expect(std.mem.indexOf(u8, text, "list-mutants") != null);
+    }
+}

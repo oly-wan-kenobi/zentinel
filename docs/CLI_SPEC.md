@@ -158,6 +158,8 @@ Experimental backends require explicit opt-in.
 
 `list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`. Before those tasks land, `list-mutants --backend <zir|air>` must fail deterministically as a known experimental option that is not yet implemented, while `--backend ast` remains the stable path owned by the initial `list-mutants` work.
 
+`--backend` is **`list-mutants`-only**. The experimental ZIR and AIR backends are relabel prototypes that re-tag the stable AST candidate set with `backend = zir|air`; they do no IR-level analysis or lowering (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). They affect only the `list-mutants` listing's backend labels and never change which mutants are generated or run.
+
 ## `run`
 
 Runs mutation testing.
@@ -175,6 +177,8 @@ Useful options:
 --output <path>
 --no-cache
 ```
+
+`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR relabel backends never participate in a run.
 
 ## Run Option Ownership
 

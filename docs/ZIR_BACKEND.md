@@ -1,10 +1,14 @@
 # ZIR Backend
 
-The ZIR backend is an experimental backend for exploring mutation at Zig's intermediate representation level before full semantic lowering.
+The ZIR backend is an experimental backend that aims, eventually, to explore mutation at Zig's intermediate representation level before full semantic lowering.
+
+## Current scope (honest)
+
+The shipped ZIR backend is a **relabel prototype**, not IR analysis. `src/zir_backend.zig` derives ZIR candidates from the stable AST candidate set and **re-tags** the supported condition operators with `backend = zir` and `backend_stability = experimental`; it does **no ZIR lowering and no compiler-internal IR introspection**. Operators it cannot map exactly from the AST are dropped to out-of-report diagnostics rather than emitted. It is reachable **only from `list-mutants --backend zir`**; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error. The "intermediate representation level" goal below is future work (see Non-Goals / a later real-lowering task), not current behavior.
 
 ## Purpose
 
-ZIR can expose semantic structure that is difficult to infer from source syntax alone, especially around comptime execution, inferred types, and generic instantiations.
+The future ZIR backend could expose semantic structure that is difficult to infer from source syntax alone, especially around comptime execution, inferred types, and generic instantiations. The current prototype does not yet do this.
 
 The ZIR backend exists to answer:
 

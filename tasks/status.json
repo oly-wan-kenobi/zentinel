@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "114",
+  "next_task": "115",
   "completed_tasks": [
     "068",
     "069",
@@ -116,14 +116,15 @@
     "110",
     "111",
     "112",
-    "113"
+    "113",
+    "114"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 113 wire the mutation-aware doctest survivor path completed. `doctest --mutate` was fenced to fixtures and wrote stdout only, and `doctest explain-survivor` read a report no command produced. It now routes through mutation_experiment.mutateReportJson (a thin entry over the existing stableMutationRun) and PERSISTS the stable zentinel.doctest.report.v1 report (ds_ survivor refs) to the default survivor path zig-out/zentinel/doctest/report.json; the hardcoded fixtures gate is removed (the explicit --mutate flag is the opt-in). Proven by a module test (produces the report via mutateReportJson, then runSurvivor resolves a ds_ extracted from it; the producer entry point did not exist before, so it did not compile) AND a real-binary end-to-end run: `doctest --mutate` over survived.md persisted a report with a real zig-test survivor, and `doctest explain-survivor <ds_> --ai-provider stub` resolved+explained it (bogus ref -> ZNTL_DOCTEST_SURVIVOR_NOT_FOUND). CLI_SPEC and DOCTEST_AI_INTEGRATION document the reachable end-to-end path. Full suite green (502 tests); zig build, zig fmt --check, git diff --check, validator all clean."
+    "notes": "Task 114 scope ZIR/AIR backends honestly completed. The ZIR/AIR backends re-tag the AST candidate set (no IR analysis) and are reachable only from list-mutants; the docs oversold them and run silently treated --backend as an unknown option. run_command.parseArgs now returns a dedicated error.BackendNotInRun for `--backend` (was generic UnknownOption), and cli.zig maps it to a clear message ('--backend is list-mutants-only; run always uses the stable AST backend ...'); docs/ARCHITECTURE.md, docs/ZIR_BACKEND.md, docs/AIR_BACKEND.md, and docs/CLI_SPEC.md now describe ZIR/AIR as relabel prototypes that re-tag AST candidates with no IR lowering and --backend as list-mutants-only. Proven by a test that fails with 'expected error.BackendNotInRun, found error.UnknownOption' before the fix, plus the real binary's `run --backend zir` emitting the clear ZNTL_CLI_INVALID_OPTION message (exit 2). Full suite green (503 tests); zig build, zig fmt --check, git diff --check, validator all clean."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5595,6 +5596,53 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/113/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "114",
+      "failing_evidence": "failing_command: `zig build test` with the test in test/run_command_test.zig written first. failing_output_excerpt: 'run rejects --backend with a dedicated error ...' failed with `expected error.BackendNotInRun, found error.UnknownOption` at src/run_command.zig:190 -- `run --backend zir` was handled by the generic UnknownOption branch (a non-explicit, undocumented rejection) rather than a dedicated error, and the backend docs did not state the honest re-tag / list-mutants-only scope (the 're-tag'/'list-mutants' doc assertions also failed). implementation_started_after_failure: true. passing_command: after adding error.BackendNotInRun + the explicit --backend parse branch and rewording the docs, `zig build test` passed (503 tests). The real binary confirmed it: `zentinel run --backend zir` exits 2 with 'error[ZNTL_CLI_INVALID_OPTION]: --backend is list-mutants-only; run always uses the stable AST backend (the experimental ZIR/AIR backends re-tag AST candidates and do no IR analysis)'.",
+      "implementation_summary": "Aligned the experimental-backend documentation and CLI surface with reality (the relabel-vs-implement choice resolved as relabel-honestly, since real IR lowering is an out-of-scope future effort). src/run_command.zig adds error.BackendNotInRun to ParseError and an explicit `--backend` branch in parseArgs that returns it, so `run --backend` is a dedicated, documented usage error rather than a silently-generic UnknownOption or a no-op. src/cli.zig maps error.BackendNotInRun to a clear ZNTL_CLI_INVALID_OPTION message stating --backend is list-mutants-only and run uses the stable AST backend. docs/ARCHITECTURE.md, docs/ZIR_BACKEND.md, and docs/AIR_BACKEND.md now state the shipped ZIR/AIR backends are relabel prototypes that re-tag the AST candidate set (backend=zir|air, experimental) with no IR lowering or compiler-internal analysis, reachable only from `list-mutants --backend <...>`, with real IR-level analysis called out as future work; docs/CLI_SPEC.md states --backend is list-mutants-only and that run rejects it deterministically with exit 2. The doc wording mirrors src/zir_backend.zig's own honest comment ('derives ZIR candidates from the stable AST candidate set ... re-tagging ...'). Non-goals respected: no real ZIR/AIR lowering implemented. src/ai/**, build.zig, build.zig.zon untouched (forbidden).",
+      "files_changed": [
+        "src/run_command.zig",
+        "src/cli.zig",
+        "docs/ARCHITECTURE.md",
+        "docs/ZIR_BACKEND.md",
+        "docs/AIR_BACKEND.md",
+        "docs/CLI_SPEC.md",
+        "test/run_command_test.zig",
+        "artifacts/pipeline/114/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/run_command_test.zig: 'run rejects --backend with a dedicated error and the backend docs state the honest re-tag, list-mutants-only scope' -- run_command.parseArgs(--backend zir|air) returns error.BackendNotInRun (a real run option still parses), and docs/ZIR_BACKEND.md and docs/AIR_BACKEND.md contain the honest 're-tag' behavior and 'list-mutants' scope keywords. Fails before the fix with 'found error.UnknownOption'."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): 'expected error.BackendNotInRun, found error.UnknownOption'",
+        "zig build test (passing, after the fix): 503 tests green",
+        "real-binary check (passing): `zentinel run --backend zir` -> exit 2 with the clear list-mutants-only message",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 114 was active and again after the complete-state transition with next_task advanced to 115 (115 depends on the now-complete 114). The task-114 verification artifact validates and no coverage-gap rows are deferred to task 114. The gitignored .claude/ lock recreated by the loop wakeup was removed before validating."
+      },
+      "dogfooding_implication": "zentinel's docs stop overstating its own backend capabilities: ARCHITECTURE/ZIR_BACKEND/AIR_BACKEND/CLI_SPEC now state ZIR/AIR re-tag AST candidates with no IR analysis and are list-mutants-only, and `zentinel run --backend` fails with a clear message instead of an undocumented generic error -- so a user (or zentinel dogfooding itself) is never misled into thinking `run` performs IR-level mutation.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/114/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

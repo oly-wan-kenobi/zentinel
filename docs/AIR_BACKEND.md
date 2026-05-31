@@ -1,6 +1,10 @@
 # AIR Backend
 
-The AIR backend is an experimental backend for mutation after semantic analysis. It is the highest-risk backend because it is closest to compiler internals and farthest from direct source syntax.
+The AIR backend is an experimental backend that aims, eventually, to mutate after semantic analysis. It would be the highest-risk backend because it is closest to compiler internals and farthest from direct source syntax.
+
+## Current scope (honest)
+
+The shipped AIR backend is a **relabel prototype**, not IR analysis. `src/air_backend.zig` derives AIR candidates from the stable AST candidate set and **re-tags** the supported operators with `backend = air` and `backend_stability = experimental`; it does **no AIR lowering and no compiler-internal analysis**. It is reachable **only from `list-mutants --backend air`**; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error. The post-semantic-analysis goals below are future work, not current behavior.
 
 ## Purpose
 

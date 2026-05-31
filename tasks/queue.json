@@ -3744,7 +3744,7 @@
       "title": "Scope ZIR/AIR Backends Honestly",
       "file": "tasks/114-scope-experimental-backends.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "113"
       ],
