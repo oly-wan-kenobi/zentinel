@@ -10,7 +10,7 @@ pub const Language = enum { zig, bash, json, text, toml, other };
 
 /// Block kind from the info string. `unit_test` is the `test` tag (renamed to
 /// avoid the Zig keyword); `none` is a plain language block (e.g. `zig`).
-pub const Kind = enum { none, unit_test, compile_fail, expected, output, config, before, after, cli };
+pub const Kind = enum { none, unit_test, compile_fail, expected, output, config, config_fail, before, after, cli };
 
 pub const MatchMode = enum { none, subset, contains, exact };
 
@@ -49,6 +49,7 @@ pub fn kindFromToken(tok: []const u8) ?Kind {
     if (std.mem.eql(u8, tok, "expected")) return .expected;
     if (std.mem.eql(u8, tok, "output")) return .output;
     if (std.mem.eql(u8, tok, "config")) return .config;
+    if (std.mem.eql(u8, tok, "config_fail")) return .config_fail;
     if (std.mem.eql(u8, tok, "before")) return .before;
     if (std.mem.eql(u8, tok, "after")) return .after;
     if (std.mem.eql(u8, tok, "cli")) return .cli;

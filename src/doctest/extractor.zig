@@ -30,6 +30,7 @@ fn producerKind(b: block.Block) ?case.CaseKind {
         .compile_fail => .zig_compile_fail,
         .cli => .cli,
         .config => .config,
+        .config_fail => .config_fail,
         .before => .mutation,
         .none => if (b.language == .zig) .zig_compile_pass else null,
         else => null,

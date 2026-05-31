@@ -104,7 +104,11 @@ fn runConfig(ctx: Context, c: case.Case, content: []const u8, expect_pass: bool)
         error.OutOfMemory => return error.OutOfMemory,
     };
     const status: Status = if (valid == expect_pass) .passed else .failed;
-    return base(c, status, null, null, null, false, "", "", null, &.{});
+    // On a validation failure, surface the deterministic config diagnostic as the
+    // case output so a `text output` expectation block can verify the documented
+    // reason. A valid config has no diagnostic.
+    const out: []const u8 = if (valid) "" else try std.fmt.allocPrint(ctx.arena, "error[{s}]: {s}", .{ diag.code.token(), diag.message });
+    return base(c, status, null, null, null, false, out, "", null, &.{});
 }
 
 fn runCli(ctx: Context, c: case.Case, content: []const u8) RunError!CaseResult {

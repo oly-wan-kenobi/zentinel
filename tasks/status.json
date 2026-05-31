@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "036",
+  "next_task": "037",
   "completed_tasks": [
     "068",
     "069",
@@ -75,17 +75,69 @@
     "032",
     "033",
     "034",
-    "035"
+    "035",
+    "036"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 035 CLI doctests completed; active-state and complete-state validation passed (106 tasks). Closed schema gap row zentinel.doctest.report.v1, covered by test/doctest_cli_command_test.zig. Wired the `zentinel doctest` command: src/doctest_command.zig orchestrates parser/extractor/runner/normalizer/matcher/snapshot over a doc file into a deterministic zentinel.doctest.report.v1 report with --file/--format/--case/--no-color, exit codes, and --case selection by durable dt_ id or anchor-line source ref (expectation-line selectors rejected). src/doctest/report.zig is the typed report model + validate + JSON serialization; schemas/doctest.report.v1.schema.json is the new schema. cli.zig/root.zig route and wire real process/workspace adapters. Dogfood: docs/CLI_SPEC.md's `zentinel version` example is now an executable bash cli + text output doctest (stale 0.1.0 corrected to the real 0.0.0), and `zentinel doctest --file docs/CLI_SPEC.md` passes against the real binary. No mutation-aware doctests, config docs dogfood, cache, or AI (non-goals)."
+    "notes": "Task 036 config doctests completed; active-state and complete-state validation passed (106 tasks). No gap rows. Completed the deferred `toml config_fail` support (src/doctest/block.zig Kind + kindFromToken, src/doctest/extractor.zig producerKind) and made src/doctest/runner.zig surface the deterministic config diagnostic (`error[<code>]: <message>`) as config-case output so a `text output` expectation block verifies the documented failure reason. Converted docs/CONFIG_SPEC.md's minimal and full config examples to executable `toml config` doctests and added `toml config_fail` examples (experimental backend, unknown key) with expected-diagnostic blocks. `zentinel doctest --file docs/CONFIG_SPEC.md` passes (4 cases) against the real binary. No config parser behavior change (config.load already produced the needed diagnostics), no AI/mutation/cache (non-goals)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "036",
+      "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: 6 of the new config doctest tests failed -- `test.experimental backend config_fail ... expected 1, found 0` (config_fail blocks were not yet parsed, so they produced no case), the `docs/CONFIG_SPEC.md config examples` test (`expected out.report.cases.len >= 4`), the deterministic-diagnostic property (`ZNTL_CONFIG_UNKNOWN_KEY` not found in empty output), and the diagnostic normalization snapshot placeholder. implementation_started_after_failure: true; block.zig/extractor/runner were extended only after capturing the no-config_fail-case failure. passing_command: `zig build test` then passed all tests after the config_fail wiring and self-blessing the diagnostic snapshot.",
+      "implementation_summary": "Dogfooded config documentation through normal doctest execution (no AI, mutation, cache, or report doctests -- non-goals). Completed the `toml config_fail` support deferred from task 033: src/doctest/block.zig adds config_fail to the Kind enum and kindFromToken, and src/doctest/extractor.zig maps it to the config_fail producer case kind, so `toml config_fail` blocks now extract as cases. src/doctest/runner.zig's config handler now renders the deterministic config diagnostic (`error[<ZNTL_CONFIG_*>]: <message>`) into the case output on a validation failure (empty for a valid config), so a following `text output` expectation block snapshot-matches the documented failure reason -- a config_fail case whose documented diagnostic is wrong is correctly downgraded to failed. docs/CONFIG_SPEC.md's Minimal Config and Full Config Example became executable `toml config` doctests, and a new Validation Failures section adds `toml config_fail` examples for an experimental backend (ZNTL_CONFIG_EXPERIMENTAL_BACKEND) and an unknown key (ZNTL_CONFIG_UNKNOWN_KEY) with expected-diagnostic blocks. No config parser change was needed: config.load already produced the required diagnostics, and the documented full config is byte-identical to the known-valid init output. doctest_command/cli were reused unchanged (config cases execute through the existing pipeline). No mutators/ai/zir/air changes (forbidden).",
+      "files_changed": [
+        "src/doctest/block.zig",
+        "src/doctest/extractor.zig",
+        "src/doctest/runner.zig",
+        "docs/CONFIG_SPEC.md",
+        "test/doctest_config_test.zig",
+        "test/fixtures/doctest/config/minimal.md",
+        "test/fixtures/doctest/config/full.md",
+        "test/fixtures/doctest/config/experimental.md",
+        "test/fixtures/doctest/config/unknown_key.md",
+        "test/fixtures/doctest/config/wrong_diagnostic.md",
+        "test/fixtures/doctest/config/experimental.diagnostic.txt",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_config_test.zig: minimal and full config examples execute as passing `toml config` doctests (identified by doc path and line); experimental-backend and unknown-key `toml config_fail` examples pass for the documented diagnostic; a config_fail whose documented diagnostic is wrong fails (exit 1); `docs/CONFIG_SPEC.md` config examples all execute and pass (4 cases); a self-blessed config-fail diagnostic normalization snapshot; and property tests for deterministic invalid-config diagnostics across repeated runs, reordered-independent-section equivalence, and idempotent normalization of the (path-free) config diagnostic.",
+        "test/fixtures/doctest/config/{minimal,full,experimental,unknown_key,wrong_diagnostic}.md and experimental.diagnostic.txt: config doctest fixtures and the self-blessed normalized diagnostic snapshot."
+      ],
+      "tests_run": [
+        "zig build test (failing, zigars MCP): 6 config doctest tests failed (no config_fail cases / empty diagnostics / placeholder snapshot)",
+        "zig build test (passing, zigars MCP): all tests pass after the config_fail wiring + self-blessing the diagnostic snapshot",
+        "zig build (zigars MCP): binary builds",
+        "real-binary dogfood: `zentinel doctest --file docs/CONFIG_SPEC.md` -> 4 cases, all passed, exit 0",
+        "zig fmt --check src test build.zig: clean (exit 0)",
+        "git diff --check: clean (exit 0)",
+        "python3 scripts/validate_task_system.py: passed (106 tasks) in both active and complete states"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 036 was active and again after the complete-state transition (106 tasks). No gap-registry rows for task 036."
+      },
+      "dogfooding_implication": "Config docs are now executable contracts for the parser and validator: `zentinel doctest --file docs/CONFIG_SPEC.md` validates the documented minimal/full configs and proves the documented failures (experimental backend, unknown key) fail with their documented diagnostics. Mutator spec doctests (037) and public-docs coverage (066) extend the dogfood; CI runs it at 059.",
+      "follow_up_tasks": [
+        "tasks/037-mutator-spec-doctests.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "035",
       "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: the doctest CLI command test failed with the placeholder report snapshot mismatch -- `expected: PLACEHOLDER - self-blessed ... found: { \"schema_version\": \"zentinel.doctest.report.v1\", ... }` (10/11 of the new tests passed; the rest of the suite was green). implementation_started_after_failure: the new modules were built first (the exe and unit suite compiled), then the report JSON snapshot was self-blessed from the actual deterministic output. passing_command: `zig build test` then passed all tests.",

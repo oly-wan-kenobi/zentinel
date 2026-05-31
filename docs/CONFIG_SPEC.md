@@ -18,7 +18,7 @@ zentinel run --config path/to/zentinel.toml
 
 ## Minimal Config
 
-```toml
+```toml config
 [project]
 name = "example"
 
@@ -43,7 +43,7 @@ Unsupported TOML syntax must fail with `ZNTL_CONFIG_PARSE_ERROR` or `ZNTL_CONFIG
 
 ## Full Config Example
 
-```toml
+```toml config
 [project]
 name = "example"
 root = "."
@@ -91,6 +91,30 @@ provider = "disabled"
 remote_allowed = false
 source_context_lines = 4
 redact_patterns = ["(?i)api[_-]?key", "(?i)token"]
+```
+
+## Validation Failures
+
+Selecting an experimental backend without an explicit opt-in is rejected:
+
+```toml config_fail
+[backend]
+default = "zir"
+```
+
+```text output contains
+ZNTL_CONFIG_EXPERIMENTAL_BACKEND
+```
+
+An unknown section or key is rejected:
+
+```toml config_fail
+[project]
+bogus = "x"
+```
+
+```text output contains
+ZNTL_CONFIG_UNKNOWN_KEY
 ```
 
 ## Project Section

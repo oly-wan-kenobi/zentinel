@@ -2559,7 +2559,7 @@
       "title": "Config Doctests",
       "file": "tasks/036-config-doctests.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "035"
       ],
