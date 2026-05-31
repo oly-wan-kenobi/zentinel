@@ -129,7 +129,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 060 | `tasks/060-release-acceptance-verification.md` | complete | 7 |
 | 061 | `tasks/106-fix-false-survivor-test-selection.md` | complete | 8 |
 | 062 | `tasks/107-bound-untrusted-report-integer-casts.md` | complete | 8 |
-| 063 | `tasks/108-deterministic-evidence-excerpts.md` | queued | 8 |
+| 063 | `tasks/108-deterministic-evidence-excerpts.md` | complete | 8 |
 | 064 | `tasks/109-wire-phase2-mutators.md` | queued | 8 |
 | 065 | `tasks/110-behavioral-release-gates.md` | queued | 8 |
 | 066 | `tasks/111-real-binary-integration-tests.md` | queued | 8 |

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "108",
+  "next_task": "109",
   "completed_tasks": [
     "068",
     "069",
@@ -110,14 +110,15 @@
     "085",
     "060",
     "106",
-    "107"
+    "107",
+    "108"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 107 bound untrusted report integer casts completed; active-state and complete-state validation passed. Advisory AI `--input-report` ingestion now rejects an out-of-range or non-integer report integer with ZNTL_AI_REPORT_NOT_FOUND instead of aborting via @intCast (proven by a test that crashed with SIGABRT/exit 134 and `panic: integer does not fit` without the fix). Debug suite green (495 tests); the AI cast-safety cases pass in Debug, ReleaseSafe, and ReleaseFast. A pre-existing, unrelated ReleaseFast-only failure in doctest_cli_command_test (exit 4 vs 1) reproduces on the task-106 HEAD without this change and is outside task 107's allowed files; it is recorded as residual risk and flagged for a separate task. zig build, zig fmt --check src test build.zig, git diff --check all clean."
+    "notes": "Task 108 deterministic evidence excerpts completed; active-state and complete-state validation passed. Captured stdout/stderr excerpts are normalized at capture (report.normalizeExcerpt: hex pointer addresses -> 0x<addr>, absolute path tokens -> <path>) before bounding, so two real runs over the same project normalize-equal even when a mutant is killed via a panic/assertion stack trace (proven by a repeated-run test that was not normalized-equal without the fix; reverting boundedExcerpt re-broke it). docs/REPORT_FORMAT.md documents exactly what the comparison treats as stable. Debug suite green (497 tests); the excerpt-determinism cases pass in Debug, ReleaseSafe, and ReleaseFast. The pre-existing, unrelated ReleaseFast-only doctest_cli_command_test failure persists (flagged separately under task 107). zig build, zig fmt --check src test build.zig, git diff --check all clean."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5315,6 +5316,53 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/107/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "108",
+      "failing_evidence": "failing_command: `zig build test` with test/report_determinism_test.zig written first. failing_output_excerpt: 'test.repeated runs whose excerpts differ only in addresses and absolute paths normalize equal' failed at expectEqualStrings(n1, n2) -- two reports whose killed-mutant stderr differed only in a 0x ASLR address and an absolute source path produced DIFFERENT normalized JSON, because the raw addresses/paths were stored in evidence.stderr_excerpt and normalizeForComparison only normalizes run.id/started_at/duration. implementation_started_after_failure: true. After implementing report.normalizeExcerpt and applying it in runner.boundedExcerpt, `zig build test` passed (497 tests). To prove the test is valid, boundedExcerpt was temporarily reverted to the raw truncation and the integration test failed again (the normalizeExcerpt unit test still passed because the function existed), then the fix was restored.",
+      "implementation_summary": "Made repeated-run report comparison deterministic for real test output. src/report.zig adds pure normalizeExcerpt(arena, text): it replaces hex pointer addresses (`0x`/`0X` + hex digits, e.g. ASLR stack-trace addresses) with `0x<addr>` and absolute path tokens (a `/`-rooted run at start-of-excerpt or after whitespace, e.g. a stack-trace `/abs/path/file.zig:line:col` entry) with `<path>`, preserving surrounding prose. src/runner.zig boundedExcerpt now normalizes BEFORE the 4096-byte bound (so a wider address cannot shift the truncation point) and routes both stdout_excerpt and stderr_excerpt through it, so every report excerpt (baseline, mutant, selection preflight) is deterministic at capture. Because the stored excerpts are deterministic, normalizeForComparison (run.id/started_at/durations) and evidenceEqual/equivalentIgnoringTiming all observe identical excerpt bytes across runs -- they agree with the chosen normalization without excerpt-specific logic. docs/REPORT_FORMAT.md documents the two normalized classes and that the comparison treats excerpts as stable. Non-goals respected: excerpts are normalized, never dropped; mutant IDs and classification are unchanged. src/ai/**, build.zig, build.zig.zon untouched (forbidden); test/fixtures/report/** not needed (the test is self-contained).",
+      "files_changed": [
+        "src/report.zig",
+        "src/runner.zig",
+        "docs/REPORT_FORMAT.md",
+        "test/report_determinism_test.zig",
+        "artifacts/pipeline/108/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/report_determinism_test.zig: 'repeated runs whose excerpts differ only in addresses and absolute paths normalize equal' -- two full runs (via run_command.run with a killed mutant) whose stderr differs only in a 0x address and an absolute path, plus different run id/timestamp/durations, produce identical normalizeForComparison output (the audit repro; not normalized-equal before the fix).",
+        "test/report_determinism_test.zig: 'normalizeExcerpt replaces hex addresses and absolute paths but keeps other text' -- the pure normalizer turns 0x<hex> into 0x<addr> and an absolute path into <path>, keeps surrounding prose, and maps two excerpts differing only in those to identical bytes."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): the repeated-run determinism case failed at expectEqualStrings(n1, n2)",
+        "zig build test (passing, after the fix): 497 tests green",
+        "zig build test (boundedExcerpt temporarily reverted to raw): the determinism integration case failed again, confirming the test is valid; fix restored",
+        "zig build test -Doptimize=ReleaseSafe (passing)",
+        "zig build test -Doptimize=ReleaseFast (excerpt-determinism cases pass; only the pre-existing unrelated doctest_cli_command_test fails)",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 108 was active and again after the complete-state transition with next_task advanced to 109 (109 depends on the now-complete 108). The task-108 verification artifact validates and no coverage-gap rows are deferred to task 108."
+      },
+      "dogfooding_implication": "zentinel's own dogfood determinism evidence can now be produced from real runs instead of hand-authored fixtures: a killed mutant's panic/assertion stderr (ASLR addresses, absolute source paths) no longer makes two repeated runs over the same project differ, so committed dogfood report fixtures normalize-equal to a fresh run on any machine.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/108/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

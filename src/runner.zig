@@ -57,9 +57,16 @@ pub fn statusCode(status: report.CommandStatus) []const u8 {
     };
 }
 
+/// Normalize then bound a captured command-output excerpt. Normalization happens
+/// BEFORE truncation so the cut point is itself deterministic: ASLR addresses of
+/// different widths would otherwise shift the truncation boundary between runs.
+/// The normalizer (report.normalizeExcerpt) replaces hex pointer addresses and
+/// absolute machine paths with stable placeholders so repeated runs over the same
+/// project produce identical excerpts (docs/REPORT_FORMAT.md).
 fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
-    const len = @min(text.len, excerpt_limit);
-    return arena.dupe(u8, text[0..len]);
+    const normalized = try report.normalizeExcerpt(arena, text);
+    const len = @min(normalized.len, excerpt_limit);
+    return normalized[0..len];
 }
 
 /// Classify one raw outcome into a `CommandResult` for the given phase. Status is

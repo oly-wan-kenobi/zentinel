@@ -233,7 +233,7 @@ Each command result records `phase`, `status`, `exit_code`, `timed_out`, `failur
 
 A baseline compiler crash uses `status = "compiler_crash"`, `failure_kind = "compiler_crash"`, and `run.status = "baseline_failed"`. zentinel treats abnormal Zig termination during baseline as deterministic baseline failure evidence, not as an internal zentinel error.
 
-Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and stderr excerpts are each limited to 4096 bytes after normalization.
+Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and stderr excerpts are each limited to 4096 bytes after normalization. Normalization (hex pointer addresses and absolute paths replaced with stable placeholders) is applied at capture so excerpts are deterministic across runs and machines; see [Repeated-Run Comparison](#repeated-run-comparison).
 
 ## Selection Preflight Evidence
 
@@ -335,6 +335,15 @@ Repeated-run comparisons use the canonical JSON report after normalizing:
 - per-command and per-mutant duration fields
 
 No other deterministic result, candidate, ordering, schema, or evidence field may differ without an explicit documented reason.
+
+### Evidence excerpt normalization
+
+Captured `stdout_excerpt` and `stderr_excerpt` values are normalized **at capture**, before they enter the report, so two real runs over the same project — including runs where a mutant is killed via a panic or assertion stack trace — produce byte-identical excerpts. The comparison therefore treats excerpts as stable deterministic fields rather than ignoring them. The normalization replaces exactly two classes of run- and machine-specific content with fixed placeholders:
+
+- hex pointer addresses (`0x` followed by hex digits, e.g. ASLR stack-trace addresses) become `0x<addr>`
+- absolute path tokens (a `/`-rooted run at the start of the excerpt or after whitespace, e.g. a stack-trace `…/file.zig:line:col` entry) become `<path>`
+
+Surrounding prose is preserved; excerpts are normalized, never dropped. Because normalization happens before the 4096-byte bound, the truncation point is itself deterministic (a wider address in one run cannot shift the cut). The runner applies this via `report.normalizeExcerpt`, so `normalizeForComparison` and `equivalentIgnoringTiming`/`evidenceEqual` all observe the same deterministic excerpt bytes.
 
 ## Schema Compatibility
 

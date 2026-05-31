@@ -3581,7 +3581,7 @@
       "title": "Deterministic Evidence Excerpts",
       "file": "tasks/108-deterministic-evidence-excerpts.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "107"
       ],

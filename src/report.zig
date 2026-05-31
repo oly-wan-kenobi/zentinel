@@ -449,6 +449,47 @@ fn replaceKeyStringValue(arena: std.mem.Allocator, text: []const u8, key: []cons
     return out.toOwnedSlice(arena);
 }
 
+/// Normalize a captured command-output excerpt so two real runs over the same
+/// project produce identical excerpt bytes (docs/REPORT_FORMAT.md, Repeated-Run
+/// Comparison). Test panics and assertion stack traces embed ASLR pointer
+/// addresses (`0x<hex>`, which differ on every run) and absolute machine paths
+/// (which differ across machines); both are replaced with the stable placeholders
+/// `0x<addr>` and `<path>` so a killed mutant's stderr can no longer make the
+/// report non-deterministic. Surrounding prose is preserved (excerpts are
+/// normalized, never dropped). Returns an arena-owned copy; the input is unchanged.
+pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
+    var out: std.ArrayList(u8) = .empty;
+    var i: usize = 0;
+    while (i < text.len) {
+        // Hex pointer address: `0x`/`0X` followed by one or more hex digits.
+        if (text[i] == '0' and i + 2 < text.len and (text[i + 1] == 'x' or text[i + 1] == 'X') and isHexDigit(text[i + 2])) {
+            try out.appendSlice(arena, "0x<addr>");
+            i += 2;
+            while (i < text.len and isHexDigit(text[i])) i += 1;
+            continue;
+        }
+        // Absolute path token: a `/`-rooted run at the start of the excerpt or
+        // after whitespace (matches stack-trace `/abs/path/file.zig:line:col`
+        // entries). The whole non-whitespace token is replaced.
+        if (text[i] == '/' and (i == 0 or isExcerptSpace(text[i - 1]))) {
+            try out.appendSlice(arena, "<path>");
+            i += 1;
+            while (i < text.len and !isExcerptSpace(text[i])) i += 1;
+            continue;
+        }
+        try out.append(arena, text[i]);
+        i += 1;
+    }
+    return out.toOwnedSlice(arena);
+}
+
+fn isHexDigit(c: u8) bool {
+    return (c >= '0' and c <= '9') or (c >= 'a' and c <= 'f') or (c >= 'A' and c <= 'F');
+}
+fn isExcerptSpace(c: u8) bool {
+    return c == ' ' or c == '\t' or c == '\n' or c == '\r';
+}
+
 // --- Performance equivalence + benchmark output (tasks/052) -----------------
 
 fn summaryEqual(a: Summary, b: Summary) bool {
