@@ -3554,7 +3554,7 @@
       "title": "Bound Untrusted Report Integer Casts",
       "file": "tasks/107-bound-untrusted-report-integer-casts.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "106"
       ],

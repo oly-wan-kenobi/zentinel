@@ -120,12 +120,22 @@ fn optStr(v: ?std.json.Value) ?[]const u8 {
     };
     return null;
 }
-fn optU32(v: ?std.json.Value) ?u32 {
-    if (v) |x| return switch (x) {
-        .integer => |n| if (n >= 0) @intCast(n) else null,
-        else => null,
-    };
-    return null;
+/// Narrow an optional report-sourced JSON integer to `?u32`. The report is
+/// untrusted (`--input-report`), so a value above maxInt(u32) or a present
+/// non-integer must become a clean invalid-report failure rather than a panicking
+/// `@intCast` (abort in Debug/ReleaseSafe) or a silent wrap (ReleaseFast). Absent,
+/// null, and negative values map to "no value" (null), preserving the prior
+/// optional-field semantics (task 107).
+fn optU32(v: ?std.json.Value) command.Failure!?u32 {
+    const x = present(v) orelse return null;
+    switch (x) {
+        .integer => |n| {
+            if (n < 0) return null;
+            if (n > std.math.maxInt(u32)) return error.AiReportNotFound;
+            return @intCast(n);
+        },
+        else => return error.AiReportNotFound,
+    }
 }
 fn i64v(v: ?std.json.Value) i64 {
     if (v) |x| return switch (x) {
@@ -345,8 +355,8 @@ fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value) ![]const Diag
         .code = s(get(it, "code")),
         .message = s(get(it, "message")),
         .file = optStr(get(it, "file")),
-        .line = optU32(get(it, "line")),
-        .column = optU32(get(it, "column")),
+        .line = try optU32(get(it, "line")),
+        .column = try optU32(get(it, "column")),
     };
     return buf;
 }
@@ -355,12 +365,12 @@ fn redactOpt(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []c
     return try context.redactAndCap(arena, t, patterns, context.excerpt_limit);
 }
 
-fn metaFromCase(case: std.json.Value) DoctestMeta {
+fn metaFromCase(case: std.json.Value) command.Failure!DoctestMeta {
     return .{
         .id = optStr(get(case, "id")),
         .file = s(get(case, "file")),
-        .line_start = optU32(get(case, "line_start")),
-        .line_end = optU32(get(case, "line_end")),
+        .line_start = try optU32(get(case, "line_start")),
+        .line_end = try optU32(get(case, "line_end")),
         .source_ref = optStr(get(case, "source_ref")),
         .block_refs = &.{},
         .kind = sOr(get(case, "kind"), "cli"),
@@ -415,7 +425,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = metaFromCase(case),
+                .doctest = try metaFromCase(case),
                 .evidence = ev,
                 .privacy = privacyOf(settings),
             };
@@ -444,7 +454,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = metaFromCase(case),
+                .doctest = try metaFromCase(case),
                 .evidence = ev,
                 .privacy = privacyOf(settings),
             };
@@ -865,6 +875,8 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
     // Build, validate the doctest context and prompt envelope before "sending".
     const ctx = buildContextValue(arena, input.flow, mode, ctx_input, input.settings) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
+        // An out-of-range or non-integer report integer is an invalid report (task 107).
+        error.AiReportNotFound => return error.AiReportNotFound,
         else => return error.AiResponseInvalid,
     };
     if (validateContext(ctx) != .ok) return error.AiResponseInvalid;
@@ -987,12 +999,12 @@ fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patter
     };
 }
 
-fn survivorMeta(case: std.json.Value) DoctestMeta {
+fn survivorMeta(case: std.json.Value) command.Failure!DoctestMeta {
     return .{
         .id = optStr(get(case, "id")),
         .file = s(get(case, "file")),
-        .line_start = optU32(get(case, "line_start")),
-        .line_end = optU32(get(case, "line_end")),
+        .line_start = try optU32(get(case, "line_start")),
+        .line_end = try optU32(get(case, "line_end")),
         .source_ref = optStr(get(case, "source_ref")),
         .block_refs = &.{},
         .kind = "mutation",
@@ -1034,7 +1046,7 @@ pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std
     const ctx = SurvivorContextT{
         .provider_mode = provider.modeName(mode),
         .project = projectOf(settings, null),
-        .doctest = survivorMeta(case),
+        .doctest = try survivorMeta(case),
         .evidence = ev,
         .privacy = privacyOf(settings),
     };
@@ -1142,6 +1154,8 @@ pub fn runSurvivor(arena: std.mem.Allocator, input: SurvivorInput, format: Forma
 
     const ctx = buildSurvivorContextValue(arena, mode, case, input.settings) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
+        // An out-of-range or non-integer report integer is an invalid report (task 107).
+        error.AiReportNotFound => return error.AiReportNotFound,
         else => return error.AiResponseInvalid,
     };
     if (validateSurvivorContext(ctx) != .ok) return error.AiResponseInvalid;

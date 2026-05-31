@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "107",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/107/verification/report.json"
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "test/ai_command_test adds the audit repro: an `explain` --input-report with span.line_start and display_id set to 2^32+1 now returns error.AiReportNotFound (ZNTL_AI_REPORT_NOT_FOUND) instead of aborting via @intCast (before the fix the test crashed with SIGABRT/exit 134 and `panic: integer does not fit in destination type` at src/ai/command.zig:337); a non-integer display_id is rejected rather than silently treated as zero; a valid in-range report still succeeds (exit 0); and a doctest `explain_doctest_failure` case with an out-of-range line_start is rejected instead of panicking at src/ai/doctest_command.zig optU32. Full Debug suite green."
+    },
+    {
+      "name": "narrowing_cast_safety_all_modes",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test -Doptimize=Debug | ReleaseSafe | ReleaseFast",
+      "evidence": "The bounds-checked narrowing (reportU32 in command.zig, optU32 in doctest_command.zig) only reaches @intCast when 0 <= n <= maxInt(u32), so it can neither panic nor silently wrap. The task-107 ai_command_test cases pass in Debug, ReleaseSafe, and ReleaseFast (no out-of-range @intCast in any mode). NOTE: in ReleaseFast the unrelated pre-existing test doctest_cli_command_test.'exit code is 1 for failing statuses and 0 for successful ones' fails (expected 1, found 4); this failure reproduces on the task-106 HEAD with no task-107 changes (git stash verified) and lives in the doctest CLI, outside task 107's allowed files (src/ai/**). It is recorded as residual risk, not introduced or addressed here."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "full self-mutation dogfood of zentinel's own AI command engines is gated to the Phase 5 stages (task 085); the bounds-check fix is deterministic and proven by behavioral tests that abort (Debug/ReleaseSafe) without it."
+    }
+  ],
+  "residual_risk": [
+    "A pre-existing, task-107-independent ReleaseFast-only failure exists: doctest_cli_command_test expects the doctest CLI to exit 1 on failing statuses but observes exit 4 under -Doptimize=ReleaseFast. It reproduces on the committed task-106 HEAD without any task-107 changes and is outside task 107's allowed files (doctest CLI / src/cli.zig, not src/ai/**), so it is not fixed here. It is flagged for a separate task.",
+    "Out-of-range and present-non-integer report integers in the narrowed u32 fields (span line/column, mutant display_id, doctest case/diagnostic line/column) are mapped to error.AiReportNotFound (ZNTL_AI_REPORT_NOT_FOUND). u64 byte_start/byte_end keep the existing non-negative i64 clamp, which provably fits u64 and cannot panic or wrap; they are not narrowed to u32 and so are out of this task's scope.",
+    "Negative report integers continue to clamp to 0 / null (the prior semantics) rather than erroring, since a negative line/column/display id has no valid meaning and the documented vulnerability was the unchecked upper-bound @intCast."
+  ],
+  "recommendation": "complete"
+}

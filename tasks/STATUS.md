@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `107` (`tasks/107-bound-untrusted-report-integer-casts.md`) |
+| Next task | `108` (`tasks/108-deterministic-evidence-excerpts.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "107",
+  "next_task": "108",
   "completed_tasks": [
     "068",
     "069",
@@ -109,14 +109,15 @@
     "067",
     "085",
     "060",
-    "106"
+    "106",
+    "107"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 106 fix false-survivor test selection completed; active-state and complete-state validation passed. The default same_file_then_package strategy now re-verifies a narrowed-selection survivor against the full configured command set before recording `survived`, so a mutant the configured suite kills is reported `killed` (proven by a test that fails with `expected .killed, found .survived` without the fix). Full suite green: zig build test (490 tests), zig build, zig fmt --check src test build.zig, git diff --check."
+    "notes": "Task 107 bound untrusted report integer casts completed; active-state and complete-state validation passed. Advisory AI `--input-report` ingestion now rejects an out-of-range or non-integer report integer with ZNTL_AI_REPORT_NOT_FOUND instead of aborting via @intCast (proven by a test that crashed with SIGABRT/exit 134 and `panic: integer does not fit` without the fix). Debug suite green (495 tests); the AI cast-safety cases pass in Debug, ReleaseSafe, and ReleaseFast. A pre-existing, unrelated ReleaseFast-only failure in doctest_cli_command_test (exit 4 vs 1) reproduces on the task-106 HEAD without this change and is outside task 107's allowed files; it is recorded as residual risk and flagged for a separate task. zig build, zig fmt --check src test build.zig, git diff --check all clean."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5267,6 +5268,53 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/106/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "107",
+      "failing_evidence": "failing_command: `zig build test` with test/ai_command_test.zig written first. failing_output_excerpt: 'test.explain rejects an out-of-range report integer instead of panicking' terminated with signal ABRT (exit 134): `thread panic: integer does not fit in destination type` at src/ai/command.zig:337 (.display_id = @intCast(@max(0, i64v(...)))), reached via buildContext -> buildPromptValue -> run; 'test.doctest explain rejects an out-of-range case line instead of panicking' aborted the same way at src/ai/doctest_command.zig:125 (optU32 @intCast); and 'test.explain rejects a non-integer report integer' failed with `expected error.AiReportNotFound, found .{ .exit_code = 0, ... }` because a non-integer display_id was silently treated as 0. The valid in-range regression case already passed. implementation_started_after_failure: true. passing_command: after the bounds-checked narrowing, `zig build test` passed (495 tests) and all four ai_command_test cases pass; the cast-safety cases also pass under -Doptimize=ReleaseSafe and -Doptimize=ReleaseFast.",
+      "implementation_summary": "Made advisory AI `--input-report` ingestion reject out-of-range and non-integer report integers with a clean ZNTL_AI_REPORT_NOT_FOUND instead of a panicking @intCast (abort in Debug/ReleaseSafe, silent wrap in ReleaseFast). src/ai/command.zig adds reportU32(v): absent/null -> 0, negative integer -> 0 (a report line/column/display id has no negative meaning, preserving the prior clamp), integer in [0, maxInt(u32)] -> value, integer > maxInt(u32) or present non-integer -> error.AiReportNotFound; readSpan (line/column) and the mutant display_id now narrow through it (byte_start/byte_end stay u64, where any non-negative i64 provably fits and cannot panic/wrap, and are out of scope). src/ai/doctest_command.zig changes optU32 to the same checked narrowing returning command.Failure!?u32 and threads the error through readDiagnostics, metaFromCase, and survivorMeta (doctest case/diagnostic line/column). Both engines map the failure to the existing invalid-report path: run()/buildPromptValue/buildContextValue/runSurvivor catch arms now return error.AiReportNotFound rather than collapsing it into AiResponseInvalid. Because @intCast is only reached when 0 <= n <= maxInt(u32), it cannot panic or wrap in any optimize mode. Non-goals respected: no AI engine re-architecture and no full JSON schema validator. src/report.zig, src/run_command.zig, build.zig, build.zig.zon untouched (forbidden); src/ai/context.zig allowed but needed no change. A pre-existing, unrelated ReleaseFast-only failure in doctest_cli_command_test (exit 4 vs 1) was confirmed to reproduce on the task-106 HEAD with no task-107 changes (git stash) and lives in the doctest CLI outside this task's allowed files; it is recorded as residual risk and flagged for a separate task, not fixed here.",
+      "files_changed": [
+        "src/ai/command.zig",
+        "src/ai/doctest_command.zig",
+        "test/ai_command_test.zig",
+        "artifacts/pipeline/107/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_command_test.zig: 'explain rejects an out-of-range report integer instead of panicking' -- an --input-report with span.line_start and display_id at 2^32+1 returns error.AiReportNotFound (the audit repro; aborted with SIGABRT/exit 134 before the fix).",
+        "test/ai_command_test.zig: 'explain rejects a non-integer report integer instead of treating it as zero' -- a string display_id returns error.AiReportNotFound instead of silently succeeding.",
+        "test/ai_command_test.zig: 'explain still succeeds on a valid in-range report' -- the fixtures/ai/commands/report.json happy path still returns exit 0, proving the bounds check does not reject valid integers.",
+        "test/ai_command_test.zig: 'doctest explain rejects an out-of-range case line instead of panicking' -- a doctest case with line_start at 2^32+1 returns error.AiReportNotFound instead of aborting in optU32."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): two cases aborted with SIGABRT/exit 134 (`integer does not fit`) and one failed (non-integer silently exit 0)",
+        "zig build test (passing, after the fix): 495 tests green",
+        "zig build test -Doptimize=ReleaseSafe (passing): AI cast-safety cases pass",
+        "zig build test -Doptimize=ReleaseFast (AI cast-safety cases pass): the only failure is the pre-existing, unrelated doctest_cli_command_test exit-code case, confirmed on task-106 HEAD without this change",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 107 was active and again after the complete-state transition with next_task advanced to 108 (108 depends on the now-complete 107). The task-107 verification artifact validates and no coverage-gap rows are deferred to task 107."
+      },
+      "dogfooding_implication": "zentinel can ingest its own and third-party mutation and doctest reports through the advisory AI commands without crashing on malformed integers: an out-of-range or non-integer span line/column, mutant display_id, or doctest case/diagnostic line/column now yields a clean ZNTL_AI_REPORT_NOT_FOUND and exit 2 rather than a process abort or a silent ReleaseFast wrap.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/107/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

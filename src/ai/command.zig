@@ -159,6 +159,26 @@ fn i64v(v: ?std.json.Value) i64 {
     };
     return 0;
 }
+
+/// Narrow a report-sourced JSON integer to u32 for an AI context field. The
+/// report is untrusted (`--input-report`), so an out-of-range or non-integer
+/// value must become a clean invalid-report failure rather than a panicking
+/// `@intCast` (abort in Debug/ReleaseSafe) or a silent wrap (ReleaseFast). An
+/// absent or null field defaults to 0; a negative integer clamps to 0 (a report
+/// line/column/display id has no negative meaning); a present non-integer or a
+/// value above maxInt(u32) is rejected as an invalid report.
+fn reportU32(v: ?std.json.Value) Failure!u32 {
+    const x = v orelse return 0;
+    switch (x) {
+        .null => return 0,
+        .integer => |n| {
+            if (n < 0) return 0;
+            if (n > std.math.maxInt(u32)) return error.AiReportNotFound;
+            return @intCast(n);
+        },
+        else => return error.AiReportNotFound,
+    }
+}
 fn arrOf(v: ?std.json.Value) ?[]std.json.Value {
     if (v) |x| return switch (x) {
         .array => |a| a.items,
@@ -202,14 +222,18 @@ const Prompt = struct {
     response_schema: ResponseSchemaRef,
 };
 
-fn readSpan(v: ?std.json.Value) context.Span {
+fn readSpan(v: ?std.json.Value) Failure!context.Span {
     return .{
+        // byte_start/byte_end are u64: any non-negative i64 fits, so the existing
+        // clamp cannot panic or wrap. The narrowed u32 line/column fields are
+        // bounds-checked because an out-of-range report value would otherwise
+        // panic the @intCast (task 107).
         .byte_start = @intCast(@max(0, i64v(getO(v, "byte_start")))),
         .byte_end = @intCast(@max(0, i64v(getO(v, "byte_end")))),
-        .line_start = @intCast(@max(0, i64v(getO(v, "line_start")))),
-        .column_start = @intCast(@max(0, i64v(getO(v, "column_start")))),
-        .line_end = @intCast(@max(0, i64v(getO(v, "line_end")))),
-        .column_end = @intCast(@max(0, i64v(getO(v, "column_end")))),
+        .line_start = try reportU32(getO(v, "line_start")),
+        .column_start = try reportU32(getO(v, "column_start")),
+        .line_end = try reportU32(getO(v, "line_end")),
+        .column_end = try reportU32(getO(v, "column_end")),
     };
 }
 
@@ -279,7 +303,7 @@ fn buildContext(
     mutant: std.json.Value,
     report: std.json.Value,
     settings: Settings,
-) redaction.Error!context.Context {
+) (Failure || redaction.Error)!context.Context {
     const result = get(mutant, "result") orelse return error.RedactionFailed;
     const rstatus = s(get(result, "status"));
     const patterns = settings.redact_patterns;
@@ -334,13 +358,13 @@ fn buildContext(
         },
         .mutant = .{
             .id = s(get(mutant, "id")),
-            .display_id = @intCast(@max(0, i64v(get(mutant, "display_id")))),
+            .display_id = try reportU32(get(mutant, "display_id")),
             .backend = sOr(get(mutant, "backend"), "ast"),
             .backend_stability = sOr(get(mutant, "backend_stability"), "stable"),
             .operator = s(get(mutant, "operator")),
             .operator_stability = sOr(get(mutant, "operator_stability"), "stable"),
             .file = s(get(mutant, "file")),
-            .span = readSpan(get(mutant, "span")),
+            .span = try readSpan(get(mutant, "span")),
             .original = s(get(mutant, "original")),
             .replacement = s(get(mutant, "replacement")),
             .diff = try readStrArray(arena, get(mutant, "diff")),
@@ -830,6 +854,9 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
     if (anchor) |mutant| {
         const prompt = buildPromptValue(arena, input.flow, mode, mutant, report, input.settings) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
+            // An out-of-range or non-integer report integer is an invalid report,
+            // not a bad model response (task 107).
+            error.AiReportNotFound => return error.AiReportNotFound,
             else => return error.AiResponseInvalid,
         };
         if (validatePrompt(prompt) != .ok) return error.AiResponseInvalid;
