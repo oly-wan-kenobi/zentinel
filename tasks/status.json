@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "065",
+  "next_task": "066",
   "completed_tasks": [
     "068",
     "069",
@@ -103,14 +103,15 @@
     "059",
     "061",
     "062",
-    "064"
+    "064",
+    "065"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 064 pipeline artifact CI integration completed; active-state and complete-state validation passed. Added scripts/check_pipeline_artifacts.py (a deterministic, network-free CI checker reusing scripts/validate_task_system.py) and a dedicated pipeline_artifact_validation stage in scripts/ci.sh, with test/fixtures/pipeline/ci_artifacts valid/invalid fixtures. No coverage-gap rows are deferred to task 064; no Zig changed (src/** and test/**/*.zig forbidden)."
+    "notes": "Task 065 failure-recovery validator completed; active-state and complete-state validation passed. Added validate_failure_recovery to scripts/validate_task_system.py enforcing the docs/FAILURE_RECOVERY.md transition state machine over zentinel.pipeline.failure_recovery_transition.v1, self-tested against test/fixtures/pipeline/failure_recovery_validator (six valid pass, eight invalid rejected). No coverage-gap rows are deferred to task 065; no Zig changed."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -4948,6 +4949,65 @@
       ],
       "artifacts": [
         "artifacts/pipeline/064/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "065",
+      "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: the eight invalid failure-recovery fixtures were created first and the self-test (validate_failure_recovery) was wired into the validator with a stubbed validate_failure_recovery_record returning no violations; the validator then failed with 'invalid failure-recovery fixture <name> must be rejected by the recovery validator' for all eight (failed_gate_to_complete, flaky_waived, missing_evidence, retry_exhausted_to_active, retry_limit_mismatch, rollback_missing_changed_files, rollback_user_owned, unknown_transition) while the six valid fixtures passed. implementation_started_after_failure: true. passing_command: after implementing the real validate_failure_recovery_record rules, `python3 scripts/validate_task_system.py` passed (106 tasks) and each invalid fixture is rejected with a stable project-relative diagnostic.",
+      "implementation_summary": "Added a deterministic failure-recovery transition validator to scripts/validate_task_system.py (task 065) that enforces the recovery state machine documented in docs/FAILURE_RECOVERY.md over the zentinel.pipeline.failure_recovery_transition.v1 artifact. validate_failure_recovery_record checks: schema_version, non-empty task_id/from_state/trigger/to_state, non-empty evidence and auditable=true; a retry block whose task_class is one of low_risk/normal/high_risk/compiler_internal/architecture and whose limit equals the documented Retry Limits table value; the invariant that a flaky_verification result is never waived; rollback evidence that must be scope=agent_owned with a non-empty list of project-relative changed_files (and is required whenever the state is rollback_required), distinguishing agent-owned edits from pre-existing user edits; the invariant that a failure state never transitions directly to complete (only (active, required_stages_passed) and (follow_up_created, follow_up_queued) reach complete), which makes the canonical failed_mutation_gate -> complete rejected; the invariant that retry.cycle exceeding retry.limit may only transition to escalated, so retry exhaustion cannot be hidden by marking a task complete or returning to active; and a backstop that the (from_state, trigger, to_state) triple must be in the documented transition table (expanded from the doc's slash alternatives). validate_failure_recovery self-tests the rules against test/fixtures/pipeline/failure_recovery_validator/{valid,invalid} (six valid pass, eight invalid each rejected) and is wired into main() after validate_pipeline_metadata, so the task_system_validation CI stage runs it. Documented the rollback evidence shape and the validator in docs/FAILURE_RECOVERY.md, connected it to docs/TASK_LIFECYCLE.md (recovery stages within active) and docs/VERIFICATION_PIPELINE.md (the task-system validation stage). Non-goals respected: no automated rollback commands, no git history rewriting, no suppression of failing verification; src/**, test/**/*.zig, build.zig, docs/MUTATOR_SPEC.md, docs/DOCTEST_*.md were not touched (forbidden).",
+      "files_changed": [
+        "scripts/validate_task_system.py",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/active_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/blocked.json",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/escalated_retry_exhausted.json",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/follow_up_created.json",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/follow_up_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery_validator/valid/rollback_agent_owned.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/failed_gate_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/flaky_waived.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/missing_evidence.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/retry_exhausted_to_active.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/retry_limit_mismatch.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/rollback_missing_changed_files.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/rollback_user_owned.json",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/unknown_transition.json",
+        "artifacts/pipeline/065/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/failure_recovery_validator/valid/**: six valid zentinel.pipeline.failure_recovery_transition.v1 records (active->complete, blocked, follow_up_created, follow_up->complete, escalated on retry exhaustion, rollback with agent-owned changed files) the validator must accept.",
+        "test/fixtures/pipeline/failure_recovery_validator/invalid/**: eight invalid records the validator must reject -- failed_gate_to_complete, retry_exhausted_to_active, rollback_missing_changed_files, rollback_user_owned, missing_evidence, flaky_waived, retry_limit_mismatch, unknown_transition."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (failing, RED): with validate_failure_recovery_record stubbed to accept everything, all eight invalid fixtures were flagged 'must be rejected by the recovery validator'",
+        "python3 scripts/validate_task_system.py (passing, GREEN): after implementing the rules, six valid fixtures pass and eight invalid fixtures are rejected; 106 tasks; active then complete state",
+        "python3 -m py_compile scripts/validate_task_system.py: clean",
+        "scripts/ci.sh (passing): all stages including task_system_validation (which now runs validate_failure_recovery) and pipeline_artifact_validation green",
+        "zig build test / zig build / zig fmt --check src test build.zig (zigars MCP): green; no Zig changed"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 065 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 065. validate_failure_recovery enforces the documented recovery state machine and is self-tested against the valid/invalid fixtures; it adds no new registered JSON schema (the contract lives in docs/FAILURE_RECOVERY.md and the Python validator)."
+      },
+      "dogfooding_implication": "Recovery validation keeps dogfood failures and survivor triage from becoming unverifiable prose: a failed mutation gate or exhausted retry can no longer be silently marked complete, and rollback evidence must name agent-owned files, so dogfood and release recovery stays auditable across fresh agent sessions.",
+      "follow_up_tasks": [
+        "tasks/066-public-docs-doctest-coverage.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/065/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

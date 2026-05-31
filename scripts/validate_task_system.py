@@ -1570,6 +1570,174 @@ def validate_pipeline_metadata(errors: list[str]) -> None:
             require(bool(case_violations), errors, f"invalid pipeline fixture {case.name} must be rejected by the metadata validator")
 
 
+# Failure-recovery transition validator (task 065). The deterministic recovery
+# state machine, valid transitions, and invariants are documented in
+# docs/FAILURE_RECOVERY.md; this validator enforces them over the
+# zentinel.pipeline.failure_recovery_transition.v1 artifact so a failed gate
+# cannot be marked complete without auditable recovery evidence.
+FAILURE_RECOVERY_SCHEMA = "zentinel.pipeline.failure_recovery_transition.v1"
+
+# Documented retry limits keyed by task class (docs/FAILURE_RECOVERY.md Retry Limits).
+FAILURE_RECOVERY_RETRY_LIMITS = {
+    "low_risk": 1,
+    "normal": 2,
+    "high_risk": 3,
+    "compiler_internal": 3,
+    "architecture": 1,
+}
+
+# The only valid (from_state, trigger, to_state) transitions, expanded from the
+# "/"-alternatives in the docs/FAILURE_RECOVERY.md Recovery Transitions table.
+FAILURE_RECOVERY_TRANSITIONS = {
+    ("active", "required_stages_passed", "complete"),
+    ("active", "required_stage_failed", "failed_implementation"),
+    ("active", "mutation_gate_blocked", "failed_mutation_gate"),
+    ("active", "flaky_result", "flaky_verification"),
+    ("active", "blocker_detected", "blocked"),
+    ("failed_implementation", "bounded_fix_within_limit", "active"),
+    ("failed_implementation", "retry_limit_exhausted", "escalated"),
+    ("failed_implementation", "unrelated_user_edits", "rollback_required"),
+    ("failed_mutation_gate", "missing_tests", "return_to_role"),
+    ("failed_mutation_gate", "out_of_scope_survivor", "follow_up_created"),
+    ("failed_mutation_gate", "needs_architecture_review", "escalated"),
+    ("failed_mutation_gate", "invalid_mutants", "failed_implementation"),
+    ("failed_mutation_gate", "baseline_failure", "failed_implementation"),
+    ("flaky_verification", "reproduced_deterministic", "failed_implementation"),
+    ("flaky_verification", "normalized_and_passed", "active"),
+    ("blocked", "prerequisite_complete", "active"),
+    ("rollback_required", "agent_edits_reverted", "blocked"),
+    ("rollback_required", "agent_edits_reverted", "follow_up_created"),
+    ("return_to_role", "tests_added", "active"),
+    ("follow_up_created", "follow_up_queued", "complete"),
+    ("escalated", "reviewer_resolution", "active"),
+    ("escalated", "reviewer_resolution", "blocked"),
+}
+
+# The two (from_state, trigger) pairs that may legitimately reach `complete`.
+FAILURE_RECOVERY_COMPLETE_SOURCES = {
+    ("active", "required_stages_passed"),
+    ("follow_up_created", "follow_up_queued"),
+}
+
+
+def validate_failure_recovery_record(record: dict, loc: str) -> list[str]:
+    """Validate one failure-recovery transition record against the deterministic
+    recovery state machine in docs/FAILURE_RECOVERY.md. Returns a sorted list of
+    stable, project-relative diagnostics (empty when the record is valid)."""
+    v: list[str] = []
+
+    def bad(msg: str) -> None:
+        v.append(f"{loc}: {msg}")
+
+    if record.get("schema_version") != FAILURE_RECOVERY_SCHEMA:
+        bad(f"schema_version must be {FAILURE_RECOVERY_SCHEMA!r}")
+
+    task_id = record.get("task_id")
+    if not isinstance(task_id, str) or not task_id:
+        bad("task_id must be a non-empty string")
+
+    from_state = record.get("from_state")
+    trigger = record.get("trigger")
+    to_state = record.get("to_state")
+    for name, value in (("from_state", from_state), ("trigger", trigger), ("to_state", to_state)):
+        if not isinstance(value, str) or not value:
+            bad(f"{name} must be a non-empty string")
+
+    evidence = record.get("evidence")
+    if not isinstance(evidence, str) or not evidence.strip():
+        bad("evidence must be a non-empty string so the recovery is auditable")
+
+    if record.get("auditable") is not True:
+        bad("auditable must be true")
+
+    # Retry block must match the documented Retry Limits table for its task class.
+    retry = record.get("retry")
+    cycle = limit = None
+    if not isinstance(retry, dict):
+        bad("retry must be an object with task_class, cycle, and limit")
+    else:
+        task_class = retry.get("task_class")
+        cycle = retry.get("cycle")
+        limit = retry.get("limit")
+        if task_class not in FAILURE_RECOVERY_RETRY_LIMITS:
+            bad(f"retry.task_class {task_class!r} is not a documented task class")
+        if not isinstance(cycle, int) or isinstance(cycle, bool) or cycle < 1:
+            bad("retry.cycle must be a positive integer")
+            cycle = None
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            bad("retry.limit must be a positive integer")
+            limit = None
+        elif task_class in FAILURE_RECOVERY_RETRY_LIMITS and limit != FAILURE_RECOVERY_RETRY_LIMITS[task_class]:
+            bad(f"retry.limit {limit} does not match the documented limit {FAILURE_RECOVERY_RETRY_LIMITS[task_class]} for task class {task_class!r}")
+
+    # Invariant: a flaky verification result is never waived.
+    if trigger == "waived" or to_state == "waived":
+        bad("a flaky_verification result is never waived; it must reproduce deterministically or normalize and pass")
+
+    # Invariant: rollback evidence must be agent-owned and path-based.
+    rollback = record.get("rollback")
+    if rollback is not None:
+        if not isinstance(rollback, dict):
+            bad("rollback must be an object")
+        else:
+            if rollback.get("scope") != "agent_owned":
+                bad("rollback.scope must be 'agent_owned'; reverting pre-existing user edits is not a valid recovery")
+            changed_files = rollback.get("changed_files")
+            if not isinstance(changed_files, list) or not changed_files or not all(isinstance(p, str) and p for p in changed_files):
+                bad("rollback.changed_files must be a non-empty list of project-relative paths")
+            elif any(p.startswith("/") or ".." in p.split("/") for p in changed_files):
+                bad("rollback.changed_files must be project-relative paths without '..' or a leading '/'")
+    if (from_state == "rollback_required" or to_state == "rollback_required") and not isinstance(rollback, dict):
+        bad("a rollback_required transition must record agent-owned changed-file evidence under rollback.changed_files")
+
+    # Invariant: a failure state never transitions directly to complete.
+    if to_state == "complete" and (from_state, trigger) not in FAILURE_RECOVERY_COMPLETE_SOURCES:
+        bad("a failure state cannot transition directly to complete; completion is only from (active, required_stages_passed) or (follow_up_created, follow_up_queued)")
+
+    # Invariant: when retry.cycle exceeds retry.limit the only valid target is escalated.
+    if isinstance(cycle, int) and isinstance(limit, int) and cycle > limit and to_state != "escalated":
+        bad("retry.cycle exceeds retry.limit; the only valid transition is to 'escalated'")
+
+    # Backstop: the (from_state, trigger, to_state) triple must be documented.
+    if (
+        isinstance(from_state, str)
+        and isinstance(trigger, str)
+        and isinstance(to_state, str)
+        and (from_state, trigger, to_state) not in FAILURE_RECOVERY_TRANSITIONS
+    ):
+        bad(f"transition ({from_state} -{trigger}-> {to_state}) is not in the documented recovery state machine")
+
+    return sorted(v)
+
+
+def validate_failure_recovery(errors: list[str]) -> None:
+    """Self-test the failure-recovery transition validator: every valid fixture
+    must pass with no violations and every invalid fixture must be rejected by at
+    least one deterministic violation."""
+    base = ROOT / "test" / "fixtures" / "pipeline" / "failure_recovery_validator"
+    if not base.is_dir():
+        return
+    valid_root = base / "valid"
+    if valid_root.is_dir():
+        for fx in sorted(valid_root.glob("*.json")):
+            rel = str(fx.relative_to(ROOT))
+            data = _load_json_or_none(fx)
+            if not isinstance(data, dict):
+                fail(errors, f"{rel}: valid failure-recovery fixture must be a JSON object")
+                continue
+            violations = validate_failure_recovery_record(data, rel)
+            require(not violations, errors, f"valid failure-recovery fixture {fx.name} must pass but found: {violations}")
+    invalid_root = base / "invalid"
+    if invalid_root.is_dir():
+        for fx in sorted(invalid_root.glob("*.json")):
+            rel = str(fx.relative_to(ROOT))
+            data = _load_json_or_none(fx)
+            if not isinstance(data, dict):
+                continue
+            violations = validate_failure_recovery_record(data, rel)
+            require(bool(violations), errors, f"invalid failure-recovery fixture {fx.name} must be rejected by the recovery validator")
+
+
 def validate_task_order_contracts(errors: list[str]) -> None:
     contracts = [
         "AGENTS.md",
@@ -4418,6 +4586,7 @@ def main() -> int:
     validate_schema_gap_ownership(tasks, errors)
     validate_gap_registry_deferred_task_closure(tasks, errors)
     validate_pipeline_metadata(errors)
+    validate_failure_recovery(errors)
 
     if errors:
         print("task system validation failed:", file=sys.stderr)

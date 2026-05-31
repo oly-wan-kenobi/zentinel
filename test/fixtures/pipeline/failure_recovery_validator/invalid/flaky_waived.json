@@ -1,0 +1,10 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "flaky_verification",
+  "trigger": "waived",
+  "to_state": "active",
+  "retry": { "task_class": "normal", "cycle": 1, "limit": 2 },
+  "evidence": "declared the flaky failure a one-off and waived it back to active",
+  "auditable": true
+}

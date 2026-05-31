@@ -1,0 +1,10 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "active",
+  "trigger": "blocker_detected",
+  "to_state": "blocked",
+  "retry": { "task_class": "low_risk", "cycle": 1, "limit": 3 },
+  "evidence": "claimed a low-risk retry limit of 3 instead of the documented 1",
+  "auditable": true
+}

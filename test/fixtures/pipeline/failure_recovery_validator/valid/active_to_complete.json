@@ -1,0 +1,10 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "active",
+  "trigger": "required_stages_passed",
+  "to_state": "complete",
+  "retry": { "task_class": "normal", "cycle": 1, "limit": 2 },
+  "evidence": "all required verification stages passed; verifier recommended complete",
+  "auditable": true
+}

@@ -133,6 +133,8 @@ The canonical CI entrypoint is `scripts/ci.sh` (see `docs/CI_STRATEGY.md`). CI r
 
 After task `064`, `scripts/ci.sh` runs a dedicated `pipeline_artifact_validation` stage (`scripts/check_pipeline_artifacts.py`) that validates the committed `artifacts/pipeline/<task-id>/` tree — handoffs, the active lock, and context packets — against the baseline pipeline schemas with deterministic, project-relative diagnostics, and self-tests that check against `test/fixtures/pipeline/ci_artifacts/`. A schema or task-scope violation in any committed pipeline artifact blocks CI. See `docs/PIPELINE_ARTIFACTS.md` and `docs/CI_STRATEGY.md`.
 
+After task `065`, the `task-system validation` stage also enforces the failure-recovery state machine (`docs/FAILURE_RECOVERY.md`): `validate_failure_recovery` in `scripts/validate_task_system.py` validates `zentinel.pipeline.failure_recovery_transition.v1` records against `test/fixtures/pipeline/failure_recovery_validator/`, so a failed gate cannot be marked complete and retry exhaustion cannot be hidden without auditable, agent-owned recovery evidence.
+
 Before task `062`, property evidence may be enumerated or fixture-based when generated property infrastructure does not exist. After task `062`, generated property evidence must include the seed list, invariant list, and generated case count. Task `062` ships the deterministic seeded generator (`zentinel.property.generator`) and the structural report validator (`zentinel.property.report`); the validator distinguishes passing property evidence from missing or malformed evidence and is the executable check behind this stage.
 
 CI must not require remote AI providers.

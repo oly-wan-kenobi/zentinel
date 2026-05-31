@@ -116,4 +116,28 @@ Deterministic invariants:
 - When `retry.cycle` exceeds `retry.limit` (from the Retry Limits table above), the only valid transition is to `escalated`.
 - Every transition records non-empty `evidence` so the recovery is auditable.
 
+## Rollback Evidence
+
+A `rollback_required` transition records the agent-owned edits it reverts so recovery is auditable and never touches user changes:
+
+```json
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "failed_implementation",
+  "trigger": "unrelated_user_edits",
+  "to_state": "rollback_required",
+  "retry": { "task_class": "normal", "cycle": 1, "limit": 2 },
+  "evidence": "agent edits are incomplete and entangled with pre-existing user edits; revert only agent-owned files",
+  "rollback": { "scope": "agent_owned", "changed_files": ["src/mutation_gate.zig"] },
+  "auditable": true
+}
+```
+
+`rollback.scope` must be `agent_owned` and `rollback.changed_files` must be a non-empty list of project-relative paths. A record in the `rollback_required` state without that changed-file evidence, or one claiming `user_owned` scope, is rejected, so agent-owned edits are always distinguished from pre-existing user edits.
+
+## Validation
+
+`scripts/validate_task_system.py` enforces this state machine (task `065`) through `validate_failure_recovery`, which checks `zentinel.pipeline.failure_recovery_transition.v1` records against `test/fixtures/pipeline/failure_recovery_validator/{valid,invalid}/`: every valid transition passes and every invalid one fails with a stable, project-relative diagnostic. Rejected cases include a failure state reaching `complete` (the canonical `failed_mutation_gate -> complete`), retry exhaustion that does not escalate, a `rollback_required` state missing agent-owned changed-file evidence, a waived flaky result, a `retry.limit` that disagrees with the Retry Limits table, and any undocumented transition. The check runs inside the `task_system_validation` CI stage (`docs/CI_STRATEGY.md`).
+
 These states map to task-control state in `docs/TASK_LIFECYCLE.md`: only `blocked` is a task-control state; `failed_implementation`, `failed_mutation_gate`, `flaky_verification`, `rollback_required`, `escalated`, `return_to_role`, and `follow_up_created` are recovery artifact stages inside the `active` task-control state. The retry limits, mutation-gate `blocking_reasons`, and escalation triggers reuse `docs/MUTATION_GATE_POLICY.md`, `docs/VERIFICATION_PIPELINE.md`, and `docs/PIPELINE_ESCALATION_POLICY.md`.

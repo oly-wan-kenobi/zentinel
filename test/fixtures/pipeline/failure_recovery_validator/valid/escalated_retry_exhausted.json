@@ -1,0 +1,10 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "failed_implementation",
+  "trigger": "retry_limit_exhausted",
+  "to_state": "escalated",
+  "retry": { "task_class": "normal", "cycle": 3, "limit": 2 },
+  "evidence": "two bounded fix cycles failed; retry limit exceeded, escalating to reviewer",
+  "auditable": true
+}
