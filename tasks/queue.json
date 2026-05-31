@@ -3687,17 +3687,19 @@
       "title": "Truthful Environment Policy",
       "file": "tasks/112-truthful-environment-policy.md",
       "phase": 8,
-      "state": "blocked",
+      "state": "complete",
       "dependencies": [
         "111"
       ],
       "allowed_files": [
         "src/cli.zig",
+        "src/main.zig",
         "src/runner.zig",
         "src/mutant_runner.zig",
         "src/report.zig",
         "docs/SANDBOX_SECURITY.md",
         "test/runner_baseline_test.zig",
+        "tasks/112-truthful-environment-policy.md",
         "artifacts/pipeline/112/**",
         "tasks/STATUS.md",
         "tasks/status.json"

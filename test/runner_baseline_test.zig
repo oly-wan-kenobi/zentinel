@@ -145,3 +145,44 @@ test "baseline command evidence matches the documented snapshot shape" {
     const json = try std.json.Stringify.valueAlloc(a, res.commands[0], .{ .whitespace = .indent_2 });
     try expectEqualStrings(command_snapshot, json);
 }
+
+// --- Truthful minimal environment (task 112) -------------------------------
+//
+// The report labels every command `environment_policy = minimal`; the real
+// executor (src/cli.zig) now actually passes runner.minimalEnviron, so the label
+// is truthful. This asserts the restriction the executor applies.
+test "minimalEnviron restricts the command environment to the documented allowlist" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A parent environment with two allowlisted keys, a non-C locale, and a
+    // non-allowlisted secret that must not leak into a spawned command. TMPDIR
+    // and the ZIG_* caches are intentionally absent.
+    var parent = std.process.Environ.Map.init(a);
+    defer parent.deinit();
+    try parent.put("PATH", "/usr/bin");
+    try parent.put("HOME", "/home/dev");
+    try parent.put("LANG", "en_US.UTF-8");
+    try parent.put("ZNTL_SECRET", "leak");
+
+    var minimal = try runner.minimalEnviron(a, &parent);
+    defer minimal.deinit();
+
+    // Allowlisted keys present in the parent are copied through unchanged.
+    try expectEqualStrings("/usr/bin", minimal.get("PATH").?);
+    try expectEqualStrings("/home/dev", minimal.get("HOME").?);
+    // Locale is forced to C (not the inherited en_US.UTF-8) for deterministic,
+    // locale-independent tool output.
+    try expect(minimal.get("LC_ALL") != null);
+    try expectEqualStrings("C", minimal.get("LC_ALL").?);
+    try expectEqualStrings("C", minimal.get("LANG").?);
+    // Absent allowlisted keys are omitted, never synthesized.
+    try expect(minimal.get("TMPDIR") == null);
+    try expect(minimal.get("ZIG_GLOBAL_CACHE_DIR") == null);
+    // A non-allowlisted parent variable is dropped -- the inherited developer
+    // environment does NOT pass through, so `environment_policy = minimal` is true.
+    try expect(minimal.get("ZNTL_SECRET") == null);
+    // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale keys.
+    try expectEqual(@as(usize, 4), minimal.keys().len);
+}

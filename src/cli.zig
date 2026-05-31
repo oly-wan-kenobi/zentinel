@@ -18,6 +18,7 @@ pub fn run(
     args: []const []const u8,
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
+    parent_env: *const std.process.Environ.Map,
 ) !u8 {
     switch (zentinel.route(args)) {
         .passthrough => return runPassthrough(gpa, io, dir, args, stdout, stderr),
@@ -45,7 +46,7 @@ pub fn run(
             }
             return result.exit_code;
         },
-        .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr),
+        .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr, parent_env),
         .list_mutants => |inv| return runListMutants(gpa, io, dir, inv, stdout, stderr),
         .doctest => |inv| return runDoctest(gpa, io, dir, inv, stdout, stderr),
         .explain => |inv| return runAiCommand(gpa, io, dir, inv, .explain, stdout, stderr),
@@ -128,6 +129,10 @@ const RunCtx = struct {
     root_label: []const u8,
     run_id: []const u8,
     timeout: std.Io.Timeout,
+    /// The minimal command environment actually passed to every spawned test
+    /// command (docs/SANDBOX_SECURITY.md). This is what makes the report's
+    /// `environment_policy = minimal` label truthful (task 112).
+    env: *const std.process.Environ.Map,
 };
 
 /// Run one configured command via direct argv (no shell), honoring the
@@ -140,10 +145,11 @@ fn execProcess(rt: *RunCtx, argv: []const []const u8, cwd: std.process.Child.Cwd
         .stdout_limit = run_output_limit,
         .stderr_limit = run_output_limit,
         .timeout = rt.timeout,
-        // Phase 1 inherits the developer environment and never uses a shell
-        // (docs/SANDBOX_SECURITY.md: cannot fully sandbox in Phase 1). The
-        // environment-policy label remains the documented intent.
-        .environ_map = null,
+        // Restrict each test command to the documented minimal allowlist
+        // (PATH/HOME/TMPDIR/ZIG caches + LC_ALL=C/LANG=C), so the report's
+        // `environment_policy = minimal` label is truthful (task 112,
+        // docs/SANDBOX_SECURITY.md). Phase 1 still cannot fully OS-sandbox.
+        .environ_map = rt.env,
     }) catch |err| {
         if (err == error.Timeout) {
             return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
@@ -304,6 +310,7 @@ fn runRun(
     inv: zentinel.RunInvocation,
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
+    parent_env: *const std.process.Environ.Map,
 ) !u8 {
     const options = zentinel.run_command.parseArgs(inv.args) catch |err| {
         const detail = switch (err) {
@@ -347,6 +354,11 @@ fn runRun(
 
     const obs = try buildObservation(gpa, io, cfg_bytes, zig, inv.globals.root);
 
+    // Build the minimal command environment once; every test command this run
+    // spawns is restricted to it (docs/SANDBOX_SECURITY.md, task 112).
+    var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
+    defer minimal_env.deinit();
+
     var rt = RunCtx{
         .gpa = gpa,
         .io = io,
@@ -354,6 +366,7 @@ fn runRun(
         .root_label = inv.globals.root,
         .run_id = obs.run_id,
         .timeout = timeoutFromMs(cfg.test_timeout_ms),
+        .env = &minimal_env,
     };
     const baseline_executor = zentinel.runner.Executor{ .ctx = &rt, .runFn = baselineRunFn };
     const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn };

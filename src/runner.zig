@@ -15,6 +15,29 @@ const report = @import("report.zig");
 /// Bound for normalized command output excerpts (docs/SANDBOX_SECURITY.md).
 pub const excerpt_limit = 4096;
 
+/// The exact keys copied from the parent environment into the minimal command
+/// environment (docs/SANDBOX_SECURITY.md). Locale (`LC_ALL`/`LANG`) is forced to
+/// `C` separately, so it is intentionally not in this copy list.
+pub const env_allowlist = [_][]const u8{ "PATH", "HOME", "TMPDIR", "ZIG_GLOBAL_CACHE_DIR", "ZIG_LOCAL_CACHE_DIR" };
+
+/// Build the minimal command environment from a parent environment: copy only the
+/// allowlisted keys that are present (absent keys are omitted, never synthesized)
+/// and force `LC_ALL=C`/`LANG=C` for deterministic, locale-independent tool output
+/// (docs/SANDBOX_SECURITY.md). This makes the report's `environment_policy =
+/// minimal` label truthful -- the real executor passes exactly this restricted
+/// map, not the inherited developer environment. Pure: it transforms one map into
+/// a new owned map and never spawns a process.
+pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ.Map) std.mem.Allocator.Error!std.process.Environ.Map {
+    var out = std.process.Environ.Map.init(gpa);
+    errdefer out.deinit();
+    for (env_allowlist) |key| {
+        if (parent.get(key)) |value| try out.put(key, value);
+    }
+    try out.put("LC_ALL", "C");
+    try out.put("LANG", "C");
+    return out;
+}
+
 /// Raw outcome of executing one command, produced by an injected `Executor`.
 /// `exit_code` is null on timeout or abnormal termination.
 pub const RawOutcome = struct {

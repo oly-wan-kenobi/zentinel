@@ -112,7 +112,9 @@ Default runner environment must be minimal and deterministic:
 - omit secrets from reports
 - never include full environment in AI context
 
-The default minimal environment allowlist is exactly `PATH`, `HOME`, `TMPDIR`, `ZIG_GLOBAL_CACHE_DIR`, `ZIG_LOCAL_CACHE_DIR`, `LC_ALL`, and `LANG`. If a variable is absent on the host, zentinel omits it rather than synthesizing a host-specific value; if locale variables are present, stable snapshots normalize them to `C`.
+The default minimal environment allowlist is exactly `PATH`, `HOME`, `TMPDIR`, `ZIG_GLOBAL_CACHE_DIR`, `ZIG_LOCAL_CACHE_DIR`, `LC_ALL`, and `LANG`. If a variable is absent on the host, zentinel omits it rather than synthesizing a host-specific value; `LC_ALL` and `LANG` are always forced to `C` regardless of the inherited values.
+
+This is implemented, not aspirational: the run command builds the allowlist with `runner.minimalEnviron` from the parent environment and passes it as the child `environ_map` for every baseline and mutant test command (`src/cli.zig`). Because the executor actually restricts the environment to this allowlist, the `environment_policy = "minimal"` recorded in each command result is truthful — the full developer environment is not inherited. Phase 1 still cannot apply OS-level sandboxing (process isolation, filesystem jails); the minimal environment is the environment guarantee it does make.
 
 Future config may allow explicit environment variables, but default behavior should be conservative.
 

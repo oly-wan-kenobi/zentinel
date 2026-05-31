@@ -16,14 +16,18 @@ Make the reported environment policy true: either implement the documented minim
 ## Files allowed to modify
 
 - `src/cli.zig`
+- `src/main.zig`
 - `src/runner.zig`
 - `src/mutant_runner.zig`
 - `src/report.zig`
 - `docs/SANDBOX_SECURITY.md`
 - `test/runner_baseline_test.zig`
+- `tasks/112-truthful-environment-policy.md`
 - `artifacts/pipeline/112/**`
 - `tasks/STATUS.md`
 - `tasks/status.json`
+
+> Scope note: `src/main.zig` and this task file were added to the allowed set on user authorization (implement path) — the minimal-allowlist env map must be sourced from `std.process.Init.environ_map`, which only `src/main.zig` can thread into `cli.run`.
 
 ## Files forbidden to modify
 

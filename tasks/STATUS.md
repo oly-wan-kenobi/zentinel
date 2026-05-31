@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | none |
+| Next task | `113` (`tasks/113-wire-doctest-survivor-path.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |
@@ -144,14 +144,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | 2026-05-20 | Completed agent-readiness contract closure task 069: run-option ownership is explicit and allowed-file backed, config worker-count and validation coverage is owned, mutation-agent `compiler_crash` wording is aligned, baseline timeout report semantics are defined, pipeline metadata validation now executes immediately after task 041, and doctest snapshot modes are synchronized. | `python3 scripts/validate_task_system.py` passed for the then-current task set; Python validator compilation, JSON syntax checks, Markdown JSON fence checks, stale-contract scan, and `git diff --check` passed. |
 | 2026-05-20 | Completed prebootstrap sequencing and contract cleanup task 072: task 064 now follows task 062 by direct dependency, the validator enforces direct previous-task dependencies, roadmap scaffold wording avoids unowned directories, handoff artifacts are canonical JSON, harness mode evidence wording matches report placement, and invariant gap wording is current. | `python3 scripts/validate_task_system.py` passed; Python validator compilation, JSON syntax checks, and `git diff --check` passed. |
 
-## Blockers
-
-Task `112` (Truthful Environment Policy) is **blocked** (scope_gap), pending a user decision. Both fixes the task sanctions require editing a file outside `tasks/112`'s `allowed_files`:
-
-- **Implement the minimal allowlist** (keep `environment_policy: "minimal"`, make it true): needs the parent environment to copy `PATH/HOME/TMPDIR/ZIG_*` from. In Zig 0.16 the only portable source is `std.process.Init.environ_map`, which reaches the executors through `src/main.zig` → `cli.run` — and `src/main.zig` is not in `allowed_files`. There is no ambient env-read API; `std.c.environ` needs libc linkage in `build.zig` (forbidden) and the project links no libc.
-- **Relabel to `environment_policy: "inherited"`**: changes the serialized value, but `schemas/report.v1.schema.json` pins it to `enum ["minimal"]` and six `test/snapshots/**` files plus `test/report_renderers_test.zig` embed `"minimal"` — none are in `allowed_files`.
-
-Recommended resolution: add `src/main.zig` to task 112's `allowed_files` (Path A — implement). See `blocked_task_details[0]` in `tasks/status.json`. No implementation files were edited.
+No known blockers. (Task `112` was briefly blocked on a scope gap; the user authorized the implement path and added `src/main.zig` to its allowed_files, so it resumed as active.)
 
 ## Handoff Notes
 
