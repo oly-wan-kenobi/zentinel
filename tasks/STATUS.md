@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | none |
+| Next task | `106` (`tasks/106-fix-false-survivor-test-selection.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |
@@ -161,3 +161,7 @@ Codex-specific operating profiles are available under `.agents/`. Use `.agents/R
 The repository scaffold has been prepared as the baseline project state. Future agents should still use the task queue, status files, and explicit handoff notes as the durable source of truth, but `git status` may be used to detect changes made after the baseline is tracked.
 
 Task `100` completed at execution order `000.0.30` before project bootstrap. Task `101` completed at execution order `000.0.31` before project bootstrap. Task `102` completed at execution order `000.0.32` before project bootstrap. Task `103` completed at execution order `000.0.33` before project bootstrap. Task `104` completed at execution order `000.0.34` before project bootstrap. Task `105` completed at execution order `000.0.35` before project bootstrap. Future agents should start `tasks/000-project-bootstrap.md` next after respecting the clean handoff boundary.
+
+## Post-Release Maintenance (Phase 8)
+
+Adversarial audit follow-up backlog. Queued tasks `106`-`116` address audit findings and execute after release acceptance (`060`) as Phase 8 maintenance work. They are sequential like all prior tasks; start with the first dependency-ready queued task.

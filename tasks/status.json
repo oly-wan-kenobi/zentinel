@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": null,
+  "next_task": "106",
   "completed_tasks": [
     "068",
     "069",

@@ -3520,6 +3520,305 @@
         "build.zig",
         "build.zig.zon"
       ]
+    },
+    {
+      "id": "106",
+      "order": "061",
+      "title": "Fix False-Survivor Test Selection",
+      "file": "tasks/106-fix-false-survivor-test-selection.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "060"
+      ],
+      "allowed_files": [
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "src/report.zig",
+        "docs/TEST_SELECTION.md",
+        "test/test_selection_test.zig",
+        "test/fixtures/test_selection/**",
+        "artifacts/pipeline/106/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "107",
+      "order": "062",
+      "title": "Bound Untrusted Report Integer Casts",
+      "file": "tasks/107-bound-untrusted-report-integer-casts.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "106"
+      ],
+      "allowed_files": [
+        "src/ai/command.zig",
+        "src/ai/doctest_command.zig",
+        "src/ai/context.zig",
+        "test/ai_command_test.zig",
+        "test/fixtures/ai/**",
+        "artifacts/pipeline/107/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/report.zig",
+        "src/run_command.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "108",
+      "order": "063",
+      "title": "Deterministic Evidence Excerpts",
+      "file": "tasks/108-deterministic-evidence-excerpts.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "107"
+      ],
+      "allowed_files": [
+        "src/runner.zig",
+        "src/report.zig",
+        "docs/REPORT_FORMAT.md",
+        "test/report_determinism_test.zig",
+        "test/fixtures/report/**",
+        "artifacts/pipeline/108/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "109",
+      "order": "064",
+      "title": "Wire Phase-2 Mutators Or Mark Them Preview",
+      "file": "tasks/109-wire-phase2-mutators.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "108"
+      ],
+      "allowed_files": [
+        "src/run_command.zig",
+        "src/list_mutants_command.zig",
+        "src/config.zig",
+        "docs/MUTATOR_SPEC.md",
+        "test/list_mutants_command_test.zig",
+        "test/fixtures/mutators/**",
+        "artifacts/pipeline/109/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "110",
+      "order": "065",
+      "title": "Make Release Gates Verify Behavior",
+      "file": "tasks/110-behavioral-release-gates.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "109"
+      ],
+      "allowed_files": [
+        "scripts/release_dogfood_gate.py",
+        "scripts/release_acceptance.py",
+        "scripts/dogfood-production.sh",
+        "test/fixtures/release/**",
+        "test/fixtures/dogfood/**",
+        "artifacts/pipeline/085/dogfood/**",
+        "artifacts/pipeline/110/**",
+        "docs/DOGFOODING.md",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "111",
+      "order": "066",
+      "title": "Add Real-Binary Integration Tests",
+      "file": "tasks/111-real-binary-integration-tests.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "110"
+      ],
+      "allowed_files": [
+        "build.zig",
+        "test/integration_run_test.zig",
+        "test/fixtures/integration/**",
+        "scripts/ci.sh",
+        "docs/CI_STRATEGY.md",
+        "artifacts/pipeline/111/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "112",
+      "order": "067",
+      "title": "Truthful Environment Policy",
+      "file": "tasks/112-truthful-environment-policy.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "111"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/runner.zig",
+        "src/mutant_runner.zig",
+        "src/report.zig",
+        "docs/SANDBOX_SECURITY.md",
+        "test/runner_baseline_test.zig",
+        "artifacts/pipeline/112/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "113",
+      "order": "068",
+      "title": "Wire The Mutation-Aware Doctest Survivor Path",
+      "file": "tasks/113-wire-doctest-survivor-path.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "112"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/doctest/mutation_experiment.zig",
+        "src/ai/doctest_command.zig",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/fixtures/doctest/**",
+        "artifacts/pipeline/113/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/report.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "114",
+      "order": "069",
+      "title": "Scope ZIR/AIR Backends Honestly",
+      "file": "tasks/114-scope-experimental-backends.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "113"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/run_command.zig",
+        "docs/ARCHITECTURE.md",
+        "docs/ZIR_BACKEND.md",
+        "docs/AIR_BACKEND.md",
+        "docs/CLI_SPEC.md",
+        "test/run_command_test.zig",
+        "artifacts/pipeline/114/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "115",
+      "order": "070",
+      "title": "Harden AI Context Redaction",
+      "file": "tasks/115-harden-ai-redaction.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "114"
+      ],
+      "allowed_files": [
+        "src/ai/redaction.zig",
+        "src/ai/context.zig",
+        "src/ai/command.zig",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "test/ai_context_test.zig",
+        "test/fixtures/ai/**",
+        "artifacts/pipeline/115/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/report.zig",
+        "src/run_command.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "116",
+      "order": "071",
+      "title": "CLI And Spec Drift Cleanup",
+      "file": "tasks/116-cli-spec-drift-cleanup.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "115"
+      ],
+      "allowed_files": [
+        "src/root.zig",
+        "src/doctest_command.zig",
+        "src/mutators/arithmetic.zig",
+        "docs/CLI_SPEC.md",
+        "docs/MUTATOR_SPEC.md",
+        "test/cli_test.zig",
+        "test/snapshots/**",
+        "artifacts/pipeline/116/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "build.zig",
+        "build.zig.zon"
+      ]
     }
   ]
 }

@@ -370,10 +370,18 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
 
         previous_non_superseded = task
 
+    # Task 060 (release acceptance) is the final Phase <=7 task. Phase 8 is a
+    # documented post-release maintenance phase (audit follow-up backlog): its
+    # tasks may follow 060 in execution order without being superseded, so
+    # post-release work is tracked in-queue without reopening any earlier-phase
+    # gate. Any non-Phase-8 task after 060 must still be superseded.
     release_index = next((index for index, task in enumerate(normalized) if task.get("file") == "tasks/060-release-acceptance-verification.md"), None)
     if release_index is not None:
         for later in normalized[release_index + 1:]:
             later_id = later.get("id")
+            later_phase = later.get("phase")
+            if isinstance(later_phase, int) and later_phase >= 8:
+                continue
             require(later.get("state") == "superseded", errors, f"release acceptance task 060 must be the final non-superseded execution-order task; task {later_id} follows it")
 
     return normalized
