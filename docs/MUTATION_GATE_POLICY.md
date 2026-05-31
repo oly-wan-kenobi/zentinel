@@ -91,3 +91,71 @@ Retry limit:
 - low-risk: 1 cycle
 - normal: 2 cycles
 - high-risk or compiler-internal: 3 cycles then escalate
+
+These retry limits are the same ones recorded in `docs/FAILURE_RECOVERY.md`; the two documents must not diverge.
+
+## Escalation
+
+The gate escalates instead of retrying when:
+
+- the retry limit for the task class is reached and survivors remain
+- a survivor is classified `tooling_bug` or `needs_architecture_review`
+- mutation reports are nondeterministic across identical seed and config
+- a compiler-internal crash recurs after the compiler-internal retry budget
+
+Escalation produces an escalation artifact (`zentinel.pipeline.escalation.v1`, refined by task `049`) and routes to architecture or contract review per `docs/FAILURE_RECOVERY.md`. AI may advise but never waives a survivor or closes an escalation.
+
+## Gate Report Artifact
+
+The mutation gate records its decision in `artifacts/pipeline/<task-id>/mutation/report.json`. Task `043` defines this contract and ships example artifacts; the durable JSON Schema and `docs/SCHEMA_REGISTRY.md` row land with the runtime verification pipeline, so no schema file is registered yet.
+
+```json
+{
+  "schema_version": "zentinel.pipeline.mutation_gate.v1",
+  "task_id": "043",
+  "scope": "mutation_testable",
+  "gate_status": "passed",
+  "baseline": { "status": "completed" },
+  "deterministic": true,
+  "summary": {
+    "total": 5,
+    "killed": 3,
+    "survived": 1,
+    "compile_error": 1,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "invalid": 0,
+    "skipped": 0
+  },
+  "survivors": [
+    {
+      "mutant_id": "m_8kjyy9kdjw9zngpb31q659cqmt",
+      "status": "survived",
+      "triage": {
+        "classification": "out_of_scope",
+        "advisory": true,
+        "evidence": "survivor is in an unrelated module outside the active task scope",
+        "follow_up_task": "tasks/046-verification-pipeline.md"
+      }
+    }
+  ],
+  "blocking_reasons": [],
+  "retry": { "task_class": "normal", "cycle": 0, "limit": 2 },
+  "recommendation": "follow_up"
+}
+```
+
+Field rules:
+
+- `scope` is `mutation_testable` or `not_mutation_testable`. A `not_mutation_testable` scope replaces the pre-cutover `pre-gate unavailable` skip reason with a written `skip_reason`.
+- `summary` counts the six terminal mutant statuses `killed`, `survived`, `compile_error`, `compiler_crash`, `timeout`, `invalid` plus `skipped`; the seven counts must sum to `total`, and `survivors` must list exactly the `survived` mutants.
+- `gate_status` is derived deterministically, not chosen. The gate is `blocked` if and only if at least one of these holds, and every reason that holds appears in `blocking_reasons`:
+  - `baseline.status` is `baseline_failed` (reason `baseline failure`)
+  - `summary.invalid` is greater than zero (reason `invalid mutants present`)
+  - `deterministic` is `false` (reason `nondeterministic mutation report`)
+  - any survivor has no triage, i.e. `triage` is `null` or its `classification` is absent (reason `untriaged survivor <mutant_id>`)
+- Otherwise `gate_status` is `passed`. A survivor classified for follow-up does not by itself block; an untriaged survivor always blocks.
+- `triage.classification`, when present, must be one of the classifications listed above. Classification stays advisory; it never lets AI waive a survivor.
+- `retry.limit` must equal the limit for `retry.task_class` from the retry table, and `retry.cycle` may not exceed it.
+
+Because `gate_status` and `blocking_reasons` are derived from the survivor set and summary, survivor ordering cannot change the decision.

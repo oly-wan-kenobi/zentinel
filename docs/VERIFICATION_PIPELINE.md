@@ -36,6 +36,8 @@ Not every task requires every stage. Required stages are determined by task type
 
 The task-system validator also checks governance bootstrap files, ADR index consistency, and docs-to-tests gap registry coverage rows.
 
+The Mutation checks stage runs the mutation gate defined in `docs/MUTATION_GATE_POLICY.md`. The gate report at `artifacts/pipeline/<task-id>/mutation/report.json` records a derived `gate_status`: a `passed` gate maps this stage to `passed`, and a `blocked` gate maps it to `failed` with the gate's `blocking_reasons` (baseline failure, invalid mutants present, nondeterministic mutation report, or an untriaged survivor). After task `043`, a mutation-testable task may not record this stage as skipped with `pre-gate unavailable`.
+
 ## Fail-Fast Rules
 
 - Stop immediately on task-system validation failure.

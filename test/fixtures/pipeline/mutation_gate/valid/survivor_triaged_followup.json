@@ -1,0 +1,39 @@
+{
+  "schema_version": "zentinel.pipeline.mutation_gate.v1",
+  "task_id": "043",
+  "scope": "mutation_testable",
+  "gate_status": "passed",
+  "baseline": {
+    "status": "completed"
+  },
+  "deterministic": true,
+  "summary": {
+    "total": 5,
+    "killed": 3,
+    "survived": 1,
+    "compile_error": 1,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "invalid": 0,
+    "skipped": 0
+  },
+  "survivors": [
+    {
+      "mutant_id": "m_8kjyy9kdjw9zngpb31q659cqmt",
+      "status": "survived",
+      "triage": {
+        "classification": "out_of_scope",
+        "advisory": true,
+        "evidence": "survivor is in an unrelated module outside the active task scope",
+        "follow_up_task": "tasks/046-verification-pipeline.md"
+      }
+    }
+  ],
+  "blocking_reasons": [],
+  "retry": {
+    "task_class": "normal",
+    "cycle": 0,
+    "limit": 2
+  },
+  "recommendation": "follow_up"
+}

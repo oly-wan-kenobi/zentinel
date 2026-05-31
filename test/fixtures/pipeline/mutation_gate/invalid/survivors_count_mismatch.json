@@ -1,0 +1,36 @@
+{
+  "schema_version": "zentinel.pipeline.mutation_gate.v1",
+  "task_id": "043",
+  "scope": "mutation_testable",
+  "gate_status": "blocked",
+  "baseline": {
+    "status": "completed"
+  },
+  "deterministic": true,
+  "summary": {
+    "total": 4,
+    "killed": 2,
+    "survived": 2,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "invalid": 0,
+    "skipped": 0
+  },
+  "survivors": [
+    {
+      "mutant_id": "m_8kjyy9kdjw9zngpb31q659cqmt",
+      "status": "survived",
+      "triage": null
+    }
+  ],
+  "blocking_reasons": [
+    "untriaged survivor m_8kjyy9kdjw9zngpb31q659cqmt"
+  ],
+  "retry": {
+    "task_class": "normal",
+    "cycle": 0,
+    "limit": 2
+  },
+  "recommendation": "triage"
+}

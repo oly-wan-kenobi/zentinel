@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "043",
+  "next_task": "044",
   "completed_tasks": [
     "068",
     "069",
@@ -83,7 +83,8 @@
     "040",
     "041",
     "063",
-    "042"
+    "042",
+    "043"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -94,6 +95,72 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "043",
+      "failing_evidence": "failing_command: a standard-library-only gate-invariant checker that loads test/fixtures/pipeline/mutation_gate/{valid,invalid}/*.json and asserts each valid gate report is internally consistent (summary counts sum to total, survivors length equals the survived count, retry limit matches the task class, classifications are in the allowed set, and the declared gate_status plus blocking_reasons equal the values derived from baseline/invalid/nondeterministic/untriaged-survivor conditions) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid mutation gate fixtures` and exited 1. implementation_started_after_failure: true; the seven internally-consistent fixtures, the eight inconsistent fixtures (including the canonical untriaged-survivor-marked-passed case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=7 invalid=8 statuses_demonstrated=['compile_error', 'compiler_crash', 'invalid', 'killed', 'survived', 'timeout']` and `PASS` (exit 0), with a survivor-order permutation property proving the gate decision is independent of survivor ordering. This task changes no executable product code (docs, JSON fixtures, and pipeline artifacts only); no mutation execution is implemented (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Defined the pipeline mutation gate that runs after implementation review and before final verification, refining docs/MUTATION_GATE_POLICY.md without recreating the existing gate-position/blocking/classification/equivalent/retry sections. Added a `## Gate Report Artifact` section documenting the deterministic gate report at artifacts/pipeline/<task-id>/mutation/report.json (`zentinel.pipeline.mutation_gate.v1`, with the durable JSON Schema and SCHEMA_REGISTRY row deferred to the runtime verification pipeline so no schema file is registered here) whose gate_status is DERIVED, not chosen: the gate is blocked iff baseline failed, invalid mutants exist, the report is nondeterministic, or any survivor is untriaged, and every holding reason must appear in blocking_reasons. Added a `## Escalation` section (retry-limit exhaustion, tooling_bug/needs_architecture_review classifications, recurring nondeterminism or compiler-internal crashes escalate to architecture or contract review via zentinel.pipeline.escalation.v1, AI never waives a survivor) and noted the retry table is shared with docs/FAILURE_RECOVERY.md. Connected gate outcomes to docs/VERIFICATION_PIPELINE.md (a blocked gate maps the Mutation checks stage to failed with its blocking_reasons; pre-gate unavailable is disallowed for mutation-testable tasks after 043), docs/FAILURE_RECOVERY.md (the Failed Mutation Gate list maps to the gate blocking_reasons and shares the retry/escalation limits), docs/PIPELINE_ARTIFACTS.md (mutation/report.json points at the gate contract), and docs/DOGFOODING.md (the gate is mandatory for dogfood tasks that change mutators, source mapping, runner behavior, or test selection). Added per-status fixtures under test/fixtures/pipeline/mutation_gate/ covering all six terminal statuses (killed, survived, compile_error, compiler_crash, timeout, invalid) across passed and correctly-blocked reports, plus eight inconsistent reports each rejected by the gate-invariant checker. Dogfooded the contract with artifacts/pipeline/043/mutation/report.json (a real not_mutation_testable gate decision for this docs/fixtures task, using a written skip_reason rather than the retired pre-gate unavailable reason) and artifacts/pipeline/043/verification/report.json. The required cutover phrases were already present in the policy and task file from pre-bootstrap hardening; no schema files, src, test/*.zig, build.zig, MUTATOR_SPEC.md, or DOCTEST docs were changed (forbidden). No mutation execution, survivor scoring thresholds, or AI survivor waivers (non-goals).",
+      "files_changed": [
+        "docs/MUTATION_GATE_POLICY.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/DOGFOODING.md",
+        "test/fixtures/pipeline/mutation_gate/valid/killed_all_pass.json",
+        "test/fixtures/pipeline/mutation_gate/valid/survivor_triaged_followup.json",
+        "test/fixtures/pipeline/mutation_gate/valid/timeout_and_crash_pass.json",
+        "test/fixtures/pipeline/mutation_gate/valid/invalid_mutants_blocked.json",
+        "test/fixtures/pipeline/mutation_gate/valid/untriaged_survivor_blocked.json",
+        "test/fixtures/pipeline/mutation_gate/valid/baseline_failed_blocked.json",
+        "test/fixtures/pipeline/mutation_gate/valid/not_mutation_testable_skip.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/untriaged_survivor_marked_passed.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/invalid_mutant_marked_passed.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/baseline_failed_marked_passed.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/summary_count_mismatch.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/survivors_count_mismatch.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/bad_classification.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/retry_limit_mismatch.json",
+        "test/fixtures/pipeline/mutation_gate/invalid/nondeterministic_marked_passed.json",
+        "artifacts/pipeline/043/mutation/report.json",
+        "artifacts/pipeline/043/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/mutation_gate/valid/**: seven internally-consistent gate reports covering all six terminal mutant statuses across passed reports (killed, survivor triaged for follow-up, timeout+compiler_crash) and correctly-blocked reports (invalid mutants, untriaged survivor, baseline failure) plus a not_mutation_testable skip.",
+        "test/fixtures/pipeline/mutation_gate/invalid/**: eight inconsistent reports each rejected by the gate-invariant checker (untriaged-survivor/invalid-mutant/baseline-failed/nondeterministic marked passed, summary-count and survivors-count mismatch, bad classification, retry-limit mismatch).",
+        "Gate-invariant checker: derives gate_status and blocking_reasons from baseline/invalid/nondeterministic/untriaged-survivor conditions, enforces summary and retry-table consistency, and proves via a survivor-order permutation property that ordering does not change the decision."
+      ],
+      "tests_run": [
+        "gate-invariant checker over test/fixtures/pipeline/mutation_gate/ (failing): before fixtures existed -> 'FAIL: no valid mutation gate fixtures', exit 1",
+        "gate-invariant checker (passing): valid=7 invalid=8 statuses_demonstrated=[compile_error, compiler_crash, invalid, killed, survived, timeout], PASS, exit 0",
+        "survivor-order permutation property: PASS (gate decision invariant under survivor ordering)",
+        "artifacts/pipeline/043/mutation/report.json validated by the gate-invariant checker; artifacts/pipeline/043/verification/report.json validated against pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 043 was active and again after the complete-state transition. The mutation-gate availability cutover phrases were already present; this task added the gate report contract, escalation rules, cross-links, and fixtures. No gap-registry rows were changed."
+      },
+      "dogfooding_implication": "After task 043 the mutation gate is mandatory for future dogfood tasks that change mutators, source mapping, runner behavior, or test selection, and the pre-gate unavailable skip reason is retired for mutation-testable scope. The gate report contract and fixtures give later runtime tasks (046 verification, 048 failure recovery, 049 escalation) a deterministic target to emit and validate.",
+      "follow_up_tasks": [
+        "tasks/046-verification-pipeline.md",
+        "tasks/048-failure-recovery.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/043/mutation/report.json",
+        "artifacts/pipeline/043/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "042",
       "failing_evidence": "failing_command: a standard-library-only check that imports subset_validate from scripts/validate_task_system.py and validates test/fixtures/pipeline/context_packet/{valid,invalid}/*.json against schemas/pipeline.context.v1.schema.json and schemas/pipeline.stale_context.v1.schema.json. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid context packet fixtures` and exited 1. implementation_started_after_failure: true; the per-role valid fixtures, the required-field-violation invalid fixtures, and the non-breaking schema description refinements were written only after capturing that failure. passing_command: the same check then printed `valid=6 invalid=7 roles=['Doctest Agent', 'Implementer', 'Mutation Agent', 'Test Author', 'Verifier']` and `PASS` (exit 0), with a deterministic key-order permutation property (24 permutations) proving key order does not control validity and dropping task/role/allowed_files fails regardless of order, plus a non-breaking proof that the task-041 context/stale_context fixtures and the task-063 metadata_validator context packet still validate against the refined schemas. This is a docs/schema/fixtures task; no context packet validation code was added to the deterministic core, so mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

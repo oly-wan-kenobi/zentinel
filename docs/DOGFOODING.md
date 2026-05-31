@@ -155,6 +155,8 @@ Required pipeline artifacts for dogfood tasks:
 - doctest report when public docs are changed
 - final verifier report
 
+After task `043`, the mutation gate (`docs/MUTATION_GATE_POLICY.md`) is mandatory for dogfood tasks that change mutators, source mapping, runner behavior, or test selection; such tasks may not skip it with `pre-gate unavailable`.
+
 Dogfood failures follow `docs/FAILURE_RECOVERY.md`. Agents must not treat a dogfood survivor as a vague quality note; it must become one of:
 
 - a failing test task

@@ -2798,7 +2798,7 @@
       "title": "Mutation Gate",
       "file": "tasks/043-mutation-gate.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "042"
       ],

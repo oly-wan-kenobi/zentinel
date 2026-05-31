@@ -23,6 +23,8 @@ If mutation gate fails:
 - missing tests return to Test Author
 - equivalent-risk claims require evidence
 
+These map to the `blocking_reasons` in the gate report (`artifacts/pipeline/<task-id>/mutation/report.json`) defined by `docs/MUTATION_GATE_POLICY.md`: `baseline failure`, `invalid mutants present`, `nondeterministic mutation report`, and `untriaged survivor <mutant_id>`. The Retry Limits table below is the same one in that policy; an exceeded limit or a `tooling_bug` / `needs_architecture_review` classification escalates to architecture or contract review instead of retrying.
+
 ## Flaky Verification
 
 A flaky result is a failure until proven otherwise.
