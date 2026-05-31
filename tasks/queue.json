@@ -3175,7 +3175,7 @@
       "title": "ZIR Backend Experiment",
       "file": "tasks/056-zir-backend-experiment.md",
       "phase": 5,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "055"
       ],

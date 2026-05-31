@@ -37,6 +37,11 @@ pub const project_model = @import("project_model.zig");
 /// AST parsing adapter over the pinned std.zig.Ast (deterministic core).
 pub const ast_backend = @import("ast_backend.zig");
 
+/// Experimental ZIR backend prototype (docs/ZIR_BACKEND.md). Opt-in only;
+/// re-tags exactly-mapped AST candidates as experimental and records unsupported
+/// operators as out-of-report diagnostics (task 056).
+pub const zir_backend = @import("zir_backend.zig");
+
 /// AST mutators (deterministic core). Each recognizer emits candidates through
 /// the shared collector; mutators may not import runner/sandbox/report/cli/ai.
 pub const mutators = struct {

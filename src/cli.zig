@@ -413,7 +413,33 @@ fn runListMutants(
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
 ) !u8 {
-    const options = zentinel.list_mutants_command.parseArgs(inv.args) catch |err| {
+    // Extract the experimental `--backend <ast|zir|air>` opt-in here in the
+    // adapter (task 056): the frozen list-mutants parser owns only
+    // `--operator`/`--format` and stays unchanged. Default is the stable AST.
+    var backend: []const u8 = "ast";
+    var filtered: std.ArrayList([]const u8) = .empty;
+    {
+        var i: usize = 0;
+        while (i < inv.args.len) : (i += 1) {
+            const a = inv.args[i];
+            if (std.mem.eql(u8, a, "--backend")) {
+                i += 1;
+                if (i >= inv.args.len) {
+                    try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --backend requires a value\n");
+                    return 2;
+                }
+                backend = inv.args[i];
+                if (!std.mem.eql(u8, backend, "ast") and !std.mem.eql(u8, backend, "zir") and !std.mem.eql(u8, backend, "air")) {
+                    try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --backend must be 'ast', 'zir', or 'air'\n");
+                    return 2;
+                }
+            } else {
+                try filtered.append(gpa, a);
+            }
+        }
+    }
+
+    const options = zentinel.list_mutants_command.parseArgs(filtered.items) catch |err| {
         const detail = switch (err) {
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown list-mutants option",
@@ -445,6 +471,35 @@ fn runListMutants(
     }
 
     const candidates = try zentinel.list_mutants_command.generate(gpa, cfg, files.items, options.operator_filter);
+
+    // Experimental backend opt-in (task 056: zir). The stable AST default is
+    // unchanged; experimental backends are gated by config and emit out-of-report
+    // diagnostics for operators with no exact source mapping.
+    if (!std.mem.eql(u8, backend, "ast")) {
+        const listing = zentinel.zir_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            error.ExperimentalBackendNotEnabled => {
+                try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
+                return 2;
+            },
+            error.BackendNotImplemented => {
+                try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet (air is owned by task 057)\n", .{backend});
+                return 2;
+            },
+        };
+        const rendered = switch (options.format) {
+            .text => try zentinel.list_mutants_command.renderText(gpa, listing.candidates),
+            .json => try zentinel.list_mutants_command.renderJson(gpa, listing.candidates),
+        };
+        try stdout.writeAll(rendered);
+        if (options.format == .json) try stdout.writeAll("\n");
+        // Out-of-report backend diagnostics: stderr only, never report fields.
+        for (listing.diagnostics) |d| {
+            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.reason });
+        }
+        return 0;
+    }
+
     const rendered = switch (options.format) {
         .text => try zentinel.list_mutants_command.renderText(gpa, candidates),
         .json => try zentinel.list_mutants_command.renderJson(gpa, candidates),

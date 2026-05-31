@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "056",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/056/verification/report.json"
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "zir_backend_test proves the ZIR prototype re-tags exactly-mapped AST condition candidates as backend=zir/backend_stability=experimental with source parity (span/operator/original/replacement) and a distinct durable id, records arithmetic/literal operators as out-of-report ZNTL_ZIR_UNSUPPORTED diagnostics (never mutants), and serializes them byte-exact to the committed artifact; cli_backend_experiment_test proves list-mutants --backend parses ast/zir/air and rejects unknown, ZIR requires explicit experimental config opt-in (ZNTL_CONFIG_EXPERIMENTAL_BACKEND), generateExperimental is rejected without opt-in and accepted with it, air is BackendNotImplemented (owned by 057), and AST stays the unaffected default; full suite green"
+    },
+    {
+      "name": "parity_tests",
+      "required": true,
+      "status": "passed",
+      "evidence": "For comparison operators the ZIR candidate equals the AST candidate on span/operator/original/replacement, differing only in backend, backend_stability, backend_version, and the derived id; the re-tagged candidate is still a structurally valid candidate"
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "cli_smoke",
+      "required": false,
+      "status": "passed",
+      "command": "zentinel list-mutants --backend zir|air|bogus",
+      "evidence": "list-mutants --backend zir without config opt-in exits 2 with ZNTL_CONFIG_EXPERIMENTAL_BACKEND, --backend air exits 2 as not-implemented (owned by 057), --backend bogus exits 2 with ZNTL_CLI_INVALID_OPTION, and the default AST backend still lists mutants (269 over src/) unaffected"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "self-mutation dogfood is gated to the Phase 5/7 stages (task 085); the ZIR prototype is deterministic and covered by unit and parity tests, and it is opt-in only so it never affects stable AST dogfood defaults"
+    }
+  ],
+  "residual_risk": [
+    "The ZIR prototype is a deterministic adapter that derives candidates from the AST candidate set (so source mapping is exact by construction) rather than introspecting real Zig ZIR via compiler internals; live compiler-internal ZIR extraction is intentionally out of scope (docs/ZIR_BACKEND.md) and gated behind future stabilization.",
+    "The supported-operator set is the condition operators (comparison/logical/boolean); arithmetic and literal operators are recorded as out-of-report diagnostics until a future task adds exact type-level ZIR source mapping.",
+    "project discovery globs determine which files reach any backend; this is unchanged by task 056 and the ZIR path returns exactly what the AST path would for the same discovered files."
+  ],
+  "recommendation": "complete"
+}
