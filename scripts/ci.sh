@@ -23,6 +23,7 @@ stage_names=(
   "build"
   "unit_tests"
   "task_system_validation"
+  "pipeline_artifact_validation"
   "advisory_dogfood"
 )
 
@@ -49,7 +50,15 @@ zig build test
 printf '== ci stage: task_system_validation ==\n'
 python3 scripts/validate_task_system.py
 
-# Stage 5: advisory dogfood. Advisory only: a non-zero status is reviewed
+# Stage 5: pipeline artifact validation. Validates the committed
+# artifacts/pipeline tree (handoffs, active locks, context packets) against the
+# project-owned pipeline schemas with deterministic, project-relative
+# diagnostics, then self-tests the check against test/fixtures/pipeline/ci_artifacts.
+# Deterministic and network-free; a violation blocks CI.
+printf '== ci stage: pipeline_artifact_validation ==\n'
+python3 scripts/check_pipeline_artifacts.py
+
+# Stage 6: advisory dogfood. Advisory only: a non-zero status is reviewed
 # (survivors are not score-driven CI failures); only infrastructure or
 # deterministic-core errors should block. Runs the fixture dogfood by default to
 # keep CI fast and deterministic; selected production-source dogfood is opt-in

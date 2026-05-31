@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "064",
+  "next_task": "065",
   "completed_tasks": [
     "068",
     "069",
@@ -102,14 +102,15 @@
     "058",
     "059",
     "061",
-    "062"
+    "062",
+    "064"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 062 property generator infrastructure completed; active-state and complete-state validation passed. Added the deterministic seeded generator (src/property/generator.zig) and the executable structural validator for zentinel.pipeline.property_report.v1 (src/property/report.zig), exported via src/root.zig. No coverage-gap rows are deferred to task 062. The property report contract is enforced in Zig rather than by a registered JSON Schema, so zentinel.pipeline.property_report.v1 stays out of docs/SCHEMA_REGISTRY.md (schemas/ is outside this task's scope)."
+    "notes": "Task 064 pipeline artifact CI integration completed; active-state and complete-state validation passed. Added scripts/check_pipeline_artifacts.py (a deterministic, network-free CI checker reusing scripts/validate_task_system.py) and a dedicated pipeline_artifact_validation stage in scripts/ci.sh, with test/fixtures/pipeline/ci_artifacts valid/invalid fixtures. No coverage-gap rows are deferred to task 064; no Zig changed (src/** and test/**/*.zig forbidden)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -4892,6 +4893,61 @@
       "artifacts": [
         "artifacts/pipeline/062/property/report.json",
         "artifacts/pipeline/062/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "064",
+      "failing_evidence": "failing_command: `python3 scripts/check_pipeline_artifacts.py --self-test` and `scripts/ci.sh --list`. failing_output_excerpt: before implementation the CI check script did not exist -- python3 reported `can't open file '.../scripts/check_pipeline_artifacts.py': [Errno 2] No such file or directory` (exit 2) -- and `scripts/ci.sh --list` emitted only format_check/build/unit_tests/task_system_validation/advisory_dogfood with `grep -c pipeline_artifact_validation` = 0. The ci_artifacts fixtures were created first; the existing validate_pipeline_artifact_tree confirmed the valid tree had 0 violations and each invalid case (context_unknown_field, lock_task_id_mismatch) produced exactly one project-relative violation. implementation_started_after_failure: true. passing_command: after adding scripts/check_pipeline_artifacts.py and the scripts/ci.sh stage, the default check printed `real tree OK` + `self-test OK` (exit 0), `scripts/ci.sh --list` listed pipeline_artifact_validation in order (grep -c = 1), and `scripts/ci.sh` ran all stages to `ci: all required deterministic stages passed` (exit 0). The exit-1 failure path was proven in isolation (a wrongly-passing invalid case and a broken valid tree both exit 1); the usage-error path exits 2.",
+      "implementation_summary": "Integrated pipeline artifact validation into the canonical in-repository CI entrypoint. scripts/check_pipeline_artifacts.py is a deterministic, network-free CI checker that reuses the single project-owned subset validator in scripts/validate_task_system.py (validate_pipeline_artifact_tree) rather than duplicating schema logic. It validates the committed artifacts/pipeline/<task-id>/ tree -- handoffs (zentinel.pipeline.handoff.v1, task_id must match the directory, Markdown cannot replace canonical JSON), locks/active-task-lock.json (zentinel.pipeline.active_lock.v1, task_id must match), and context/<role>.json (zentinel.pipeline.context.v1) -- and self-tests that check against test/fixtures/pipeline/ci_artifacts where valid/ must pass and every invalid/<case>/ must be rejected. Diagnostics use project-relative paths and are sorted, so CI output is snapshot-stable. Modes: default (real tree + self-test), --real-tree, --self-test; exit 0 clean, 1 on any violation or self-test failure, 2 on usage error. scripts/ci.sh gained a dedicated pipeline_artifact_validation stage (running python3 scripts/check_pipeline_artifacts.py) between task_system_validation and advisory_dogfood, listed by scripts/ci.sh --list and kept network-free. Added test/fixtures/pipeline/ci_artifacts: a valid task-064 artifact tree (context, active lock, two handoffs) plus two invalid trees (context_unknown_field exercising additionalProperties:false on the context schema; lock_task_id_mismatch exercising the directory/task_id ownership check). Documented the stage and required CI artifact outputs in docs/CI_STRATEGY.md (a new Pipeline Artifact Validation subsection plus the renumbered six-stage list), docs/PIPELINE_ARTIFACTS.md (a new CI Validation section), and docs/VERIFICATION_PIPELINE.md (the CI stage list plus a description). Non-goals respected: no hosted CI provider YAML, no remote artifact upload, no change to mutation result semantics; src/**, test/**/*.zig, build.zig, docs/MUTATOR_SPEC.md, and docs/DOCTEST_*.md were not touched (forbidden).",
+      "files_changed": [
+        "scripts/check_pipeline_artifacts.py",
+        "scripts/ci.sh",
+        "docs/CI_STRATEGY.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "docs/VERIFICATION_PIPELINE.md",
+        "test/fixtures/pipeline/ci_artifacts/valid/artifacts/pipeline/064/context/orchestrator.json",
+        "test/fixtures/pipeline/ci_artifacts/valid/artifacts/pipeline/064/locks/active-task-lock.json",
+        "test/fixtures/pipeline/ci_artifacts/valid/artifacts/pipeline/064/handoffs/05-test-author.json",
+        "test/fixtures/pipeline/ci_artifacts/valid/artifacts/pipeline/064/handoffs/07-implementer.json",
+        "test/fixtures/pipeline/ci_artifacts/invalid/context_unknown_field/artifacts/pipeline/064/context/orchestrator.json",
+        "test/fixtures/pipeline/ci_artifacts/invalid/lock_task_id_mismatch/artifacts/pipeline/064/locks/active-task-lock.json",
+        "artifacts/pipeline/064/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/ci_artifacts/valid/**: a schema-valid task-064 pipeline artifact tree (context packet, active lock, Test Author + Implementer handoffs) that the CI check must accept.",
+        "test/fixtures/pipeline/ci_artifacts/invalid/context_unknown_field/** and invalid/lock_task_id_mismatch/**: invalid pipeline artifact metadata (an unknown context field; an active lock whose task_id does not match its directory) that the CI check must reject with deterministic project-relative diagnostics."
+      ],
+      "tests_run": [
+        "python3 scripts/check_pipeline_artifacts.py --self-test (failing): script absent before implementation (exit 2)",
+        "scripts/ci.sh --list (failing): pipeline_artifact_validation stage absent (grep -c = 0) before wiring",
+        "python3 scripts/check_pipeline_artifacts.py (passing): real tree OK + self-test OK (exit 0)",
+        "scripts/ci.sh --list (passing): pipeline_artifact_validation listed in order (grep -c = 1)",
+        "scripts/ci.sh (passing): all stages ran to 'ci: all required deterministic stages passed' (exit 0)",
+        "isolated failure-path proof: a wrongly-passing invalid case and a broken valid tree both exit 1; usage error exits 2",
+        "zig build test / zig build / zig fmt --check src test build.zig (zigars MCP): green; no Zig changed",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 064 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 064. The CI pipeline-artifact check reuses the existing project-owned subset validator (validate_pipeline_artifact_tree) and adds no new schema; scripts/ci.sh remains the canonical network-free entrypoint and now runs the pipeline_artifact_validation stage."
+      },
+      "dogfooding_implication": "CI now validates committed pipeline-artifact metadata as a dedicated deterministic stage, so release and dogfood evidence (handoffs, active locks, context packets) stays schema-valid and task-scoped across fresh agent sessions, and a malformed artifact committed by any future task is caught with a project-relative diagnostic before it reaches the final dogfood gate (task 085).",
+      "follow_up_tasks": [
+        "tasks/065-failure-recovery-validator.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/064/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

@@ -124,11 +124,14 @@ Derived outcome: `status` is `passed` only when every required stage is `passed`
 The canonical CI entrypoint is `scripts/ci.sh` (see `docs/CI_STRATEGY.md`). CI runs the verification stages by invoking `scripts/ci.sh`; hosted provider workflow files are out of scope and external systems call that script rather than re-listing stages. CI runs the same stages available for the current phase:
 
 - task-system validation
+- pipeline artifact validation
 - Zig tests
 - property tests when implemented
 - doctests when implemented
 - mutation fixture dogfood when implemented
 - performance smoke checks when implemented
+
+After task `064`, `scripts/ci.sh` runs a dedicated `pipeline_artifact_validation` stage (`scripts/check_pipeline_artifacts.py`) that validates the committed `artifacts/pipeline/<task-id>/` tree — handoffs, the active lock, and context packets — against the baseline pipeline schemas with deterministic, project-relative diagnostics, and self-tests that check against `test/fixtures/pipeline/ci_artifacts/`. A schema or task-scope violation in any committed pipeline artifact blocks CI. See `docs/PIPELINE_ARTIFACTS.md` and `docs/CI_STRATEGY.md`.
 
 Before task `062`, property evidence may be enumerated or fixture-based when generated property infrastructure does not exist. After task `062`, generated property evidence must include the seed list, invariant list, and generated case count. Task `062` ships the deterministic seeded generator (`zentinel.property.generator`) and the structural report validator (`zentinel.property.report`); the validator distinguishes passing property evidence from missing or malformed evidence and is the executable check behind this stage.
 

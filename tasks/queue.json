@@ -3352,7 +3352,7 @@
       "title": "Pipeline Artifact CI Integration",
       "file": "tasks/064-pipeline-artifact-ci-integration.md",
       "phase": 7,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "062"
       ],

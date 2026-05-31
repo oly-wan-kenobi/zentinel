@@ -93,6 +93,16 @@ After task `041`, mark the task active, create the active-lock artifact, create 
 
 Task `041` creates baseline schemas for handoffs, active locks, context packets, stale-context markers, verification records, and escalation records. The first post-`041` pipeline task may use those baseline schemas immediately; later tasks refine role-specific fields without removing the required baseline fields.
 
+## CI Validation
+
+After task `064`, the canonical CI entrypoint validates committed pipeline artifact metadata as a dedicated, deterministic stage (`pipeline_artifact_validation` in `scripts/ci.sh`). `scripts/check_pipeline_artifacts.py` reuses the project-owned subset validator in `scripts/validate_task_system.py` to check every `artifacts/pipeline/<task-id>/` tree:
+
+- `handoffs/<step>-<role>.json` must be a schema-valid `zentinel.pipeline.handoff.v1` object whose `task_id` matches its directory, and a Markdown handoff may not stand in for the canonical JSON.
+- `locks/active-task-lock.json` must be a schema-valid `zentinel.pipeline.active_lock.v1` object whose `task_id` matches its directory.
+- `context/<role>.json` must be a schema-valid `zentinel.pipeline.context.v1` object.
+
+The check is network-free and deterministic; diagnostics use project-relative paths and are sorted, so the output is snapshot-stable. The check self-tests against `test/fixtures/pipeline/ci_artifacts/`, where `valid/` must pass cleanly and every `invalid/<case>/` (for example an unknown context field or an active lock whose `task_id` does not match its directory) must be rejected by at least one violation. A violation in any committed artifact exits non-zero and blocks CI, keeping release and dogfood evidence auditable across fresh agent sessions.
+
 ## Retention Policy
 
 - Keep artifacts for completed tasks that affect public contracts, mutation semantics, reports, cache, runner, doctests, or AI contracts.

@@ -77,9 +77,21 @@ Advisory dogfood should fail only on infrastructure or deterministic core errors
 2. `build` — `zig build`
 3. `unit_tests` — `zig build test`
 4. `task_system_validation` — `python3 scripts/validate_task_system.py`
-5. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
+5. `pipeline_artifact_validation` — `python3 scripts/check_pipeline_artifacts.py`
+6. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
 
-`scripts/ci.sh --list` prints the stage names in order without running them. Selected initial production-source dogfood is opt-in via `scripts/dogfood-production.sh` (config `test/fixtures/dogfood/production/config.toml`); its deterministic reference reports live at `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json`, which normalize to the same bytes across repeated runs. Task `059` is the initial advisory dogfood CI and is not the final release dogfood gate; task `085` is the final release dogfood gate.
+`scripts/ci.sh --list` prints the stage names in order without running them.
+
+### Pipeline Artifact Validation
+
+Stage `pipeline_artifact_validation` (task `064`) makes committed pipeline evidence auditable in CI across fresh agent sessions. `scripts/check_pipeline_artifacts.py` reuses the project-owned subset validator in `scripts/validate_task_system.py` to:
+
+- validate the committed `artifacts/pipeline/<task-id>/` tree (handoffs, `locks/active-task-lock.json`, and `context/` packets) against the baseline pipeline schemas, and
+- self-test that check against `test/fixtures/pipeline/ci_artifacts/`, where `valid/` must pass and every `invalid/<case>/` must be rejected.
+
+The check is deterministic and network-free. Diagnostics use project-relative paths (for example `artifacts/pipeline/064/locks/active-task-lock.json: active lock task_id ...`) and are emitted in sorted order so CI output is stable for snapshots. A schema or task-scope violation in any committed pipeline artifact exits non-zero and blocks CI. Modes: `--real-tree` validates only the committed tree; `--self-test` validates only the fixtures; the default runs both.
+
+Required CI artifact outputs: every post-`041` task contributes a `verification/report.json` (`zentinel.pipeline.verification.v1`) under `artifacts/pipeline/<task-id>/`, plus any role handoffs, active lock, and context packets it produces; this stage is the gate that keeps those metadata artifacts schema-valid and task-scoped. Selected initial production-source dogfood is opt-in via `scripts/dogfood-production.sh` (config `test/fixtures/dogfood/production/config.toml`); its deterministic reference reports live at `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json`, which normalize to the same bytes across repeated runs. Task `059` is the initial advisory dogfood CI and is not the final release dogfood gate; task `085` is the final release dogfood gate.
 
 ## Gating Policy
 
