@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "057",
+  "next_task": "058",
   "completed_tasks": [
     "068",
     "069",
@@ -97,7 +97,8 @@
     "053",
     "054",
     "055",
-    "056"
+    "056",
+    "057"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -108,6 +109,58 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "057",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/air_backend_test.zig was written first against the not-yet-existent backend and failed to compile with \"root source file struct 'root' has no member named 'air_backend'\" while the rest of the suite stayed green (419/419 tests passed before the transitive failure). implementation_started_after_failure: true. After src/air_backend.zig, the root.zig export, the cli.zig air dispatch, and the AIR additions to test/cli_backend_experiment_test.zig landed, the suite reported 1 pass / 1 fail -- only the AIR out-of-report diagnostics snapshot mismatched the PLACEHOLDER fixture, proving the re-tag/parity/isSupported/source_mapping/safety_mode logic already passed. The diagnostics JSON was self-blessed byte-exact (no trailing newline) into both the test fixture and the task-scoped artifact. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and a CLI smoke confirmed the gating exit codes and that AIR diagnostics carry source_mapping and the active safety mode. AST stays the default and the ZIR experiment is unaffected.",
+      "implementation_summary": "Implemented an explicitly opt-in AIR backend experiment as a deterministic prototype, isolated from the stable AST and the ZIR experiment. src/air_backend.zig derives AIR candidates from the stable AST candidate set so source mapping is exact by construction: it re-tags the operators AIR can map exactly (bounds comparisons and overflow-sensitive integer arithmetic -- a deliberately different supported set than ZIR, which excluded arithmetic) with backend=.air, backend_stability=.experimental, and backend_version=\"air.v1.zig-0.16.0\" (part of durable identity so an AIR candidate never collides with the AST or ZIR candidate at the same span), while approximately-mappable operators (control-flow boolean/logical forms) become out-of-report ZNTL_AIR_UNSUPPORTED diagnostics that record the documented source_mapping enum (none/approximate/exact; a diagnostic is never exact) and the active safety mode, and are never executable mutants and never report v1 fields. diagnosticsToJson serializes a separate zentinel.experimental_backend_diagnostics.v1 artifact (with safety_mode) written under artifacts/pipeline/057/experimental-backend-diagnostics/. air_backend.experimentalListing requires config opt-in (backend.experimental contains air) else error.ExperimentalBackendNotEnabled, returns error.BackendNotImplemented for any non-air backend, derives the safety mode from cfg.zig_modes, and otherwise re-tags via fromAst. src/cli.zig dispatches list-mutants --backend air to air_backend.experimentalListing (zir still routes to zir_backend) and prints the AIR diagnostics (with source_mapping + mode) to stderr; src/root.zig exports zentinel.air_backend. config.zig already enforced the experimental opt-in (ZNTL_CONFIG_EXPERIMENTAL_BACKEND) and needed no change. Non-goals respected: no ZIR backend work, no AIR-as-default stabilization, no remote AI; src/zir_backend.zig, src/ai/**, and docs/MUTATOR_SPEC.md were not touched (forbidden). docs/AIR_BACKEND.md and docs/CLI_SPEC.md already carried the required contract phrases and were unchanged.",
+      "files_changed": [
+        "src/air_backend.zig",
+        "src/root.zig",
+        "src/cli.zig",
+        "test/air_backend_test.zig",
+        "test/cli_backend_experiment_test.zig",
+        "test/fixtures/air_backend/sample.zig",
+        "test/fixtures/air_backend/unsupported_diagnostics.json",
+        "artifacts/pipeline/057/experimental-backend-diagnostics/air-unsupported.json",
+        "artifacts/pipeline/057/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/air_backend_test.zig: AIR supports overflow-sensitive arithmetic and bounds comparisons (a different set than ZIR) with exact-mapping parity, a distinct durable id, and a still-valid candidate; approximately-mappable operators (logical) become out-of-report ZNTL_AIR_UNSUPPORTED diagnostics with source_mapping=approximate and the active safety mode, never mutants, serialized byte-exact to the committed artifact.",
+        "test/cli_backend_experiment_test.zig (AIR additions): AIR default requires explicit experimental opt-in (ZNTL_CONFIG_EXPERIMENTAL_BACKEND); air.experimentalListing is rejected without opt-in and, with opt-in, re-tags the fixture candidates as experimental AIR; AIR and ZIR opt-ins are independent (opting into one does not enable the other); air_backend only owns the air backend (BackendNotImplemented otherwise).",
+        "test/fixtures/air_backend/sample.zig + unsupported_diagnostics.json: the AIR source-mapping fixture and the self-blessed out-of-report diagnostics snapshot."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): root has no member named 'air_backend' (419/419 other tests passing)",
+        "zig build test (zigars MCP, partial): 1 pass / 1 fail -- only the PLACEHOLDER AIR diagnostics snapshot mismatched",
+        "zig build test (zigars MCP, passing): full suite green after self-blessing the diagnostics artifact",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean",
+        "CLI smoke (zig-out/bin/zentinel): list-mutants --backend air without opt-in exits 2 (ZNTL_CONFIG_EXPERIMENTAL_BACKEND); with opt-in it lists experimental AIR candidates and prints out-of-report diagnostics carrying source_mapping=approximate and mode=ReleaseSafe; AST and ZIR are unaffected",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 057 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 057 (the experimental-backend opt-in is already covered by F-005/config_test); the AIR/CLI backend contract phrases in docs/AIR_BACKEND.md and docs/CLI_SPEC.md were already present and unchanged."
+      },
+      "dogfooding_implication": "AIR experiments remain outside protected stable dogfood scopes: AST stays the default, ZIR is unaffected, AIR is opt-in only, and unsupported AIR evidence (with source_mapping + safety mode) is written as an out-of-report task-scoped artifact rather than schema-invalid report fields, giving the safety-mode matrix task (058) reviewable mode-aware backend evidence.",
+      "follow_up_tasks": [
+        "tasks/058-safety-mode-matrix.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/057/verification/report.json",
+        "artifacts/pipeline/057/experimental-backend-diagnostics/air-unsupported.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "056",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/zir_backend_test.zig was written first against the not-yet-existent backend and failed to compile with \"root source file struct 'root' has no member named 'zir_backend'\" while the rest of the suite stayed green (412/412 tests passed before the transitive failure). implementation_started_after_failure: true. After src/zir_backend.zig, the root.zig export, the list_mutants_command --backend/generateExperimental additions, and the cli.zig dispatch landed, the suite reported 2 pass / 1 fail -- only the out-of-report diagnostics snapshot mismatched the PLACEHOLDER fixture, proving the re-tag/parity/isSupported logic already passed. The diagnostics JSON was self-blessed byte-exact (no trailing newline) into both the test fixture and the task-scoped artifact. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and a CLI smoke confirmed the gating exit codes. AST remains the default backend; ZIR is opt-in only and never affects stable defaults.",

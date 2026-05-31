@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "057",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/057/verification/report.json"
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "air_backend_test proves the AIR prototype re-tags exactly-mapped AST candidates (overflow-sensitive arithmetic and bounds comparisons -- a different supported set than ZIR) as backend=air/backend_stability=experimental with source parity and a distinct durable id, records approximately-mappable operators (logical/boolean) as out-of-report ZNTL_AIR_UNSUPPORTED diagnostics carrying source_mapping=approximate and the active safety mode (never mutants), and serializes them byte-exact to the committed artifact; cli_backend_experiment_test proves AIR requires explicit experimental config opt-in (ZNTL_CONFIG_EXPERIMENTAL_BACKEND), air.experimentalListing is rejected without opt-in and accepted with it, AIR and ZIR opt-ins are independent, and air_backend only owns the air backend; full suite green"
+    },
+    {
+      "name": "parity_and_metadata_tests",
+      "required": true,
+      "status": "passed",
+      "evidence": "For supported operators the AIR candidate equals the AST candidate on span/operator/original/replacement (differing only in backend/backend_stability/backend_version/id); diagnostics carry the documented source_mapping enum (approximate) and propagate the configured safety mode (Debug in tests, ReleaseSafe in the CLI smoke)"
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "cli_smoke",
+      "required": false,
+      "status": "passed",
+      "command": "zentinel list-mutants --backend air",
+      "evidence": "list-mutants --backend air without opt-in exits 2 with ZNTL_CONFIG_EXPERIMENTAL_BACKEND; with opt-in it lists experimental AIR candidates and prints out-of-report diagnostics to stderr that include source_mapping=approximate and mode=ReleaseSafe; the default AST backend and the ZIR experiment are unaffected"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "self-mutation dogfood is gated to the Phase 5/7 stages (task 085); the AIR prototype is deterministic and covered by unit and parity tests, and it is opt-in only so it never affects stable AST or ZIR experiment defaults"
+    }
+  ],
+  "residual_risk": [
+    "Like ZIR, the AIR prototype is a deterministic adapter that derives candidates from the AST candidate set so source mapping is exact by construction, rather than introspecting real Zig AIR via compiler internals; runner-level IR mutation and live AIR extraction are intentionally out of scope (docs/AIR_BACKEND.md) until a deterministic sandbox and report story exist.",
+    "Safety-mode metadata is taken from the configured Zig mode (zig_modes[0], default Debug); per-candidate mode-specific safety-check differences are a later refinement and live out-of-report.",
+    "The supported set is bounds comparisons and overflow-sensitive arithmetic; logical/boolean/literal operators are recorded as approximate diagnostics until exact AIR source mapping is proven."
+  ],
+  "recommendation": "complete"
+}

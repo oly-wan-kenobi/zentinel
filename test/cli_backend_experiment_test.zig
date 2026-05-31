@@ -3,6 +3,7 @@ const zentinel = @import("zentinel");
 
 const config = zentinel.config;
 const zir = zentinel.zir_backend;
+const air = zentinel.air_backend;
 const ast_backend = zentinel.ast_backend;
 const comparison = zentinel.mutators.comparison;
 const mutant = zentinel.mutant;
@@ -88,4 +89,58 @@ test "AST remains the default backend and never routes through the experimental 
     const cfg = try load(arena, "", &d);
     try expectEqualStrings("ast", cfg.backend_default);
     try expect(!zir.backendOptedIn(cfg, "zir"));
+}
+
+// --- AIR backend opt-in + gating (task 057) --------------------------------
+
+test "AIR backend default requires explicit experimental opt-in" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena, "[backend]\ndefault = \"air\"\n", &diag));
+    try expectEqualStrings("ZNTL_CONFIG_EXPERIMENTAL_BACKEND", diag.code.token());
+
+    var diag2: config.Diagnostic = .{};
+    const cfg = try load(arena, "[backend]\ndefault = \"air\"\nexperimental = [\"air\"]\n", &diag2);
+    try expectEqualStrings("air", cfg.backend_default);
+    try expect(air.backendOptedIn(cfg, "air"));
+}
+
+test "list-mutants --backend air is rejected without opt-in and accepted with it" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var d1: config.Diagnostic = .{};
+    const cfg_no = try load(arena, "", &d1);
+    try expect(!air.backendOptedIn(cfg_no, "air"));
+    try expectError(error.ExperimentalBackendNotEnabled, air.experimentalListing(arena, cfg_no, &.{}, "air"));
+
+    // With opt-in the gate passes; the fixture comparison candidates are
+    // overflow/bounds-mappable, so they become experimental AIR candidates.
+    var d2: config.Diagnostic = .{};
+    const cfg_yes = try load(arena, "[backend]\nexperimental = [\"air\"]\n", &d2);
+    const ast = try comparisonCandidates(arena);
+    try expect(ast.len > 0);
+    const listing = try air.experimentalListing(arena, cfg_yes, ast, "air");
+    try expectEqual(ast.len, listing.candidates.len);
+    try expectEqual(@as(usize, 0), listing.diagnostics.len);
+    try expectEqual(mutant.Backend.air, listing.candidates[0].backend);
+    try expectEqual(mutant.BackendStability.experimental, listing.candidates[0].backend_stability);
+}
+
+test "AIR and ZIR experiments are independent: opting into one does not enable the other" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    var d: config.Diagnostic = .{};
+    const cfg = try load(arena, "[backend]\nexperimental = [\"zir\"]\n", &d);
+    // zir opted in, air is not: the AIR gate stays closed.
+    try expect(zir.backendOptedIn(cfg, "zir"));
+    try expect(!air.backendOptedIn(cfg, "air"));
+    try expectError(error.ExperimentalBackendNotEnabled, air.experimentalListing(arena, cfg, &.{}, "air"));
+    // air_backend only owns the air backend.
+    try expectError(error.BackendNotImplemented, air.experimentalListing(arena, cfg, &.{}, "zir"));
 }

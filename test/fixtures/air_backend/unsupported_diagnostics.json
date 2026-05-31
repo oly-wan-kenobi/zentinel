@@ -1,0 +1,19 @@
+{
+  "schema_version": "zentinel.experimental_backend_diagnostics.v1",
+  "backend": "air",
+  "backend_stability": "experimental",
+  "zig_version": "0.16.0",
+  "safety_mode": "Debug",
+  "unsupported": [
+    {
+      "code": "ZNTL_AIR_UNSUPPORTED",
+      "file": "test/fixtures/air_backend/sample.zig",
+      "operator": "logical_and_or",
+      "span_start": 180,
+      "span_end": 183,
+      "source_mapping": "approximate",
+      "safety_mode": "Debug",
+      "reason": "operator maps only approximately at the AIR prototype level; only exact mapping may enter the mutant list"
+    }
+  ]
+}

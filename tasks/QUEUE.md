@@ -116,7 +116,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 054 | `tasks/054-ai-advisory-commands.md` | complete | 4 |
 | 055 | `tasks/055-ai-doctest-assistance.md` | complete | 4 |
 | 056 | `tasks/056-zir-backend-experiment.md` | complete | 5 |
-| 057 | `tasks/057-air-backend-experiment.md` | queued | 5 |
+| 057 | `tasks/057-air-backend-experiment.md` | complete | 5 |
 | 058 | `tasks/058-safety-mode-matrix.md` | queued | 6 |
 | 059 | `tasks/059-initial-dogfood-ci.md` | queued | 7 |
 | 059.1 | `tasks/061-doctest-mutate-stabilization.md` | queued | 2 |

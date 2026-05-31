@@ -475,7 +475,7 @@ fn runListMutants(
     // Experimental backend opt-in (task 056: zir). The stable AST default is
     // unchanged; experimental backends are gated by config and emit out-of-report
     // diagnostics for operators with no exact source mapping.
-    if (!std.mem.eql(u8, backend, "ast")) {
+    if (std.mem.eql(u8, backend, "zir")) {
         const listing = zentinel.zir_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
             error.OutOfMemory => return err,
             error.ExperimentalBackendNotEnabled => {
@@ -483,7 +483,7 @@ fn runListMutants(
                 return 2;
             },
             error.BackendNotImplemented => {
-                try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet (air is owned by task 057)\n", .{backend});
+                try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet\n", .{backend});
                 return 2;
             },
         };
@@ -496,6 +496,30 @@ fn runListMutants(
         // Out-of-report backend diagnostics: stderr only, never report fields.
         for (listing.diagnostics) |d| {
             try stderr.print("note[{s}]: {s} at {s}:{d}..{d} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.reason });
+        }
+        return 0;
+    } else if (std.mem.eql(u8, backend, "air")) {
+        const listing = zentinel.air_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
+            error.OutOfMemory => return err,
+            error.ExperimentalBackendNotEnabled => {
+                try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
+                return 2;
+            },
+            error.BackendNotImplemented => {
+                try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet\n", .{backend});
+                return 2;
+            },
+        };
+        const rendered = switch (options.format) {
+            .text => try zentinel.list_mutants_command.renderText(gpa, listing.candidates),
+            .json => try zentinel.list_mutants_command.renderJson(gpa, listing.candidates),
+        };
+        try stdout.writeAll(rendered);
+        if (options.format == .json) try stdout.writeAll("\n");
+        // Out-of-report AIR diagnostics (with source_mapping + safety mode):
+        // stderr only, never report fields.
+        for (listing.diagnostics) |d| {
+            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} source_mapping={s} mode={s} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.source_mapping, d.safety_mode, d.reason });
         }
         return 0;
     }
