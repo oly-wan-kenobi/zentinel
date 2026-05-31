@@ -3269,7 +3269,7 @@
       "title": "Initial Dogfood CI",
       "file": "tasks/059-initial-dogfood-ci.md",
       "phase": 7,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "058"
       ],

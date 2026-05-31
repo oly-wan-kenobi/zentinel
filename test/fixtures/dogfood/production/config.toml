@@ -1,0 +1,19 @@
+# Initial advisory production dogfood (task 059). Selected small, deterministic
+# internal modules; advisory only -- survivors are reviewed, not score-driven.
+# No network access and no AI. This is NOT the final release dogfood gate;
+# task 085 is the final release dogfood gate.
+[project]
+name = "zentinel-dogfood-production"
+root = "."
+include = ["src/safety_modes.zig", "src/source_map.zig"]
+exclude = [".zig-cache/**", "zig-out/**", "test/**"]
+
+[mutators]
+enabled = ["arithmetic_add_sub", "comparison_boundary"]
+
+[test]
+commands = ["zig build test"]
+timeout_ms = 300000
+
+[report]
+output_dir = "zig-out/zentinel/dogfood-production"

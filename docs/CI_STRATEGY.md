@@ -69,6 +69,18 @@ Final release dogfood archives live under `artifacts/pipeline/<task-id>/dogfood/
 
 Advisory dogfood should fail only on infrastructure or deterministic core errors, not ordinary survivors.
 
+## Canonical Entrypoint
+
+`scripts/ci.sh` is the canonical in-repository CI entrypoint (task `059`). It runs the required deterministic stages in order and is network-independent (no remote AI providers):
+
+1. `format_check` — `zig fmt --check src test build.zig`
+2. `build` — `zig build`
+3. `unit_tests` — `zig build test`
+4. `task_system_validation` — `python3 scripts/validate_task_system.py`
+5. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
+
+`scripts/ci.sh --list` prints the stage names in order without running them. Selected initial production-source dogfood is opt-in via `scripts/dogfood-production.sh` (config `test/fixtures/dogfood/production/config.toml`); its deterministic reference reports live at `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json`, which normalize to the same bytes across repeated runs. Task `059` is the initial advisory dogfood CI and is not the final release dogfood gate; task `085` is the final release dogfood gate.
+
 ## Gating Policy
 
 CI may fail on:

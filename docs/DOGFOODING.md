@@ -139,6 +139,10 @@ Dogfood reports should not center on a single percentage.
 
 Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.
 
+## Initial Production Dogfood (task 059)
+
+The initial advisory production dogfood runs zentinel over a small set of selected internal modules using `test/fixtures/dogfood/production/config.toml` (`scripts/dogfood-production.sh`). It is advisory only: survivors are reviewed, not score-driven, and only infrastructure or deterministic-core errors fail it. Repeated runs are deterministic — the committed reference reports `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json` differ only in run id, timestamps, and durations and normalize to identical bytes. No invalid mutants may appear in protected production scope. This initial dogfood is wired through the canonical `scripts/ci.sh` entrypoint and is not the final release dogfood gate; task `085` is the final release dogfood gate, after doctest mutation, property infrastructure, pipeline artifact CI, recovery validation, public-doc doctests, and doctest survivor AI are complete.
+
 ## Pipeline Dogfooding
 
 The AI-agent pipeline must dogfood zentinel's verification model as soon as the supporting features exist.

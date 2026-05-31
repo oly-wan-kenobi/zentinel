@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "059",
+  "next_task": "061",
   "completed_tasks": [
     "068",
     "069",
@@ -99,7 +99,8 @@
     "055",
     "056",
     "057",
-    "058"
+    "058",
+    "059"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -110,6 +111,61 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "059",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/dogfood_production_test.zig was written first and all four tests failed at runtime with error.FileNotFound (std.Io.Dir.cwd().readFileAlloc on the not-yet-created test/fixtures/dogfood/production/run1.report.json, run2.report.json, config.toml, and scripts/ci.sh) while the rest of the suite stayed green (439/443). implementation_started_after_failure: true. After creating the production dogfood config, the two reference reports, scripts/ci.sh (with a --list stage enumerator), and scripts/dogfood-production.sh, the four tests passed. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and `scripts/ci.sh --list` enumerated the five deterministic stages. No remote AI, no network; survivors are advisory.",
+      "implementation_summary": "Wired the initial advisory dogfood CI. scripts/ci.sh is the canonical in-repository CI entrypoint: it runs the required deterministic stages in order (format_check `zig fmt --check src test build.zig`, build `zig build`, unit_tests `zig build test`, task_system_validation `python3 scripts/validate_task_system.py`, advisory_dogfood `scripts/dogfood.sh`), is network-independent (no remote AI providers), treats dogfood survivors as advisory, and supports `--list` to print the stages without running them. scripts/dogfood-production.sh runs the selected production-source dogfood advisory-only over test/fixtures/dogfood/production/config.toml (selected small src modules src/safety_modes.zig and src/source_map.zig, `zig build test`, single-mode Debug). test/fixtures/dogfood/production/run1.report.json and run2.report.json are committed deterministic reference reports that differ only in run id, timestamps, and durations and normalize via report.normalizeForComparison to identical bytes (repeated-comparison evidence), with no invalid mutants in protected production scope. test/dogfood_production_test.zig asserts all of this by reading the files with std.Io.Dir.cwd(). docs/CI_STRATEGY.md and docs/DOGFOODING.md document the canonical ci.sh stages, the production dogfood config and reference reports, artifact retention, and that task 059 is the initial advisory dogfood -- not the final release dogfood gate (task 085 is the final gate). zentinel.dogfood.toml was intentionally left unchanged (it is the fixture/stage-1 config pinned by the out-of-scope test/dogfood_fixture_test.zig). Non-goals respected: no final release gate, no experimental-backend dogfood by default, no remote AI, no hosted-CI workflow files; src/ai/**, src/zir_backend.zig, and src/air_backend.zig were not touched (forbidden).",
+      "files_changed": [
+        "scripts/ci.sh",
+        "scripts/dogfood-production.sh",
+        "docs/CI_STRATEGY.md",
+        "docs/DOGFOODING.md",
+        "test/dogfood_production_test.zig",
+        "test/fixtures/dogfood/production/config.toml",
+        "test/fixtures/dogfood/production/run1.report.json",
+        "test/fixtures/dogfood/production/run2.report.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "artifacts/pipeline/059/verification/report.json",
+        "artifacts/pipeline/059/dogfood/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/dogfood_production_test.zig: repeated production dogfood runs are deterministic (run1/run2 normalize to identical bytes -- closes F-025); the production report has no invalid mutants and stays in src/ production scope; the production dogfood config selects src modules in single-mode Debug; scripts/ci.sh runs the required deterministic stages network-independently with a --list mode.",
+        "test/fixtures/dogfood/production/{config.toml,run1.report.json,run2.report.json}: the selected-modules production dogfood config and two deterministic reference reports differing only in run id, timestamps, and durations."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): 4 dogfood_production tests error.FileNotFound (config/reports/ci.sh missing) with 439/443 other tests passing",
+        "zig build test (zigars MCP, passing): full suite green after creating the config, reference reports, and scripts",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean",
+        "scripts/ci.sh --list: enumerates format_check, build, unit_tests, task_system_validation, advisory_dogfood in order",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state, after closing gap row F-025"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 059 was active and again after the complete-state transition. Closed gap-registry row F-025 (repeated report comparison in initial dogfood CI). docs/CI_STRATEGY.md and docs/DOGFOODING.md already carried the required artifact-retention phrases and now additionally document the canonical scripts/ci.sh entrypoint and the production dogfood; the task status records that task 059 is not the final release dogfood gate and names task 085 as the final gate."
+      },
+      "dogfooding_implication": "This is the Phase 7 initial advisory dogfood expansion: scripts/ci.sh is the canonical network-independent CI entrypoint, selected production-source dogfood runs deterministically with committed reference reports archived by stable paths, and survivors are reviewed rather than score-driven. Task 059 is explicitly NOT the final release dogfood gate; task 085 is the final release dogfood gate after tasks 061, 062, 064, 065, 066, and 067.",
+      "follow_up_tasks": [
+        "tasks/061-doctest-mutate-stabilization.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/059/verification/report.json",
+        "artifacts/pipeline/059/dogfood/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-025"]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "058",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/safety_mode_matrix_test.zig was written first and failed to compile with 8 errors (root has no member 'safety_modes'; report has no member 'ModeResult'; no field 'mode_matrix' in report.Result; no field 'mode_override' in run_command.Options; std.fs.cwd removed in this Zig 0.16) while the rest of the suite stayed green (424/424). implementation_started_after_failure: true. The std.fs.cwd file-reading tests were dropped (this Zig 0.16 uses std.Io.Dir; schema/doc file checks stay in the python validator). After the model + helpers + config + run_command + cli landed, the suite reported 438 pass / 1 fail: the only failure was the pre-existing config_test guardrail 'multiple Zig modes are rejected before task 058', which task 058 is designed to flip -- proving the new behavior. The additive result.mode_matrix is serialized via a custom Result.jsonStringify that omits it when null, so every pre-058 single-mode report snapshot stayed byte-identical (no other report-snapshot test in any file broke). passing_command: after flipping config_test to assert acceptance, `zig build test` passed, `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and a CLI smoke rejected `run --mode Turbo` with ZNTL_CLI_INVALID_OPTION.",

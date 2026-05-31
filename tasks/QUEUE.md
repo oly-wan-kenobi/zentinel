@@ -118,7 +118,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 056 | `tasks/056-zir-backend-experiment.md` | complete | 5 |
 | 057 | `tasks/057-air-backend-experiment.md` | complete | 5 |
 | 058 | `tasks/058-safety-mode-matrix.md` | complete | 6 |
-| 059 | `tasks/059-initial-dogfood-ci.md` | queued | 7 |
+| 059 | `tasks/059-initial-dogfood-ci.md` | complete | 7 |
 | 059.1 | `tasks/061-doctest-mutate-stabilization.md` | queued | 2 |
 | 059.2 | `tasks/062-property-generator-infrastructure.md` | queued | 1 |
 | 059.4 | `tasks/064-pipeline-artifact-ci-integration.md` | queued | 7 |
