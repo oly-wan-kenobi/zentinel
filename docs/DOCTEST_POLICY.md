@@ -100,3 +100,7 @@ Evidence rules:
 - `mutation_aware` evidence is required only after `zentinel doctest --mutate` is stabilized for the changed mutator documentation scope.
 
 Doctest results feed the final verifier report (`docs/VERIFICATION_PIPELINE.md`): the Doctests stage status mirrors this evidence `status`, and a failing or unreviewed snapshot blocks the verifier.
+
+## Public Docs Coverage
+
+Task `066` makes the selected public contract docs executable through `zentinel doctest`: `docs/CLI_SPEC.md` (CLI), `docs/CONFIG_SPEC.md` (config), `docs/REPORT_FORMAT.md` (report JSON), and `docs/DOCTEST_AI_INTEGRATION.md` (doctest AI JSON). JSON examples are validated as supported subsets (`json expected subset`) rather than full schema validation, so the documented `schema_version` and key fields cannot silently drift. Coverage fixtures live under `test/fixtures/doctest/public_docs/`, and the verifier records a `public_docs_doctest` stage whose `artifact` references the doctest report so public-docs executability is auditable from the final verifier artifact.

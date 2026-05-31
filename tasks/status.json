@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "066",
+  "next_task": "067",
   "completed_tasks": [
     "068",
     "069",
@@ -104,14 +104,15 @@
     "061",
     "062",
     "064",
-    "065"
+    "065",
+    "066"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 065 failure-recovery validator completed; active-state and complete-state validation passed. Added validate_failure_recovery to scripts/validate_task_system.py enforcing the docs/FAILURE_RECOVERY.md transition state machine over zentinel.pipeline.failure_recovery_transition.v1, self-tested against test/fixtures/pipeline/failure_recovery_validator (six valid pass, eight invalid rejected). No coverage-gap rows are deferred to task 065; no Zig changed."
+    "notes": "Task 066 public docs doctest coverage completed; active-state and complete-state validation passed. test/public_docs_doctest_test runs CLI_SPEC/CONFIG_SPEC/REPORT_FORMAT/DOCTEST_AI_INTEGRATION and test/fixtures/doctest/public_docs fixtures through the doctest engine; JSON examples validate as supported subsets. No coverage-gap rows are deferred to task 066; no src/doctest change was required."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5008,6 +5009,56 @@
       ],
       "artifacts": [
         "artifacts/pipeline/065/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "066",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP (filter public). failing_output_excerpt: test/public_docs_doctest_test was written first and run before the public docs had executable blocks; it reported '7 pass, 2 fail (9 total)' -- the two failures were 'docs/REPORT_FORMAT.md has a passing report JSON doctest' and 'docs/DOCTEST_AI_INTEGRATION.md has a passing doctest AI JSON doctest', proving the four coverage fixtures (cli/config/report_json/doctest_ai_json), docs/CLI_SPEC.md, docs/CONFIG_SPEC.md, and the verifier-evidence fixture already passed while the two not-yet-converted docs failed. implementation_started_after_failure: true. passing_command: after appending an Executable Example (bash cli + json expected subset) to docs/REPORT_FORMAT.md and docs/DOCTEST_AI_INTEGRATION.md, `zig build test` passed (full suite green, 469 tests).",
+      "implementation_summary": "Made the selected public contract docs executable through zentinel doctest (task 066) using the existing doctest engine -- no src/doctest change was needed. test/public_docs_doctest_test runs each doc and coverage fixture through zentinel.doctest_command.run with a deterministic injected executor (the established CLI-doctest test pattern) and asserts a passing case of the required kind: a CLI case (zentinel version) for docs/CLI_SPEC.md, a config case for docs/CONFIG_SPEC.md, a report JSON case validated as a json-subset of zentinel.report.v1 for docs/REPORT_FORMAT.md, and a doctest AI JSON case validated as a json-subset of zentinel.ai.doctest.suggest.response.v1 for docs/DOCTEST_AI_INTEGRATION.md. Added test/fixtures/doctest/public_docs coverage fixtures (cli.md, config.md, report_json.md, doctest_ai_json.md) that must remain executable, and a verifier-artifact fixture (verification.json) whose public_docs_doctest stage references doctest evidence (artifact ending doctest/report.json) -- the test asserts that reference exists, proving verifier artifacts reference public-docs doctest evidence. Appended an Executable Example section (a bash cli producer immediately followed by a json expected subset expectation) to docs/REPORT_FORMAT.md and docs/DOCTEST_AI_INTEGRATION.md so those public docs execute, and documented the coverage and subset semantics in docs/DOCTEST_POLICY.md. JSON examples use json expected subset (supported subset semantics) rather than full schema validation. Non-goals respected: no mutation-aware doctest gating for every public doc, no AI-authored doc rewrites, no replacement of focused tests; src/mutators/**, src/zir_backend.zig, src/air_backend.zig, and docs/MUTATOR_SPEC.md were not touched (forbidden).",
+      "files_changed": [
+        "docs/REPORT_FORMAT.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/DOCTEST_POLICY.md",
+        "test/public_docs_doctest_test.zig",
+        "test/fixtures/doctest/public_docs/cli.md",
+        "test/fixtures/doctest/public_docs/config.md",
+        "test/fixtures/doctest/public_docs/report_json.md",
+        "test/fixtures/doctest/public_docs/doctest_ai_json.md",
+        "test/fixtures/doctest/public_docs/verification.json",
+        "artifacts/pipeline/066/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/public_docs_doctest_test.zig: nine cases proving the selected public docs and coverage fixtures execute through the doctest engine -- CLI (zentinel version), config, report JSON subset (zentinel.report.v1), and doctest AI JSON subset (zentinel.ai.doctest.suggest.response.v1) -- plus a check that the verifier artifact references public-docs doctest evidence.",
+        "test/fixtures/doctest/public_docs/{cli,config,report_json,doctest_ai_json}.md: coverage fixtures for each required public-doc example kind that must remain executable.",
+        "test/fixtures/doctest/public_docs/verification.json: a verifier-artifact fixture whose public_docs_doctest stage references the doctest report."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing, filter public): 7 pass / 2 fail -- the two real docs (REPORT_FORMAT, DOCTEST_AI_INTEGRATION) failed before their executable blocks were added",
+        "zig build test (zigars MCP, passing): full suite green (469 tests) after appending the executable examples",
+        "zig build (zigars MCP): binary builds; zig fmt --check src test build.zig clean",
+        "python3 scripts/validate_task_system.py (passing) active then complete; python3 scripts/check_pipeline_artifacts.py passing"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 066 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 066. Public-docs doctest coverage reuses the existing doctest engine (no src/doctest change) and the existing zentinel.* JSON schema_versions; JSON examples are validated as supported subsets."
+      },
+      "dogfooding_implication": "Executable public docs become a durable dogfood surface: the CLI, config, report JSON, and advisory doctest-AI JSON contracts cannot silently drift from their documentation because zentinel doctest validates the documented commands and JSON subsets, and the verifier artifact references that doctest evidence.",
+      "follow_up_tasks": [
+        "tasks/067-ai-doctest-survivor-assistance.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/066/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

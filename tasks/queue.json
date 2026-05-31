@@ -3406,7 +3406,7 @@
       "title": "Public Docs Doctest Coverage",
       "file": "tasks/066-public-docs-doctest-coverage.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "065"
       ],

@@ -1,0 +1,26 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "066",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "public_docs_doctest",
+      "required": true,
+      "status": "passed",
+      "command": "zentinel doctest --file docs/CLI_SPEC.md --format json",
+      "artifact": "artifacts/pipeline/066/doctest/report.json",
+      "evidence": "selected public contract docs (CLI_SPEC, CONFIG_SPEC, REPORT_FORMAT, DOCTEST_AI_INTEGRATION) execute through zentinel doctest: the CLI version case, the config example, the report JSON subset example, and the doctest AI JSON subset example all pass."
+    },
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py"
+    }
+  ],
+  "residual_risk": [
+    "Public-docs doctest evidence is referenced from the verifier artifact via the public_docs_doctest stage so doctest coverage is auditable; JSON examples are validated as supported subsets, not full schema validation."
+  ],
+  "recommendation": "complete"
+}

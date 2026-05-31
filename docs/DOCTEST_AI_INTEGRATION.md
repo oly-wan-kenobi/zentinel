@@ -325,3 +325,17 @@ Additional doctest rules:
 - send only the failing case and nearby heading context
 - redact command output before prompt construction
 - never send generated temp workspace paths without normalization
+
+## Executable Example
+
+This contract is executable documentation (`docs/DOCTEST_POLICY.md`). The advisory `suggest_doctest` flow returns a registered response envelope; `zentinel doctest` runs the stub-provider command and validates its `schema_version` as a supported subset (`json expected subset`), keeping the advisory JSON contract auditable without sending anything to a remote provider.
+
+```bash cli
+zentinel doctest suggest docs/CLI_SPEC.md --ai-provider stub --format json
+```
+
+```json expected subset
+{
+  "schema_version": "zentinel.ai.doctest.suggest.response.v1"
+}
+```

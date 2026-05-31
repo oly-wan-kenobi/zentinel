@@ -345,3 +345,20 @@ Breaking report changes require:
 - contract tests for both old reader behavior, if supported, and new writer behavior
 
 Advisory AI fields may grow under `advisory.ai` without changing deterministic result semantics.
+
+## Executable Example
+
+This contract is executable documentation (`docs/DOCTEST_POLICY.md`). `zentinel doctest` runs the command and validates the documented JSON report fields as a supported subset (`json expected subset`), so the canonical report envelope cannot silently drift from this document.
+
+```bash cli
+zentinel run --report json
+```
+
+```json expected subset
+{
+  "schema_version": "zentinel.report.v1",
+  "run": {
+    "status": "completed"
+  }
+}
+```
