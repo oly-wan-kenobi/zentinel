@@ -2497,7 +2497,7 @@
       "title": "Doctest Snapshots",
       "file": "tasks/034-doctest-snapshots.md",
       "phase": 1,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "033"
       ],

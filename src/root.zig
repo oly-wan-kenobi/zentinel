@@ -83,6 +83,9 @@ pub const doctest = struct {
     pub const extractor = @import("doctest/extractor.zig");
     pub const workspace = @import("doctest/workspace.zig");
     pub const runner = @import("doctest/runner.zig");
+    pub const normalizer = @import("doctest/normalizer.zig");
+    pub const matcher = @import("doctest/matcher.zig");
+    pub const snapshot = @import("doctest/snapshot.zig");
 };
 
 /// Deterministic cache key construction + cache metadata (deterministic core).

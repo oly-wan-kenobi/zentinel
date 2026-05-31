@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "034",
+  "next_task": "035",
   "completed_tasks": [
     "068",
     "069",
@@ -73,17 +73,69 @@
     "030",
     "031",
     "032",
-    "033"
+    "033",
+    "034"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 033 doctest runner completed; active-state and complete-state validation passed (106 tasks). Closed failure-mode gap row F-044 (doctest CLI allowlist command-rejection), covered by test/doctest_runner_test.zig. Added deterministic_core normal doctest execution: src/doctest/workspace.zig (pure, content-addressed workspace path derivation + Provider abstraction + confinement check) and src/doctest/runner.zig (per-kind status classification for zig_compile_pass/zig_test/zig_compile_fail/cli/config/config_fail through an injected Executor + config.load, ZNTL_DOCTEST_COMMAND_REJECTED for non-zentinel/shell-metacharacter CLI commands, exitCode mapping). No mutation, snapshot matching, cache, or CLI command (non-goals). Follow-up flagged: the parser does not yet classify `toml config_fail` blocks and the real filesystem workspace provider is wired at CLI integration."
+    "notes": "Task 034 doctest snapshots completed; active-state and complete-state validation passed (106 tasks). Closed failure-mode gap row F-023 (doctest output mismatch), covered by test/doctest_snapshot_test.zig. Added deterministic_core snapshot matching: src/doctest/normalizer.zig (idempotent normalization of paths/temp dirs/workspace hashes/run ids/timestamps/durations/ANSI/line endings), src/doctest/matcher.zig (exact/contains/regex via a pure backtracking engine + json/json_subset/json_unordered via std.json semantic comparison + diagnostic line/col-insensitive matching), and src/doctest/snapshot.zig (normalize+match orchestration, ZNTL_DOCTEST_SNAPSHOT_MISMATCH diagnostics with file/line/case-id, runner-output integration, deterministic mismatch rendering). Added the ZNTL_DOCTEST_SNAPSHOT_MISMATCH code to src/error_codes.zig (already in docs/ERROR_CODES.md). No AI review, cache, mutation, or broad CLI wiring (non-goals)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "034",
+      "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_snapshot_test.zig:3:36: error: struct 'root.doctest' has no member named 'normalizer'` plus `...'matcher'` and `...'snapshot'` (262/262 prior tests passed). implementation_started_after_failure: true; src/doctest/normalizer.zig, matcher.zig, snapshot.zig, the error_codes addition, and the root.zig re-exports were written only after capturing the missing-member failure. A second failing state was the snapshot fixture placeholder mismatch (the renderDiagnostic output differed from the placeholder), self-blessed from the real output. passing_command: `zig build test` then passed all tests (280).",
+      "implementation_summary": "Added deterministic_core doctest output normalization and snapshot matching (no AI review, cache, mutation, or broad CLI wiring -- all non-goals). src/doctest/normalizer.zig is pure and idempotent: a single scan-and-replace driver rewrites absolute project paths to <project>, OS temp dirs (/tmp, /var/folders, /private/var/folders) to <tmp>, generated workspace hashes under .zig-cache/zentinel/doctest to <workspace>, doctest_run_<ulid> run ids to a stable placeholder, ISO-8601 timestamps to <timestamp>, durations (NNms/NNus/NNns/NNs, optional fraction) to <duration>, strips ANSI CSI color sequences, canonicalizes CRLF/CR to LF, and trims trailing whitespace per line while preserving line order; re-normalizing is a no-op. src/doctest/matcher.zig implements the seven match modes: exact (trailing-trimmed equality), contains (expected lines must appear in order), regex (a pure backtracking engine supporting literals, ., character classes/ranges/negation, \\d/\\w/\\s, *, +, ?, and ^/$ anchors -- no external dependency), diagnostic (collapse :line:col references then contains), and json/json_subset/json_unordered (parse both sides with std.json.parseFromSliceLeaky and compare semantically so object key order never matters; subset allows extra actual object keys and a positional array prefix; unordered treats arrays as multisets). src/doctest/snapshot.zig orchestrates: it normalizes the actual output, normalizes the expected block (except a regex pattern, which is left raw), matches under the requested mode, and on mismatch emits a ZNTL_DOCTEST_SNAPSHOT_MISMATCH diagnostic carrying file, line, durable case id, and bounded expected/actual evidence; matchResultOutput compares a runner.CaseResult's stdout; renderDiagnostic produces a deterministic multi-line mismatch report; snapshot updates remain manual. The ZNTL_DOCTEST_SNAPSHOT_MISMATCH constant was added to src/error_codes.zig (already documented in docs/ERROR_CODES.md, so that doc was unchanged). Re-exported via zentinel.doctest.{normalizer,matcher,snapshot}. No cli/mutators/cache/ai/zir/air changes (forbidden); src/doctest/runner.zig was reused unchanged.",
+      "files_changed": [
+        "src/doctest/normalizer.zig",
+        "src/doctest/matcher.zig",
+        "src/doctest/snapshot.zig",
+        "src/error_codes.zig",
+        "src/root.zig",
+        "test/doctest_snapshot_test.zig",
+        "test/fixtures/doctest/snapshots/mismatch.txt",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_snapshot_test.zig: normalizer tests for project-path, duration, run-id, and temp-dir rewriting plus idempotency and line-order preservation; matcher tests for exact, contains (in order), regex (classes/anchors/quantifiers), json (key-order-independent), json_subset (extra actual keys), json_unordered (array multisets, and ordered json rejecting a reordered array), and diagnostic (line/col-insensitive) matching; snapshot tests for a ZNTL_DOCTEST_SNAPSHOT_MISMATCH diagnostic with file/line/case-id and a self-blessed rendered-mismatch fixture, a passing match with no diagnostic, validating actual runner output, and properties for json key-order independence and deterministic mismatch rendering.",
+        "test/fixtures/doctest/snapshots/mismatch.txt: the self-blessed deterministic mismatch report."
+      ],
+      "tests_run": [
+        "zig build test (failing, zigars MCP): missing doctest.normalizer/matcher/snapshot members while 262 prior tests passed",
+        "zig build test (passing, zigars MCP): all tests pass (280) after self-blessing the mismatch fixture",
+        "zig build (zigars MCP): binary builds",
+        "zig fmt --check src test build.zig: clean",
+        "git diff --check: clean",
+        "python3 scripts/validate_task_system.py: passed (106 tasks) in both active and complete states"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 034 was active (after fixing the std.mem.trimRight -> trimEnd 0.16 rename and self-blessing the mismatch fixture) and again after the complete-state transition (106 tasks) with F-023 closed."
+      },
+      "dogfooding_implication": "Snapshot matching is the prerequisite for safely dogfooding CLI/config/report docs: documented outputs can now be validated against actual runner output with volatile values normalized away, deterministic mismatch diagnostics, and durable case ids. CLI integration (035) wires these into the `zentinel doctest` command.",
+      "follow_up_tasks": [
+        "tasks/035-cli-doctests.md"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-023"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "033",
       "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_runner_test.zig:3:32: error: struct 'root.doctest' has no member named 'runner'` and `...no member named 'workspace'` (250/250 prior tests passed). implementation_started_after_failure: the runner test was written against the new doctest.runner/doctest.workspace modules; to capture concrete failing-first evidence the two root.zig re-exports were temporarily removed, reproducing the missing-member compile error, then restored. passing_command: `zig build test` then passed all tests (264).",

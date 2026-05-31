@@ -25,7 +25,7 @@
     { "number": "F-020", "covered": false, "tests": [], "deferred_to": "tasks/053-ai-provider-and-context.md", "notes": "AI disabled test." },
     { "number": "F-021", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "Malformed AI response test." },
     { "number": "F-022", "covered": true, "tests": ["test/doctest_parser_test.zig"], "deferred_to": null, "notes": "Invalid doctest block: an unterminated doctest fence (a doctest-language fence at a doctest fence length with no matching close) emits a ZNTL_DOCTEST_INVALID_BLOCK diagnostic at the opening line; non-doctest unterminated fences are documentation-only and not reported." },
-    { "number": "F-023", "covered": false, "tests": [], "deferred_to": "tasks/034-doctest-snapshots.md", "notes": "Doctest output mismatch test." },
+    { "number": "F-023", "covered": true, "tests": ["test/doctest_snapshot_test.zig"], "deferred_to": null, "notes": "Doctest output mismatch: when normalized actual output fails to satisfy an expectation block under its match mode, the snapshot comparator emits a ZNTL_DOCTEST_SNAPSHOT_MISMATCH diagnostic carrying the file, line, durable case id, and bounded expected/actual evidence, and renders a deterministic mismatch report." },
     { "number": "F-024", "covered": true, "tests": ["scripts/validate_task_system.py"], "deferred_to": null, "notes": "Task metadata validation exists." },
     { "number": "F-025", "covered": false, "tests": [], "deferred_to": "tasks/059-initial-dogfood-ci.md", "notes": "Repeated report comparison in initial dogfood CI." },
     { "number": "F-026", "covered": false, "tests": [], "deferred_to": "tasks/054-ai-advisory-commands.md", "notes": "AI provider-not-allowed CLI test." },

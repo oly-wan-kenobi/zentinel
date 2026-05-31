@@ -1,0 +1,6 @@
+ZNTL_DOCTEST_SNAPSHOT_MISMATCH at doc.md:5 (dt_x)
+mode: exact
+--- expected (normalized) ---
+expected text
+--- actual (normalized) ---
+actual text
