@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "050",
+  "next_task": "051",
   "completed_tasks": [
     "068",
     "069",
@@ -90,7 +90,8 @@
     "046",
     "047",
     "048",
-    "049"
+    "049",
+    "050"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -101,6 +102,55 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "050",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/worker_pool_test.zig added first, the compiler reported `test/worker_pool_test.zig:4:20: error: root source file struct 'root' has no member named 'worker_pool'` (328/328 prior tests still passing), proving the parallel worker pool did not exist; after worker_pool.zig landed, adding the run-command jobs tests failed next with `no field named 'jobs' in struct 'run_command.Options'` and the removed `error.JobsNotSupported`. implementation_started_after_failure: true; src/worker_pool.zig and the run_command/cli wiring were written only after capturing those failures. passing_command: `zig build test` then passed (all tests green, including the real-thread worker-pool tests), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. This task changes deterministic execution code; product self-mutation is gated to the Phase 5 dogfood (task 085), so the determinism contract is enforced by deterministic unit and property-style tests instead.",
+      "implementation_summary": "Implemented deterministic parallel mutant execution without changing report ordering. Added src/worker_pool.zig (deterministic_core): a bounded std.Thread pool that maps work-item indices [0, count) to results by INDEX via an atomic counter (each index claimed exactly once), runs inline for jobs<=1 (conservative default), clamps the worker count to [1, min(count, max_jobs=64)] (effectiveJobs), degrades gracefully on spawn failure (the calling thread drains remaining items), and exposes content-addressed per-mutant workspace path helpers (workspaceRoot/cacheDirIn/outDirIn) so concurrent workers never share a writable workspace, local .zig-cache, or zig-out. Restructured src/run_command.zig run() into three phases: Phase A resolves per-file selection and the unmutated preflight serially through the baseline executor and assembles one Job per mutant; Phase B runs the injected MutantRunner across `--jobs` (overriding normalized run.jobs) workers, collecting results into a pre-allocated slice by index with no arena allocation on worker threads; Phase C builds report entries and result-cache keys in mutant order, then calls the existing report.sortAndAssignDisplayIds so the canonical report order is independent of execution order. Removed the run-time `run.jobs > 1` rejection (RunError.JobsNotSupported and its CLI message) and added `--jobs <n>` to parseArgs (ParseError.InvalidJobs rejects non-positive or non-numeric values; --jobs overrides run.jobs). src/cli.zig drops the JobsNotSupported branch, reports the --jobs diagnostic, and routes per-mutant workspace creation through worker_pool.workspaceRoot; the real adapter's rt.gpa/rt.io are the std.process.Init arena/io documented as threadsafe, so concurrent mutant execution is safe. src/root.zig exports worker_pool. Did not change the MutantRunner or run_command.run signatures (constructed/called by test files outside this task's allowed scope), did not implement AI commands or ZIR/AIR support, and added no performance baselines beyond smoke coverage (non-goals). No docs changed (forbidden); docs/CLI_SPEC.md and docs/CONFIG_SPEC.md already document --jobs and run.jobs.",
+      "files_changed": [
+        "src/worker_pool.zig",
+        "src/run_command.zig",
+        "src/cli.zig",
+        "src/root.zig",
+        "test/worker_pool_test.zig",
+        "test/run_command_test.zig",
+        "test/fixtures/worker_pool/scheduling_evidence.json",
+        "artifacts/pipeline/050/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/worker_pool_test.zig: worker count does not change the index-to-result mapping (jobs=1 vs jobs=8, each index processed exactly once); empty/single workloads run inline; effectiveJobs clamps to [1, min(count, max_jobs)]; each mutant gets a dedicated content-addressed workspace with nested local .zig-cache and zig-out (no clobbering); a failing unit is visible at its index and never drops other units; the committed scheduling-evidence fixture matches the real workspace layout.",
+        "test/run_command_test.zig: normalized run.jobs > 1 enables the worker pool instead of being rejected; worker count does not change report mutant order/ids/statuses; --jobs parses, defaults to null, and rejects non-positive/non-numeric values; --jobs overrides run.jobs and stays bounded for huge values; a crashing mutant command propagates its terminal status under parallel execution. The mock runner is guarded by an atomic spinlock so the parallel tests exercise real threads safely.",
+        "test/fixtures/worker_pool/scheduling_evidence.json: deterministic scheduling and workspace-isolation evidence, validated against the module's real output."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): 'root source file struct root has no member named worker_pool' then 'no field named jobs in struct run_command.Options' before implementation",
+        "zig build test (zigars MCP, passing): full suite green including the real-thread worker-pool and run-command jobs tests",
+        "zig build (zigars MCP): the binary builds",
+        "zig fmt --check src test build.zig: clean; git diff --check: clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state (106 tasks)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 050 was active and again after the complete-state transition. No gap-registry rows pertain to the worker pool; docs/CLI_SPEC.md and docs/CONFIG_SPEC.md already carry the --jobs and run.jobs ownership phrases (docs are forbidden for this task)."
+      },
+      "dogfooding_implication": "Parallel execution preserves deterministic dogfood reports: serial and parallel runs produce equivalent reports except normalized durations, and per-mutant content-addressed workspaces keep concurrent runs from clobbering each other. Full self-mutation of zentinel's own runner remains gated to the Phase 5 dogfood (task 085).",
+      "follow_up_tasks": [
+        "tasks/051-fail-fast-impact-analysis.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/050/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "049",
       "failing_evidence": "failing_command: a standard-library-only escalation checker that imports subset_validate from scripts/validate_task_system.py, validates each test/fixtures/pipeline/escalation/{valid,invalid}/*.json against the refined schemas/pipeline.escalation.v1.schema.json, and adds per-class semantic rules (required_gates must include the canonical minimum gate set for the task_class; required_reviewers must include the canonical minimum reviewers; a high_risk record must include Property Test Agent or Mutation Agent; a compiler_internal record must include both Architecture Reviewer and Property Test Agent; outcome must be one of the five documented outcomes) plus a monotonicity check that the canonical gate sets form a strict low_risk subset normal subset high_risk subset compiler_internal chain. failing_output_excerpt: before the comprehensive fixtures existed it printed `FAIL: no comprehensive escalation class fixtures (valid/ subdir)` and exited 1. implementation_started_after_failure: true; the seven per-class and trigger fixtures, the seven invalid fixtures (including the canonical compiler-internal missing Architecture Reviewer and missing Property Test Agent cases), and the non-breaking schema refinement were written only after capturing that failure. passing_command: the checker then printed `valid=7 invalid=7 classes=['architecture', 'compiler_internal', 'high_risk', 'low_risk', 'normal']` and `PASS` (exit 0), proving all five complexity classes, the canonical-chain monotonicity, a property that escalating normal to high_risk without adding the higher class's gates is rejected, and that the task-041 escalation valid.json still validates and invalid.json is still rejected under the refined schema. The policy's machine-readable escalation example also validates against the refined schema. This task changes no executable product code (docs, schema, JSON fixtures, pipeline artifacts only) and implements no automated classifier (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

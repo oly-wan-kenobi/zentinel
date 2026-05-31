@@ -201,7 +201,9 @@ const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
 /// mutated file with the patched bytes. Isolated by run + content-addressed
 /// mutant id, so the developer working tree is never modified.
 fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
-    const rel = try std.fmt.allocPrint(rt.gpa, ".zig-cache/zentinel/workspaces/{s}/{s}", .{ rt.run_id, m.id });
+    // Content-addressed, per-mutant root so concurrent workers never share a
+    // writable workspace, local .zig-cache, or zig-out (tasks/050).
+    const rel = try zentinel.worker_pool.workspaceRoot(rt.gpa, rt.run_id, m.id);
     try rt.root_dir.createDirPath(rt.io, rel);
     var dir = try rt.root_dir.openDir(rt.io, rel, .{});
     errdefer dir.close(rt.io);
@@ -305,6 +307,7 @@ fn runRun(
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
+            error.InvalidJobs => "--jobs must be a positive integer",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
         return 2;
@@ -352,10 +355,6 @@ fn runRun(
     const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn };
 
     const outcome = zentinel.run_command.run(gpa, cfg, files.items, options, baseline_executor, mutant_executor, obs) catch |err| switch (err) {
-        error.JobsNotSupported => {
-            try stderr.writeAll("error: run.jobs > 1 is not supported yet (parallel execution lands in a later task)\n");
-            return 2;
-        },
         error.OutputOutsideRoot => {
             try stderr.writeAll("error: --output must stay within the project root\n");
             return 2;

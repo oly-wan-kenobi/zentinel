@@ -21,6 +21,7 @@ const report = @import("report.zig");
 const command = @import("command.zig");
 const test_selection = @import("test_selection.zig");
 const cache = @import("cache.zig");
+const worker_pool = @import("worker_pool.zig");
 
 pub const ReportFormat = enum { text, json, jsonl, junit };
 
@@ -38,6 +39,10 @@ pub const Options = struct {
     /// cache metadata/policy, never in mutant correctness; Zig build-cache
     /// isolation metadata is unaffected.
     no_cache: bool = false,
+    /// Worker count for parallel mutant execution (`--jobs <n>`). When set, it
+    /// overrides normalized `run.jobs`. Chooses only concurrency, never report
+    /// ordering or mutation semantics; `null` falls back to `run.jobs`.
+    jobs: ?usize = null,
 };
 
 /// Observation metadata supplied by the caller. Normalized in snapshots/tests.
@@ -71,6 +76,41 @@ pub const MutantRunner = struct {
     }
 };
 
+/// One mutant's fully-resolved execution inputs, assembled serially in Phase A
+/// so Phase B only runs the mutant and records its result by index.
+const Job = struct {
+    candidate: mutant.Mutant,
+    source: []const u8,
+    commands: []const []const u8,
+    selection: report.TestSelection,
+};
+
+/// Shared state for the parallel mutant phase. Each worker writes only its own
+/// `results[index]` slot, so the worker pool needs no extra synchronization.
+const ParallelCtx = struct {
+    jobs: []const Job,
+    results: []mutant_runner.MutationResult,
+    mutant_executor: MutantRunner,
+    mode: report.Mode,
+};
+
+/// Worker-pool task: run one mutant and store its result at the matching index.
+/// The injected runner isolates each mutant in its own content-addressed
+/// workspace, so concurrent workers never share a workspace, cache, or output.
+fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
+    _ = slot;
+    const pc: *ParallelCtx = @ptrCast(@alignCast(ctx));
+    const job = pc.jobs[index];
+    pc.results[index] = pc.mutant_executor.run(job.candidate, job.source, job.commands, pc.mode);
+}
+
+/// Normalize the configured `run.jobs` (validated `>= 1` by the config parser)
+/// into a worker count. `--jobs` overrides this when set.
+fn jobsFromConfig(run_jobs: i64) usize {
+    if (run_jobs < 1) return 1;
+    return @intCast(run_jobs);
+}
+
 pub const RunOutcome = struct {
     exit_code: u8,
     report: report.Report,
@@ -80,11 +120,10 @@ pub const RunOutcome = struct {
 };
 
 pub const RunError = error{
-    JobsNotSupported,
     OutputOutsideRoot,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat };
+pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -128,6 +167,12 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.output = args[i];
+        } else if (std.mem.eql(u8, arg, "--jobs")) {
+            i += 1;
+            if (i >= args.len) return error.MissingValue;
+            const n = std.fmt.parseInt(usize, args[i], 10) catch return error.InvalidJobs;
+            if (n < 1) return error.InvalidJobs; // worker count must be a positive integer
+            opts.jobs = n;
         } else {
             return error.UnknownOption;
         }
@@ -146,8 +191,6 @@ pub fn run(
     mutant_executor: MutantRunner,
     obs: Observation,
 ) RunError!RunOutcome {
-    // Reject not-yet-supported options before doing work.
-    if (cfg.run_jobs > 1) return error.JobsNotSupported;
     if (options.output) |out| {
         if (config.isOutsideRoot(out)) return error.OutputOutsideRoot;
     }
@@ -178,36 +221,57 @@ pub fn run(
 
     const strategy = strategyFromConfig(cfg.test_selection);
 
-    // Run each mutant and build report entries. Per-file selection (same-file
-    // tests + generated-command preflight) is computed once per file and reused.
+    // Phase A (serial): resolve per-file selection -- including the unmutated
+    // generated-command preflight, which must run serially through the baseline
+    // executor -- and assemble one deterministic job per mutant. Selection state
+    // and the baseline executor are only touched here, never on a worker thread.
     var file_cache: std.ArrayList(FileSelection) = .empty;
-    var entries: std.ArrayList(report.Mutant) = .empty;
-    var result_keys: std.ArrayList(cache.ResultKey) = .empty;
+    var job_list: std.ArrayList(Job) = .empty;
     for (candidates) |candidate| {
         const source = sourceFor(files, candidate.file) orelse continue;
         const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
         const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
-        const result = mutant_executor.run(candidate, source, resolution.commands, mode);
-        try entries.append(arena, try buildEntry(arena, candidate, source, result, mode, resolution.selection));
+        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .selection = resolution.selection });
+    }
+    const jobs = try job_list.toOwnedSlice(arena);
+
+    // Phase B (parallel): run each mutant through the injected runner across at
+    // most `--jobs` (overriding `run.jobs`) workers. Results are collected by
+    // index, so the worker count changes only concurrency -- never which result
+    // belongs to which mutant. jobs == 1 runs inline (conservative default). No
+    // `arena` allocation happens here; the injected runner uses its own
+    // (threadsafe) allocator, and each worker writes a disjoint results slot.
+    const results = try arena.alloc(mutant_runner.MutationResult, jobs.len);
+    const requested_jobs: usize = if (options.jobs) |j| j else jobsFromConfig(cfg.run_jobs);
+    var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode };
+    worker_pool.run(requested_jobs, jobs.len, &pctx, runOneMutant);
+
+    // Phase C (serial): build report entries and result-cache keys in mutant
+    // order, then sort into canonical report order. Because the report is sorted
+    // here, serial and parallel runs produce equivalent reports.
+    var entries: std.ArrayList(report.Mutant) = .empty;
+    var result_keys: std.ArrayList(cache.ResultKey) = .empty;
+    for (jobs, results) |job, result| {
+        try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, job.selection));
 
         // Compute the deterministic result-cache key (metadata only; reuse stays
         // disabled in Phase 1). --no-cache skips result keys entirely.
         if (!options.no_cache) {
             const key = try cache.computeKey(arena, .{
-                .mutant_id = candidate.id,
+                .mutant_id = job.candidate.id,
                 .zentinel_version = obs.zentinel_version,
                 .zig_version = obs.zig_version,
                 .zig_cache_namespace = obs.zig_cache_namespace,
-                .backend = @tagName(candidate.backend),
-                .backend_version = candidate.backend_version,
-                .operator = candidate.operator,
-                .source_hash = try cache.sourceHash(arena, source),
+                .backend = @tagName(job.candidate.backend),
+                .backend_version = job.candidate.backend_version,
+                .operator = job.candidate.operator,
+                .source_hash = try cache.sourceHash(arena, job.source),
                 .config_hash = obs.config_hash,
-                .test_command = try joinCommands(arena, resolution.commands),
+                .test_command = try joinCommands(arena, job.commands),
                 .mode = @tagName(mode),
                 .environment = "minimal",
             });
-            try result_keys.append(arena, .{ .mutant_id = candidate.id, .key = key });
+            try result_keys.append(arena, .{ .mutant_id = job.candidate.id, .key = key });
         }
     }
     const mutants = try entries.toOwnedSlice(arena);

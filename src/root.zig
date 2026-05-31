@@ -65,6 +65,10 @@ pub const report = @import("report.zig");
 /// `zentinel run` Phase 1 orchestration + report assembly (deterministic core).
 pub const run_command = @import("run_command.zig");
 
+/// Bounded parallel worker pool: deterministic index->result mapping and
+/// content-addressed per-worker workspace isolation (deterministic core).
+pub const worker_pool = @import("worker_pool.zig");
+
 /// `zentinel list-mutants` candidate generation + rendering (deterministic core).
 pub const list_mutants_command = @import("list_mutants_command.zig");
 

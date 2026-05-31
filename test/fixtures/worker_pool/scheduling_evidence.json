@@ -1,0 +1,21 @@
+{
+  "contract": "zentinel.worker_pool.scheduling",
+  "invariant": "the index-to-result mapping is independent of worker count and scheduling order",
+  "report_equivalence": "serial and parallel runs produce equivalent reports except normalized durations",
+  "conservative_default_jobs": 1,
+  "max_jobs": 64,
+  "isolation": "each mutant runs in a dedicated content-addressed workspace whose local .zig-cache and zig-out live inside that workspace, so concurrent workers never clobber each other's build artifacts",
+  "example": {
+    "run_id": "run_evidence0000000000000",
+    "mutants": [
+      "m_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "m_bbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ],
+    "workspaces": [
+      ".zig-cache/zentinel/workspaces/run_evidence0000000000000/m_aaaaaaaaaaaaaaaaaaaaaaaaaa",
+      ".zig-cache/zentinel/workspaces/run_evidence0000000000000/m_bbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ],
+    "local_cache": ".zig-cache/zentinel/workspaces/run_evidence0000000000000/m_aaaaaaaaaaaaaaaaaaaaaaaaaa/.zig-cache",
+    "local_out": ".zig-cache/zentinel/workspaces/run_evidence0000000000000/m_aaaaaaaaaaaaaaaaaaaaaaaaaa/zig-out"
+  }
+}

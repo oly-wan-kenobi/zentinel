@@ -66,7 +66,17 @@ const Env = struct {
     cwd: []const u8 = "<project>",
     baseline_outcome: runner.RawOutcome,
     mutant_outcome: runner.RawOutcome,
+    /// Serializes the mock's allocations from the shared arena so the parallel
+    /// worker-pool tests exercise real threads without racing the test arena.
+    lock: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
 };
+
+fn spinLock(flag: *std.atomic.Value(u32)) void {
+    while (flag.cmpxchgWeak(0, 1, .acquire, .monotonic) != null) std.atomic.spinLoopHint();
+}
+fn spinUnlock(flag: *std.atomic.Value(u32)) void {
+    flag.store(0, .release);
+}
 
 fn baselineCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
     _ = argv;
@@ -80,6 +90,8 @@ fn mutantCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
 }
 fn mutantRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
     const env: *Env = @ptrCast(@alignCast(ctx));
+    spinLock(&env.lock);
+    defer spinUnlock(&env.lock);
     const ex = runner.Executor{ .ctx = env, .runFn = mutantCmd };
     return mutant_runner.run(env.arena, m, source, .created, commands, env.cwd, ex, mode) catch @panic("mutant run failed");
 }
@@ -213,27 +225,111 @@ test "--output outside the project root is rejected" {
     try expectError(error.OutputOutsideRoot, rc.run(a, loadCfg(a, cfg_toml), &files, .{ .output = "../escape.json" }, baselineExecutor(&env), mutantRunner(&env), observation()));
 }
 
-test "run.jobs > 1 is rejected until parallelism lands" {
+// A source with several arithmetic operators so a run produces multiple mutants
+// to actually schedule across workers.
+const three_ops_src = "pub fn f(a: i32, b: i32) i32 {\n    return a + b - a * b + b;\n}\n";
+
+const jobs_toml =
+    \\[project]
+    \\name = "sample"
+    \\
+    \\[mutators]
+    \\enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+    \\
+    \\[test]
+    \\commands = ["zig build test"]
+    \\
+    \\[run]
+    \\jobs = 4
+    \\
+;
+
+fn crashed() runner.RawOutcome {
+    return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
+}
+
+test "normalized run.jobs > 1 enables the worker pool instead of being rejected" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
-    const jobs_toml =
-        \\[project]
-        \\name = "sample"
-        \\
-        \\[test]
-        \\commands = ["zig build test"]
-        \\
-        \\[run]
-        \\jobs = 2
-        \\
-    ;
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/f.zig", .source = three_ops_src }};
 
-    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
-    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+    // After this task, run.jobs = 4 runs the worker pool rather than returning an error.
+    const outcome = try rc.run(a, loadCfg(a, jobs_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(report.RunStatus.completed, outcome.report.run.status);
+    try expect(outcome.report.mutants.len >= 3);
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
 
-    try expectError(error.JobsNotSupported, rc.run(a, loadCfg(a, jobs_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation()));
+test "worker count does not change report mutant order, ids, or statuses" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const files = [_]rc.FileSource{.{ .path = "src/f.zig", .source = three_ops_src }};
+
+    var env1 = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const serial = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .jobs = 1 }, baselineExecutor(&env1), mutantRunner(&env1), observation());
+
+    var env8 = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const parallel = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .jobs = 8 }, baselineExecutor(&env8), mutantRunner(&env8), observation());
+
+    try expect(serial.report.mutants.len >= 3); // several mutants actually scheduled
+    try expectEqual(serial.report.mutants.len, parallel.report.mutants.len);
+    for (serial.report.mutants, parallel.report.mutants) |s, p| {
+        try expectEqualStrings(s.id, p.id);
+        try expectEqual(s.display_id, p.display_id);
+        try expectEqualStrings(s.operator, p.operator);
+        try expectEqualStrings(s.file, p.file);
+        try expectEqual(s.result.status, p.result.status);
+    }
+    try expectEqual(serial.report.summary.killed, parallel.report.summary.killed);
+    try expectEqual(serial.report.summary.survived, parallel.report.summary.survived);
+    try expectEqual(report.Violation.ok, report.validate(parallel.report));
+}
+
+test "--jobs parses, defaults to null, and rejects non-positive or non-numeric values" {
+    try expectEqual(@as(?usize, 4), (try rc.parseArgs(&.{ "--jobs", "4" })).jobs);
+    try expect((try rc.parseArgs(&.{})).jobs == null);
+    try expectError(error.InvalidJobs, rc.parseArgs(&.{ "--jobs", "0" }));
+    try expectError(error.InvalidJobs, rc.parseArgs(&.{ "--jobs", "-1" }));
+    try expectError(error.InvalidJobs, rc.parseArgs(&.{ "--jobs", "abc" }));
+    try expectError(error.MissingValue, rc.parseArgs(&.{"--jobs"}));
+}
+
+test "--jobs overrides run.jobs and stays bounded for huge values" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const files = [_]rc.FileSource{.{ .path = "src/f.zig", .source = three_ops_src }};
+
+    // jobs_toml requests run.jobs = 4, but an explicit --jobs of 1 forces serial
+    // execution, and a huge --jobs is clamped rather than spawning unbounded
+    // threads; both still produce a valid report.
+    var env_serial = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const serial = try rc.run(a, loadCfg(a, jobs_toml), &files, .{ .jobs = 1 }, baselineExecutor(&env_serial), mutantRunner(&env_serial), observation());
+    try expectEqual(report.Violation.ok, report.validate(serial.report));
+
+    var env_huge = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const huge = try rc.run(a, loadCfg(a, jobs_toml), &files, .{ .jobs = 100000 }, baselineExecutor(&env_huge), mutantRunner(&env_huge), observation());
+    try expectEqual(serial.report.mutants.len, huge.report.mutants.len);
+    try expectEqual(report.Violation.ok, report.validate(huge.report));
+}
+
+test "a crashing mutant command propagates its terminal status under parallel execution" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const files = [_]rc.FileSource{.{ .path = "src/f.zig", .source = three_ops_src }};
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = crashed() };
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .jobs = 8 }, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expect(outcome.report.mutants.len >= 3);
+    for (outcome.report.mutants) |m| {
+        try expectEqual(report.ResultStatus.compiler_crash, m.result.status);
+    }
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
 // --- Option parsing --------------------------------------------------------
