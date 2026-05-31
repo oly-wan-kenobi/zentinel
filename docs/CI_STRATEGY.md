@@ -75,7 +75,7 @@ Advisory dogfood should fail only on infrastructure or deterministic core errors
 
 1. `format_check` — `zig fmt --check src test build.zig`
 2. `build` — `zig build`
-3. `unit_tests` — `zig build test`
+3. `unit_tests` — `zig build test` (this includes the real-binary integration test `test/integration_run_test.zig`, which builds `zentinel` and runs it over the committed fixture project `test/fixtures/integration/sample`, asserting the report's killed/survived counts so the real `src/cli.zig` I/O adapters — process execution, per-mutant workspace tree-copy, and JSON report writing — are exercised, not only the mock-executor unit tests)
 4. `task_system_validation` — `python3 scripts/validate_task_system.py`
 5. `pipeline_artifact_validation` — `python3 scripts/check_pipeline_artifacts.py`
 6. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)

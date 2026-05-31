@@ -1,0 +1,12 @@
+# Integration fixture config (task 111). The shipped binary discovers calc.zig,
+# generates the two arithmetic mutants, and runs the same-file test command in an
+# isolated per-mutant workspace. `add`'s mutant is killed; `mul`'s survives.
+[project]
+name = "integration_sample"
+include = ["calc.zig"]
+
+[mutators]
+enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+
+[test]
+commands = ["zig test calc.zig"]

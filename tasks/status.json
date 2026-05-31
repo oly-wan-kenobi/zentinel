@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "111",
+  "next_task": "112",
   "completed_tasks": [
     "068",
     "069",
@@ -113,14 +113,15 @@
     "107",
     "108",
     "109",
-    "110"
+    "110",
+    "111"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 110 make release gates verify behavior completed; active-state and complete-state validation passed. scripts/release_dogfood_gate.py now RECOMPUTES the repeated-run comparison from the archived run_a/run_b reports (Python port of report.normalizeForComparison) instead of trusting the manifest's normalized_equal boolean, requires every verified_by and survivor evidence reference to be a real on-disk artifact, and actually EXECUTES script-type verified_by checks for the real manifest. Proven by a gate self-test that rejected the new fabricated_evidence.json (bogus verified_by path + false normalized_equal + prose survivor evidence) -- it was accepted before the fix. zig build test (499), zig build, zig fmt --check, git diff --check, validator, and python3 scripts/release_dogfood_gate.py all green. (The .claude/ lock recreated by the loop wakeup, which the repo validator forbids, is removed at the start of each turn.)"
+    "notes": "Task 111 add real-binary integration tests completed; active-state and complete-state validation passed. test/integration_run_test.zig (wired explicitly in build.zig with the built binary's path, excluded from generic *_test.zig discovery) spawns the actual zentinel binary against the committed fixture project test/fixtures/integration/sample in an isolated tmp copy, then asserts the JSON report's total=2/killed=1/survived=1 -- exercising the real src/cli.zig adapters (process exec, per-mutant workspace tree-copy, report writing) under `zig build test`. Failed to compile ('no module named integration_options') before the build wiring; passes after (500 tests). A regression demo confirmed substance: covering mul made the real binary report killed=2 and the test failed ('expected 1, found 2'). docs/CI_STRATEGY.md documents the new coverage; ci.sh's unit_tests stage runs it. zig build, zig fmt --check, git diff --check, validator all green. (The .claude/ lock recreated by the loop wakeup, which the repo validator forbids, is removed at the start of each turn.)"
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5456,6 +5457,52 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/110/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "111",
+      "failing_evidence": "failing_command: `zig build test` after adding test/integration_run_test.zig and the fixture project but BEFORE the build.zig harness wiring. failing_output_excerpt: 'test/integration_run_test.zig:11:25: error: no module named \\'integration_options\\' available within module \\'root\\'' -- the recursive *_test.zig discovery picked up the integration test, which needs the built binary's path injected, so it could not even compile without the explicit harness. implementation_started_after_failure: true. After wiring it in build.zig (addIntegrationTest: an options module carrying the binary path + a dependency on the built exe, and excluding the file from generic discovery), `zig build test` passes (500 tests) with the integration test spawning the real binary. Substance check (not a tautology): temporarily adding a mul test to the fixture made the real binary classify both mutants killed, and the integration test failed with 'expected 1, found 2' on killed -- proving the assertion reads the real binary's classification output; the fixture was then reverted.",
+      "implementation_summary": "Added a real-binary end-to-end integration test so `zig build test` exercises the presentation-adapter I/O in src/cli.zig (process execution via std.process.run, the per-mutant setupWorkspace tree-copy, and JSON report writing), which the mock-executor unit tests never touch. test/fixtures/integration/sample is a std-only fixture project (calc.zig with add covered by a same-file test and mul uncovered, plus zentinel.toml enabling arithmetic_add_sub/arithmetic_mul_div with `zig test calc.zig`). test/integration_run_test.zig copies the fixture into an isolated std.testing.tmpDir, spawns the BUILT binary (`zentinel --config zentinel.toml run --report json`) with cwd=the tmp copy via std.process.run over std.testing.io (Io.Threaded), parses the canonical JSON report from stdout, and asserts total=2, killed=1 (add), survived=1 (mul). build.zig wires it explicitly (addIntegrationTest) -- excluded from the recursive *_test.zig discovery and given a generated integration_options module that carries the built binary's path (addOptionPath, which also makes the test depend on the binary) plus the absolute fixture and root directories; the binary path is build-root-relative so the test joins it with root_dir to an absolute argv[0] (the child runs with cwd=the tmp copy). docs/CI_STRATEGY.md documents that the unit_tests CI stage (`zig build test`) now includes this real-binary integration test. Non-goals respected: existing mock-based unit tests are unchanged and no benchmarking was added. src/ai/** and build.zig.zon untouched (forbidden); scripts/ci.sh needed no change because its unit_tests stage already runs `zig build test`.",
+      "files_changed": [
+        "build.zig",
+        "test/integration_run_test.zig",
+        "test/fixtures/integration/sample/calc.zig",
+        "test/fixtures/integration/sample/zentinel.toml",
+        "docs/CI_STRATEGY.md",
+        "artifacts/pipeline/111/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/integration_run_test.zig: 'the built binary mutates a real fixture project and reports one killed and one surviving mutant' -- spawns the real binary over the fixture copy and asserts total=2/killed=1/survived=1 from the canonical JSON report; fails to compile without the build harness and catches a real-binary classification change (demonstrated: mul coverage -> killed=2).",
+        "test/fixtures/integration/sample/calc.zig and zentinel.toml: a std-only fixture project with one covered (add) and one uncovered (mul) arithmetic function and a same-file test command, producing exactly one killed and one surviving mutant."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the build wiring): integration_run_test.zig did not compile ('no module named integration_options')",
+        "zig build test (passing, after the wiring): 500 tests green; the integration test ran the real binary",
+        "zig build test (regression demo): with mul temporarily covered, the integration test failed 'expected 1, found 2' (real binary reported killed=2), then the fixture was reverted",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 111 was active and again after the complete-state transition with next_task advanced to 112 (112 depends on the now-complete 111). The task-111 verification artifact validates and no coverage-gap rows are deferred to task 111. The gitignored .claude/ lock recreated by the loop wakeup was removed before validating."
+      },
+      "dogfooding_implication": "zentinel's own CI now proves the SHIPPED binary works end-to-end -- it builds the binary and runs it over a real Zig project, asserting the actual kill/survive classification -- so a regression in the real process-execution, workspace tree-copy, or report-writing adapters (which the mock-executor unit tests cannot catch) breaks `zig build test`.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/111/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

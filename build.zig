@@ -36,6 +36,48 @@ pub fn build(b: *std.Build) void {
     // and tested only through this explicit wiring. The no-eligible-sources
     // fixture (failure mode F-006) has no compilable entrypoint and is omitted.
     addFixtureCheck(b, test_step, "test/fixtures/projects/arithmetic_kill/calc.zig", target, optimize);
+
+    // Task 111: real-binary integration test. Spawns the BUILT binary against a
+    // committed fixture project so the real presentation-adapter I/O in
+    // src/cli.zig (process execution, per-mutant workspace tree-copy, JSON report
+    // writing) is exercised by `zig build test`, not only the mock-executor unit
+    // tests. It is wired explicitly (and excluded from the recursive discovery
+    // above) so it can receive the built binary's path.
+    addIntegrationTest(b, test_step, zentinel_mod, exe, target, optimize);
+}
+
+// Wire the real-binary integration test: it imports a generated options module
+// carrying the built binary's path (so it can spawn it) and the fixture project
+// directory. `addOptionPath` also makes the test depend on the binary being built
+// before it runs.
+fn addIntegrationTest(
+    b: *std.Build,
+    test_step: *std.Build.Step,
+    zentinel_mod: *std.Build.Module,
+    exe: *std.Build.Step.Compile,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) void {
+    const opts = b.addOptions();
+    opts.addOptionPath("zentinel_exe", exe.getEmittedBin());
+    opts.addOption([]const u8, "fixture_dir", b.pathFromRoot("test/fixtures/integration/sample"));
+    // The emitted-binary path is relative to the build root; pass the absolute
+    // root so the test can resolve it regardless of the spawned child's cwd.
+    opts.addOption([]const u8, "root_dir", b.pathFromRoot("."));
+
+    const integration_test = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("test/integration_run_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "zentinel", .module = zentinel_mod },
+                .{ .name = "integration_options", .module = opts.createModule() },
+            },
+        }),
+    });
+    const run_integration = b.addRunArtifact(integration_test);
+    test_step.dependOn(&run_integration.step);
 }
 
 // Compile and run a standalone fixture project source as a test so `zig build
@@ -77,6 +119,9 @@ fn addDiscoveredTests(
     while (walker.next(io) catch @panic("failed to walk test/")) |entry| {
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.basename, "_test.zig")) continue;
+        // The real-binary integration test is wired explicitly (addIntegrationTest)
+        // so it can receive the built binary's path; keep it out of generic discovery.
+        if (std.mem.eql(u8, entry.basename, "integration_run_test.zig")) continue;
         if (count >= paths_buf.len) @panic("too many test/**/*_test.zig files");
         paths_buf[count] = b.dupe(entry.path);
         count += 1;

@@ -3662,7 +3662,7 @@
       "title": "Add Real-Binary Integration Tests",
       "file": "tasks/111-real-binary-integration-tests.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "110"
       ],
