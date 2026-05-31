@@ -103,6 +103,7 @@ pub const ai = struct {
     pub const context = @import("ai/context.zig");
     pub const redaction = @import("ai/redaction.zig");
     pub const command = @import("ai/command.zig");
+    pub const doctest_command = @import("ai/doctest_command.zig");
 };
 
 /// `zentinel doctest` command orchestration (deterministic core).

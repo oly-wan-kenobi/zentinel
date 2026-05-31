@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.doctest.context.v1.schema.json",
+  "title": "zentinel doctest AI context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "flow", "created_by", "provider_mode", "project", "doctest", "evidence", "privacy"],
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.doctest.context.v1" },
+    "flow": {
+      "comment": "Task 055 owns these four non-survivor flows. explain_doctest_survivor is deferred to task 067 and is intentionally absent.",
+      "enum": ["explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests"]
+    },
+    "created_by": { "const": "zentinel" },
+    "provider_mode": { "enum": ["disabled", "stub", "local", "remote"] },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "root_label", "zig_version", "zentinel_version"],
+      "properties": {
+        "name": { "type": "string" },
+        "root_label": { "type": "string" },
+        "zig_version": { "type": "string" },
+        "zentinel_version": { "type": "string" }
+      }
+    },
+    "doctest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "file", "line_start", "line_end", "source_ref", "block_refs", "kind", "status"],
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "file": { "type": "string" },
+        "line_start": { "type": ["integer", "null"], "minimum": 1 },
+        "line_end": { "type": ["integer", "null"], "minimum": 1 },
+        "source_ref": { "type": ["string", "null"] },
+        "block_refs": { "type": "array", "items": { "type": "string" } },
+        "kind": { "enum": ["zig_compile_pass", "zig_test", "zig_compile_fail", "cli", "config", "config_fail", "mutation", "docs_target"] },
+        "status": { "type": "string" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["remote_allowed", "source_context_policy", "redactions_applied"],
+      "properties": {
+        "remote_allowed": { "type": "boolean" },
+        "source_context_policy": { "enum": ["minimal", "none"] },
+        "redactions_applied": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "comment": "Discriminated by kind. Task 055 owns these four variants; doctest_survivor is deferred to task 067 and is not accepted here.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "status", "command", "expected_excerpt", "actual_excerpt", "normalized_expected_excerpt", "normalized_actual_excerpt", "diagnostics", "failure_summary"],
+          "properties": {
+            "kind": { "const": "case_failure" },
+            "status": { "type": "string" },
+            "command": { "$ref": "#/$defs/command_or_null" },
+            "expected_excerpt": { "type": ["string", "null"] },
+            "actual_excerpt": { "type": ["string", "null"] },
+            "normalized_expected_excerpt": { "type": ["string", "null"] },
+            "normalized_actual_excerpt": { "type": ["string", "null"] },
+            "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+            "failure_summary": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "target_file", "heading_context", "docs_metadata", "report_summary"],
+          "properties": {
+            "kind": { "const": "docs_target" },
+            "target_file": { "type": "string" },
+            "heading_context": { "type": "array", "items": { "type": "string" } },
+            "docs_metadata": { "$ref": "#/$defs/docs_metadata" },
+            "report_summary": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/report_summary" }] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "case_status", "snapshot"],
+          "properties": {
+            "kind": { "const": "snapshot_diff" },
+            "case_status": { "type": "string" },
+            "snapshot": { "$ref": "#/$defs/snapshot" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "docs", "candidates"],
+          "properties": {
+            "kind": { "const": "missing_doctests" },
+            "docs": { "type": "array", "items": { "$ref": "#/$defs/docs_entry" } },
+            "candidates": { "type": "array", "items": { "$ref": "#/$defs/candidate" } }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "command_or_null": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["original", "argv", "cwd", "environment_policy", "shell"],
+          "properties": {
+            "original": { "type": "string" },
+            "argv": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+            "cwd": { "type": "string" },
+            "environment_policy": { "const": "minimal" },
+            "shell": { "const": false }
+          }
+        }
+      ]
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "file", "line", "column"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "file": { "type": ["string", "null"] },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "column": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "docs_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public", "has_doctests", "executable_case_count", "nearest_heading"],
+      "properties": {
+        "public": { "type": "boolean" },
+        "has_doctests": { "type": "boolean" },
+        "executable_case_count": { "type": "integer", "minimum": 0 },
+        "nearest_heading": { "type": ["string", "null"] }
+      }
+    },
+    "report_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed", "compile_error", "expected_compile_error", "timeout", "skipped", "invalid"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "compile_error": { "type": "integer", "minimum": 0 },
+        "expected_compile_error": { "type": "integer", "minimum": 0 },
+        "timeout": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "invalid": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_excerpt", "actual_excerpt", "normalized_expected_excerpt", "normalized_actual_excerpt", "match_mode", "expected_block_ref", "actual_ref", "matched"],
+      "properties": {
+        "expected_excerpt": { "type": "string" },
+        "actual_excerpt": { "type": "string" },
+        "normalized_expected_excerpt": { "type": "string" },
+        "normalized_actual_excerpt": { "type": "string" },
+        "match_mode": { "type": "string" },
+        "expected_block_ref": { "type": ["string", "null"] },
+        "actual_ref": { "type": "string" },
+        "matched": { "type": "boolean" }
+      }
+    },
+    "docs_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "public", "has_doctests", "executable_case_count"],
+      "properties": {
+        "file": { "type": "string" },
+        "public": { "type": "boolean" },
+        "has_doctests": { "type": "boolean" },
+        "executable_case_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "heading", "line_hint", "reason", "missing_kind"],
+      "properties": {
+        "file": { "type": "string" },
+        "heading": { "type": "string" },
+        "line_hint": { "type": ["integer", "null"], "minimum": 1 },
+        "reason": { "type": "string" },
+        "missing_kind": { "enum": ["cli", "config", "report", "mutation", "zig_test"] }
+      }
+    }
+  }
+}

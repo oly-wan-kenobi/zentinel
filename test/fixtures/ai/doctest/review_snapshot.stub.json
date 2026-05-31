@@ -1,0 +1,13 @@
+{
+  "schema_version": "zentinel.ai.doctest.snapshot_review.response.v1",
+  "classification": "wording_change",
+  "summary": "Normalized expected and actual output differ (wording_change).",
+  "risk": "medium",
+  "evidence_refs": [
+    {
+      "kind": "block_ref",
+      "ref": "docs/CLI_SPEC.md:54:help-output"
+    }
+  ],
+  "next_action": "Review the public wording before updating the expected output block; do not auto-apply."
+}

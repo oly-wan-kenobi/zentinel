@@ -1,0 +1,103 @@
+{
+  "schema_version": "zentinel.doctest.report.v1",
+  "run": {
+    "id": "doctest_run_fixture",
+    "status": "failed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel doctest",
+    "project_root": "<project>",
+    "started_at": "1970-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "summary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "compile_error": 0,
+    "expected_compile_error": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "cases": [
+    {
+      "id": "dt_01hr7p6h0v2fj3drdzt9k2a0xe",
+      "file": "docs/CLI_SPEC.md",
+      "line_start": 47,
+      "line_end": 54,
+      "source_ref": "docs/CLI_SPEC.md:47:help-output",
+      "block_refs": [
+        "docs/CLI_SPEC.md:47:help-output",
+        "docs/CLI_SPEC.md:54:help-output"
+      ],
+      "kind": "cli",
+      "status": "failed",
+      "expectation": {
+        "mode": "contains",
+        "block_ref": "docs/CLI_SPEC.md:54:help-output"
+      },
+      "command": {
+        "original": "zentinel --help",
+        "argv": ["zentinel", "--help"],
+        "cwd": "<project>",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+      "result": {
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_ms": 0,
+        "stdout_excerpt": "USAGE: zentinel <command>",
+        "stderr_excerpt": "",
+        "normalized_stdout_excerpt": "USAGE: zentinel <command>",
+        "normalized_stderr_excerpt": "",
+        "snapshot": {
+          "expected_excerpt": "Usage:",
+          "actual_excerpt": "USAGE: zentinel <command>",
+          "normalized_expected_excerpt": "Usage:",
+          "normalized_actual_excerpt": "USAGE: zentinel <command>",
+          "match_mode": "contains",
+          "expected_block_ref": "docs/CLI_SPEC.md:54:help-output",
+          "actual_ref": "stdout",
+          "matched": false
+        },
+        "failure_summary": "stdout did not contain expected text"
+      },
+      "diagnostics": [],
+      "advisory": { "ai": null }
+    },
+    {
+      "id": "dt_01hr7p6h0v2fj3drdzt9k2a0yf",
+      "file": "docs/CONFIG_SPEC.md",
+      "line_start": 19,
+      "line_end": 26,
+      "source_ref": "docs/CONFIG_SPEC.md:19:minimal-config",
+      "block_refs": ["docs/CONFIG_SPEC.md:19:minimal-config"],
+      "kind": "config",
+      "status": "passed",
+      "expectation": null,
+      "command": {
+        "original": "zentinel check",
+        "argv": ["zentinel", "check"],
+        "cwd": "<project>",
+        "environment_policy": "minimal",
+        "shell": false
+      },
+      "result": {
+        "exit_code": 0,
+        "timed_out": false,
+        "duration_ms": 0,
+        "stdout_excerpt": "ok",
+        "stderr_excerpt": "",
+        "normalized_stdout_excerpt": "ok",
+        "normalized_stderr_excerpt": "",
+        "snapshot": null,
+        "failure_summary": ""
+      },
+      "diagnostics": [],
+      "advisory": { "ai": null }
+    }
+  ]
+}

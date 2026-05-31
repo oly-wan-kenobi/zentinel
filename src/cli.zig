@@ -638,6 +638,112 @@ fn aiSettings(
     return settings;
 }
 
+/// Adapter for the advisory doctest-AI subcommands (task 055). Parses
+/// command-local options, reads config and the selected doctest report or docs
+/// path read-only, then delegates to the deterministic `ai.doctest_command`
+/// engine. Doctest AI is advisory only and never edits docs, snapshots, or
+/// reports; AI/doctest failures print their documented codes.
+fn runDoctestAi(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    flow: zentinel.ai.doctest_command.Flow,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    var arena_state = std.heap.ArenaAllocator.init(gpa);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var positional: ?[]const u8 = null;
+    var file_opt: ?[]const u8 = null;
+    var input_report: ?[]const u8 = null;
+    var provider_override: ?zentinel.ai.command.Mode = null;
+    var format: zentinel.ai.command.Format = .text;
+
+    var i: usize = 1; // skip the subcommand token at inv.args[0]
+    while (i < inv.args.len) : (i += 1) {
+        const a = inv.args[i];
+        if (std.mem.eql(u8, a, "--ai-provider")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
+            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
+                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
+        } else if (std.mem.eql(u8, a, "--input-report")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
+            input_report = inv.args[i];
+        } else if (std.mem.eql(u8, a, "--file")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--file requires a value");
+            file_opt = inv.args[i];
+        } else if (std.mem.eql(u8, a, "--format")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
+            if (std.mem.eql(u8, inv.args[i], "text")) {
+                format = .text;
+            } else if (std.mem.eql(u8, inv.args[i], "json")) {
+                format = .json;
+            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
+        } else if (std.mem.startsWith(u8, a, "--")) {
+            return aiOptionError(stderr, "unknown doctest AI option");
+        } else if (positional == null) {
+            positional = a;
+        } else {
+            return aiOptionError(stderr, "unexpected positional argument");
+        }
+    }
+
+    const flow_is_case = (flow == .explain_doctest_failure or flow == .review_snapshot);
+    const doc_path: ?[]const u8 = switch (flow) {
+        .suggest_doctest => positional,
+        .suggest_missing_doctests => file_opt,
+        else => null,
+    };
+    const case_ref: ?[]const u8 = if (flow_is_case) positional else null;
+
+    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+
+    const doc_exists = blk: {
+        const d = doc_path orelse break :blk false;
+        root_dir.access(io, d, .{}) catch break :blk false;
+        break :blk true;
+    };
+    const report_json: ?[]const u8 = blk: {
+        if (flow_is_case) {
+            const rp = input_report orelse zentinel.ai.doctest_command.default_report_path;
+            break :blk root_dir.readFileAlloc(io, rp, arena, read_limit) catch null;
+        } else if (input_report) |rp| {
+            break :blk root_dir.readFileAlloc(io, rp, arena, read_limit) catch null;
+        }
+        break :blk null;
+    };
+
+    const out = zentinel.ai.doctest_command.run(arena, .{
+        .flow = flow,
+        .case_ref = case_ref,
+        .doc_path = doc_path,
+        .doc_exists = doc_exists,
+        .provider_override = provider_override,
+        .report_json = report_json,
+        .settings = settings,
+    }, format) catch |err| switch (err) {
+        error.OutOfMemory => return err,
+        else => |f| {
+            try stderr.print("error[{s}]: advisory doctest AI command failed\n", .{zentinel.ai.doctest_command.failureToken(f)});
+            return zentinel.ai.doctest_command.failureExit(f);
+        },
+    };
+
+    try stdout.writeAll(out.body);
+    if (out.format == .json) try stdout.writeAll("\n");
+    return out.exit_code;
+}
+
 fn runDoctest(
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -650,6 +756,20 @@ fn runDoctest(
     // doctest prototype over fixture docs only (task 039).
     for (inv.args) |arg| {
         if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr);
+    }
+
+    // Advisory doctest-AI subcommands (task 055): explain/suggest/review-snapshot/
+    // suggest-missing. explain-survivor is reserved for task 067.
+    if (inv.args.len > 0 and !std.mem.startsWith(u8, inv.args[0], "-")) {
+        const sub = inv.args[0];
+        if (std.mem.eql(u8, sub, "explain")) return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr);
+        if (std.mem.eql(u8, sub, "suggest")) return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr);
+        if (std.mem.eql(u8, sub, "review-snapshot")) return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr);
+        if (std.mem.eql(u8, sub, "suggest-missing")) return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr);
+        if (std.mem.eql(u8, sub, "explain-survivor")) {
+            try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: doctest explain-survivor is owned by task 067 and not implemented yet\n", .{});
+            return 2;
+        }
     }
 
     const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {

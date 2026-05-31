@@ -1,0 +1,11 @@
+{
+  "schema_version": "zentinel.ai.doctest.suggest.response.v1",
+  "suggestions": [
+    {
+      "target_file": "docs/CONFIG_SPEC.md",
+      "line_hint": null,
+      "reason": "This public documentation path should carry an executable doctest block.",
+      "block": "```toml config\n[project]\nname = \"example\"\n\n[test]\ncommands = [\"zig build test\"]\n```"
+    }
+  ]
+}

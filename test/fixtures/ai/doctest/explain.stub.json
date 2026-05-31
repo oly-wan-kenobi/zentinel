@@ -1,0 +1,13 @@
+{
+  "schema_version": "zentinel.ai.explain.response.v1",
+  "classification": "doctest_output_mismatch",
+  "confidence": "medium",
+  "summary": "Doctest case dt_01hr7p6h0v2fj3drdzt9k2a0xe in docs/CLI_SPEC.md is failed; the stub classifies it as doctest_output_mismatch.",
+  "evidence_refs": [
+    {
+      "kind": "doctest_case",
+      "ref": "dt_01hr7p6h0v2fj3drdzt9k2a0xe"
+    }
+  ],
+  "next_action": "Compare the normalized expected and actual output and update the example only after human review."
+}

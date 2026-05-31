@@ -1,0 +1,59 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "055",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/055/verification/report.json"
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "ai_doctest_test and ai_doctest_cli_test cover: case-ref resolution (durable dt_ id, anchor-line source ref, unknown/non-matching rejection), the doctest context for all four non-survivor flows with rejection of the deferred survivor flow and doctest_survivor evidence, the ai.prompt.v1 envelope embedding ai.doctest.context.v1 (and rejecting a mutation context), suggest/snapshot-review response validation with safety checks, stub-provider JSON snapshots for explain/suggest/review-snapshot/suggest-missing, the AI-disabled/provider-not-allowed/report-not-found/case-not-found/doc-not-found error paths, and proof that advisory output never sets doctest status or approves a snapshot update; full suite green"
+    },
+    {
+      "name": "property_tests",
+      "required": true,
+      "status": "passed",
+      "evidence": "The doctest response validators reject every unsafe shape (unknown fields including status/apply, unknown classification/risk, more than three suggestions, non-project-relative target paths, hidden tool instructions); the prompt envelope always embeds a context that passes the registered ai.doctest.context.v1 structural validator; doctest AI never decides pass/fail and never edits docs, snapshots, or expected output"
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "cli_smoke",
+      "required": false,
+      "status": "passed",
+      "command": "zentinel doctest explain|suggest|review-snapshot|suggest-missing --ai-provider stub",
+      "evidence": "explain (dt_ id) renders an advisory explanation, review-snapshot renders a wording_change review, suggest/suggest-missing render bounded suggestions, all exit 0 with the stub; a missing docs path exits 2 with ZNTL_DOCTEST_DOC_NOT_FOUND, a missing default report exits 2 with ZNTL_AI_REPORT_NOT_FOUND, an unknown case exits 2 with ZNTL_DOCTEST_CASE_NOT_FOUND, AI-disabled exits 2 with ZNTL_AI_DISABLED, and explain-survivor is rejected as reserved for task 067"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "self-mutation dogfood of the doctest AI engine is gated to the Phase 5 stages (task 085); the advisory contracts are deterministic and covered by unit and property-style tests, and AI is advisory-only so it cannot influence doctest pass/fail"
+    }
+  ],
+  "residual_risk": [
+    "The stub provider is the only provider exercised; local and remote modes return the same deterministic stub responses, and live remote calls remain a non-goal until a future provider task.",
+    "suggest-missing computes a minimal deterministic docs-metadata and a single candidate from the target path; extraction-backed public-docs scanning (executable_case_count, nearest_heading) is a later refinement and does not affect the advisory-only guarantee.",
+    "review-snapshot and explain build their context from the report's exact case.result.snapshot evidence; richer source-context excerpts remain a later refinement."
+  ],
+  "recommendation": "complete"
+}

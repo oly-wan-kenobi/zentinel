@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.doctest.snapshot_review.response.v1.schema.json",
+  "title": "zentinel doctest AI snapshot-review response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "classification", "summary", "risk", "evidence_refs", "next_action"],
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.doctest.snapshot_review.response.v1" },
+    "classification": { "enum": ["wording_change", "formatting_change", "normalization_change", "semantic_change", "unclear"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "risk": { "enum": ["low", "medium", "high", "unclear"] },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" }
+        }
+      }
+    },
+    "next_action": { "type": "string", "minLength": 1 }
+  }
+}

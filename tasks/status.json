@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "055",
+  "next_task": "056",
   "completed_tasks": [
     "068",
     "069",
@@ -95,7 +95,8 @@
     "051",
     "052",
     "053",
-    "054"
+    "054",
+    "055"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -106,6 +107,71 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "055",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/ai_doctest_test.zig was written first against the not-yet-existent engine and failed to compile with \"struct 'root.ai' has no member named 'doctest_command'\" while the rest of the suite stayed green (388/388 tests passed before the transitive failure). implementation_started_after_failure: true. After src/ai/doctest_command.zig, the three new doctest schemas, the ai.prompt.v1 doctest discrimination, the root.zig export, and the cli.zig dispatch landed, the suite reported 12 pass / 4 fail -- only the four stub snapshot tests (explain, suggest, review-snapshot, suggest-missing) mismatched the PLACEHOLDER fixtures, proving the context-build, validation, response-validation, and error-path logic already passed. The four snapshots were self-blessed byte-exact from the captured engine output (JSON with no trailing newline; the suggest block carries literal backslash-n escapes). A second run then failed one ai_doctest_cli_test case because a JSON `null` snapshot is a present `.null` value, so the `== null` guard did not fire; a `present()` helper that treats absent and JSON null alike fixed both the run guard and the context builder. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and a CLI smoke run exercised all four subcommands plus the documented error codes. AI is advisory-only; self-mutation dogfood is gated to the Phase 5 stages (task 085).",
+      "implementation_summary": "Implemented advisory doctest-AI assistance for the four task-055 non-survivor flows, keeping AI strictly advisory-only. src/ai/doctest_command.zig is the deterministic engine: it resolves <case-ref> against the selected doctest report (durable dt_ id or anchor-line source ref, never a secondary expectation block), builds the zentinel.ai.doctest.context.v1 packet per flow (case_failure for explain, snapshot_diff for review-snapshot copied exactly from case.result.snapshot, docs_target for suggest, missing_doctests for suggest-missing) with redacted bounded excerpts, embeds it in the shared zentinel.ai.prompt.v1 envelope (validatePrompt requires context.schema_version = zentinel.ai.doctest.context.v1 and rejects the deferred explain_doctest_survivor flow and a doctest_survivor evidence kind), runs a deterministic stub provider, and validates the explain (reused zentinel.ai.explain.response.v1 doctest classifications), doctest suggest, and snapshot-review responses with safety checks (project-relative paths, <=3 suggestions, closed schemas that reject any status/apply field, hidden-instruction rejection). Created schemas/ai.doctest.context.v1.schema.json (discriminated evidence oneOf, additionalProperties:false, no doctest_survivor branch), schemas/ai.doctest.suggest.response.v1.schema.json, and schemas/ai.doctest.snapshot_review.response.v1.schema.json, and extended schemas/ai.prompt.v1.schema.json to discriminate doctest flows to the doctest context. src/cli.zig dispatches `zentinel doctest explain|suggest|review-snapshot|suggest-missing` to a runDoctestAi adapter (reusing aiSettings and the AI option parser; default doctest report path zig-out/zentinel/doctest/report.json) and rejects explain-survivor as reserved for task 067; src/root.zig exports zentinel.ai.doctest_command. Non-goals respected: no remote provider tests, no mutation-aware doctest stabilization, no explain-survivor flow, and docs/MUTATOR_SPEC.md, src/mutators/**, src/zir_backend.zig, and src/air_backend.zig were not touched (forbidden). The doctest AI integration docs already documented the full contract and were not changed.",
+      "files_changed": [
+        "src/ai/doctest_command.zig",
+        "src/root.zig",
+        "src/cli.zig",
+        "schemas/ai.prompt.v1.schema.json",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/ai.doctest.suggest.response.v1.schema.json",
+        "schemas/ai.doctest.snapshot_review.response.v1.schema.json",
+        "test/ai_doctest_test.zig",
+        "test/ai_doctest_cli_test.zig",
+        "test/fixtures/ai/doctest/report.json",
+        "test/fixtures/ai/doctest/explain.stub.json",
+        "test/fixtures/ai/doctest/review_snapshot.stub.json",
+        "test/fixtures/ai/doctest/suggest.stub.json",
+        "test/fixtures/ai/doctest/suggest_missing.stub.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "artifacts/pipeline/055/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_doctest_test.zig: default doctest report path, per-flow response schema names, doctest failure tokens; case-ref resolution (durable dt_ id, exact source ref, anchor-line ref, unknown/non-matching rejection); doctest context build + validateContext + prompt embedding; rejection of the survivor flow and doctest_survivor evidence; rejection of a mutation (non-doctest) context in the prompt; suggest/snapshot-review response validation (too-many, absolute path, bad classification); stub JSON snapshots for explain/review-snapshot/suggest/suggest-missing; report-not-found, case-not-found, and AI-disabled error paths.",
+        "test/ai_doctest_cli_test.zig: provider-option behavior (remote-not-allowed, disabled), review-snapshot requires snapshot evidence, suggest accepts optional report context, explain text rendering, and proof that a suggest/snapshot-review response attempting to set doctest status or approve an update is rejected, and suggest-missing works without a report and only suggests.",
+        "test/fixtures/ai/doctest/report.json: a two-case (one failed cli case with snapshot, one passed config case) doctest report fixture; explain/review_snapshot/suggest/suggest_missing stub snapshots."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): struct 'root.ai' has no member named 'doctest_command' (388/388 other tests passing)",
+        "zig build test (zigars MCP, partial): 12 pass / 4 fail -- only the PLACEHOLDER stub snapshots mismatched",
+        "zig build test (zigars MCP, partial): one cli test failed on a JSON-null snapshot guard, fixed with a present() helper",
+        "zig build test (zigars MCP, passing): full suite green after self-blessing the four snapshots and the null-snapshot fix",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean",
+        "CLI smoke (zig-out/bin/zentinel): doctest explain/review-snapshot/suggest/suggest-missing exit 0 with --ai-provider stub; doc-not-found, report-not-found, case-not-found, AI-disabled, and explain-survivor each exit 2 with their documented codes",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state, after closing the doctest AI gap-registry rows"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 055 was active and again after the complete-state transition. Closed gap-registry rows zentinel.ai.doctest.context.v1, zentinel.ai.doctest.suggest.response.v1, zentinel.ai.doctest.snapshot_review.response.v1 (schemas) and F-029, F-030, F-031 (failure_modes); the CLI/AI contract doc phrases were already present and unchanged."
+      },
+      "dogfooding_implication": "Stub doctest AI command outputs are now committed byte-exact snapshots, so they become stable docs and doctest targets for future agents reviewing executable docs without becoming a correctness oracle; the advisory-only boundary (responses validated and rejected before rendering, never editing docs/snapshots/expected output) keeps the deferred survivor flow (task 067) safe to add later on the same engine.",
+      "follow_up_tasks": [
+        "tasks/056-zir-backend-experiment.md",
+        "tasks/067-ai-doctest-survivor-assistance.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/055/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.doctest.context.v1", "zentinel.ai.doctest.suggest.response.v1", "zentinel.ai.doctest.snapshot_review.response.v1"],
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-029", "F-030", "F-031"]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "054",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/ai_commands_test.zig was written first against the not-yet-existent engine and failed to compile with \"struct 'root.ai' has no member named 'command'\" while the rest of the suite stayed green (362/362 tests passed before the transitive failure). implementation_started_after_failure: true. After src/ai/command.zig, the root.zig route/export wiring, and the cli.zig adapters landed, the suite reported 22 pass / 4 fail -- only the four stub snapshot tests mismatched the PLACEHOLDER fixtures (explain JSON, explain text, suggest JSON, review-tests JSON), proving the provider-resolution, mutant-ref, prompt-envelope, response-validation, and malformed-rejection logic already passed. The four snapshots were self-blessed byte-exact from the captured engine output (JSON with no trailing newline, text with one). `zig build` then failed once with \"error set is discarded\" in failureExit, fixed by switching `_ = err` to an exhaustive switch. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean; a CLI smoke run of explain/suggest/review-tests exited 0 with the stub and the AI-disabled/remote-not-allowed/missing-report/unknown-target paths exited 2 with their ZNTL_AI_* codes. AI is advisory-only; self-mutation dogfood is gated to the Phase 5 stages (task 085).",
