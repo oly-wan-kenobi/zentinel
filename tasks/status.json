@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "047",
+  "next_task": "048",
   "completed_tasks": [
     "068",
     "069",
@@ -87,7 +87,8 @@
     "043",
     "044",
     "045",
-    "046"
+    "046",
+    "047"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -98,6 +99,68 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "047",
+      "failing_evidence": "failing_command: a standard-library-only sequential-lock checker that loads test/fixtures/pipeline/sequential_locking/{valid,invalid}/*.json task-state snapshots and asserts the one-active-task rule (exactly one queue entry may be active), Markdown/JSON synchronization (queue_md states match queue states; status.active_task equals the active queue id or null; status_md agrees), next_task rules (equals the active task while active, else the first dependency-ready queued task by execution order), no skip-ahead (an active task's dependencies are all complete), and active-lock ownership (a present lock validates against pipeline.active_lock.v1 and its task_id equals the active task; a lock with no active task or a mismatched task_id is stale). failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid sequential locking fixtures` and exited 1. implementation_started_after_failure: true; the three consistent snapshots, the nine inconsistent snapshots (including the canonical two-active-tasks case), and the policy edits were written only after capturing that failure. passing_command: the checker then printed `valid=3 invalid=9` and `PASS` (exit 0), and a generated-task-list property proved only one active task is accepted (accepted iff the active count is at most one) for active counts 0 through 3. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and implements no distributed locking or git hooks (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified active-task locking, queue synchronization, branch ownership, and stale-lock recovery, refining docs/SEQUENTIAL_EXECUTION_POLICY.md without recreating its Active Task Lock / Queue Semantics / Branch Ownership / Conflict Prevention / Merge Ordering sections or reordering tasks. Added a `## Markdown and JSON Synchronization` section making the one-active-task rule and queue/status MD-JSON agreement explicit (exactly one active in queue.json mirrored by QUEUE.md; status.json active_task equals it or is null with STATUS.md matching; next_task equals the active task or the first dependency-ready queued task; no activation while a dependency is queued or blocked), and a `## Stale Lock Recovery` section with a deterministic, auditable procedure (detect, treat the synchronized task-control files as authoritative, replace or remove the lock, record the recovery in the verifier residual_risk or completion summary). Connected lock failures to docs/FAILURE_RECOVERY.md (a new Stale Lock recovery entry) and to docs/ORCHESTRATION_SPEC.md (the step-2 lock acquisition follows the sequential policy and recovers a stale lock before work proceeds). Added task-state snapshot fixtures under test/fixtures/pipeline/sequential_locking/ for the valid one-active, idle, and dependency-ready activation states and nine invalid states (two active tasks, mismatched MD/JSON, status/active mismatch, stale lock, lock with no active task, skip-ahead, wrong next_task, missing lock while active, bad lock state). Dogfooded the lock by writing the full activation artifact set for this task: artifacts/pipeline/047/locks/active-task-lock.json (pipeline.active_lock.v1), artifacts/pipeline/047/context/orchestrator.json (pipeline.context.v1), and artifacts/pipeline/047/verification/report.json. The pipeline.active_lock.v1 schema is reused unchanged (not in scope). No distributed locking, git hooks, or task reordering (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST changes (forbidden).",
+      "files_changed": [
+        "docs/SEQUENTIAL_EXECUTION_POLICY.md",
+        "docs/FAILURE_RECOVERY.md",
+        "docs/ORCHESTRATION_SPEC.md",
+        "test/fixtures/pipeline/sequential_locking/valid/one_active_with_lock.json",
+        "test/fixtures/pipeline/sequential_locking/valid/idle_no_active.json",
+        "test/fixtures/pipeline/sequential_locking/valid/active_after_complete.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/two_active_tasks.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/mismatched_md_json.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/status_active_mismatch.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/stale_lock.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/lock_for_no_active.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/skip_ahead.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/next_task_wrong_while_active.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/missing_lock_while_active.json",
+        "test/fixtures/pipeline/sequential_locking/invalid/bad_lock_state.json",
+        "artifacts/pipeline/047/locks/active-task-lock.json",
+        "artifacts/pipeline/047/context/orchestrator.json",
+        "artifacts/pipeline/047/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/sequential_locking/valid/**: three consistent task-state snapshots (one active task with a matching lock, idle with no active task, and dependency-ready activation after completion).",
+        "test/fixtures/pipeline/sequential_locking/invalid/**: nine inconsistent snapshots each rejected by the checker (two active tasks, mismatched Markdown/JSON, status/active mismatch, stale lock, lock with no active task, skip-ahead, wrong next_task, missing lock while active, bad lock state).",
+        "Sequential-lock checker: enforces the one-active rule, MD/JSON synchronization, next_task derivation, no skip-ahead, and active-lock ownership (validated against pipeline.active_lock.v1), with a generated-task-list property proving only one active task is accepted."
+      ],
+      "tests_run": [
+        "sequential-lock checker over test/fixtures/pipeline/sequential_locking/ (failing): before fixtures existed -> 'FAIL: no valid sequential locking fixtures', exit 1",
+        "sequential-lock checker (passing): valid=3 invalid=9, PASS, exit 0",
+        "one-active property over generated task lists: accepted iff active count <= 1 for counts 0..3",
+        "artifacts/pipeline/047/{locks/active-task-lock.json,context/orchestrator.json,verification/report.json} validated against pipeline.active_lock.v1, pipeline.context.v1, and pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 047 was active and again after the complete-state transition. The task documents the existing one-active-task and MD/JSON synchronization rules the validator already enforces, and adds stale-lock recovery; no gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Sequential locking keeps dogfood reports attributable to exactly one active task and prevents merge-order ambiguity; task 047 itself now carries the full activation artifact set (active lock, context packet, verification report) as a worked example for later dogfood tasks.",
+      "follow_up_tasks": [
+        "tasks/048-failure-recovery.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/047/locks/active-task-lock.json",
+        "artifacts/pipeline/047/context/orchestrator.json",
+        "artifacts/pipeline/047/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "046",
       "failing_evidence": "failing_command: a standard-library-only verification checker that imports subset_validate from scripts/validate_task_system.py, validates each test/fixtures/pipeline/verification/{valid,invalid}/*.json against the refined schemas/pipeline.verification.v1.schema.json, and adds semantic rules (a required passed stage must record a command or evidence; a not_applicable stage needs a reason; a skipped_by_policy stage needs a policy; duplicate stage names are rejected; top-level status is derived as failed if any required stage failed, else blocked if any required stage blocked, else passed; recommendation complete requires status passed). failing_output_excerpt: before the comprehensive fixtures existed it printed `FAIL: no comprehensive verification state fixtures (valid/ subdir)` and exited 1. implementation_started_after_failure: true; the five consistent state fixtures, the seven inconsistent fixtures (including the canonical missing-required-command-result case), and the non-breaking schema refinement were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=7 states=['blocked', 'failed', 'passed', 'skip:not_applicable', 'skip:skipped_by_policy']` and `PASS` (exit 0), proving the pass, fail-fast, skipped-not-applicable, skipped-by-policy, and blocked states, a stage-order permutation property that the derived decision is order-independent, deterministic duplicate-stage-name rejection, and that the task-041 flat valid.json still validates and invalid.json is still rejected under the refined schema. All six real artifacts/pipeline/*/verification/report.json (042-046, 063) re-validate against the refined schema, confirming the refinement is non-breaking. This task changes no executable product code (docs, schema, JSON fixtures, pipeline artifacts only) and implements no command runner (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

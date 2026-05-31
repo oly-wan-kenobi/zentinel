@@ -1,0 +1,52 @@
+{
+  "schema_version": "zentinel.pipeline.sequential_lock_state.v1",
+  "queue": [
+    {
+      "id": "045",
+      "order": "045",
+      "state": "complete",
+      "dependencies": [
+        "044"
+      ]
+    },
+    {
+      "id": "046",
+      "order": "046",
+      "state": "complete",
+      "dependencies": [
+        "045"
+      ]
+    },
+    {
+      "id": "047",
+      "order": "047",
+      "state": "queued",
+      "dependencies": [
+        "046"
+      ]
+    }
+  ],
+  "queue_md": [
+    {
+      "id": "045",
+      "state": "complete"
+    },
+    {
+      "id": "046",
+      "state": "complete"
+    },
+    {
+      "id": "047",
+      "state": "queued"
+    }
+  ],
+  "status": {
+    "active_task": null,
+    "next_task": "047"
+  },
+  "status_md": {
+    "active_task": "none",
+    "next_task": "tasks/047-sequential-task-locking.md"
+  },
+  "active_lock": null
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "047",
+  "status": "passed",
+  "active_lock": "artifacts/pipeline/047/locks/active-task-lock.json",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/047/verification/report.json"
+    },
+    {
+      "name": "sequential_locking_fixture_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 - (sequential-lock checker over test/fixtures/pipeline/sequential_locking/{valid,invalid}/*.json)",
+      "artifact": "test/fixtures/pipeline/sequential_locking"
+    },
+    {
+      "name": "final_artifact_audit",
+      "required": true,
+      "status": "passed",
+      "evidence": "active lock task_id 047 matches status.active_task; context packet present; task-control Markdown and JSON agree"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "docs and JSON fixtures only; no executable behavior changed"
+    }
+  ],
+  "residual_risk": [],
+  "recommendation": "complete"
+}

@@ -2909,7 +2909,7 @@
       "title": "Sequential Task Locking",
       "file": "tasks/047-sequential-task-locking.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "046"
       ],

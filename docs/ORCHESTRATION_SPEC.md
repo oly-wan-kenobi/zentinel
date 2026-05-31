@@ -36,6 +36,8 @@ Before task `041`, context packets and handoffs are recorded in task status or c
 11. Run Verifier.
 12. Update queue/status and artifacts.
 
+The active-task lock acquired in step 2 follows `docs/SEQUENTIAL_EXECUTION_POLICY.md`: exactly one task is active, the Markdown and JSON task-control files must agree, and a stale `artifacts/pipeline/<task-id>/locks/active-task-lock.json` is recovered deterministically (the synchronized task-control files are authoritative) before work proceeds.
+
 ## State Ownership
 
 The Orchestrator may not rely on chat history as state. It must persist key decisions in:

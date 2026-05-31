@@ -37,6 +37,15 @@ Recovery:
 4. Add normalization or deterministic ordering test.
 5. Rerun verifier.
 
+## Stale Lock
+
+A stale active-task lock (`docs/SEQUENTIAL_EXECUTION_POLICY.md`) is a failure that blocks completion until recovered:
+
+- the synchronized task-control files are authoritative over the lock
+- replace the lock to match the true active task, or remove it when no task is active
+- record the recovery in the verifier report `residual_risk` or the completion summary so it is auditable
+- never resolve a lock conflict by activating a second task
+
 ## Rollback Rules
 
 Agents may revert only their own incomplete edits.
