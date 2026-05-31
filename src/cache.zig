@@ -100,3 +100,80 @@ pub const Metadata = struct {
 pub fn toJson(arena: std.mem.Allocator, metadata: Metadata) std.mem.Allocator.Error![]u8 {
     return std.json.Stringify.valueAlloc(arena, metadata, .{ .whitespace = .indent_2 });
 }
+
+// --- Doctest cache ---------------------------------------------------------
+
+const doctest_key_namespace = "zentinel.doctest.cache.v1";
+
+/// Every deterministic input that can affect a doctest case's observable result
+/// (docs/DOCTEST_ARCHITECTURE.md "Caching Opportunities"). Line numbers are
+/// cache inputs (a moved block is a different cache entry); content hashes are
+/// used instead of timestamps, and the doc path is project-relative.
+pub const DoctestKeyInputs = struct {
+    /// Doctest engine version: bumping it invalidates every cached entry.
+    engine_version: []const u8,
+    /// Project-relative documentation path.
+    doc_file: []const u8,
+    line_start: u32,
+    line_end: u32,
+    /// Hex SHA-256 of the grouped producer block content.
+    block_content_hash: []const u8,
+    /// Hex SHA-256 of the grouped expectation block content ("" when none).
+    expectation_hash: []const u8,
+    zig_version: []const u8,
+    /// Case command kind (cli/zig_test/config/...): selects the execution path.
+    command_kind: []const u8,
+    config_hash: []const u8,
+};
+
+/// Deterministic hex SHA-256 doctest cache key over the canonical,
+/// `\n`-separated documented input tuple. Stable across runs and machines; any
+/// change to a documented input changes the key (conservative invalidation).
+pub fn computeDoctestKey(arena: std.mem.Allocator, inputs: DoctestKeyInputs) std.mem.Allocator.Error![]const u8 {
+    var h = std.crypto.hash.sha2.Sha256.init(.{});
+    var numbuf: [20]u8 = undefined;
+    h.update(doctest_key_namespace);
+    h.update("\n");
+    h.update(inputs.engine_version);
+    h.update("\n");
+    h.update(inputs.doc_file);
+    h.update("\n");
+    h.update(std.fmt.bufPrint(&numbuf, "{d}", .{inputs.line_start}) catch unreachable);
+    h.update("\n");
+    h.update(std.fmt.bufPrint(&numbuf, "{d}", .{inputs.line_end}) catch unreachable);
+    h.update("\n");
+    h.update(inputs.block_content_hash);
+    h.update("\n");
+    h.update(inputs.expectation_hash);
+    h.update("\n");
+    h.update(inputs.zig_version);
+    h.update("\n");
+    h.update(inputs.command_kind);
+    h.update("\n");
+    h.update(inputs.config_hash);
+    var digest: [32]u8 = undefined;
+    h.final(&digest);
+    return toHex(arena, digest);
+}
+
+/// One doctest case's cache key.
+pub const DoctestCaseKey = struct {
+    case_id: []const u8,
+    kind: []const u8,
+    key: []const u8,
+};
+
+/// Serializable doctest cache metadata. `mode` is `metadata_only` in this phase:
+/// keys are computed but never used to skip execution, so a doctest report is
+/// identical whether or not the cache is enabled.
+pub const DoctestMetadata = struct {
+    schema_version: []const u8 = doctest_key_namespace,
+    engine_version: []const u8,
+    enabled: bool,
+    mode: report.CacheMode,
+    case_keys: []const DoctestCaseKey,
+};
+
+pub fn doctestMetadataToJson(arena: std.mem.Allocator, metadata: DoctestMetadata) std.mem.Allocator.Error![]u8 {
+    return std.json.Stringify.valueAlloc(arena, metadata, .{ .whitespace = .indent_2 });
+}

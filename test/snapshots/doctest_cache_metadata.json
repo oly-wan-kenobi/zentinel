@@ -1,0 +1,28 @@
+{
+  "schema_version": "zentinel.doctest.cache.v1",
+  "engine_version": "0.1.0",
+  "enabled": true,
+  "mode": "metadata_only",
+  "case_keys": [
+    {
+      "case_id": "dt_hszypy3emq5e1qngetceqbvgj4",
+      "kind": "cli",
+      "key": "4ea884a4e1b67b36f21d23a6ac2304de30f4868f26db535a409781ce99d4f60f"
+    },
+    {
+      "case_id": "dt_bmwvqbpm44k9fzcrgy1b3xmkea",
+      "kind": "config",
+      "key": "df0d4c13a1f17ab535a41b2eb12ab974ebb19e30d844968ae399ccc25b1afe49"
+    },
+    {
+      "case_id": "dt_47aewbqh1js36dsnfnnra4z2x1",
+      "kind": "zig_test",
+      "key": "ee592903426fa3f2ee018287eddcb08d3ab71e66a96afd7d5fda38709c1a240e"
+    },
+    {
+      "case_id": "dt_z0zvbqd6j2man2yxrq106c59mm",
+      "kind": "mutation",
+      "key": "4d9cae3c7df7af3f16e462aeb9becf09c0824b06adec01827120cfa14de365b0"
+    }
+  ]
+}

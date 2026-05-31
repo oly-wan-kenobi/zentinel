@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "038",
+  "next_task": "039",
   "completed_tasks": [
     "068",
     "069",
@@ -77,17 +77,62 @@
     "034",
     "035",
     "036",
-    "037"
+    "037",
+    "038"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 037 mutator spec doctests completed; active-state and complete-state validation passed (106 tasks). No gap rows. Added src/doctest/mutator_doctest.zig (deterministic_core): validates a `zig before` + `zig after` documentation pair as an executable contract by generating the real stable Phase 1 candidate set from `before` (reusing ast_backend + the arithmetic/comparison/logical/boolean mutators) and checking that applying one candidate's byte span produces `after`, reporting documentation drift (ZNTL_DOCTEST_SNAPSHOT_MISMATCH) when no mutator does. Added executable `zig before`/`zig after` blocks to docs/MUTATOR_SPEC.md for arithmetic_add_sub, comparison_boundary, and boolean_literal; the test validates all three against actual mutator output. No mutator/ast_backend behavior change (reused via import), no test execution against doctest assertions, no doctest --mutate/AI/cache (non-goals)."
+    "notes": "Task 038 doctest cache completed; active-state and complete-state validation passed (106 tasks). No gap rows. Extended src/cache.zig with a doctest cache namespace (zentinel.doctest.cache.v1): DoctestKeyInputs + computeDoctestKey hash the full documented input tuple from docs/DOCTEST_ARCHITECTURE.md (engine version, project-relative doc path, block line range, block content hash, grouped expectation hash, Zig version, command kind, config hash) into a stable hex SHA-256, and DoctestMetadata/doctestMetadataToJson serialize human-readable cache metadata. src/doctest/cache.zig builds per-case metadata from a parsed/extracted doc (content/expectation hashes via cache.sourceHash). Conservative: mode is metadata_only, so keys are computed but results are never reused -- doctest reports are identical whether or not the cache is enabled. No parallel/remote/AI/mutation-aware caching (non-goals)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "038",
+      "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_cache_test.zig:4:32: error: struct 'root.doctest' has no member named 'cache'` plus `struct 'cache' has no member named 'DoctestKeyInputs'/'computeDoctestKey'/'doctestMetadataToJson'` (312/312 prior tests passed). implementation_started_after_failure: true; the cache.zig doctest namespace, src/doctest/cache.zig, and the root.zig re-export were written only after capturing the missing-member failures. A second failing state was the metadata snapshot placeholder, self-blessed from the actual deterministic output. passing_command: `zig build test` then passed all tests (319).",
+      "implementation_summary": "Added deterministic doctest cache keys and human-readable cache metadata (no result reuse, no parallel/remote/AI/mutation-aware caching -- non-goals). src/cache.zig gained a doctest cache namespace `zentinel.doctest.cache.v1`: DoctestKeyInputs captures the full documented input tuple from docs/DOCTEST_ARCHITECTURE.md 'Caching Opportunities' (doctest engine version, project-relative doc path, block line_start/line_end, block content hash, grouped expectation hash, Zig version, command kind, config hash), and computeDoctestKey hashes them canonically (namespace + `\\n`-separated fields, line numbers formatted, content hashes instead of timestamps) into a stable hex SHA-256 so any documented-input change -- including Zig or engine version -- invalidates the key. DoctestCaseKey/DoctestMetadata + doctestMetadataToJson serialize deterministic pretty JSON. src/doctest/cache.zig builds per-case metadata from a parsed/extracted doc: it hashes each case's producer block content and concatenated expectation block content via cache.sourceHash, computes the per-case key, and emits metadata with mode metadata_only (enabled but never reused). Because reuse is disabled, a doctest report is identical whether or not the cache is enabled -- conservative invalidation, no cache hit can change a status. Re-exported via zentinel.doctest.cache. No mutators/ai/zir/air/docs changes (forbidden).",
+      "files_changed": [
+        "src/cache.zig",
+        "src/doctest/cache.zig",
+        "src/root.zig",
+        "test/doctest_cache_test.zig",
+        "test/snapshots/doctest_cache_metadata.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_cache_test.zig: the doctest cache key is deterministic (64-char hex) and changes when any documented input changes (engine version, doc path, line_start, line_end, block content hash, expectation hash, Zig version, command kind, config hash); cached results cannot be reused across Zig or doctest engine versions; a doctest cache metadata snapshot over the extraction fixture; the cache is metadata_only and does not change extracted cases (one stable dt_-keyed entry per case); and property tests for metadata determinism across repeated builds and collision resistance over distinct (command-kind, line) tuples.",
+        "test/snapshots/doctest_cache_metadata.json: the self-blessed deterministic cache metadata (4 case keys: cli, config, zig_test, mutation)."
+      ],
+      "tests_run": [
+        "zig build test (failing, zigars MCP): missing cache.DoctestKeyInputs/computeDoctestKey/doctestMetadataToJson and doctest.cache members while 312 prior tests passed",
+        "zig build test (passing, zigars MCP): all tests pass (319) after self-blessing the metadata snapshot",
+        "zig build (zigars MCP): binary builds",
+        "zig fmt --check src test build.zig: clean (exit 0)",
+        "git diff --check: clean (exit 0)",
+        "python3 scripts/validate_task_system.py: passed (106 tasks) in both active and complete states"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 038 was active and again after the complete-state transition (106 tasks). No gap-registry rows for task 038."
+      },
+      "dogfooding_implication": "Doctest cache keys and metadata make executable docs practical in CI and future dogfood runs: every documented input is part of the key (so a moved block, a changed snippet, or a new Zig/engine version is a different entry), and reuse stays disabled (metadata_only) so no cache hit can ever change a doctest report. Result reuse is a later task once key coverage is proven; mutation-aware doctest caching is out of scope until doctest --mutate.",
+      "follow_up_tasks": [
+        "tasks/039-doctest-mutation-experiments.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "037",
       "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_mutator_spec_test.zig:3:28: error: struct 'root.doctest' has no member named 'mutator_doctest'` (301/301 prior tests passed). implementation_started_after_failure: true; src/doctest/mutator_doctest.zig and the root.zig re-export were written only after capturing the missing-member failure. A second failing state was the MUTATOR_SPEC.md dogfood test (`pairs.len >= 3`) and the mismatch-diagnostic placeholder snapshot, both resolved by adding the doc before/after blocks and self-blessing the snapshot. passing_command: `zig build test` then passed all tests (315).",

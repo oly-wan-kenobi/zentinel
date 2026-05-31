@@ -2612,7 +2612,7 @@
       "title": "Doctest Cache",
       "file": "tasks/038-doctest-cache.md",
       "phase": 3,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "037"
       ],
