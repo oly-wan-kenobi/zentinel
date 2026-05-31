@@ -1,0 +1,17 @@
+{
+  "schema_version": "zentinel.release.acceptance.v1",
+  "task_id": "060",
+  "status": "passed",
+  "criteria": [
+    { "id": "required_commands", "status": "passed", "evidence": "ok" },
+    { "id": "required_mutators", "status": "passed", "evidence": "ok" },
+    { "id": "required_reports", "status": "passed", "evidence": "ok" },
+    { "id": "schemas_validate_reports", "status": "passed", "evidence": "ok" },
+    { "id": "public_docs_doctest", "status": "passed", "evidence": "ok" },
+    { "id": "final_dogfood_gate", "status": "failed", "evidence": "missing archived dogfood evidence" },
+    { "id": "ci_network_free", "status": "passed", "evidence": "ok" },
+    { "id": "ai_advisory_only", "status": "passed", "evidence": "ok" },
+    { "id": "ast_stable_default_backends_opt_in", "status": "passed", "evidence": "ok" }
+  ],
+  "blockers": []
+}

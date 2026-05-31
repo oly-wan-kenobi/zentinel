@@ -3501,7 +3501,7 @@
       "title": "Release Acceptance Verification",
       "file": "tasks/060-release-acceptance-verification.md",
       "phase": 7,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "085"
       ],

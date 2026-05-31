@@ -126,7 +126,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 059.6 | `tasks/066-public-docs-doctest-coverage.md` | complete | 1 |
 | 059.7 | `tasks/067-ai-doctest-survivor-assistance.md` | complete | 4 |
 | 059.8 | `tasks/085-final-dogfood-release-gate.md` | complete | 7 |
-| 060 | `tasks/060-release-acceptance-verification.md` | queued | 7 |
+| 060 | `tasks/060-release-acceptance-verification.md` | complete | 7 |
 
 ## Reordering Policy
 

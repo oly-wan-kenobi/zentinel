@@ -164,3 +164,7 @@ A release candidate is acceptable only when:
 - unsupported Zig versions fail clearly
 - AST backend remains stable default
 - experimental backends are opt-in only
+
+## Release Acceptance Verification
+
+Task `060` is the final release acceptance gate. `scripts/release_acceptance.py` verifies this document's criteria from archived, deterministic evidence — required commands, the 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests (task `066`), the final dogfood gate evidence (task `085`, `artifacts/pipeline/085/dogfood/`), network-free CI, advisory-only AI, and the AST-stable-default / experimental-opt-in backend policy — and exits non-zero with the offending criteria if any are unmet. `test/release_acceptance_test.zig` is the executable contract: a release blocker must be recorded as a `blocked` acceptance manifest with concrete prerequisite task metadata (`test/fixtures/release/valid/acceptance.json` is the consistent-pass form; the `invalid/acceptance_*.json` fixtures show that an unmet criterion or an ignored blocker cannot be hidden behind a passing status). Implementing missing behavior or relaxing these criteria to fit a gap is out of scope for this gate.

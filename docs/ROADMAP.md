@@ -190,6 +190,10 @@ Exit criteria:
 - new mutators are required to survive internal dogfood review before stabilization
 - doctest reports and mutation-aware doctest reports are archived as release artifacts
 
+## Release Acceptance
+
+The minimum complete product (`docs/PROJECT_ACCEPTANCE_CRITERIA.md`) is verified by task `060` release acceptance, the final gate after the Phase 7 dogfood hardening (tasks `061`, `062`, `064`, `065`, `066`, `067`, `085`). `scripts/release_acceptance.py` and `test/release_acceptance_test.zig` check the required commands, the 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests, the final dogfood gate evidence under `artifacts/pipeline/085/dogfood/`, network-free CI, advisory-only AI, and the AST-stable-default / experimental-opt-in backend policy from archived deterministic evidence. A release blocker is recorded as a `blocked` acceptance manifest with concrete prerequisite task metadata, never by relaxing these criteria.
+
 ## Doctest Adoption Timeline
 
 Doctests become mandatory in stages:

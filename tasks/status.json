@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "060",
+  "next_task": null,
   "completed_tasks": [
     "068",
     "069",
@@ -107,14 +107,15 @@
     "065",
     "066",
     "067",
-    "085"
+    "085",
+    "060"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 085 final dogfood release gate completed; active-state and complete-state validation passed. Added scripts/release_dogfood_gate.py and the release_dogfood_gate stage in scripts/ci.sh, test/release_dogfood_gate_test.zig, release-evidence fixtures, and archived deterministic dogfood reports under artifacts/pipeline/085/dogfood/. No coverage-gap rows are deferred to task 085."
+    "notes": "Task 060 release acceptance verification completed; active-state and complete-state validation passed. scripts/release_acceptance.py confirms every docs/PROJECT_ACCEPTANCE_CRITERIA.md criterion is satisfied from archived deterministic evidence (commands, 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests, task-085 final dogfood gate, network-free CI, advisory-only AI, AST-stable-default/experimental-opt-in). No release blockers; the implementation queue is complete (106 tasks)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5174,6 +5175,52 @@
         "artifacts/pipeline/085/dogfood/run1.report.json",
         "artifacts/pipeline/085/dogfood/run2.report.json",
         "artifacts/pipeline/085/dogfood/survivor_review.md"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "060",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP (filter acceptance). failing_output_excerpt: test/release_acceptance_test was written first; it ran 5 pass / 1 fail -- the failing case 'release acceptance checklist script and CI exercise the release gates' proved scripts/release_acceptance.py did not exist yet (FileNotFound), while the acceptance-manifest consistency, task-085 dogfood evidence existence, AST-stable-default, help-text command, and stable-mutator cases already passed. implementation_started_after_failure: true. passing_command: after adding scripts/release_acceptance.py, `zig build test` passed (full suite green) and `python3 scripts/release_acceptance.py` printed 'release accepted; every docs/PROJECT_ACCEPTANCE_CRITERIA.md item is satisfied' (exit 0).",
+      "implementation_summary": "Final release acceptance verification (task 060). scripts/release_acceptance.py verifies docs/PROJECT_ACCEPTANCE_CRITERIA.md from archived deterministic evidence and implements no product behavior: it checks required_commands (src/root.zig help_text + src/cli.zig route), required_mutators (the 8 src/mutators modules implementing the 12 stable operators), required_reports (text/json/jsonl/junit renderers + report.v1 schema), schemas_validate_reports (docs/SCHEMA_REGISTRY.md subset validator + schema files), public_docs_doctest (task 066), final_dogfood_gate (task-085 archived dogfood evidence plus a clean scripts/release_dogfood_gate.py manifest), ci_network_free (scripts/ci.sh wires release_dogfood_gate and never requires a remote provider), ai_advisory_only (src/ai advisory commands), and ast_stable_default_backends_opt_in (default config backend=ast, experimental=[]); it runs the task-085 final dogfood gate and self-tests the acceptance manifest, exiting non-zero with the offending criteria if any are unmet. test/release_acceptance_test.zig is the executable contract: the valid acceptance manifest passes while manifests that hide an unmet criterion or an ignored blocker behind a passing status are rejected; it also verifies the task-085 dogfood evidence exists, AST is the stable default with experimental backends opt-in, the required commands appear in help_text, the stable mutators are accessible, and scripts/ci.sh + scripts/release_acceptance.py exercise the release gates. test/fixtures/release/valid/acceptance.json is the consistent-pass manifest; invalid/acceptance_unmet_criterion.json and acceptance_blocker_ignored.json prove a passing status cannot hide an unmet criterion or a recorded blocker. Documented the gate in docs/PROJECT_ACCEPTANCE_CRITERIA.md and docs/ROADMAP.md. The acceptance run found NO release blockers, so no prerequisite task was inserted and the task is completed rather than blocked. Non-goals respected: no new product features, no relaxed criteria, no missing behavior implemented directly; src/**, build.zig, and build.zig.zon were not touched (forbidden).",
+      "files_changed": [
+        "scripts/release_acceptance.py",
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md",
+        "docs/ROADMAP.md",
+        "test/release_acceptance_test.zig",
+        "test/fixtures/release/valid/acceptance.json",
+        "test/fixtures/release/invalid/acceptance_unmet_criterion.json",
+        "test/fixtures/release/invalid/acceptance_blocker_ignored.json",
+        "artifacts/pipeline/060/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/release_acceptance_test.zig: six cases -- the acceptance manifest status agrees with its criteria and blockers (valid passes; an unmet criterion and an ignored blocker are rejected); the task-085 dogfood evidence exists; AST is the stable default with experimental backends opt-in; the required commands appear in help_text; the required stable mutators are accessible; and scripts/ci.sh + scripts/release_acceptance.py exercise the release gates.",
+        "test/fixtures/release/valid/acceptance.json and test/fixtures/release/invalid/acceptance_*.json: the release-acceptance manifest contract and two inconsistent manifests the gate must reject."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): 5 pass / 1 fail -- the ci/script case before scripts/release_acceptance.py existed",
+        "zig build test (zigars MCP, passing): full suite green after adding the acceptance checklist script",
+        "python3 scripts/release_acceptance.py (passing): every PROJECT_ACCEPTANCE_CRITERIA item satisfied (exit 0)",
+        "zig build / zig fmt --check src test build.zig (zigars MCP): clean",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 060 was active and again after the complete-state transition with no queued task remaining (next_task null). No coverage-gap rows are deferred to task 060. Release acceptance found no blockers, so the task completes; the implementation queue is exhausted."
+      },
+      "dogfooding_implication": "Release acceptance verifies the hardened system from complete archived dogfood and doctest evidence rather than prose: the minimum complete product (commands, 12 stable mutators, reports, schemas, public-doc doctests, the task-085 final dogfood gate, network-free CI, advisory-only AI, and the AST-stable-default/experimental-opt-in backend policy) is confirmed satisfied, and a future release blocker must be recorded as a blocked acceptance manifest with prerequisite task metadata rather than by relaxing the criteria.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/060/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",
