@@ -3772,7 +3772,7 @@
       "title": "Harden AI Context Redaction",
       "file": "tasks/115-harden-ai-redaction.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "114"
       ],

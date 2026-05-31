@@ -268,6 +268,61 @@ test "redaction redacts default patterns and fails closed on an unsupported patt
     try expectError(error.RedactionFailed, context.redactAndCap(a, "secretXXkey", &bad, context.excerpt_limit));
 }
 
+test "value-shaped secrets are redacted from AI context even without a label" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The configured patterns mask only secret LABELS (api_key, token). None of
+    // these credentials carry such a label, so before value-shape detection they
+    // passed straight through to the provider (adversarial audit finding, task
+    // 115): redaction masked the word "api_key" but never the value after it,
+    // and an unlabeled secret was emitted verbatim.
+    const patterns = [_][]const u8{ "(?i)api[_-]?key", "(?i)token" };
+
+    const github = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const aws = "AKIAIOSFODNN7EXAMPLE";
+    const anthropic = "sk-ant-api03-abcdEF0123456789ghijKL";
+    const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N";
+    const pem =
+        \\-----BEGIN OPENSSH PRIVATE KEY-----
+        \\b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB
+        \\-----END OPENSSH PRIVATE KEY-----
+    ;
+    const pem_body = "b3BlbnNzaC1rZXktdjEA";
+
+    const text = try std.fmt.allocPrint(
+        a,
+        "runner stderr: gh={s} aws={s} anthropic={s} jwt={s}\n{s}\n",
+        .{ github, aws, anthropic, jwt, pem },
+    );
+
+    const r = try redaction.redact(a, text, &patterns);
+
+    // Each realistic secret VALUE must be gone, regardless of the missing label.
+    try expect(std.mem.indexOf(u8, r.text, github) == null);
+    try expect(std.mem.indexOf(u8, r.text, aws) == null);
+    try expect(std.mem.indexOf(u8, r.text, anthropic) == null);
+    try expect(std.mem.indexOf(u8, r.text, jwt) == null);
+    try expect(std.mem.indexOf(u8, r.text, pem_body) == null);
+    try expect(std.mem.indexOf(u8, r.text, redaction.marker) != null);
+    // Non-secret context around the secrets is preserved.
+    try expect(std.mem.indexOf(u8, r.text, "runner stderr:") != null);
+
+    // The real AI-context path (redact then cap) redacts the same values, so the
+    // bounded evidence excerpt a provider receives never carries them.
+    const capped = try context.redactAndCap(a, text, &patterns, context.excerpt_limit);
+    try expect(std.mem.indexOf(u8, capped, github) == null);
+    try expect(std.mem.indexOf(u8, capped, aws) == null);
+    try expect(std.mem.indexOf(u8, capped, anthropic) == null);
+
+    // Value-shape detection does not weaken the fail-closed compile contract: a
+    // malformed configured pattern still aborts the flow, even when the text
+    // contains a value-shaped secret that would otherwise be redacted.
+    const bad = [_][]const u8{"secret.*key"};
+    try expectError(error.RedactionFailed, redaction.redact(a, github, &bad));
+}
+
 // --- Config (AI provider + redaction defaults) ------------------------------
 
 test "omitted ai.redact_patterns expands to the default secret patterns" {

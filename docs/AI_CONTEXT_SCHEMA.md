@@ -297,12 +297,23 @@ Before building AI context, zentinel must:
 
 - normalize absolute paths to project-relative paths
 - remove environment variables
-- redact configured secret patterns
+- redact configured secret patterns (labels) and value-shaped secrets (values)
 - cap source context line counts
 - omit unrelated files
 - mark whether remote transmission is allowed
 
 If redaction fails, the AI flow must fail closed.
+
+### Redaction Guarantee (labels vs values)
+
+Redaction (`src/ai/redaction.zig`) operates at two levels, both applied to every evidence excerpt before it enters the context:
+
+- **Configured label patterns.** The `ai.redact_patterns` from config (default `(?i)api[_-]?key` and `(?i)token`) mask known secret *labels*. The supported pattern subset is intentionally tiny — an optional `(?i)` case-insensitive flag, literal runs, and the single `[_-]?` optional-separator construct — so it stays auditable. An unsupported or malformed configured pattern is rejected and the AI flow **fails closed** (`error.RedactionFailed`); it is never silently ignored. A label pattern masks only the label text, not the value that follows it.
+- **Built-in value shapes.** Independently of configuration, a fixed set of matchers redacts the secret *values* themselves by shape: GitHub tokens (`ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`/`github_pat_`), AWS access key ids (`AKIA`/`ASIA`), Anthropic API keys (`sk-ant-`), JSON Web Tokens, and PEM private-key blocks. This catches a credential that carries no configured label, or the value immediately after one.
+
+Each match — label or value — is replaced by the fixed marker `[REDACTED]`. `privacy.redactions_applied` lists only the configured label patterns that matched (verbatim, in configuration order); the built-in value filter always runs and is not enumerated there. Redaction is applied before the 4096 UTF-8 byte excerpt cap, so truncation cannot split a secret and leak a tail.
+
+The value filter is a targeted credential matcher for the shapes above, not a general-purpose data-loss-prevention engine; configured patterns and the fail-closed contract remain the primary control.
 
 ## Deterministic Ordering
 

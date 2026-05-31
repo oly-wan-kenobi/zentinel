@@ -1,0 +1,53 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "115",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/115/verification/report.json"
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "test/ai_context_test.zig 'value-shaped secrets are redacted from AI context even without a label' redacts realistic credentials that carry no api_key/token label (GitHub ghp_..., AWS AKIA..., Anthropic sk-ant-..., a JWT, and a PEM private-key block) through both redaction.redact and the real context.redactAndCap path, and asserts a malformed configured pattern still returns error.RedactionFailed even when the text contains a value-shaped secret. Before the fix it failed at ai_context_test.zig:303 with 'try expect(std.mem.indexOf(u8, r.text, github) == null)' -- the ghp_ token passed straight through because redaction matched only configured label substrings. After adding the built-in value-shape matchers the full suite is green (504 tests)."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "Task 115 hardens AI-context redaction; the behavioral fix is proven by a unit test that fails before the value-shape matchers exist (the ghp_ token survives) and passes after. Full self-mutation dogfood remains gated to task 085."
+    }
+  ],
+  "residual_risk": [
+    "Built-in matchers cover the shapes named in the task (GitHub gh*_/github_pat_, AWS AKIA/ASIA access key ids, Anthropic sk-ant-, JWT, PEM private-key blocks); they are a targeted credential filter, not a general-purpose DLP engine (an explicit non-goal). A novel secret shape with no label would still pass; configured label patterns and the fail-closed contract remain the first line of defense.",
+    "Redaction runs before the 4096-byte excerpt cap (context.redactAndCap = redact then capExcerpt), so a secret cannot be split by truncation and leak a tail; the PEM matcher redacts the whole -----BEGIN.....-----END.....----- span as one unit. A PEM header with no matching END line is not redacted, but that is a malformed (non-key) fragment, not a complete private key.",
+    "Built-in value redactions intentionally do not appear in privacy.redactions_applied, which records only the configured label patterns that matched (its documented contract); the value filter always runs regardless of configuration. Providers remain stubs today, so this finding is latent until a real provider is wired -- the filter ensures that wiring cannot leak a value-shaped credential.",
+    "The advisory AI surface stays advisory-only: redaction changes the evidence excerpts embedded in the prompt envelope and never sets a mutant or report status."
+  ],
+  "recommendation": "complete"
+}
