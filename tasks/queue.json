@@ -3296,7 +3296,7 @@
       "title": "Doctest Mutate Stabilization",
       "file": "tasks/061-doctest-mutate-stabilization.md",
       "phase": 2,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "059"
       ],

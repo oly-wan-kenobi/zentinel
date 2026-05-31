@@ -23,6 +23,7 @@ const block = @import("block.zig");
 const parser = @import("parser.zig");
 const extractor = @import("extractor.zig");
 const case_mod = @import("case.zig");
+const mutation_id = @import("mutation_id.zig");
 
 pub const schema_version = "zentinel.doctest.mutation_experiment.v1";
 
@@ -202,4 +203,239 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
         if (b.line_start == line) return b;
     }
     return null;
+}
+
+// --- Stabilized mutation-aware doctest report (task 061) -------------------
+//
+// The stabilized surface emits `zentinel.doctest.report.v1` mutation entries
+// (`case.kind = "mutation"`) with durable `dm_...` ids, `ds_...` survivor refs
+// (survived only), and closed `runner_evidence` including `failure_kind`. It is
+// opt-in (the caller must pass `opted_in = true`) and a normal doctest failure
+// blocks mutation-aware execution for that case. The experimental report above
+// is left unchanged.
+
+pub const StableError = error{NotOptedIn} || std.mem.Allocator.Error;
+
+pub const StableCommand = struct {
+    original: []const u8,
+    argv: []const []const u8,
+    cwd: []const u8,
+    environment_policy: []const u8 = "minimal",
+    shell: bool = false,
+};
+
+pub const StableRunnerEvidence = struct {
+    status: []const u8,
+    command: StableCommand,
+    exit_code: ?i64,
+    timed_out: bool,
+    failure_kind: []const u8,
+    stdout_excerpt: []const u8,
+    stderr_excerpt: []const u8,
+    failure_summary: []const u8,
+    skip_reason: ?[]const u8,
+};
+
+pub const StableMutation = struct {
+    doctest_case_id: []const u8,
+    mutant_id: []const u8,
+    operator: []const u8,
+    mutated_diff: []const []const u8,
+    survivor_ref: ?[]const u8,
+    runner_evidence: StableRunnerEvidence,
+};
+
+pub const StableMutationCase = struct {
+    id: []const u8,
+    file: []const u8,
+    line_start: u32,
+    line_end: u32,
+    source_ref: []const u8,
+    kind: []const u8 = "mutation",
+    status: []const u8,
+    mutation: StableMutation,
+};
+
+pub const StableMutationSummary = struct {
+    total: u64 = 0,
+    killed: u64 = 0,
+    survived: u64 = 0,
+    compile_error: u64 = 0,
+    compiler_crash: u64 = 0,
+    timeout: u64 = 0,
+    skipped: u64 = 0,
+    invalid: u64 = 0,
+};
+
+/// The mutation-aware extension counted separately from the top-level
+/// (preflight, non-mutation) doctest summary.
+pub const StableReport = struct {
+    schema_version: []const u8 = "zentinel.doctest.report.v1",
+    mutation_summary: StableMutationSummary,
+    cases: []const StableMutationCase,
+};
+
+fn mutationCommand() StableCommand {
+    return .{ .original = mutate_command, .argv = &.{ "zig", "test", "src/doctest.zig" }, .cwd = "." };
+}
+
+fn mutatedDiff(arena: std.mem.Allocator, m: mutant.Mutant) std.mem.Allocator.Error![]const []const u8 {
+    const buf = try arena.alloc([]const u8, 2);
+    buf[0] = try std.fmt.allocPrint(arena, "- {s}", .{m.original});
+    buf[1] = try std.fmt.allocPrint(arena, "+ {s}", .{m.replacement});
+    return buf;
+}
+
+fn lessById(_: void, a: StableMutationCase, b: StableMutationCase) bool {
+    return std.mem.order(u8, a.id, b.id) == .lt;
+}
+
+fn skippedMutationCase(arena: std.mem.Allocator, c: case_mod.Case, reason: []const u8) std.mem.Allocator.Error!StableMutationCase {
+    const ident = mutation_id.Identity{
+        .doctest_case_id = c.id,
+        .mutant_id = "",
+        .operator = "",
+        .doc_file = c.file,
+        .source_ref = c.source_ref,
+        .normalized_mutated_diff = "",
+    };
+    return .{
+        .id = try arena.dupe(u8, &mutation_id.mutationCaseId(ident)),
+        .file = c.file,
+        .line_start = c.line_start,
+        .line_end = c.line_end,
+        .source_ref = c.source_ref,
+        .status = "skipped",
+        .mutation = .{
+            .doctest_case_id = c.id,
+            .mutant_id = "",
+            .operator = "",
+            .mutated_diff = &.{},
+            .survivor_ref = null,
+            .runner_evidence = .{
+                .status = "skipped",
+                .command = mutationCommand(),
+                .exit_code = null,
+                .timed_out = false,
+                .failure_kind = "skipped",
+                .stdout_excerpt = "",
+                .stderr_excerpt = "",
+                .failure_summary = "",
+                .skip_reason = reason,
+            },
+        },
+    };
+}
+
+/// Run the stabilized mutation-aware pass over `source`. Opt-in only; a normal
+/// doctest failure (or a case with no behavioral assertion) yields a single
+/// `skipped` mutation entry and never executes mutants for that case. Output is
+/// deterministic and sorted by durable `dm_...` id.
+pub fn stableMutationRun(
+    arena: std.mem.Allocator,
+    file: []const u8,
+    source: []const u8,
+    snippet_runner: SnippetRunner,
+    opted_in: bool,
+) StableError!StableReport {
+    if (!opted_in) return error.NotOptedIn;
+
+    const parsed = try parser.parse(arena, file, source);
+    const extracted = try extractor.extract(arena, file, parsed.blocks, parsed.diagnostics);
+
+    var cases: std.ArrayList(StableMutationCase) = .empty;
+    var summary = StableMutationSummary{};
+
+    for (extracted.cases) |c| {
+        if (c.kind != .zig_test) continue;
+        const producer = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
+        const snippet = producer.content;
+
+        if (!hasBehavioralAssertion(snippet)) {
+            try cases.append(arena, try skippedMutationCase(arena, c, "no_behavioral_assertion"));
+            summary.total += 1;
+            summary.skipped += 1;
+            continue;
+        }
+        // Preflight gate: a normal doctest failure blocks mutation-aware
+        // execution for this case.
+        const pre = try classify(arena, snippet_runner.run(snippet));
+        if (pre.status != .passed) {
+            try cases.append(arena, try skippedMutationCase(arena, c, "normal_doctest_did_not_pass"));
+            summary.total += 1;
+            summary.skipped += 1;
+            continue;
+        }
+
+        const cands = try candidates(arena, snippet);
+        for (cands) |m| {
+            const mutated = try applyCandidate(arena, snippet, m);
+            const cr = try classify(arena, snippet_runner.run(mutated));
+            const single = try arena.dupe(report.CommandResult, &.{cr});
+            const mr = mutant_runner.classifyFromCommands(m.id, .Debug, single);
+
+            const diff = try mutatedDiff(arena, m);
+            const norm = try mutation_id.normalizeDiff(arena, diff);
+            const ident = mutation_id.Identity{
+                .doctest_case_id = c.id,
+                .mutant_id = m.id,
+                .operator = m.operator,
+                .doc_file = file,
+                .source_ref = c.source_ref,
+                .normalized_mutated_diff = norm,
+            };
+            const dm = try arena.dupe(u8, &mutation_id.mutationCaseId(ident));
+            // Survivor refs only for survived mutants; every other status is null.
+            const survivor: ?[]const u8 = if (mr.status == .survived)
+                try arena.dupe(u8, &mutation_id.survivorRef(ident))
+            else
+                null;
+
+            summary.total += 1;
+            switch (mr.status) {
+                .killed => summary.killed += 1,
+                .survived => summary.survived += 1,
+                .compile_error => summary.compile_error += 1,
+                .compiler_crash => summary.compiler_crash += 1,
+                .timeout => summary.timeout += 1,
+                .skipped => summary.skipped += 1,
+                .invalid => summary.invalid += 1,
+            }
+
+            try cases.append(arena, .{
+                .id = dm,
+                .file = c.file,
+                .line_start = c.line_start,
+                .line_end = c.line_end,
+                .source_ref = c.source_ref,
+                .status = @tagName(mr.status),
+                .mutation = .{
+                    .doctest_case_id = c.id,
+                    .mutant_id = m.id,
+                    .operator = m.operator,
+                    .mutated_diff = diff,
+                    .survivor_ref = survivor,
+                    .runner_evidence = .{
+                        .status = @tagName(mr.status),
+                        .command = mutationCommand(),
+                        .exit_code = cr.exit_code,
+                        .timed_out = cr.timed_out,
+                        .failure_kind = @tagName(cr.failure_kind),
+                        .stdout_excerpt = cr.evidence.stdout_excerpt,
+                        .stderr_excerpt = cr.evidence.stderr_excerpt,
+                        .failure_summary = cr.evidence.failure_summary,
+                        .skip_reason = null,
+                    },
+                },
+            });
+        }
+    }
+
+    const out = try cases.toOwnedSlice(arena);
+    std.mem.sort(StableMutationCase, out, {}, lessById);
+    return .{ .mutation_summary = summary, .cases = out };
+}
+
+pub fn stableToJson(arena: std.mem.Allocator, r: StableReport) std.mem.Allocator.Error![]u8 {
+    return std.json.Stringify.valueAlloc(arena, r, .{ .whitespace = .indent_2 });
 }

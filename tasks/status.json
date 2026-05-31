@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "061",
+  "next_task": "062",
   "completed_tasks": [
     "068",
     "069",
@@ -100,7 +100,8 @@
     "056",
     "057",
     "058",
-    "059"
+    "059",
+    "061"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -111,6 +112,54 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "061",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: doctest_mutate_stabilization_test.zig was written first and failed to compile (src/doctest/mutation_id.zig used std.mem.trimRight, renamed to trimEnd in this Zig 0.16) while the rest of the suite stayed green (443/443). After fixing trimEnd, the suite reported 6 pass / 2 fail: only the two stub snapshots (killed.stable.json, survived.stable.json) mismatched the PLACEHOLDER fixtures, proving the opt-in gating, dm_/ds_ derivation, runner_evidence.failure_kind, repeatability, preflight-blocks, schema, and id-determinism logic already passed. The two snapshots were self-blessed byte-exact (no trailing newline). passing_command: `zig build test` passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean.",
+      "implementation_summary": "Stabilized `zentinel doctest --mutate` into a deterministic, documented mutation-aware doctest report surface. src/doctest/mutation_id.zig derives the two durable identities exactly as docs/DOCTEST_SPEC.md specifies: a dm_ case id and a ds_ survivor ref, each `<prefix> + first_26(lowercase_unpadded_crockford_base32(sha256(canonical_bytes)))` over the same ordered fields (doctest_case_id, mutant_id, operator, doc_file, source_ref, normalized_mutated_diff) differing only by the schema-version namespace line, with normalizeDiff stripping trailing whitespace per line. src/doctest/mutation_experiment.zig adds the stabilized builder stableMutationRun: it is opt-in (error.NotOptedIn unless opted_in), preflights each zig_test doctest and emits a single skipped mutation entry (no mutants) when the case has no behavioral assertion or the normal doctest does not pass, and otherwise emits one case.kind=\"mutation\" entry per documentation mutant with a durable dm_ id, the mutation result status (killed/survived/compile_error/compiler_crash/timeout/skipped/invalid), a closed runner_evidence including failure_kind, and a ds_ survivor_ref only for survived mutants (null for every other status); output is sorted by dm_ id and a separate mutation_summary counts mutation cases. schemas/doctest.report.v1.schema.json gains the additive optional case.mutation ($defs/case_mutation), the mutation_runner_evidence def (required failure_kind), the optional summary.mutation ($defs/mutation_summary), and a widened case status enum with an allOf so kind=\"mutation\" entries require mutation, a ^dm_ id, and a mutation status while ordinary cases keep the doctest status set; the top-level summary still counts only preflight non-mutation entries. The experimental zentinel.doctest.mutation_experiment.v1 report and the doctest report.zig Case model were intentionally left unchanged (so the out-of-scope prototype test and all existing doctest report snapshots stay byte-identical), and the CLI wiring (cli.zig, outside this task's scope) still drives the prototype. Non-goals respected: no AI survivor explanations, no ZIR/AIR doctest mutation, no making public docs mutation-gated by default; src/zir_backend.zig, src/air_backend.zig, src/ai/**, and docs/MUTATOR_SPEC.md were not touched (forbidden). docs/DOCTEST_SPEC.md already specified the dm_/ds_/runner_evidence/summary.mutation contract and now agrees with the schema; src/report.zig and src/mutant_runner.zig needed no change.",
+      "files_changed": [
+        "src/doctest/mutation_id.zig",
+        "src/doctest/mutation_experiment.zig",
+        "src/root.zig",
+        "schemas/doctest.report.v1.schema.json",
+        "test/doctest_mutate_stabilization_test.zig",
+        "test/fixtures/doctest/mutation_stabilization/killed.stable.json",
+        "test/fixtures/doctest/mutation_stabilization/survived.stable.json",
+        "artifacts/pipeline/061/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/doctest_mutate_stabilization_test.zig: opt-in rejection (error.NotOptedIn); deterministic byte-exact snapshots for a killed and a survived documentation mutant; survived mutant gets a ds_ survivor ref and a dm_ id while non-survived get none; runner_evidence carries failure_kind; repeatability (identical inputs -> identical dm_/ds_ ids); normal doctest failure blocks mutation-aware execution (single skipped entry, no mutants); the doctest.report.v1 schema defines the additive case.mutation/summary.mutation/mutation_runner_evidence (required failure_kind) and widened status enum; dm_/ds_ derivation is deterministic and distinct across namespaces.",
+        "test/fixtures/doctest/mutation_stabilization/{killed,survived}.stable.json: self-blessed deterministic stable mutation-report snapshots."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): std.mem.trimRight removed (renamed trimEnd) with 443/443 other tests passing",
+        "zig build test (zigars MCP, partial): 6 pass / 2 fail -- only the PLACEHOLDER stable snapshots mismatched",
+        "zig build test (zigars MCP, passing): full suite green after self-blessing the snapshots; all existing doctest report snapshots and the experimental prototype test unaffected",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 061 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 061. docs/DOCTEST_SPEC.md already specified the dm_/ds_ derivation, runner_evidence failure_kind, and the summary.total-vs-summary.mutation split, and schemas/doctest.report.v1.schema.json was made to agree with it via the additive mutation extension."
+      },
+      "dogfooding_implication": "Stable, deterministic documentation-mutation identities (dm_/ds_) and the additive doctest.report.v1 mutation extension make documentation examples stronger dogfood targets and give task 067 the mutation-aware report fields it depends on (survivor refs, runner_evidence with failure_kind) without changing normal doctest pass/fail or existing report bytes.",
+      "follow_up_tasks": [
+        "tasks/062-property-generator-infrastructure.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/061/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "059",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/dogfood_production_test.zig was written first and all four tests failed at runtime with error.FileNotFound (std.Io.Dir.cwd().readFileAlloc on the not-yet-created test/fixtures/dogfood/production/run1.report.json, run2.report.json, config.toml, and scripts/ci.sh) while the rest of the suite stayed green (439/443). implementation_started_after_failure: true. After creating the production dogfood config, the two reference reports, scripts/ci.sh (with a --list stage enumerator), and scripts/dogfood-production.sh, the four tests passed. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, `zig fmt --check src test build.zig` was clean, and `scripts/ci.sh --list` enumerated the five deterministic stages. No remote AI, no network; survivors are advisory.",

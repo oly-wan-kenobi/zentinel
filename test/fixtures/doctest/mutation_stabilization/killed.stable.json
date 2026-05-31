@@ -1,0 +1,55 @@
+{
+  "schema_version": "zentinel.doctest.report.v1",
+  "mutation_summary": {
+    "total": 1,
+    "killed": 1,
+    "survived": 0,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "cases": [
+    {
+      "id": "dm_85dmskttna2abneshrh2b6qv2n",
+      "file": "docs/killed.md",
+      "line_start": 5,
+      "line_end": 15,
+      "source_ref": "docs/killed.md:5",
+      "kind": "mutation",
+      "status": "killed",
+      "mutation": {
+        "doctest_case_id": "dt_sdmcn4y56k9fhk39t1xpw8n8vk",
+        "mutant_id": "m_03fm4q804wf7emg71yrk0dbmzz",
+        "operator": "arithmetic_add_sub",
+        "mutated_diff": [
+          "- +",
+          "+ -"
+        ],
+        "survivor_ref": null,
+        "runner_evidence": {
+          "status": "killed",
+          "command": {
+            "original": "zig test src/doctest.zig",
+            "argv": [
+              "zig",
+              "test",
+              "src/doctest.zig"
+            ],
+            "cwd": ".",
+            "environment_policy": "minimal",
+            "shell": false
+          },
+          "exit_code": 1,
+          "timed_out": false,
+          "failure_kind": "test_failure",
+          "stdout_excerpt": "",
+          "stderr_excerpt": "doctest assertion failed",
+          "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED",
+          "skip_reason": null
+        }
+      }
+    }
+  ]
+}

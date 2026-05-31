@@ -1,0 +1,55 @@
+{
+  "schema_version": "zentinel.doctest.report.v1",
+  "mutation_summary": {
+    "total": 1,
+    "killed": 0,
+    "survived": 1,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "cases": [
+    {
+      "id": "dm_162nqd3by3svf1za4wftnkzy2w",
+      "file": "docs/survived.md",
+      "line_start": 5,
+      "line_end": 15,
+      "source_ref": "docs/survived.md:5",
+      "kind": "mutation",
+      "status": "survived",
+      "mutation": {
+        "doctest_case_id": "dt_3h51e3pehabwywr7hv6fsryqdy",
+        "mutant_id": "m_8gjkdzyacjhze4s5smk9mbbgmr",
+        "operator": "comparison_boundary",
+        "mutated_diff": [
+          "- >=",
+          "+ >"
+        ],
+        "survivor_ref": "ds_2xxh4aj0c4vxrpnzr204z062ep",
+        "runner_evidence": {
+          "status": "survived",
+          "command": {
+            "original": "zig test src/doctest.zig",
+            "argv": [
+              "zig",
+              "test",
+              "src/doctest.zig"
+            ],
+            "cwd": ".",
+            "environment_policy": "minimal",
+            "shell": false
+          },
+          "exit_code": 0,
+          "timed_out": false,
+          "failure_kind": "none",
+          "stdout_excerpt": "",
+          "stderr_excerpt": "",
+          "failure_summary": "",
+          "skip_reason": null
+        }
+      }
+    }
+  ]
+}

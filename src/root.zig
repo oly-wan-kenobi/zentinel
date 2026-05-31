@@ -108,6 +108,7 @@ pub const doctest = struct {
     pub const mutator_doctest = @import("doctest/mutator_doctest.zig");
     pub const cache = @import("doctest/cache.zig");
     pub const mutation_experiment = @import("doctest/mutation_experiment.zig");
+    pub const mutation_id = @import("doctest/mutation_id.zig");
 };
 
 /// AI provider plumbing, context construction, and privacy redaction. AI is
