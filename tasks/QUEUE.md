@@ -137,7 +137,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 068 | `tasks/113-wire-doctest-survivor-path.md` | complete | 8 |
 | 069 | `tasks/114-scope-experimental-backends.md` | complete | 8 |
 | 070 | `tasks/115-harden-ai-redaction.md` | complete | 8 |
-| 071 | `tasks/116-cli-spec-drift-cleanup.md` | queued | 8 |
+| 071 | `tasks/116-cli-spec-drift-cleanup.md` | complete | 8 |
 
 ## Reordering Policy
 

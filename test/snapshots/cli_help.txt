@@ -13,3 +13,15 @@ Commands:
   explain        explain one mutant using advisory AI
   suggest        suggest tests for one mutant using advisory AI
   review-tests   review survivors using advisory AI
+
+Doctest subcommands (advisory AI is opt-in):
+  doctest explain <case-ref>            explain a failing doctest case
+  doctest suggest <doc-path>            suggest examples for a doc
+  doctest review-snapshot <case-ref>    review snapshot differences
+  doctest suggest-missing [--file ...]  list public docs needing examples
+  doctest explain-survivor <ref>        explain a mutation-aware survivor
+  doctest --mutate --file <doc-path>    run the mutation-aware doctest pass
+
+Report formats:
+  run --report <text|json|jsonl|junit>
+  doctest --format <text|json>

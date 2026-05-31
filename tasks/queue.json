@@ -3800,7 +3800,7 @@
       "title": "CLI And Spec Drift Cleanup",
       "file": "tasks/116-cli-spec-drift-cleanup.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "115"
       ],

@@ -72,7 +72,7 @@ For config expansion, `phase2` means stable Phase 2 operators only. Preview Phas
 | Before | `a + b`, `a - b` |
 | After | `a - b`, `a + b` |
 | Allowed contexts | Binary arithmetic expressions for integer, float, vector, or comptime numeric operands. |
-| Forbidden contexts | Pointer arithmetic not represented as normal Zig binary numeric expression; unary `-x`; wrapping operators such as `+%`; saturating operators; string concatenation-like library calls. |
+| Forbidden contexts | Pointer arithmetic not represented as normal Zig binary numeric expression; unary `-x`; wrapping operators such as `+%`; saturating operators; compound assignment (`+=`, `-=`) is out of scope for v1 and not mutated; string concatenation-like library calls. |
 | Equivalent risks | `a + 0`, `a - 0`, symmetric test data where `b == 0`, unsigned underflow causing compile/runtime failure in some modes. |
 | Compile expectation | `may_fail` for unsigned and comptime-known negative results; otherwise `compiles`. |
 | Fixture requirements | Include killed and survived examples; include unsigned underflow compile-error or runtime-trap example; include same-file test exclusion. |
@@ -110,7 +110,7 @@ fn add(a: i32, b: i32) i32 {
 | Before | `a * b`, `a / b` |
 | After | `a / b`, `a * b` |
 | Allowed contexts | Binary numeric expressions where Zig syntax uses `*` or `/`. |
-| Forbidden contexts | Pointer dereference; wrapping/saturating multiplication; division forms requiring explicit builtins; known divisor zero literals. |
+| Forbidden contexts | Pointer dereference; wrapping/saturating multiplication; division forms requiring explicit builtins; known divisor zero literals; compound assignment (`*=`, `/=`) is out of scope for v1 and not mutated. |
 | Equivalent risks | `a * 1`, `a / 1`, fixtures where operands are `0` or `1`. |
 | Compile expectation | `may_fail` when replacement creates invalid integer division, division by zero, or comptime-known invalid arithmetic. |
 | Fixture requirements | Include integer and float examples; include division-by-zero rejection or compile-error classification. |

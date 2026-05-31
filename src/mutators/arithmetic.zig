@@ -3,8 +3,11 @@
 // Arithmetic AST mutators (docs/MUTATOR_SPEC.md): `arithmetic_add_sub` swaps
 // `+`<->`-` and `arithmetic_mul_div` swaps `*`<->`/` on binary numeric
 // expressions. Recognizes only the non-wrapping, non-saturating binary operator
-// nodes; unary negation and wrapping operators are ignored. Pure: emits
-// candidates through the shared collector and never patches or runs anything.
+// nodes; unary negation and wrapping operators are ignored. Compound-assignment
+// operators (`+=`, `-=`, `*=`, `/=`) are out of scope for v1 and are not mutated
+// -- a documented boundary, not an oversight (docs/MUTATOR_SPEC.md forbidden
+// contexts). Pure: emits candidates through the shared collector and never
+// patches or runs anything.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
@@ -21,8 +24,11 @@ fn swapFor(tag: std.zig.Ast.Node.Tag) ?Swap {
         .sub => .{ .operator = operator_add_sub, .replacement = "+" },
         .mul => .{ .operator = operator_mul_div, .replacement = "/" },
         .div => .{ .operator = operator_mul_div, .replacement = "*" },
-        // `.add_wrap`/`.sub_wrap`/`.mul_wrap`/`.*_sat` and unary `.negation` are
-        // intentionally excluded (MUTATOR_SPEC forbidden contexts).
+        // `.add_wrap`/`.sub_wrap`/`.mul_wrap`/`.*_sat`, unary `.negation`, and
+        // compound assignment (`.assign_add`/`.assign_sub`/`.assign_mul`/
+        // `.assign_div`, i.e. `+=`/`-=`/`*=`/`/=`) are intentionally excluded
+        // (MUTATOR_SPEC forbidden contexts): v1 mutates only binary arithmetic
+        // operator expressions.
         else => null,
     };
 }

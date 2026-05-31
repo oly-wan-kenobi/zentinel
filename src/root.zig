@@ -172,6 +172,18 @@ pub const help_text =
     \\  suggest        suggest tests for one mutant using advisory AI
     \\  review-tests   review survivors using advisory AI
     \\
+    \\Doctest subcommands (advisory AI is opt-in):
+    \\  doctest explain <case-ref>            explain a failing doctest case
+    \\  doctest suggest <doc-path>            suggest examples for a doc
+    \\  doctest review-snapshot <case-ref>    review snapshot differences
+    \\  doctest suggest-missing [--file ...]  list public docs needing examples
+    \\  doctest explain-survivor <ref>        explain a mutation-aware survivor
+    \\  doctest --mutate --file <doc-path>    run the mutation-aware doctest pass
+    \\
+    \\Report formats:
+    \\  run --report <text|json|jsonl|junit>
+    \\  doctest --format <text|json>
+    \\
 ;
 
 /// Deterministic `version` output: zentinel version plus pinned Zig policy label.
@@ -263,14 +275,6 @@ pub const Outcome = struct {
     init_test_command: ?[]const u8 = null,
 };
 
-/// Roadmap commands recognized but not implemented by the Phase 0 CLI shell.
-const not_implemented_commands = [_][]const u8{
-    "check",
-    "list-mutants",
-    "run",
-    "doctest",
-};
-
 /// Known future global options not owned by task 001 (rejected until their owner lands).
 const future_global_options = [_][]const u8{
     "--config",
@@ -285,13 +289,6 @@ fn eq(a: []const u8, b: []const u8) bool {
 
 fn isOption(s: []const u8) bool {
     return std.mem.startsWith(u8, s, "--");
-}
-
-fn contains(haystack: []const []const u8, needle: []const u8) bool {
-    for (haystack) |item| {
-        if (eq(item, needle)) return true;
-    }
-    return false;
 }
 
 /// Pure CLI dispatch. `args` excludes the program name. `config_exists` reflects
@@ -327,9 +324,10 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
     if (eq(cmd, "init")) {
         return dispatchInit(args[i..], config_exists);
     }
-    if (contains(&not_implemented_commands, cmd)) {
-        return .{ .exit_code = 2, .error_code = .cli_command_not_implemented, .detail = cmd };
-    }
+    // `check`/`list-mutants`/`run`/`doctest` and the AI commands are real routed
+    // commands handled by `route`; they never reach this frozen fallback, so
+    // dispatch no longer carries a vestigial "not implemented" roadmap list. Any
+    // command that does reach here is genuinely unknown (task 116).
     return .{ .exit_code = 2, .error_code = .cli_unknown_command, .detail = cmd };
 }
 

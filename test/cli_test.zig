@@ -15,6 +15,27 @@ test "help output matches the snapshot" {
     try std.testing.expectEqualStrings(cli_help_snapshot, zentinel.help_text);
 }
 
+test "help lists the real doctest subcommands and report formats" {
+    // Spec-drift cleanup (task 116): --help omitted the doctest AI/mutation
+    // subcommands and the run report formats, so the help surface disagreed with
+    // CLI_SPEC and the implemented CLI. Help must list every doctest subcommand
+    // the binary actually accepts, the four run report formats, and doctest's
+    // real --format set (text|json -- jsonl is NOT a doctest format).
+    const h = dispatch(&[_][]const u8{"--help"}, false).stdout;
+    for ([_][]const u8{
+        "doctest explain",
+        "doctest suggest",
+        "doctest review-snapshot",
+        "doctest suggest-missing",
+        "doctest explain-survivor",
+        "doctest --mutate",
+    }) |sub| {
+        try std.testing.expect(std.mem.indexOf(u8, h, sub) != null);
+    }
+    try std.testing.expect(std.mem.indexOf(u8, h, "run --report <text|json|jsonl|junit>") != null);
+    try std.testing.expect(std.mem.indexOf(u8, h, "doctest --format <text|json>") != null);
+}
+
 test "version output is the policy-only composition" {
     const out = dispatch(&[_][]const u8{"version"}, false);
     try std.testing.expectEqual(@as(u8, 0), out.exit_code);
@@ -55,12 +76,17 @@ test "default config matches the snapshot" {
     try std.testing.expectEqualStrings(init_config_snapshot, zentinel.default_config);
 }
 
-test "known roadmap command returns ZNTL_CLI_COMMAND_NOT_IMPLEMENTED" {
-    const out = dispatch(&[_][]const u8{"run"}, false);
-    try std.testing.expectEqual(@as(u8, 2), out.exit_code);
-    try std.testing.expect(out.error_code == .cli_command_not_implemented);
-    try std.testing.expectEqualStrings("ZNTL_CLI_COMMAND_NOT_IMPLEMENTED", out.error_code.token());
-    try std.testing.expectEqualStrings("run", out.detail);
+test "route supersedes the removed not_implemented_commands list" {
+    // task 116: the vestigial not_implemented_commands entries are removed.
+    // run/check/list-mutants/doctest are real routed commands now, so route()
+    // returns a concrete route for each and the frozen dispatch fallback no
+    // longer mislabels any command as 'not implemented'. Before the cleanup,
+    // dispatch("run") returned ZNTL_CLI_COMMAND_NOT_IMPLEMENTED.
+    inline for (.{ "run", "check", "list-mutants", "doctest" }) |cmd| {
+        try std.testing.expect(std.meta.activeTag(zentinel.route(&[_][]const u8{cmd})) != .passthrough);
+        const out = dispatch(&[_][]const u8{cmd}, false);
+        try std.testing.expect(out.error_code != .cli_command_not_implemented);
+    }
 }
 
 test "unknown command returns ZNTL_CLI_UNKNOWN_COMMAND" {

@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "116",
+  "next_task": null,
   "completed_tasks": [
     "068",
     "069",
@@ -118,14 +118,15 @@
     "112",
     "113",
     "114",
-    "115"
+    "115",
+    "116"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 115 harden AI context redaction completed. Redaction masked only configured secret LABELS (api_key, token), so secret VALUES (GitHub ghp_..., AWS AKIA..., Anthropic sk-ant-..., JWTs, PEM private-key blocks) with no label passed straight through to a provider -- latent today (providers are stubs) but a live hazard once a real provider is wired. src/ai/redaction.zig now runs a fixed set of built-in value-shape matchers in the same redact pass (configured patterns first, then value shapes), so the value itself is replaced by [REDACTED] regardless of any surrounding label; the fail-closed compile contract for configured patterns is unchanged. Proven by test/ai_context_test.zig which fails before the fix at ai_context_test.zig:303 (the ghp_ token survives) and passes after, through both redaction.redact and the real context.redactAndCap path, while a malformed configured pattern still returns error.RedactionFailed. docs/AI_CONTEXT_SCHEMA.md documents the labels-vs-values guarantee. Full suite green (504 tests); zig build, zig fmt --check, git diff --check, validator all clean."
+    "notes": "Task 116 CLI and spec drift cleanup completed (final Phase-8 task). Reconciled the cluster of low-impact CLI/spec drift: (1) --help now lists the doctest AI/mutation subcommands and the report formats (run text|json|jsonl|junit, doctest text|json), synced across src/root.zig help_text, test/snapshots/cli_help.txt, and docs/CLI_SPEC.md; (2) the advertised-but-unimplemented `doctest --format jsonl` was removed from CLI_SPEC (the code only ever accepted text|json, which is now the truthful advertisement); (3) compound-assignment arithmetic (+=,-=,*=,/=) is documented as out of scope for v1 in docs/MUTATOR_SPEC.md and src/mutators/arithmetic.zig (no behavior change, respecting the no-large-new-mutator-work non-goal); (4) the vestigial not_implemented_commands list and its orphaned contains helper were removed from src/root.zig since route() owns the full command surface. Proven by two CLI tests that fail before the fix (help omits 'doctest explain' at cli_test.zig:33; dispatch('run') returned ZNTL_CLI_COMMAND_NOT_IMPLEMENTED) and pass after, plus the real binary's --help and `doctest --format jsonl` (exit 2, clear 'must be text or json'). Full suite green (506 tests); zig build, zig fmt --check, git diff --check, validator all clean. next_task is null: tasks 106-116 (Phase 8) are all complete and no dependency-ready queued task remains."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5686,6 +5687,53 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/115/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "116",
+      "failing_evidence": "failing_command: `zig build test` with the tests in test/cli_test.zig written first. failing_output_excerpt: test 'help lists the real doctest subcommands and report formats' failed at test/cli_test.zig:33 (`try std.testing.expect(std.mem.indexOf(u8, h, sub) != null)`) because the --help output did not contain 'doctest explain' -- help omitted the doctest subcommands and report formats entirely (504/505 passed, 1 failed). The companion test 'route supersedes the removed not_implemented_commands list' failed because dispatch(\"run\") returned error_code .cli_command_not_implemented (the vestigial roadmap branch). implementation_started_after_failure: true. passing_command: after listing the doctest subcommands + report formats in help_text (and the snapshot + CLI_SPEC), dropping jsonl from the doctest --format docs, and removing the not_implemented_commands list and its branch, `zig build test` passed (506 tests). The real binary confirmed it: `zentinel --help` lists the subcommands and formats, and `zentinel doctest --format jsonl` exits 2 with 'error[ZNTL_CLI_INVALID_OPTION]: --format must be text or json'.",
+      "implementation_summary": "Resolved the Low-severity CLI/spec drift cluster. (1) Help/CLI_SPEC sync: src/root.zig help_text now lists the doctest AI/mutation subcommands (explain, suggest, review-snapshot, suggest-missing, explain-survivor, --mutate) and the report formats (run --report text|json|jsonl|junit, doctest --format text|json); test/snapshots/cli_help.txt and the docs/CLI_SPEC.md --help block were updated to match. (2) doctest --format jsonl: removed from CLI_SPEC (lines describing --format) because doctest_command only implements text|json; jsonl/junit are mutation-run report formats, not doctest formats -- the docs now match the already-correct code, so no advertised --format value returns an unexpected usage error. (3) Compound-assignment arithmetic: documented as out of scope for v1 in docs/MUTATOR_SPEC.md (both arithmetic operator forbidden-context rows) and src/mutators/arithmetic.zig comments -- a deliberate scope decision (the task delegates it and the non-goals forbid large new mutator work), with no behavior change. (4) Dead code: removed the vestigial not_implemented_commands list and the now-orphaned contains() helper from src/root.zig, and the dispatch branch that returned ZNTL_CLI_COMMAND_NOT_IMPLEMENTED, since route() supersedes those commands; CLI_SPEC's roadmap paragraph was updated and the error code stays defined in the taxonomy (docs/ERROR_CODES.md / docs/FAILURE_MODES.md, not in this task's allowed files, are unchanged and still valid). Non-goals respected: no new mutators, no doctest report-schema rework. src/ai/**, build.zig, build.zig.zon untouched (forbidden).",
+      "files_changed": [
+        "src/root.zig",
+        "src/mutators/arithmetic.zig",
+        "docs/CLI_SPEC.md",
+        "docs/MUTATOR_SPEC.md",
+        "test/cli_test.zig",
+        "test/snapshots/cli_help.txt",
+        "artifacts/pipeline/116/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/cli_test.zig: 'help lists the real doctest subcommands and report formats' -- asserts the real --help output contains every doctest subcommand the binary accepts, the four run report formats, and the truthful doctest --format <text|json>. Fails before the fix at cli_test.zig:33 (help omits 'doctest explain').",
+        "test/cli_test.zig: 'route supersedes the removed not_implemented_commands list' (replaces the obsolete 'known roadmap command returns ZNTL_CLI_COMMAND_NOT_IMPLEMENTED' test) -- asserts run/check/list-mutants/doctest route to concrete handlers and dispatch no longer returns cli_command_not_implemented for them. Fails before the fix because dispatch('run') returned cli_command_not_implemented."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): cli_test.zig:33 'doctest explain' absent from help; dispatch('run') == cli_command_not_implemented",
+        "zig build test (passing, after the fix): 506 tests green",
+        "real-binary check (passing): `zentinel --help` lists subcommands + formats; `zentinel doctest --format jsonl` -> exit 2 'must be text or json'",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 116 was active (changed files within allowed_files plus the four task-control files) and again after the complete-state transition with next_task set to null (no dependency-ready queued task remains; tasks 106-116 are all complete). The task-116 verification artifact validates and no coverage-gap rows are deferred to task 116. The required CLI_SPEC phrases (doctest subcommand definitions, AI option values, default report paths) are all preserved. The gitignored .claude/ lock recreated by the loop wakeup was removed before validating."
+      },
+      "dogfooding_implication": "zentinel's own --help, CLI_SPEC, and MUTATOR_SPEC now match its actual behavior, so its doctests over those public docs stay honest: no advertised command, subcommand, --format, or --report value dead-ends with an unexpected usage error, and the arithmetic mutator boundary is documented rather than silently surprising.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/116/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

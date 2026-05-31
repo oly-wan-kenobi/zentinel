@@ -28,7 +28,7 @@ Phase 0 implements the CLI shell incrementally:
 - task 002 adds config-aware `init --test-command` and `init --backend <ast>`
 - task 005 adds `check`
 
-The help output may list the full roadmap command set before every command is implemented. A known roadmap command that is not implemented yet must fail deterministically with exit code `2`, error code `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED`, and a message that names the command. A command outside this list fails as `ZNTL_CLI_UNKNOWN_COMMAND`.
+Every command listed in `--help` is implemented. The frozen Phase 0 `dispatch` shell owns only `--help`, `version`, and `init`; the project commands (`check`, `run`, `list-mutants`, `doctest`) and the advisory AI commands are handled by the routing layer, so none of them is a "not implemented" roadmap stub anymore. A command that is not recognized fails deterministically with exit code `2` and `ZNTL_CLI_UNKNOWN_COMMAND`. The `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED` code stays defined in the error taxonomy for any future roadmap command added before its handler lands, but no shipped command returns it.
 
 ## Global Options
 
@@ -52,7 +52,7 @@ Ownership:
 | `--verbose` | `tasks/018-report-renderers.md` | report-producing commands | Must not change deterministic JSON fields. |
 | `--quiet` | `tasks/018-report-renderers.md` | report-producing commands | Must not hide errors or required evidence. |
 
-`--format` is not a global option in v1. It is command-local where documented, such as `zentinel doctest --format <text|json|jsonl>`. Mutation runs use `--report <text|json|jsonl|junit>` to avoid ambiguity.
+`--format` is not a global option in v1. It is command-local where documented, such as `zentinel doctest --format <text|json>`. `doctest` output is `text` or `json` only; streaming `jsonl` and `junit` are mutation-run report formats, not doctest formats. Mutation runs use `--report <text|json|jsonl|junit>` to avoid ambiguity.
 
 ## Exit Codes
 
@@ -83,9 +83,21 @@ Commands:
   explain        explain one mutant using advisory AI
   suggest        suggest tests for one mutant using advisory AI
   review-tests   review survivors using advisory AI
+
+Doctest subcommands (advisory AI is opt-in):
+  doctest explain <case-ref>            explain a failing doctest case
+  doctest suggest <doc-path>            suggest examples for a doc
+  doctest review-snapshot <case-ref>    review snapshot differences
+  doctest suggest-missing [--file ...]  list public docs needing examples
+  doctest explain-survivor <ref>        explain a mutation-aware survivor
+  doctest --mutate --file <doc-path>    run the mutation-aware doctest pass
+
+Report formats:
+  run --report <text|json|jsonl|junit>
+  doctest --format <text|json>
 ```
 
-Help output is snapshot-tested.
+Help output is snapshot-tested and lists the doctest subcommands and report formats so `--help` agrees with the implemented CLI surface.
 
 ## `version`
 
@@ -254,7 +266,7 @@ Useful options:
 ```text
 --file <path>
 --case <case-ref>
---format <text|json|jsonl>
+--format <text|json>
 --mutate
 --no-cache
 ```
