@@ -1355,6 +1355,53 @@ def validate_pipeline_contracts(errors: list[str]) -> None:
         text = SCHEMA_REGISTRY_MD.read_text(encoding="utf-8")
         require("project-owned schema subset validator" in text, errors, "docs/SCHEMA_REGISTRY.md must document the pipeline schema subset validator")
 
+    # Task 040 pipeline foundation: the agent task pipeline must be discoverable
+    # and terminologically consistent from the checked-in specs.
+    arch = ROOT / "docs" / "AGENT_PIPELINE_ARCHITECTURE.md"
+    role_spec = ROOT / "docs" / "AGENT_ROLE_SPEC.md"
+    guide = ROOT / "docs" / "AGENT_GUIDE.md"
+    # Canonical pipeline stages and the named roles in the architecture flow.
+    pipeline_stages = ["Phase Planner", "Task Queue Manager", "Orchestrator", "Stateless Subagents"]
+    pipeline_roles = [
+        "Phase Planner",
+        "Task Queue Manager",
+        "Orchestrator",
+        "Test Author",
+        "Test Reviewer",
+        "Contract Editor",
+        "Implementer",
+        "Implementation Reviewer",
+        "Mutation Agent",
+        "Mutation Triage Agent",
+        "Property Test Agent",
+        "Doctest Agent",
+        "Verifier",
+    ]
+    require(arch.is_file(), errors, "missing docs/AGENT_PIPELINE_ARCHITECTURE.md")
+    if arch.is_file():
+        atext = arch.read_text(encoding="utf-8")
+        for stage in pipeline_stages:
+            require(stage in atext, errors, f"docs/AGENT_PIPELINE_ARCHITECTURE.md must name the pipeline stage '{stage}'")
+    if role_spec.is_file():
+        rtext = role_spec.read_text(encoding="utf-8")
+        for role in pipeline_roles:
+            require(role in rtext, errors, f"docs/AGENT_ROLE_SPEC.md must define the pipeline role '{role}'")
+    if guide.is_file():
+        gtext = guide.read_text(encoding="utf-8")
+        require("docs/AGENT_PIPELINE_ARCHITECTURE.md" in gtext, errors, "docs/AGENT_GUIDE.md must point future agents to docs/AGENT_PIPELINE_ARCHITECTURE.md")
+
+    # I-019 TDD-first wording is preserved, but I-019 stays uncovered: mechanical
+    # chronology proof is deferred to task 063 (do not mark I-019 covered here).
+    inv = ROOT / "tests" / "coverage-gaps" / "invariants.v1.json"
+    if inv.is_file():
+        idata = json.loads(inv.read_text(encoding="utf-8"))
+        i019 = next((e for e in idata.get("entries", []) if e.get("number") == "I-019"), None)
+        require(i019 is not None, errors, "invariants registry must keep I-019")
+        if i019 is not None:
+            require(i019.get("covered") is False, errors, "I-019 must remain uncovered; mechanical chronology proof is deferred to task 063")
+            require(i019.get("deferred_to") == "tasks/063-pipeline-metadata-validator.md", errors, "I-019 must defer chronology proof to tasks/063-pipeline-metadata-validator.md")
+            require("before implementation" in (i019.get("notes") or ""), errors, "I-019 must preserve TDD-first wording (failing evidence recorded before implementation)")
+
 
 def validate_task_order_contracts(errors: list[str]) -> None:
     contracts = [

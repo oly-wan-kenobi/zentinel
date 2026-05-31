@@ -252,6 +252,7 @@ Task `041` is the cutover point for durable handoff artifacts. After it is compl
 | Orchestrator dispatch | `.agents/ORCHESTRATOR.md` |
 | Role operating profiles | `.agents/roles/` |
 | Workflow runbooks | `.agents/workflows/` |
+| Agent task pipeline architecture | `docs/AGENT_PIPELINE_ARCHITECTURE.md` |
 | Stable role responsibility spec | `docs/AGENT_ROLE_SPEC.md` |
 | Canonical terminology | `docs/GLOSSARY.md` |
 | Scope boundaries | `docs/NON_GOALS.md` |

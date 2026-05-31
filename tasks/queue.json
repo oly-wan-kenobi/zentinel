@@ -2667,7 +2667,7 @@
       "title": "Agent Pipeline Foundation",
       "file": "tasks/040-agent-pipeline-foundation.md",
       "phase": 0,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "039"
       ],

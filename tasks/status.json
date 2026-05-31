@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "040",
+  "next_task": "041",
   "completed_tasks": [
     "068",
     "069",
@@ -79,17 +79,59 @@
     "036",
     "037",
     "038",
-    "039"
+    "039",
+    "040"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 039 doctest mutation experiments completed; active-state and complete-state validation passed (106 tasks). No gap rows. Added the EXPERIMENTAL src/doctest/mutation_experiment.zig: for a `zig test` doctest with a behavioral assertion that passes preflight, it generates the stable Phase 1 candidate set from the snippet, runs each mutated snippet through an injected runner, and classifies killed/survived by REUSING the shared mutant model and mutant_runner.classifyFromCommands (runner_evidence carries failure_kind from runner.classifyCommand). Examples without an assertion skip with no_behavioral_assertion; a failing preflight skips the case. src/cli.zig wires `zentinel doctest --mutate` (opt-in, fixture-docs only: it writes each mutated snippet to a content-addressed cache file and runs real `zig test`); the documentation file is never modified. Verified end-to-end against the real binary (killed=1, survived=1, skipped=1). mutant.zig/mutant_runner.zig/report.zig reused via import (unmodified). Not stabilized (non-goal); the stable mutation-aware doctest report is task 061."
+    "notes": "Task 040 agent pipeline foundation completed; active-state and complete-state validation passed (106 tasks). Documentation + validator-guardrail task only (no src/test/build changes; mutation testing not applicable). Added a structural guardrail to scripts/validate_task_system.py (validate_pipeline_contracts) enforcing the pipeline foundation: docs/AGENT_PIPELINE_ARCHITECTURE.md names the canonical stages (Phase Planner -> Task Queue Manager -> Orchestrator -> Stateless Subagents), every named pipeline role appears in docs/AGENT_ROLE_SPEC.md, docs/AGENT_GUIDE.md links docs/AGENT_PIPELINE_ARCHITECTURE.md, and invariant I-019 preserves its TDD-first wording while staying uncovered (chronology proof deferred to task 063). The guardrail failed first on the missing AGENT_GUIDE link; the fix added the Agent task pipeline architecture row to AGENT_GUIDE.md's 'Where to look' table. No gap rows closed (I-019 intentionally remains covered=false)."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "040",
+      "failing_evidence": "failing_command: `python3 scripts/validate_task_system.py`. failing_output_excerpt: `task system validation failed: - docs/AGENT_GUIDE.md must point future agents to docs/AGENT_PIPELINE_ARCHITECTURE.md`. implementation_started_after_failure: true; the pipeline-foundation guardrail was added to the validator first and captured the missing AGENT_GUIDE -> AGENT_PIPELINE_ARCHITECTURE link before the doc was patched. passing_command: `python3 scripts/validate_task_system.py` then passed (106 tasks) after adding the link. This is a documentation-only task; mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Established the repository-visible agent task pipeline foundation as checked-in, validator-enforced specifications (no orchestrator software, no agent-spawning scripts, no CI, no src/test/build changes). Extended scripts/validate_task_system.py (validate_pipeline_contracts) with a structural guardrail that requires: (1) docs/AGENT_PIPELINE_ARCHITECTURE.md names the canonical pipeline stages Phase Planner -> Task Queue Manager -> Orchestrator -> Stateless Subagents; (2) every named pipeline role in the architecture flow (Phase Planner, Task Queue Manager, Orchestrator, Test Author, Test Reviewer, Contract Editor, Implementer, Implementation Reviewer, Mutation Agent, Mutation Triage Agent, Property Test Agent, Doctest Agent, Verifier) is defined in docs/AGENT_ROLE_SPEC.md; (3) docs/AGENT_GUIDE.md points future agents to docs/AGENT_PIPELINE_ARCHITECTURE.md so the pipeline is discoverable from the agent entry point; and (4) invariant I-019 preserves its TDD-first wording (failing evidence recorded before implementation), remains covered=false, and defers the mechanical chronology proof to tasks/063-pipeline-metadata-validator.md. The only inconsistency found was the missing AGENT_GUIDE discoverability link, fixed by adding an 'Agent task pipeline architecture' row to AGENT_GUIDE.md's 'Where to look' table. The task lifecycle remains sequential with one active task. A text search confirmed the pipeline docs use only canonical role names. No I-019 coverage change, no docs/MUTATOR_SPEC.md or docs/DOCTEST_*.md edits (forbidden).",
+      "files_changed": [
+        "scripts/validate_task_system.py",
+        "docs/AGENT_GUIDE.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "scripts/validate_task_system.py: a pipeline-foundation structural guardrail (canonical pipeline stages present, every named role defined in AGENT_ROLE_SPEC.md, AGENT_GUIDE.md links AGENT_PIPELINE_ARCHITECTURE.md, and I-019 TDD-first wording preserved while uncovered/deferred to 063). No executable Zig tests (documentation/validator task; src/test forbidden)."
+      ],
+      "tests_run": [
+        "python3 scripts/validate_task_system.py (failing): missing AGENT_GUIDE -> AGENT_PIPELINE_ARCHITECTURE link",
+        "python3 scripts/validate_task_system.py (passing): 106 tasks after the link was added",
+        "python3 -m py_compile scripts/validate_task_system.py: ok",
+        "text search: no unsupported role names in the pipeline docs",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed)",
+        "zig fmt --check src test build.zig: clean; git diff --check: clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator failed first on the new pipeline-foundation guardrail (missing AGENT_GUIDE discoverability link) and passed (106 tasks) after the AGENT_GUIDE.md link was added, in both the active and complete states."
+      },
+      "dogfooding_implication": "Prepares later dogfooding of the development process by making the agent task pipeline discoverable and terminologically consistent from checked-in specs; it does not run zentinel against itself and changes no mutation engine behavior. Mutation testing is not applicable (documentation-only).",
+      "follow_up_tasks": [
+        "tasks/041-handoff-artifacts.md",
+        "tasks/042-context-packet-system.md"
+      ],
+      "gap_registry_rows_changed": {},
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "039",
       "failing_evidence": "failing_command: `zig build test` (via the zigars MCP). failing_output_excerpt: `test/doctest_mutation_experiment_test.zig:3:28: error: struct 'root.doctest' has no member named 'mutation_experiment'` (319/319 prior tests passed). implementation_started_after_failure: true; src/doctest/mutation_experiment.zig, the cli wiring, and the root.zig re-export were written only after capturing the missing-member failure. A second failing state was the experiment report snapshot placeholder, self-blessed from the actual deterministic output. passing_command: `zig build test` then passed all tests (328).",
