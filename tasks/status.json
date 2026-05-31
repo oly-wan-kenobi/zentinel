@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "109",
+  "next_task": "110",
   "completed_tasks": [
     "068",
     "069",
@@ -111,14 +111,15 @@
     "060",
     "106",
     "107",
-    "108"
+    "108",
+    "109"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 108 deterministic evidence excerpts completed; active-state and complete-state validation passed. Captured stdout/stderr excerpts are normalized at capture (report.normalizeExcerpt: hex pointer addresses -> 0x<addr>, absolute path tokens -> <path>) before bounding, so two real runs over the same project normalize-equal even when a mutant is killed via a panic/assertion stack trace (proven by a repeated-run test that was not normalized-equal without the fix; reverting boundedExcerpt re-broke it). docs/REPORT_FORMAT.md documents exactly what the comparison treats as stable. Debug suite green (497 tests); the excerpt-determinism cases pass in Debug, ReleaseSafe, and ReleaseFast. The pre-existing, unrelated ReleaseFast-only doctest_cli_command_test failure persists (flagged separately under task 107). zig build, zig fmt --check src test build.zig, git diff --check all clean."
+    "notes": "Task 109 wire Phase-2 mutators completed; active-state and complete-state validation passed. The four implemented-but-unwired collectors (optional, error_path, integer_boundary, loop_boundary) are now called by both the run and list-mutants generators, so all 12 advertised stable operators actually emit on code containing their target construct (proven by a test that found 0 such mutants without the wiring). config now rejects enabling a preview operator (which has no collector and would emit zero), and docs/MUTATOR_SPEC.md documents that only stable operators can be enabled. Debug suite green (499 tests). zig build, zig fmt --check src test build.zig, git diff --check, validator all clean. (Note: the loop's ScheduleWakeup recreates a gitignored .claude/ lock between turns that the repo validator forbids; removed at the start of this turn.)"
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5363,6 +5364,51 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/108/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "109",
+      "failing_evidence": "failing_command: `zig build test` with the Phase-2 wiring tests in test/list_mutants_command_test.zig written first. failing_output_excerpt: 'test.list-mutants wires the Phase-2 collectors so each stable Phase-2 operator emits' failed at expect(hasOperator(candidates, \"optional_orelse_unreachable\")) -- with the optional/error/errdefer/integer/loop fixtures and the six stable Phase-2 operators enabled, generate() produced none of those operators because the four collectors were never called; and 'test.config rejects enabling a preview operator that has no collector' failed with `expected error.Invalid, found .{ ... mutators_enabled = { optional_orelse_default } ... }` because config accepted the preview operator. implementation_started_after_failure: true. passing_command: after wiring the four collectors into both generators and rejecting preview operators in config, `zig build test` passed (499 tests).",
+      "implementation_summary": "Reconciled advertised vs. emitted operators by WIRING (the preferred path). src/run_command.zig (generateCandidates) and src/list_mutants_command.zig (generate) now call optional.collect, error_path.collect, integer_boundary.collect, and loop_boundary.collect alongside the existing four Phase-1 collectors, so all 12 advertised stable operators actually emit on code containing their target construct. The four collectors were already implemented (tasks 023/024/026/027/028) and share arithmetic.collect's exact signature; only the generator call sites were missing. src/config.zig expandMutators now rejects an explicitly-named PREVIEW operator (findOperator returns it but stability != .stable) with a clear ZNTL config error, because a preview operator has no collector and would otherwise load and silently emit zero -- so every name that loads in [mutators] enabled can emit. The phase1/phase2/all_stable group aliases were already stable-only and are unaffected. docs/MUTATOR_SPEC.md updated: the stability table now states stable operators are wired into both generators and preview operators are rejected in [mutators] enabled until promoted. Non-goals respected: no new operators designed, no AST parsing change. src/ai/**, build.zig, build.zig.zon untouched (forbidden); existing run/list snapshots unchanged because their fixture sources contain none of the newly-wired target constructs and the default config still enables phase1 only. scripts/release_acceptance.py's 12-stable-operators claim is now accurate and is reconciled in the certifier by task 110 (out of this task's allowed files).",
+      "files_changed": [
+        "src/run_command.zig",
+        "src/list_mutants_command.zig",
+        "src/config.zig",
+        "docs/MUTATOR_SPEC.md",
+        "test/list_mutants_command_test.zig",
+        "artifacts/pipeline/109/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/list_mutants_command_test.zig: 'list-mutants wires the Phase-2 collectors so each stable Phase-2 operator emits' -- over the optional/error_path/errdefer/integer_boundary/loop_boundary fixtures with the six stable Phase-2 operators enabled, generate() emits at least one mutant for each (optional_orelse_unreachable, optional_null_check, error_catch_unreachable, errdefer_remove, integer_literal_boundary, loop_boundary); 0 for each before wiring.",
+        "test/list_mutants_command_test.zig: 'config rejects enabling a preview operator that has no collector' -- config.load(enabled=[\"optional_orelse_default\"]) returns error.Invalid while a stable operator still loads with one enabled entry."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): the wiring case failed (0 Phase-2 mutants) and the preview-rejection case failed (config accepted the preview operator)",
+        "zig build test (passing, after the fix): 499 tests green",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 109 was active and again after the complete-state transition with next_task advanced to 110 (110 depends on the now-complete 109). The task-109 verification artifact validates and no coverage-gap rows are deferred to task 109. The gitignored .claude/ lock recreated by the loop's wakeup mechanism was removed before validating (the repo guardrail forbids .claude)."
+      },
+      "dogfooding_implication": "zentinel now actually mutates optional, error-handling, integer-boundary, and loop code in its own dogfood when those stable operators are enabled (phase2 / all_stable), closing a silent coverage hole where six of the twelve advertised stable operators emitted nothing; and a mistyped or not-yet-implemented (preview) operator name now fails fast at config load instead of yielding an empty, falsely-clean run.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/109/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

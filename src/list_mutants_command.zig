@@ -12,6 +12,10 @@ const arithmetic = @import("mutators/arithmetic.zig");
 const comparison = @import("mutators/comparison.zig");
 const logical = @import("mutators/logical.zig");
 const boolean = @import("mutators/boolean.zig");
+const optional = @import("mutators/optional.zig");
+const error_path = @import("mutators/error_path.zig");
+const integer_boundary = @import("mutators/integer_boundary.zig");
+const loop_boundary = @import("mutators/loop_boundary.zig");
 const run_command = @import("run_command.zig");
 
 /// One eligible source file and its bytes (shared with the run command).
@@ -79,6 +83,13 @@ pub fn generate(
         try comparison.collect(&collector, parsed, f.path, test_ranges);
         try logical.collect(&collector, parsed, f.path, test_ranges);
         try boolean.collect(&collector, parsed, f.path, test_ranges);
+        // Phase-2 stable collectors (task 109): kept in lockstep with the run
+        // command's generator so `list-mutants` previews exactly the operators a
+        // run will emit.
+        try optional.collect(&collector, parsed, f.path, test_ranges);
+        try error_path.collect(&collector, parsed, f.path, test_ranges);
+        try integer_boundary.collect(&collector, parsed, f.path, test_ranges);
+        try loop_boundary.collect(&collector, parsed, f.path, test_ranges);
     }
     const all = try collector.finish();
 

@@ -241,7 +241,13 @@ fn expandMutators(arena: std.mem.Allocator, enabled: []const []const u8, diag: *
             for (operators) |op| {
                 if (op.stability == .stable) try appendUnique(arena, &out, op.name);
             }
-        } else if (findOperator(item) != null) {
+        } else if (findOperator(item)) |op| {
+            // A `preview` operator has no collector wired into the pipeline, so
+            // enabling it would silently emit zero mutants. Reject it instead so
+            // every operator that loads can actually emit (task 109).
+            if (op.stability != .stable) {
+                return fail(diag, .invalid_value, "mutators", "enabled", "operator is preview-only and not yet emitted; only stable operators can be enabled");
+            }
             try appendUnique(arena, &out, item);
         } else {
             return fail(diag, .invalid_value, "mutators", "enabled", "unknown mutator name");

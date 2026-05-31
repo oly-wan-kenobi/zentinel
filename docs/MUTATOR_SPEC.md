@@ -28,11 +28,13 @@ All mutators must not:
 
 | Stability | Meaning |
 | --- | --- |
-| stable | Enabled by default when the containing phase is complete. |
-| preview | Available behind explicit config and fixture coverage. |
+| stable | Wired into the run and `list-mutants` generators; enabled by default when the containing phase is complete and may be listed in `[mutators] enabled`. |
+| preview | Documented design target with no collector wired into the pipeline. It is **rejected** if listed in `[mutators] enabled` (it would otherwise emit zero mutants) until a later task promotes it to stable. |
 | experimental | Backend or semantics are not stable; never enabled by default. |
 
 Preview operators are documented design targets, not minimum-product implementation tasks. End-to-end completion excludes preview mutator implementation. A stable task may add fixtures that protect a preview operator's future contract, but it must not implement or enable a preview operator unless the task title or acceptance criteria names that operator explicitly.
+
+Every operator that loads successfully in `[mutators] enabled` is wired into both generators and emits mutants on code containing its target construct; config rejects any name that is unknown or `preview`. The stable operators in the catalog below are exactly the operators the pipeline can emit.
 
 For config expansion, `phase2` means stable Phase 2 operators only. Preview Phase 2 entries in the catalog are design targets and do not become enabled through `phase2` or `all_stable` until a later task promotes them to stable.
 

@@ -116,3 +116,75 @@ test "snapshot: json listing uses shared mutant fields" {
     const json = try lm.renderJson(a, candidates);
     try checkSnapshot(a, "test/snapshots/list_mutants_basic.json", json);
 }
+
+// --- Phase-2 operator wiring (task 109) ------------------------------------
+//
+// The optional/error_path/integer_boundary/loop_boundary collectors are
+// implemented but were never called by the generators, so enabling their (stable)
+// operators silently produced zero mutants on code that contains their target
+// constructs. These fixtures already drive each collector in its own unit test.
+const optional_ops = @embedFile("fixtures/mutators/optional/ops.zig");
+const error_ops = @embedFile("fixtures/mutators/error_path/ops.zig");
+const errdefer_ops = @embedFile("fixtures/mutators/errdefer/ops.zig");
+const integer_ops = @embedFile("fixtures/mutators/integer_boundary/ops.zig");
+const loop_ops = @embedFile("fixtures/mutators/loop_boundary/ops.zig");
+
+const phase2_cfg =
+    \\[project]
+    \\name = "phase2"
+    \\
+    \\[mutators]
+    \\enabled = ["optional_orelse_unreachable", "optional_null_check", "error_catch_unreachable", "errdefer_remove", "integer_literal_boundary", "loop_boundary"]
+    \\
+    \\[test]
+    \\commands = ["zig build test"]
+    \\
+;
+
+fn hasOperator(candidates: []const zentinel.mutant.Mutant, op: []const u8) bool {
+    for (candidates) |m| {
+        if (std.mem.eql(u8, m.operator, op)) return true;
+    }
+    return false;
+}
+
+test "list-mutants wires the Phase-2 collectors so each stable Phase-2 operator emits" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const fs = [_]lm.FileSource{
+        .{ .path = "src/opt.zig", .source = optional_ops },
+        .{ .path = "src/err.zig", .source = error_ops },
+        .{ .path = "src/errd.zig", .source = errdefer_ops },
+        .{ .path = "src/int.zig", .source = integer_ops },
+        .{ .path = "src/loop.zig", .source = loop_ops },
+    };
+    const candidates = try lm.generate(a, loadCfg(a, phase2_cfg), &fs, null);
+
+    // Each of the four previously-unwired modules now contributes mutants on code
+    // that contains its target construct. Before wiring, generate() collected only
+    // the four Phase-1 modules, so every assertion below failed (0 such mutants).
+    try expect(hasOperator(candidates, "optional_orelse_unreachable"));
+    try expect(hasOperator(candidates, "optional_null_check"));
+    try expect(hasOperator(candidates, "error_catch_unreachable"));
+    try expect(hasOperator(candidates, "errdefer_remove"));
+    try expect(hasOperator(candidates, "integer_literal_boundary"));
+    try expect(hasOperator(candidates, "loop_boundary"));
+}
+
+test "config rejects enabling a preview operator that has no collector" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // optional_orelse_default is a preview operator with no collector; enabling it
+    // would load successfully and silently emit zero mutants, so config must
+    // reject it instead (task 109). Stable operators still load.
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, config.load(a, "[mutators]\nenabled = [\"optional_orelse_default\"]\n", &diag));
+
+    var diag_ok: config.Diagnostic = .{};
+    const stable = try config.load(a, "[mutators]\nenabled = [\"optional_orelse_unreachable\"]\n", &diag_ok);
+    try expectEqual(@as(usize, 1), stable.mutators_enabled.len);
+}
