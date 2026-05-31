@@ -1,0 +1,118 @@
+{
+  "schema_version": "zentinel.ai.context.v1",
+  "flow": "explain",
+  "created_by": "zentinel",
+  "provider_mode": "stub",
+  "privacy": {
+    "redactions_applied": [],
+    "source_context_policy": "minimal",
+    "remote_allowed": false
+  },
+  "project": {
+    "name": "demo",
+    "root_label": "<project>",
+    "zig_version": "0.16.0",
+    "zentinel_version": "0.0.0"
+  },
+  "mutant": {
+    "id": "m_abc123",
+    "display_id": 1,
+    "backend": "ast",
+    "backend_stability": "stable",
+    "operator": "arithmetic_add_sub",
+    "operator_stability": "stable",
+    "file": "src/x.zig",
+    "span": {
+      "byte_start": 41,
+      "byte_end": 42,
+      "line_start": 2,
+      "column_start": 14,
+      "line_end": 2,
+      "column_end": 15
+    },
+    "original": "+",
+    "replacement": "-",
+    "diff": [
+      "- return a + b;",
+      "+ return a - b;"
+    ],
+    "expected_compile": "compiles"
+  },
+  "result": {
+    "status": "killed",
+    "mode": "Debug",
+    "commands": [
+      {
+        "command": {
+          "original": "zig build test",
+          "argv": [
+            "zig",
+            "build",
+            "test"
+          ],
+          "cwd": "<project>",
+          "environment_policy": "minimal",
+          "shell": false
+        },
+        "phase": "mutant",
+        "status": "failed",
+        "exit_code": 1,
+        "timed_out": false,
+        "failure_kind": "test_failure",
+        "duration_ms_normalized": "<duration>",
+        "evidence": {
+          "stdout_excerpt": "",
+          "stderr_excerpt": "boom",
+          "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED"
+        },
+        "skip_reason": null
+      }
+    ],
+    "phase": "mutant",
+    "duration_ms_normalized": "<duration>",
+    "evidence": {
+      "stdout_excerpt": "",
+      "stderr_excerpt": "boom",
+      "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED"
+    },
+    "skip_reason": null
+  },
+  "source_context": {
+    "policy": "minimal",
+    "language": "zig",
+    "before_lines": 1,
+    "after_lines": 1,
+    "snippet": [
+      "pub fn add(a: i32, b: i32) i32 {",
+      "    return a + b;",
+      "}"
+    ],
+    "symbols": [
+      {
+        "kind": "fn",
+        "name": "add",
+        "line": 1
+      }
+    ]
+  },
+  "test_context": {
+    "selection_reason": "same_file",
+    "selected_tests": [
+      {
+        "name": "add works",
+        "file": "src/x.zig",
+        "line": 6
+      }
+    ],
+    "baseline_status": "passed",
+    "same_file_tests_excluded_from_mutation": true
+  },
+  "operator": {
+    "name": "arithmetic_add_sub",
+    "category": "arithmetic",
+    "equivalent_risks": [],
+    "suggested_test_focus": [
+      "boundary values"
+    ]
+  }
+}

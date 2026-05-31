@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "053",
+  "next_task": "054",
   "completed_tasks": [
     "068",
     "069",
@@ -93,7 +93,8 @@
     "049",
     "050",
     "051",
-    "052"
+    "052",
+    "053"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -104,6 +105,60 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "053",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/ai_context_test.zig added first, the suite first failed to compile ('root source file struct root has no member named ai' until src/ai/* and the root.zig export landed; then an ObjectMap.put arity error), then crashed with a segmentation fault in std.json.Stringify because validContext() returned a result.commands slice pointing at a freed stack temporary (`&.{validCommand()}`); after moving the command slice to a module-level const it ran 10 pass / 1 fail with only the PLACEHOLDER valid-context snapshot mismatching. implementation_started_after_failure: true; the three src/ai modules were written to satisfy the captured failures, and the valid context snapshot was self-blessed byte-exact from the captured std.json output. passing_command: `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. AI is advisory-only and deterministic; product self-mutation is gated to the Phase 5 stages (task 085).",
+      "implementation_summary": "Implemented deterministic AI provider plumbing, privacy redaction, and AI context construction, keeping AI strictly advisory-only. src/ai/provider.zig defines the provider modes (disabled, stub, local, remote) and a deterministic advisory: disabled returns error.ProviderDisabled, remote without remote_allowed returns error.RemoteNotAllowed, and stub/local produce a stable advisory string derived from the context -- advisory output carries only provider/flow labels and free text and never a mutant status or any deterministic result field. src/ai/redaction.zig redacts text against configured patterns and FAILS CLOSED: it supports a tiny auditable subset (an optional (?i) flag, literal runs, and the single [_-]? optional-separator construct) and returns error.RedactionFailed on any richer or malformed pattern so a context that cannot be sanitized never reaches a provider; it reports which patterns matched for privacy.redactions_applied. src/ai/context.zig owns the typed AI context model serialized in canonical order (matching schemas/ai.context.v1.schema.json), a UTF-8-safe excerpt cap that trims stdout/stderr excerpts to 4096 bytes on a codepoint boundary before validation, a redact-then-cap helper, and a structural validator that enforces the nested object shapes: it rejects a context missing a required nested object or field, legacy single-command or test_command result payloads, empty argv[0], non-minimal environment policy, a shell command, and malformed skip reasons, requires deterministic skip_reason for skipped command and result entries, and rejects preview as a backend stability while accepting it as an operator stability. src/root.zig exports the zentinel.ai namespace. config.zig already carried the ai fields (default redact_patterns, provider/remote validation), so the config tests are regression coverage. No CLI AI commands, no live remote calls, and no change to mutation result semantics (non-goals); src/mutators/**, src/zir_backend.zig, src/air_backend.zig, and src/runner.zig were not touched (forbidden); the schema was already complete and was not changed.",
+      "files_changed": [
+        "src/ai/provider.zig",
+        "src/ai/context.zig",
+        "src/ai/redaction.zig",
+        "src/root.zig",
+        "test/ai_context_test.zig",
+        "test/fixtures/ai/context/valid.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "artifacts/pipeline/053/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_context_test.zig: a built AI context validates and matches the snapshot; a context missing a required nested object or nested field is rejected; result uses the structured commands array and rejects legacy single-command/test_command payloads; command evidence rejects empty argv0, non-minimal environment policy, and a shell command; skipped entries require deterministic skip reasons and non-skipped require null; excerpts are capped at 4096 UTF-8 bytes on a safe boundary; preview is rejected as a backend stability but accepted as an operator stability; redaction redacts default patterns and fails closed on unsupported patterns; omitted ai.redact_patterns expands to the default secret patterns; persisted ai.provider=remote without remote_allowed fails config validation with ZNTL_CONFIG_INVALID_VALUE; the stub provider is deterministic and disabled mode yields no advisory.",
+        "test/fixtures/ai/context/valid.json: the self-blessed canonical valid AI context snapshot."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): missing zentinel.ai member, then an ObjectMap.put arity error, then a Stringify segfault from a dangling result.commands slice, then a PLACEHOLDER snapshot mismatch (10 pass / 1 fail)",
+        "zig build test (zigars MCP, passing): full suite green after the modules and the self-blessed snapshot landed",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean; git diff --check clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state (106 tasks), after closing the AI gap-registry rows"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 053 was active and again after the complete-state transition. Closed gap-registry rows zentinel.ai.context.v1 (schemas), F-020 (failure_modes), and I-004 (invariants); the task-104 guardrail phrase '4096 UTF-8 byte stdout/stderr excerpt bounds' was preserved in the schemas.v1.json notes."
+      },
+      "dogfooding_implication": "AI context snapshots become future doctest and dogfood contracts: the canonical valid context is committed, and the advisory-only boundary (providers never write deterministic fields; redaction fails closed) keeps later AI advisory commands (task 054) safe to dogfood.",
+      "follow_up_tasks": [
+        "tasks/054-ai-advisory-commands.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/053/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.context.v1"],
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-020"],
+        "tests/coverage-gaps/invariants.v1.json": ["I-004"]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "052",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP plus `python3 scripts/check_perf_budgets.py`. failing_output_excerpt: with test/performance_benchmark_test.zig added first, a cross-directory `@embedFile(\"../docs/PERFORMANCE_STRATEGY.md\")` was rejected ('embed of file outside package path'), so the doc-budget assertion was moved to scripts/check_perf_budgets.py; that script failed against the pre-052 doc (`git show HEAD:docs/PERFORMANCE_STRATEGY.md | python3 scripts/check_perf_budgets.py -` -> 4 missing budget lines, exit 1) and then passed with the budgets added. After removing the cross-dir embed, `zig build test` reported the two snapshot tests failing against PLACEHOLDER fixtures ('benchmark output ... matches the normalized snapshot' and 'cache diagnostics serialize under diagnostics.cache') while the three equivalence tests already passed, proving the new equivalence/cache-mapper logic. implementation_started_after_failure: true. passing_command: the two snapshots were self-blessed byte-exact from the captured std.json output and `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. This task changes deterministic report/cache code; self-mutation dogfood is gated to the Phase 5 stages (task 085), so the contracts are enforced by deterministic unit and property tests.",

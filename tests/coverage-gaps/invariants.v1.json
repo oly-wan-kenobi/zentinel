@@ -26,10 +26,10 @@
     },
     {
       "number": "I-004",
-      "covered": false,
-      "tests": [],
-      "deferred_to": "tasks/053-ai-provider-and-context.md",
-      "notes": "AI boundary tests land with stub provider and context schema work."
+      "covered": true,
+      "tests": ["test/ai_context_test.zig"],
+      "deferred_to": null,
+      "notes": "AI advisory-only boundary: the AI context (ai_context_test) carries only redacted, normalized advisory inputs and validates against the v1 schema; the deterministic stub provider produces advisory text under advisory fields and never a mutant status or any deterministic result field; redaction fails closed so a context that cannot be sanitized never reaches a provider. AI cannot alter deterministic result fields."
     },
     {
       "number": "I-005",

@@ -96,6 +96,14 @@ pub const doctest = struct {
     pub const mutation_experiment = @import("doctest/mutation_experiment.zig");
 };
 
+/// AI provider plumbing, context construction, and privacy redaction. AI is
+/// advisory-only and never influences deterministic-core decisions (task 053).
+pub const ai = struct {
+    pub const provider = @import("ai/provider.zig");
+    pub const context = @import("ai/context.zig");
+    pub const redaction = @import("ai/redaction.zig");
+};
+
 /// `zentinel doctest` command orchestration (deterministic core).
 pub const doctest_command = @import("doctest_command.zig");
 
