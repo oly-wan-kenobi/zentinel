@@ -92,7 +92,7 @@ const operators = [_]OperatorInfo{
 
 const known_modes = [_][]const u8{ "Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall" };
 const known_backends = [_][]const u8{ "ast", "zir", "air" };
-const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all" };
+const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all", "impact_graph" };
 const known_providers = [_][]const u8{ "disabled", "stub", "local", "remote" };
 const default_exclude = [_][]const u8{ ".zig-cache/**", "zig-out/**", "test/**" };
 const default_redact = [_][]const u8{ "(?i)api[_-]?key", "(?i)token" };
@@ -311,12 +311,9 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         if (c.len == 0) return fail(diag, .invalid_value, "test", "commands", "test command must not be empty");
     }
     const test_selection = try look.getString("test", "selection", "same_file_then_package", diag);
-    // `impact_graph` is a documented future strategy (task 051). It must be
-    // rejected outright, never silently downgraded to same_file_then_package or
-    // all (docs/TEST_SELECTION.md).
-    if (std.mem.eql(u8, test_selection, "impact_graph")) {
-        return fail(diag, .invalid_value, "test", "selection", "impact_graph selection is not available before task 051");
-    }
+    // `impact_graph` is accepted from task 051 onward (docs/TEST_SELECTION.md);
+    // any other unrecognized strategy is still rejected outright, never silently
+    // downgraded to same_file_then_package or all.
     if (!inList(&known_selections, test_selection)) {
         return fail(diag, .invalid_value, "test", "selection", "unknown or not-yet-supported selection strategy");
     }

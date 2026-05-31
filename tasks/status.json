@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "051",
+  "next_task": "052",
   "completed_tasks": [
     "068",
     "069",
@@ -91,7 +91,8 @@
     "047",
     "048",
     "049",
-    "050"
+    "050",
+    "051"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -102,6 +103,55 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "051",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/fail_fast_impact_test.zig and the updated test/config_test.zig added first, the suite reported 5 failures -- `config.zig:318 ... impact_graph selection is not available before task 051` (config rejected it), `baseline fails fast ... expected 1, found 2` (runBaseline ran both commands), `impact_graph narrows ... expected 'zig test src/sample.zig' instead found 'zig build test'` and `impact_graph conservatively falls back ... fallback_used` (impact_graph not yet in the same-file selection), and the end-to-end impact_graph report (config rejected). implementation_started_after_failure: true; the config/test_selection/run_command/runner changes were written only after capturing those failures. passing_command: `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. The skipped-mutant-reason test passed from the start, documenting the existing per-mutant fail-fast. This task changes deterministic selection/runner code; product self-mutation is gated to the Phase 5 dogfood (task 085), so the contracts are enforced by deterministic unit and property tests.",
+      "implementation_summary": "Implemented fail-fast and deterministic test impact analysis. Added baseline fail-fast to src/runner.zig runBaseline: it stops at the first non-passing command and does not execute later commands; because baseline commands may never be recorded as `skipped` (the report's baseline_command_skipped invariant), the run shortens by truncation -- only the executed prefix ending at the failure is kept -- and the existing run-level behavior (a failed baseline yields zero mutants and exit 3) means fail-fast never hides survivors. Accepted `test.selection = \"impact_graph\"` (task 051 is the first task allowed to): src/config.zig adds impact_graph to known_selections and removes the pre-051 outright rejection while still rejecting any other unknown strategy; src/run_command.zig strategyFromConfig maps it to report.Strategy.impact_graph (already present in the enum and the report.v1 schema). Implemented the impact_graph strategy in src/test_selection.zig and src/run_command.zig selectionForFile by treating the mutated file's same-file tests as the deterministic impact set (sorted by file, line, then name) and conservatively falling back to the configured suite when that set is not already covered by the baseline or its preflight fails -- the same machinery as same_file_then_package, recorded distinctly via selection.strategy and selection.fallback_used so report metadata explains narrowed versus full-suite work. Per-mutant fail-fast already records skipped mutant commands with the documented `fail-fast: an earlier command determined the mutant result` reason, which the new tests assert. Did not change the report schema or src/report.zig (impact_graph already enumerated), did not implement parallel workers, AI test suggestions, or ZIR/AIR support (non-goals), and did not modify docs (not in this task's allowed scope; the cutover phrases already describe the pre-051 rejection).",
+      "files_changed": [
+        "src/runner.zig",
+        "src/config.zig",
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "test/config_test.zig",
+        "test/fail_fast_impact_test.zig",
+        "test/fixtures/impact_analysis/sample.zig",
+        "artifacts/pipeline/051/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fail_fast_impact_test.zig: baseline fails fast (stops at the first failing command, runs no later command, truncates to the executed prefix, never records a skipped baseline command); baseline runs every command when all pass; impact_graph selects same-file tests in deterministic (line) order; impact_graph narrows to the same-file impact set when it is already covered; impact_graph conservatively falls back to the full suite when impact is uncertain; a fail-fast-shortened mutant records skipped commands with a documented reason; impact_graph selection produces a valid completed report end to end.",
+        "test/config_test.zig: impact_graph selection is accepted after task 051; an unknown selection strategy is still rejected.",
+        "test/fixtures/impact_analysis/sample.zig: a mutable function with same-file tests in non-alphabetical declaration order, used to prove deterministic line-ordered impact selection."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): 5 targeted failures (config rejects impact_graph; baseline ran 2 commands not 1; impact_graph not narrowing/falling-back; end-to-end rejected) before implementation",
+        "zig build test (zigars MCP, passing): full suite green",
+        "zig build (zigars MCP): the binary builds",
+        "zig fmt --check src test build.zig: clean; git diff --check: clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state (106 tasks)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 051 was active and again after the complete-state transition. No gap-registry rows pertain to impact_graph or fail-fast; the impact_graph cutover doc phrases describe the pre-051 rejection and remain valid (docs are not in this task's allowed scope)."
+      },
+      "dogfooding_implication": "Impact analysis keeps future dogfood runs reviewable and conservative: it narrows to same-file impacted tests only when they are already covered and otherwise falls back to the full suite, and fail-fast shortens work without hiding survivors. Full self-mutation of the runner remains gated to the Phase 5 dogfood (task 085).",
+      "follow_up_tasks": [
+        "tasks/052-performance-benchmarks.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/051/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "050",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/worker_pool_test.zig added first, the compiler reported `test/worker_pool_test.zig:4:20: error: root source file struct 'root' has no member named 'worker_pool'` (328/328 prior tests still passing), proving the parallel worker pool did not exist; after worker_pool.zig landed, adding the run-command jobs tests failed next with `no field named 'jobs' in struct 'run_command.Options'` and the removed `error.JobsNotSupported`. implementation_started_after_failure: true; src/worker_pool.zig and the run_command/cli wiring were written only after capturing those failures. passing_command: `zig build test` then passed (all tests green, including the real-thread worker-pool tests), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. This task changes deterministic execution code; product self-mutation is gated to the Phase 5 dogfood (task 085), so the determinism contract is enforced by deterministic unit and property-style tests instead.",

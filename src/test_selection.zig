@@ -63,7 +63,10 @@ pub fn resolve(
     preflight: ?report.CommandResult,
     generated_in_baseline: bool,
 ) std.mem.Allocator.Error!Resolution {
-    const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package;
+    // impact_graph uses the same-file tests as the deterministic impact set and,
+    // when that set is not already covered, falls back conservatively to the
+    // configured suite -- the same machinery as same_file_then_package.
+    const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
 
     if (same_file_enabled and same_file_tests.len > 0) {
         const preflight_passed = if (preflight) |p| p.status == .passed else false;

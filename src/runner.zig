@@ -135,7 +135,6 @@ pub fn runBaseline(
     cwd: []const u8,
 ) BaselineError!BaselineResult {
     var results: std.ArrayList(report.CommandResult) = .empty;
-    var all_passed = true;
     for (commands) |original| {
         const parsed = try command.parse(arena, original);
         const argv = switch (parsed) {
@@ -144,11 +143,17 @@ pub fn runBaseline(
         };
         const raw = executor.run(argv);
         const result = try classifyCommand(arena, .baseline, original, argv, cwd, raw);
-        if (result.status != .passed) all_passed = false;
         try results.append(arena, result);
+        // Fail-fast: a non-passing baseline command blocks the whole run, so the
+        // remaining baseline commands are not executed. Baseline commands are
+        // never recorded as `skipped` (report invariant), so the run shortens by
+        // truncation -- only the executed prefix ending at the failure is kept.
+        if (result.status != .passed) {
+            return .{ .status = .failed, .commands = try results.toOwnedSlice(arena) };
+        }
     }
     return .{
-        .status = if (all_passed) .passed else .failed,
+        .status = .passed,
         .commands = try results.toOwnedSlice(arena),
     };
 }

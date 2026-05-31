@@ -236,7 +236,23 @@ test "default init output equals the static template" {
     try expectEqualStrings(zentinel.default_config, text);
 }
 
-test "impact_graph selection is rejected before task 051, not downgraded" {
+test "impact_graph selection is accepted after task 051" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var diag: config.Diagnostic = .{};
+    const cfg = try load(arena.allocator(),
+        \\[project]
+        \\name = "demo"
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\selection = "impact_graph"
+        \\
+    , &diag);
+    try expectEqualStrings("impact_graph", cfg.test_selection);
+}
+
+test "an unknown selection strategy is still rejected" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
@@ -246,7 +262,7 @@ test "impact_graph selection is rejected before task 051, not downgraded" {
         \\
         \\[test]
         \\commands = ["zig build test"]
-        \\selection = "impact_graph"
+        \\selection = "call_graph"
         \\
     , &diag));
     try expectEqual(config.Code.invalid_value, diag.code);

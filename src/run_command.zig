@@ -340,6 +340,7 @@ fn joinCommands(arena: std.mem.Allocator, commands: []const []const u8) std.mem.
 fn strategyFromConfig(s: []const u8) test_selection.Strategy {
     if (std.mem.eql(u8, s, "same_file")) return .same_file;
     if (std.mem.eql(u8, s, "same_file_then_package")) return .same_file_then_package;
+    if (std.mem.eql(u8, s, "impact_graph")) return .impact_graph;
     // `all` and `package` both run the configured commands directly; the report
     // has no narrower `package` strategy variant, so it is reported as `all`.
     return .all;
@@ -376,7 +377,7 @@ fn selectionForFile(
     }
 
     var same_file_tests: []const report.SelectedTest = &.{};
-    const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package;
+    const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
     if (same_file_enabled) {
         var parsed = try ast_backend.parse(arena, file, source);
         defer parsed.deinit();
