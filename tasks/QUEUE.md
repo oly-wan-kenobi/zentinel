@@ -111,7 +111,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 049 | `tasks/049-pipeline-escalation.md` | complete | 0 |
 | 050 | `tasks/050-parallel-worker-pool.md` | complete | 3 |
 | 051 | `tasks/051-fail-fast-impact-analysis.md` | complete | 3 |
-| 052 | `tasks/052-performance-benchmarks.md` | queued | 3 |
+| 052 | `tasks/052-performance-benchmarks.md` | complete | 3 |
 | 053 | `tasks/053-ai-provider-and-context.md` | queued | 4 |
 | 054 | `tasks/054-ai-advisory-commands.md` | queued | 4 |
 | 055 | `tasks/055-ai-doctest-assistance.md` | queued | 4 |

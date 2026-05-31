@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "052",
+  "next_task": "053",
   "completed_tasks": [
     "068",
     "069",
@@ -92,7 +92,8 @@
     "048",
     "049",
     "050",
-    "051"
+    "051",
+    "052"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -103,6 +104,57 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "052",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP plus `python3 scripts/check_perf_budgets.py`. failing_output_excerpt: with test/performance_benchmark_test.zig added first, a cross-directory `@embedFile(\"../docs/PERFORMANCE_STRATEGY.md\")` was rejected ('embed of file outside package path'), so the doc-budget assertion was moved to scripts/check_perf_budgets.py; that script failed against the pre-052 doc (`git show HEAD:docs/PERFORMANCE_STRATEGY.md | python3 scripts/check_perf_budgets.py -` -> 4 missing budget lines, exit 1) and then passed with the budgets added. After removing the cross-dir embed, `zig build test` reported the two snapshot tests failing against PLACEHOLDER fixtures ('benchmark output ... matches the normalized snapshot' and 'cache diagnostics serialize under diagnostics.cache') while the three equivalence tests already passed, proving the new equivalence/cache-mapper logic. implementation_started_after_failure: true. passing_command: the two snapshots were self-blessed byte-exact from the captured std.json output and `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. This task changes deterministic report/cache code; self-mutation dogfood is gated to the Phase 5 stages (task 085), so the contracts are enforced by deterministic unit and property tests.",
+      "implementation_summary": "Added machine-readable performance benchmarks and cache/parallel equivalence. src/report.zig gained a pure performance-equivalence comparator `equivalentIgnoringTiming` (compares run/baseline status, summary counts, and each mutant's identity, ordering, status, selection, and command evidence, ignoring only duration_ms and diagnostics.cache) and a normalized, machine-readable `Benchmark` record (`zentinel.benchmark.v1`: workload, mutant count, summary counts, and the cached/uncached, serial/parallel, cold/warm equivalence verdicts -- never durations) with `benchmark`/`benchmarkToJson`. src/cache.zig gained `toReportDiagnostics`, which wires run cache metadata into the reserved report v1 `diagnostics.cache` field (enabled/mode mirror the metadata; Phase 1 has zero hits and one deterministic miss per computed result key; --no-cache yields disabled with no keys), so cached and uncached runs differ only in that field and durations. docs/PERFORMANCE_STRATEGY.md Budget Authority now records four concrete numeric CI smoke budgets (fixture dogfood 30 s, selected production dogfood 180 s, doctest 60 s, benchmark smoke 120 s) as wall-clock ceilings, noting the benchmark output records normalized counts and verdicts rather than durations. scripts/check_perf_budgets.py is the documentation check for those budgets (reads a path or stdin so the failing-first can be captured against an older revision); scripts/benchmark.sh is the CI benchmark-smoke entrypoint. test/performance_benchmark_test.zig proves cached/uncached, cold/warm, and serial/parallel equivalence over a tiny arithmetic workload fixture, that parallel workers get distinct workspace/.zig-cache/zig-out paths, the machine-readable benchmark snapshot, and the diagnostics.cache snapshot plus report-schema validity. The report.v1 schema already enumerated diagnostics.cache, so no schema change was needed; src/run_command.zig is outside this task's allowed scope, so wiring diagnostics.cache into the live product report is left to a consumer step (recorded as residual risk). No release gating, AI commands, or experimental-backend tuning (non-goals); no forbidden files touched.",
+      "files_changed": [
+        "src/report.zig",
+        "src/cache.zig",
+        "docs/PERFORMANCE_STRATEGY.md",
+        "scripts/check_perf_budgets.py",
+        "scripts/benchmark.sh",
+        "test/performance_benchmark_test.zig",
+        "test/fixtures/performance/workload.zig",
+        "test/fixtures/performance/benchmark.json",
+        "test/fixtures/performance/cache_diagnostics.json",
+        "artifacts/pipeline/052/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/performance_benchmark_test.zig: cached and uncached reports are equivalent except diagnostics.cache and durations; cold and warm runs differ only in durations and allowed cache diagnostics; serial and parallel reports are equivalent and workers do not share cache or workspace paths; benchmark output is machine-readable and matches the normalized snapshot; cache diagnostics serialize under diagnostics.cache and keep the report schema-valid.",
+        "scripts/check_perf_budgets.py: a documentation check proving the four numeric CI smoke budgets are present in docs/PERFORMANCE_STRATEGY.md (fails on the pre-052 revision).",
+        "test/fixtures/performance/{workload.zig,benchmark.json,cache_diagnostics.json}: the tiny benchmark workload and the self-blessed normalized snapshots."
+      ],
+      "tests_run": [
+        "python3 scripts/check_perf_budgets.py against HEAD doc (failing: 4 missing budgets) then working tree (passing)",
+        "zig build test (zigars MCP, failing): cross-dir @embedFile rejected, then PLACEHOLDER snapshot mismatches with the three equivalence tests already passing",
+        "zig build test (zigars MCP, passing): full suite green after self-blessing the snapshots",
+        "zig build (zigars MCP): the binary builds; zig fmt --check src test build.zig clean; git diff --check clean",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state (106 tasks)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 052 was active and again after the complete-state transition. The PERFORMANCE_STRATEGY guardrail phrase (cold versus warm Zig build-cache behavior) was already present; no gap-registry rows pertain to benchmarks."
+      },
+      "dogfooding_implication": "Performance evidence now sets concrete CI smoke budgets for later production dogfood, doctest, and benchmark tasks, and the equivalence comparator guarantees cached/uncached, serial/parallel, and cold/warm runs produce equivalent reports except durations and diagnostics.cache -- so parallel and cached dogfood runs stay reviewable and deterministic.",
+      "follow_up_tasks": [
+        "tasks/053-ai-provider-and-context.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/052/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "051",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/fail_fast_impact_test.zig and the updated test/config_test.zig added first, the suite reported 5 failures -- `config.zig:318 ... impact_graph selection is not available before task 051` (config rejected it), `baseline fails fast ... expected 1, found 2` (runBaseline ran both commands), `impact_graph narrows ... expected 'zig test src/sample.zig' instead found 'zig build test'` and `impact_graph conservatively falls back ... fallback_used` (impact_graph not yet in the same-file selection), and the end-to-end impact_graph report (config rejected). implementation_started_after_failure: true; the config/test_selection/run_command/runner changes were written only after capturing those failures. passing_command: `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. The skipped-mutant-reason test passed from the start, documenting the existing per-mutant fail-fast. This task changes deterministic selection/runner code; product self-mutation is gated to the Phase 5 dogfood (task 085), so the contracts are enforced by deterministic unit and property tests.",

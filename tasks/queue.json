@@ -3053,7 +3053,7 @@
       "title": "Performance Benchmarks",
       "file": "tasks/052-performance-benchmarks.md",
       "phase": 3,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "051"
       ],

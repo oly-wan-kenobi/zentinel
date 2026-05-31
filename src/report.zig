@@ -410,3 +410,111 @@ fn replaceKeyStringValue(arena: std.mem.Allocator, text: []const u8, key: []cons
     }
     return out.toOwnedSlice(arena);
 }
+
+// --- Performance equivalence + benchmark output (tasks/052) -----------------
+
+fn summaryEqual(a: Summary, b: Summary) bool {
+    return a.total == b.total and a.killed == b.killed and a.survived == b.survived and
+        a.compile_error == b.compile_error and a.compiler_crash == b.compiler_crash and
+        a.timeout == b.timeout and a.skipped == b.skipped and a.invalid == b.invalid;
+}
+
+fn evidenceEqual(a: Evidence, b: Evidence) bool {
+    return std.mem.eql(u8, a.stdout_excerpt, b.stdout_excerpt) and
+        std.mem.eql(u8, a.stderr_excerpt, b.stderr_excerpt) and
+        std.mem.eql(u8, a.failure_summary, b.failure_summary);
+}
+
+/// Two reports are equivalent for performance purposes when they agree on every
+/// observable field -- run/baseline status, summary counts, and each mutant's
+/// identity, ordering, status, selection, and command evidence -- ignoring only
+/// volatile timing (`duration_ms`) and `diagnostics.cache`. This is the
+/// determinism contract behind cached-versus-uncached, cold-versus-warm, and
+/// serial-versus-parallel equivalence (docs/PERFORMANCE_STRATEGY.md).
+pub fn equivalentIgnoringTiming(a: Report, b: Report) bool {
+    if (a.run.status != b.run.status) return false;
+    if (a.baseline.status != b.baseline.status) return false;
+    if (!summaryEqual(a.summary, b.summary)) return false;
+    if (a.baseline.commands.len != b.baseline.commands.len) return false;
+    for (a.baseline.commands, b.baseline.commands) |ca, cb| {
+        if (ca.status != cb.status) return false;
+        if (ca.failure_kind != cb.failure_kind) return false;
+        if (!evidenceEqual(ca.evidence, cb.evidence)) return false;
+    }
+    if (a.mutants.len != b.mutants.len) return false;
+    for (a.mutants, b.mutants) |ma, mb| {
+        if (!std.mem.eql(u8, ma.id, mb.id)) return false;
+        if (ma.display_id != mb.display_id) return false;
+        if (!std.mem.eql(u8, ma.operator, mb.operator)) return false;
+        if (!std.mem.eql(u8, ma.file, mb.file)) return false;
+        if (ma.result.status != mb.result.status) return false;
+        if (ma.test_selection.strategy != mb.test_selection.strategy) return false;
+        if (ma.test_selection.fallback_used != mb.test_selection.fallback_used) return false;
+        if (ma.result.commands.len != mb.result.commands.len) return false;
+        for (ma.result.commands, mb.result.commands) |ca, cb| {
+            if (ca.status != cb.status) return false;
+            if (ca.failure_kind != cb.failure_kind) return false;
+            if (ca.exit_code != cb.exit_code) return false;
+            if (!evidenceEqual(ca.evidence, cb.evidence)) return false;
+            if ((ca.skip_reason == null) != (cb.skip_reason == null)) return false;
+        }
+    }
+    return true;
+}
+
+/// Normalized, machine-readable benchmark summary counts (no volatile timing).
+pub const BenchSummary = struct {
+    total: u64,
+    killed: u64,
+    survived: u64,
+    compile_error: u64,
+    compiler_crash: u64,
+    timeout: u64,
+    skipped: u64,
+    invalid: u64,
+};
+
+/// Deterministic equivalence verdicts proven by a benchmark smoke run. Each is
+/// derived from `equivalentIgnoringTiming` over the relevant pair of runs.
+pub const Equivalence = struct {
+    cached_uncached: bool,
+    serial_parallel: bool,
+    cold_warm: bool,
+};
+
+/// Machine-readable, normalized benchmark output (docs/PERFORMANCE_STRATEGY.md):
+/// a workload identity, the deterministic summary counts, and the equivalence
+/// verdicts -- never wall-clock durations -- so it is stable for trend
+/// comparison and snapshot testing.
+pub const Benchmark = struct {
+    schema_version: []const u8 = "zentinel.benchmark.v1",
+    workload: []const u8,
+    mutants: u64,
+    summary: BenchSummary,
+    equivalence: Equivalence,
+};
+
+/// Build a normalized benchmark record from a completed report and the proven
+/// equivalence verdicts.
+pub fn benchmark(workload: []const u8, rep: Report, equivalence: Equivalence) Benchmark {
+    return .{
+        .workload = workload,
+        .mutants = rep.summary.total,
+        .summary = .{
+            .total = rep.summary.total,
+            .killed = rep.summary.killed,
+            .survived = rep.summary.survived,
+            .compile_error = rep.summary.compile_error,
+            .compiler_crash = rep.summary.compiler_crash,
+            .timeout = rep.summary.timeout,
+            .skipped = rep.summary.skipped,
+            .invalid = rep.summary.invalid,
+        },
+        .equivalence = equivalence,
+    };
+}
+
+/// Deterministic pretty-printed JSON for a benchmark record.
+pub fn benchmarkToJson(arena: std.mem.Allocator, bench: Benchmark) std.mem.Allocator.Error![]u8 {
+    return std.json.Stringify.valueAlloc(arena, bench, .{ .whitespace = .indent_2 });
+}

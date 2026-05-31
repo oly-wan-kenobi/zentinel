@@ -101,6 +101,21 @@ pub fn toJson(arena: std.mem.Allocator, metadata: Metadata) std.mem.Allocator.Er
     return std.json.Stringify.valueAlloc(arena, metadata, .{ .whitespace = .indent_2 });
 }
 
+/// Wire run cache metadata into the report v1 `diagnostics.cache` field
+/// (tasks/052). The reserved report field is the canonical observable location
+/// for cache behavior. In Phase 1 result reuse is disabled, so every computed
+/// result key is a deterministic miss and there are no hits; with `--no-cache`
+/// the cache is disabled and no keys are computed. Cached and uncached runs
+/// therefore differ only in this field (and durations).
+pub fn toReportDiagnostics(metadata: Metadata) report.CacheDiagnostics {
+    return .{
+        .enabled = metadata.enabled,
+        .mode = metadata.mode,
+        .hits = 0,
+        .misses = metadata.result_keys.len,
+    };
+}
+
 // --- Doctest cache ---------------------------------------------------------
 
 const doctest_key_namespace = "zentinel.doctest.cache.v1";

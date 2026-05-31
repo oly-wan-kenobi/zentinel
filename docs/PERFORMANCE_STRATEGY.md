@@ -150,6 +150,17 @@ Task `052` must write concrete initial budgets for:
 - doctest runtime
 - benchmark smoke runtime
 
+Initial CI smoke budgets (wall-clock ceilings for a single smoke run; conservative and revisable by a later performance-budget task):
+
+| CI smoke job | Initial budget |
+| --- | --- |
+| fixture dogfood runtime | 30 seconds |
+| selected production dogfood runtime | 180 seconds |
+| doctest runtime | 60 seconds |
+| benchmark smoke runtime | 120 seconds |
+
+These are ceilings, not targets: a job that finishes faster is fine; a job that exceeds its budget fails the smoke check. The budgets bound wall-clock time only; the machine-readable benchmark output (`zentinel.benchmark.v1`) records normalized summary counts and the equivalence verdicts, never durations, so trend comparison stays deterministic.
+
 Later dogfood and CI tasks must use those documented budgets or create a prerequisite performance-budget task before claiming completion.
 
 ## Performance Invariants

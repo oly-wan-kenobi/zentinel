@@ -1,0 +1,20 @@
+{
+  "schema_version": "zentinel.benchmark.v1",
+  "workload": "tiny-arithmetic",
+  "mutants": 3,
+  "summary": {
+    "total": 3,
+    "killed": 3,
+    "survived": 0,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0
+  },
+  "equivalence": {
+    "cached_uncached": true,
+    "serial_parallel": true,
+    "cold_warm": true
+  }
+}
