@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "048",
+  "next_task": "049",
   "completed_tasks": [
     "068",
     "069",
@@ -88,7 +88,8 @@
     "044",
     "045",
     "046",
-    "047"
+    "047",
+    "048"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -99,6 +100,70 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "048",
+      "failing_evidence": "failing_command: a standard-library-only recovery-transition checker that loads test/fixtures/pipeline/failure_recovery/{valid,invalid}/*.json and asserts each transition (from_state, trigger, to_state) is in the deterministic valid set, that retry.limit matches the task class, that a retry cycle exceeding the limit may only transition to escalated, that a rollback scope is only agent_owned, and that every transition records non-empty auditable evidence. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid failure recovery fixtures` and exited 1. implementation_started_after_failure: true; the nine valid transitions, the nine invalid transitions (including the canonical failed_mutation_gate -> complete), and the Recovery Transitions policy section were written only after capturing that failure. passing_command: the checker then printed `valid=9 invalid=9 property_transitions_checked=1000` and `PASS` (exit 0); a property over the full from x trigger x to space of 1000 generated transitions proved acceptance happens if and only if the transition is in the valid set, and that no failure state is ever accepted transitioning directly to complete. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and adds no rollback commands or git history changes (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified deterministic recovery behavior, refining docs/FAILURE_RECOVERY.md without recreating its Failed Implementation / Failed Mutation Gate / Flaky Verification / Stale Lock / Rollback Rules / Retry Limits sections. Added a `## Recovery Transitions` section defining recovery as a deterministic state machine recorded as a transition artifact (`zentinel.pipeline.failure_recovery_transition.v1`), with the full table of valid (from_state, trigger, to_state) transitions and the invariants: a failure state never transitions directly to complete (canonical rejected case failed_mutation_gate -> complete; completion only from active with required stages passed or from follow_up_created once the follow-up is queued), a flaky_verification result is never waived (only reproduced-deterministic or normalized-and-passed), rollback may only have scope agent_owned (pre-existing user edits are never reverted), retry-cycle exhaustion may only escalate, and every transition records auditable evidence. Mapped recovery states to docs/TASK_LIFECYCLE.md (only blocked is a task-control state; the other recovery states are artifact stages inside the active task-control state and never reach complete directly) and cross-referenced the shared retry limits, mutation-gate blocking_reasons, and escalation triggers in docs/MUTATION_GATE_POLICY.md, docs/VERIFICATION_PIPELINE.md, and docs/PIPELINE_ESCALATION_POLICY.md (terminology already matched, so no edits were needed there). Added fixtures under test/fixtures/pipeline/failure_recovery/ for nine valid transitions and nine invalid transitions, validated by the checker and a 1000-transition rejection property. Dogfooded with artifacts/pipeline/048/verification/report.json (task 048 passed cleanly, so no recovery transition artifact was fabricated). No automated rollback commands, git history changes, or suppressed tests (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST changes (forbidden).",
+      "files_changed": [
+        "docs/FAILURE_RECOVERY.md",
+        "docs/TASK_LIFECYCLE.md",
+        "test/fixtures/pipeline/failure_recovery/valid/failed_impl_retry.json",
+        "test/fixtures/pipeline/failure_recovery/valid/retry_exhausted_escalate.json",
+        "test/fixtures/pipeline/failure_recovery/valid/mutation_gate_followup.json",
+        "test/fixtures/pipeline/failure_recovery/valid/mutation_gate_return_to_role.json",
+        "test/fixtures/pipeline/failure_recovery/valid/flaky_reproduced_real.json",
+        "test/fixtures/pipeline/failure_recovery/valid/flaky_normalized.json",
+        "test/fixtures/pipeline/failure_recovery/valid/rollback_agent_owned.json",
+        "test/fixtures/pipeline/failure_recovery/valid/blocked_prereq_complete.json",
+        "test/fixtures/pipeline/failure_recovery/valid/followup_then_complete.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/mutation_gate_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/flaky_waived_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/flaky_waived_to_active.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/rollback_user_owned.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/retry_over_limit_to_active.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/retry_limit_mismatch.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/invalid_trigger.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/failed_impl_to_complete.json",
+        "test/fixtures/pipeline/failure_recovery/invalid/missing_evidence.json",
+        "artifacts/pipeline/048/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/failure_recovery/valid/**: nine valid recovery transitions covering bounded retry, retry-exhaustion escalation, mutation-gate triage to follow-up and return-to-role, flaky reproduced-real and normalized-passed, agent-owned rollback, blocked-prerequisite, and follow-up-then-complete.",
+        "test/fixtures/pipeline/failure_recovery/invalid/**: nine invalid transitions each rejected by the checker (failed_mutation_gate -> complete, flaky waived to complete or active, user-owned rollback, retry over limit to active, retry-limit mismatch, invalid trigger, failed_implementation -> complete, missing evidence).",
+        "Recovery-transition checker: enforces the deterministic valid-transition set, retry-table consistency, retry-exhaustion escalation, agent-owned-only rollback, and auditable evidence, with a 1000-transition property proving acceptance iff the transition is valid and no failure state reaches complete directly."
+      ],
+      "tests_run": [
+        "recovery-transition checker over test/fixtures/pipeline/failure_recovery/ (failing): before fixtures existed -> 'FAIL: no valid failure recovery fixtures', exit 1",
+        "recovery-transition checker (passing): valid=9 invalid=9 property_transitions_checked=1000, PASS, exit 0",
+        "invalid-transition property over the full from x trigger x to space: accepted iff in the valid set; no failure state -> complete accepted",
+        "artifacts/pipeline/048/verification/report.json validated against pipeline.verification.v1",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 048 was active and again after the complete-state transition. The task adds the recovery-transition state machine and fixtures; retry limits, blocking_reasons, and escalation triggers already matched the cross-referenced policies. No gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Dogfood failures route through this deterministic state machine so survivors, flaky checks, and invalid mutants become auditable follow-up work instead of silent waivers; task 065 (failure-recovery validator) and task 049 (pipeline escalation) consume these transitions.",
+      "follow_up_tasks": [
+        "tasks/049-pipeline-escalation.md",
+        "tasks/065-failure-recovery-validator.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/048/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "047",
       "failing_evidence": "failing_command: a standard-library-only sequential-lock checker that loads test/fixtures/pipeline/sequential_locking/{valid,invalid}/*.json task-state snapshots and asserts the one-active-task rule (exactly one queue entry may be active), Markdown/JSON synchronization (queue_md states match queue states; status.active_task equals the active queue id or null; status_md agrees), next_task rules (equals the active task while active, else the first dependency-ready queued task by execution order), no skip-ahead (an active task's dependencies are all complete), and active-lock ownership (a present lock validates against pipeline.active_lock.v1 and its task_id equals the active task; a lock with no active task or a mismatched task_id is stale). failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid sequential locking fixtures` and exited 1. implementation_started_after_failure: true; the three consistent snapshots, the nine inconsistent snapshots (including the canonical two-active-tasks case), and the policy edits were written only after capturing that failure. passing_command: the checker then printed `valid=3 invalid=9` and `PASS` (exit 0), and a generated-task-list property proved only one active task is accepted (accepted iff the active count is at most one) for active counts 0 through 3. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and implements no distributed locking or git hooks (non-goals), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

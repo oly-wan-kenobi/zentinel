@@ -1,0 +1,14 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "failed_implementation",
+  "trigger": "retry_limit_exhausted",
+  "to_state": "escalated",
+  "retry": {
+    "task_class": "normal",
+    "cycle": 2,
+    "limit": 2
+  },
+  "evidence": "recovery evidence recorded",
+  "auditable": true
+}

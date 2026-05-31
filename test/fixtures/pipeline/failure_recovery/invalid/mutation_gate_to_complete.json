@@ -1,0 +1,14 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "failed_mutation_gate",
+  "trigger": "survivor_waived",
+  "to_state": "complete",
+  "retry": {
+    "task_class": "normal",
+    "cycle": 1,
+    "limit": 2
+  },
+  "evidence": "recovery evidence recorded",
+  "auditable": true
+}

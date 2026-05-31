@@ -1,0 +1,18 @@
+{
+  "schema_version": "zentinel.pipeline.failure_recovery_transition.v1",
+  "task_id": "048",
+  "from_state": "rollback_required",
+  "trigger": "agent_edits_reverted",
+  "to_state": "follow_up_created",
+  "retry": {
+    "task_class": "normal",
+    "cycle": 1,
+    "limit": 2
+  },
+  "evidence": "recovery evidence recorded",
+  "auditable": true,
+  "rollback": {
+    "scope": "user_owned",
+    "performed": true
+  }
+}
