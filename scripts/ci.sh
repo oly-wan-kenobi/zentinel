@@ -25,6 +25,7 @@ stage_names=(
   "task_system_validation"
   "pipeline_artifact_validation"
   "advisory_dogfood"
+  "release_dogfood_gate"
 )
 
 if [[ "${1:-}" == "--list" ]]; then
@@ -67,5 +68,13 @@ printf '== ci stage: advisory_dogfood ==\n'
 if ! scripts/dogfood.sh >/dev/null 2>&1; then
   printf 'advisory dogfood reported a non-zero status (advisory; review survivors)\n' >&2
 fi
+
+# Stage 7: final release dogfood gate (task 085). Validates the archived
+# deterministic dogfood evidence, the fixture/internal-module/public-doc-doctest/
+# mutation-aware-doctest/doctest-survivor-AI/artifact/recovery sub-gates, and the
+# resolved protected-scope survivors before task 060 release acceptance.
+# Deterministic and network-free; a violation blocks CI.
+printf '== ci stage: release_dogfood_gate ==\n'
+python3 scripts/release_dogfood_gate.py
 
 printf 'ci: all required deterministic stages passed\n'

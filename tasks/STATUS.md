@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `tasks/085-final-dogfood-release-gate.md` |
+| Next task | `tasks/060-release-acceptance-verification.md` |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |

@@ -1,0 +1,16 @@
+{
+  "schema_version": "zentinel.release.dogfood_gate.v1",
+  "task_id": "085",
+  "status": "passed",
+  "gates": [
+    { "name": "fixture_dogfood", "required": true, "status": "passed" },
+    { "name": "internal_module_dogfood", "required": true, "status": "passed", "report": "artifacts/pipeline/085/dogfood/run1.report.json" },
+    { "name": "public_docs_doctest", "required": true, "status": "passed", "verified_by": "test/public_docs_doctest_test.zig" },
+    { "name": "mutation_aware_doctest", "required": true, "status": "passed", "verified_by": "test/doctest_mutate_stabilization_test.zig" },
+    { "name": "doctest_survivor_ai", "required": true, "status": "passed", "verified_by": "test/ai_doctest_survivor_cli_test.zig" },
+    { "name": "pipeline_artifact_validation", "required": true, "status": "passed", "verified_by": "scripts/check_pipeline_artifacts.py" },
+    { "name": "failure_recovery_validation", "required": true, "status": "passed", "verified_by": "scripts/validate_task_system.py" }
+  ],
+  "repeated_comparison": { "normalized_equal": true, "run_a": "artifacts/pipeline/085/dogfood/run1.report.json", "run_b": "artifacts/pipeline/085/dogfood/run2.report.json" },
+  "protected_scope": { "invalid_mutants": 0, "survivors": [] }
+}

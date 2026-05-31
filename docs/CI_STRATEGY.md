@@ -79,8 +79,20 @@ Advisory dogfood should fail only on infrastructure or deterministic core errors
 4. `task_system_validation` — `python3 scripts/validate_task_system.py`
 5. `pipeline_artifact_validation` — `python3 scripts/check_pipeline_artifacts.py`
 6. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
+7. `release_dogfood_gate` — `python3 scripts/release_dogfood_gate.py` (final release dogfood gate, task `085`)
 
 `scripts/ci.sh --list` prints the stage names in order without running them.
+
+### Final Release Dogfood Gate
+
+Stage `release_dogfood_gate` (task `085`) is the final release gate that runs before task `060` release acceptance, after the late hardening and advisory tasks (`061`, `062`, `064`, `065`, `066`, `067`) have landed. `scripts/release_dogfood_gate.py` validates the release-evidence manifest `test/fixtures/release/valid/release_evidence.json` and self-tests against `test/fixtures/release/{valid,invalid}`. The gate passes only when:
+
+- every required sub-gate passed with archived or test-verified evidence: `fixture_dogfood`, `internal_module_dogfood`, `public_docs_doctest`, `mutation_aware_doctest`, `doctest_survivor_ai`, `pipeline_artifact_validation`, and `failure_recovery_validation`;
+- the archived deterministic dogfood reports under `artifacts/pipeline/085/dogfood/` exist and the repeated `run1`/`run2` pair normalizes to identical bytes;
+- the protected scope has no invalid mutants; and
+- every protected-scope survivor is resolved (fixed by a test or recorded with deterministic equivalent-risk review evidence under `artifacts/pipeline/085/dogfood/`).
+
+The check is deterministic and network-free; diagnostics use project-relative paths. `zig-out` runtime outputs are not the canonical archive.
 
 ### Pipeline Artifact Validation
 

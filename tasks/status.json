@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "085",
+  "next_task": "060",
   "completed_tasks": [
     "068",
     "069",
@@ -106,14 +106,15 @@
     "064",
     "065",
     "066",
-    "067"
+    "067",
+    "085"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 067 AI doctest survivor assistance completed; active-state and complete-state validation passed. Added the advisory zentinel doctest explain-survivor flow (runSurvivor + validateSurvivorContext/Prompt) as a separate path from the task-055 doctest AI flows, extended ai.doctest.context.v1 and ai.prompt.v1 additively, and closed coverage-gap F-034. AI stays advisory-only."
+    "notes": "Task 085 final dogfood release gate completed; active-state and complete-state validation passed. Added scripts/release_dogfood_gate.py and the release_dogfood_gate stage in scripts/ci.sh, test/release_dogfood_gate_test.zig, release-evidence fixtures, and archived deterministic dogfood reports under artifacts/pipeline/085/dogfood/. No coverage-gap rows are deferred to task 085."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5114,6 +5115,66 @@
           "F-034"
         ]
       },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "085",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP (filter release). failing_output_excerpt: test/release_dogfood_gate_test was written first; after fixing a ?Value type mismatch it ran 3 pass / 1 fail -- the failing case 'scripts/ci.sh exercises the final release dogfood gate' proved scripts/release_dogfood_gate.py and the ci.sh release_dogfood_gate stage did not exist yet, while the manifest-validation, archive-existence, and deterministic-comparison cases already passed. implementation_started_after_failure: true. passing_command: after adding scripts/release_dogfood_gate.py and the scripts/ci.sh stage, `zig build test` passed (full suite green) and `scripts/ci.sh` ran all stages including release_dogfood_gate to 'ci: all required deterministic stages passed' (exit 0).",
+      "implementation_summary": "Implemented the final release dogfood gate (task 085) that runs before task 060 release acceptance. scripts/release_dogfood_gate.py validates a release-evidence manifest (zentinel.release.dogfood_gate.v1) and self-tests it against test/fixtures/release/{valid,invalid}: the gate passes only when every required sub-gate (fixture_dogfood, internal_module_dogfood, public_docs_doctest, mutation_aware_doctest, doctest_survivor_ai, pipeline_artifact_validation, failure_recovery_validation) passed with archived or test-verified evidence, the archived deterministic dogfood reports under artifacts/pipeline/085/dogfood/ exist and the repeated run1/run2 pair normalizes to identical bytes, the protected scope has no invalid mutants, and every protected-scope survivor is resolved (fixed_by_test or equivalent_risk_review with non-empty evidence). The gate is wired as the final scripts/ci.sh stage (release_dogfood_gate) after advisory_dogfood and is deterministic and network-free. test/release_dogfood_gate_test.zig is the executable contract: it validates the manifest structurally, proves the gate cannot pass without archived deterministic dogfood evidence (five invalid manifests rejected), checks archive existence, confirms run1/run2 normalize identically via zentinel.report.normalizeForComparison, and asserts scripts/ci.sh + scripts/release_dogfood_gate.py exercise every required sub-gate. Archived the deterministic dogfood reports (run1/run2 copied from the task-059 production scope, which normalize identically) and a protected-scope survivor_review.md (deterministic equivalent-risk review for the one surviving src/source_map.zig arithmetic mutant) under artifacts/pipeline/085/dogfood/. Documented the gate in docs/CI_STRATEGY.md (stage 7 + a Final Release Dogfood Gate section), docs/DOGFOODING.md, and docs/PROJECT_ACCEPTANCE_CRITERIA.md. Non-goals respected: no new mutators, no new AI provider modes, no hosted CI workflow files, no change to release acceptance criteria beyond dogfood evidence; src/ai/**, src/zir_backend.zig, src/air_backend.zig, build.zig, and build.zig.zon were not touched (forbidden).",
+      "files_changed": [
+        "scripts/release_dogfood_gate.py",
+        "scripts/ci.sh",
+        "docs/CI_STRATEGY.md",
+        "docs/DOGFOODING.md",
+        "docs/PROJECT_ACCEPTANCE_CRITERIA.md",
+        "test/release_dogfood_gate_test.zig",
+        "test/fixtures/release/valid/release_evidence.json",
+        "test/fixtures/release/invalid/missing_dogfood_evidence.json",
+        "test/fixtures/release/invalid/invalid_mutant.json",
+        "test/fixtures/release/invalid/nondeterministic.json",
+        "test/fixtures/release/invalid/unresolved_survivor.json",
+        "test/fixtures/release/invalid/missing_gate.json",
+        "artifacts/pipeline/085/dogfood/run1.report.json",
+        "artifacts/pipeline/085/dogfood/run2.report.json",
+        "artifacts/pipeline/085/dogfood/survivor_review.md",
+        "artifacts/pipeline/085/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/release_dogfood_gate_test.zig: four cases -- the valid release manifest passes with archived deterministic dogfood evidence that exists and normalizes identically; the gate is rejected for five invalid manifests (missing dogfood evidence, invalid mutant, nondeterministic comparison, unresolved survivor, missing gate); archived-evidence existence is checked; and scripts/ci.sh + scripts/release_dogfood_gate.py exercise every required sub-gate.",
+        "test/fixtures/release/valid/release_evidence.json and test/fixtures/release/invalid/*.json: the release-evidence manifest contract and five inconsistent manifests the gate must reject."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): 3 pass / 1 fail -- the ci.sh release-gate case before scripts/release_dogfood_gate.py and the stage existed",
+        "zig build test (zigars MCP, passing): full suite green after adding the gate script and the ci.sh stage",
+        "scripts/release_dogfood_gate.py (passing): manifest OK + self-test OK (exit 0)",
+        "scripts/ci.sh (passing): all stages including release_dogfood_gate ran to 'ci: all required deterministic stages passed'",
+        "zig build / zig fmt --check src test build.zig (zigars MCP): clean",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 085 was active and again after the complete-state transition. No coverage-gap rows are deferred to task 085. The release gate reuses the deterministic task-059 dogfood reports and the existing sub-gate checks; it adds no new mutator or AI provider mode."
+      },
+      "dogfooding_implication": "This is the final release dogfood gate: task 060 release acceptance now verifies the hardened system from complete, archived, deterministic dogfood evidence (fixture, internal-module, public-doc doctest, mutation-aware doctest, doctest survivor AI, pipeline artifact, and failure recovery) rather than the initial advisory CI wiring, and the gate cannot pass with missing evidence, nondeterministic reports, invalid mutants, or unresolved protected survivors.",
+      "follow_up_tasks": [
+        "tasks/060-release-acceptance-verification.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/085/verification/report.json",
+        "artifacts/pipeline/085/dogfood/run1.report.json",
+        "artifacts/pipeline/085/dogfood/run2.report.json",
+        "artifacts/pipeline/085/dogfood/survivor_review.md"
+      ],
       "task_control_changes": [
         "tasks/QUEUE.md",
         "tasks/queue.json",

@@ -86,6 +86,8 @@ End-to-end completion requires:
 
 Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/` before release acceptance.
 
+Task `085` is the final release dogfood gate that runs before task `060` release acceptance, as the `release_dogfood_gate` stage in `scripts/ci.sh` (`scripts/release_dogfood_gate.py`). It requires a release-evidence manifest whose fixture, internal-module, public-doc-doctest, mutation-aware-doctest, doctest-survivor-AI, pipeline-artifact, and failure-recovery sub-gates all passed with archived or test-verified evidence; archived deterministic dogfood reports under `artifacts/pipeline/085/dogfood/` whose repeated runs normalize identically; no invalid mutants in protected scope; and every protected-scope survivor fixed by a test or recorded with deterministic equivalent-risk review evidence. Release acceptance verifies the hardened system from this complete dogfood evidence rather than the initial advisory CI wiring.
+
 Dogfood gating must focus on deterministic regressions and reviewed survivor changes, not a single global mutation score.
 
 ## Required CI

@@ -1,0 +1,109 @@
+{
+  "schema_version": "zentinel.report.v1",
+  "run": {
+    "id": "run_0000000000000002",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel run --config test/fixtures/dogfood/production/config.toml --report json",
+    "config_hash": "sha256:dogfoodprod0001",
+    "project_root": "<project>",
+    "started_at": "2026-06-01T12:34:56Z",
+    "duration_ms": 0
+  },
+  "baseline": {
+    "status": "passed",
+    "commands": []
+  },
+  "diagnostics": {
+    "cache": { "enabled": false, "mode": "disabled", "hits": 0, "misses": 0 }
+  },
+  "summary": {
+    "total": 2,
+    "killed": 1,
+    "survived": 1,
+    "compile_error": 0,
+    "compiler_crash": 0,
+    "timeout": 0,
+    "skipped": 0,
+    "invalid": 0,
+    "score": 0.5
+  },
+  "mutants": [
+    {
+      "id": "m_0dogfoodsafetymodescmpbnd01",
+      "display_id": 1,
+      "backend": "ast",
+      "backend_stability": "stable",
+      "operator": "comparison_boundary",
+      "operator_stability": "stable",
+      "file": "src/safety_modes.zig",
+      "span": { "byte_start": 880, "byte_end": 882, "line_start": 38, "column_start": 17, "line_end": 38, "column_end": 19 },
+      "original": "==",
+      "replacement": "!=",
+      "diff": ["- if (m == mode) return i;", "+ if (m != mode) return i;"],
+      "expected_compile": "compiles",
+      "result": {
+        "status": "killed",
+        "mode": "Debug",
+        "commands": [
+          {
+            "command": { "original": "zig build test", "argv": ["zig", "build", "test"], "cwd": "<project>", "environment_policy": "minimal", "shell": false },
+            "phase": "mutant",
+            "status": "failed",
+            "exit_code": 1,
+            "timed_out": false,
+            "failure_kind": "test_failure",
+            "duration_ms": 0,
+            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "expected canonical rank", "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED" },
+            "skip_reason": null
+          }
+        ],
+        "phase": "mutant",
+        "duration_ms": 0,
+        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "expected canonical rank", "failure_summary": "ZNTL_RUNNER_COMMAND_FAILED" },
+        "skip_reason": null
+      },
+      "test_selection": { "strategy": "same_file_then_package", "selected": [], "commands": ["zig build test"], "preflight_commands": [], "fallback_used": false },
+      "advisory": { "equivalent_risks": [], "ai": null }
+    },
+    {
+      "id": "m_0dogfoodsourcemapaddsub002",
+      "display_id": 2,
+      "backend": "ast",
+      "backend_stability": "stable",
+      "operator": "arithmetic_add_sub",
+      "operator_stability": "stable",
+      "file": "src/source_map.zig",
+      "span": { "byte_start": 410, "byte_end": 411, "line_start": 17, "column_start": 27, "line_end": 17, "column_end": 28 },
+      "original": "+",
+      "replacement": "-",
+      "diff": ["- col = offset + 1;", "+ col = offset - 1;"],
+      "expected_compile": "compiles",
+      "result": {
+        "status": "survived",
+        "mode": "Debug",
+        "commands": [
+          {
+            "command": { "original": "zig build test", "argv": ["zig", "build", "test"], "cwd": "<project>", "environment_policy": "minimal", "shell": false },
+            "phase": "mutant",
+            "status": "passed",
+            "exit_code": 0,
+            "timed_out": false,
+            "failure_kind": "none",
+            "duration_ms": 0,
+            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+            "skip_reason": null
+          }
+        ],
+        "phase": "mutant",
+        "duration_ms": 0,
+        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        "skip_reason": null
+      },
+      "test_selection": { "strategy": "same_file_then_package", "selected": [], "commands": ["zig build test"], "preflight_commands": [], "fallback_used": false },
+      "advisory": { "equivalent_risks": ["offset boundary may be untested"], "ai": null }
+    }
+  ]
+}

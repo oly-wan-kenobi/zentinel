@@ -3471,7 +3471,7 @@
       "title": "Final Dogfood Release Gate",
       "file": "tasks/085-final-dogfood-release-gate.md",
       "phase": 7,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "067"
       ],

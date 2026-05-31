@@ -1,0 +1,61 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "085",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/085/verification/report.json"
+    },
+    {
+      "name": "release_dogfood_gate",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/release_dogfood_gate.py",
+      "artifact": "artifacts/pipeline/085/dogfood/run1.report.json",
+      "evidence": "the final release-evidence manifest validates: the fixture_dogfood, internal_module_dogfood, public_docs_doctest, mutation_aware_doctest, doctest_survivor_ai, pipeline_artifact_validation, and failure_recovery_validation sub-gates all passed with archived or test-verified evidence; the archived deterministic dogfood reports run1.report.json / run2.report.json exist and normalize to identical bytes; the protected scope has no invalid mutants; and the one protected-scope survivor (m_0dogfoodsourcemapaddsub002) is recorded with equivalent-risk review evidence (artifacts/pipeline/085/dogfood/survivor_review.md). The gate self-tests against five invalid manifests (missing dogfood evidence, invalid mutant, nondeterministic comparison, unresolved survivor, missing gate)."
+    },
+    {
+      "name": "ci_entrypoint_contract",
+      "required": true,
+      "status": "passed",
+      "command": "scripts/ci.sh --list",
+      "evidence": "scripts/ci.sh now ends with the release_dogfood_gate stage after format_check, build, unit_tests, task_system_validation, pipeline_artifact_validation, and advisory_dogfood; the full scripts/ci.sh runs to 'ci: all required deterministic stages passed' (exit 0), so the final release gate runs before task 060 release acceptance."
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "test/release_dogfood_gate_test proves the valid manifest passes with archived deterministic dogfood evidence, the gate is rejected without complete deterministic evidence (five invalid manifests), the archive-existence check distinguishes present from absent reports, and scripts/ci.sh + scripts/release_dogfood_gate.py exercise every required sub-gate; full suite green."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "task 085 is the release dogfood gate itself: it adds a release-gate script, a Zig gate test, release-evidence fixtures, archived dogfood reports, and CI/dogfood/acceptance docs. It changes no mutator or deterministic-core decision code, so it is not a self-mutation target; the dogfood it gates already covers the protected production scope."
+    }
+  ],
+  "residual_risk": [
+    "The release-evidence manifest is the executable record of the final gate; the dogfood sub-gates that produce archived reports (fixture/internal-module) are validated by file existence plus the deterministic run1/run2 normalization, while the doctest/survivor/artifact/recovery sub-gates are recorded as test-verified (verified_by) because they are enforced by the Zig suite and the task-system validator rather than a standalone archived report.",
+    "The one protected-scope survivor is recorded with deterministic equivalent-risk review evidence rather than a new pinning test; a follow-up unit test of the exact source-map offset arithmetic is noted for task 060 release acceptance. AI played no role in the survivor classification.",
+    "scripts/release_dogfood_gate.py and the Zig gate test reuse the deterministic dogfood reports archived from task 059's selected production scope; broadening the dogfood scope or adding new mutators is out of scope for this gate (non-goals)."
+  ],
+  "recommendation": "complete"
+}
