@@ -1,0 +1,21 @@
+{
+  "schema_version": "zentinel.release.dogfood_gate.v1",
+  "task_id": "fabricated",
+  "status": "passed",
+  "gates": [
+    { "name": "fixture_dogfood", "required": true, "status": "passed", "report": "artifacts/pipeline/085/dogfood/run1.report.json" },
+    { "name": "internal_module_dogfood", "required": true, "status": "passed", "report": "artifacts/pipeline/085/dogfood/run1.report.json" },
+    { "name": "public_docs_doctest", "required": true, "status": "passed", "verified_by": "test/fabricated_nonexistent_test.zig" },
+    { "name": "mutation_aware_doctest", "required": true, "status": "passed", "verified_by": "test/doctest_mutate_stabilization_test.zig" },
+    { "name": "doctest_survivor_ai", "required": true, "status": "passed", "verified_by": "test/ai_doctest_survivor_cli_test.zig" },
+    { "name": "pipeline_artifact_validation", "required": true, "status": "passed", "verified_by": "scripts/check_pipeline_artifacts.py" },
+    { "name": "failure_recovery_validation", "required": true, "status": "passed", "verified_by": "scripts/validate_task_system.py" }
+  ],
+  "repeated_comparison": { "normalized_equal": true, "run_a": "test/fixtures/release/invalid/reports/drift_a.json", "run_b": "test/fixtures/release/invalid/reports/drift_b.json" },
+  "protected_scope": {
+    "invalid_mutants": 0,
+    "survivors": [
+      { "mutant_id": "m_fabricated", "resolution": "equivalent_risk_review", "evidence": "trust me, reviewed offline" }
+    ]
+  }
+}

@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `110` (`tasks/110-behavioral-release-gates.md`) |
+| Next task | `111` (`tasks/111-real-binary-integration-tests.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |

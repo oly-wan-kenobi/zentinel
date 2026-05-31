@@ -1,0 +1,5 @@
+{
+  "schema_version": "zentinel.report.v1",
+  "run": { "id": "run_bbbbbbbbbbbbbbbbbbbb", "started_at": "2026-05-31T12:34:56Z", "duration_ms": 99 },
+  "summary": { "total": 1, "killed": 0, "survived": 1 }
+}

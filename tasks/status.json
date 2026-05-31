@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "110",
+  "next_task": "111",
   "completed_tasks": [
     "068",
     "069",
@@ -112,14 +112,15 @@
     "106",
     "107",
     "108",
-    "109"
+    "109",
+    "110"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 109 wire Phase-2 mutators completed; active-state and complete-state validation passed. The four implemented-but-unwired collectors (optional, error_path, integer_boundary, loop_boundary) are now called by both the run and list-mutants generators, so all 12 advertised stable operators actually emit on code containing their target construct (proven by a test that found 0 such mutants without the wiring). config now rejects enabling a preview operator (which has no collector and would emit zero), and docs/MUTATOR_SPEC.md documents that only stable operators can be enabled. Debug suite green (499 tests). zig build, zig fmt --check src test build.zig, git diff --check, validator all clean. (Note: the loop's ScheduleWakeup recreates a gitignored .claude/ lock between turns that the repo validator forbids; removed at the start of this turn.)"
+    "notes": "Task 110 make release gates verify behavior completed; active-state and complete-state validation passed. scripts/release_dogfood_gate.py now RECOMPUTES the repeated-run comparison from the archived run_a/run_b reports (Python port of report.normalizeForComparison) instead of trusting the manifest's normalized_equal boolean, requires every verified_by and survivor evidence reference to be a real on-disk artifact, and actually EXECUTES script-type verified_by checks for the real manifest. Proven by a gate self-test that rejected the new fabricated_evidence.json (bogus verified_by path + false normalized_equal + prose survivor evidence) -- it was accepted before the fix. zig build test (499), zig build, zig fmt --check, git diff --check, validator, and python3 scripts/release_dogfood_gate.py all green. (The .claude/ lock recreated by the loop wakeup, which the repo validator forbids, is removed at the start of each turn.)"
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5409,6 +5410,52 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/109/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "110",
+      "failing_evidence": "failing_command: `python3 scripts/release_dogfood_gate.py` after adding test/fixtures/release/invalid/fabricated_evidence.json (plus the unequal reports/drift_a.json and reports/drift_b.json it references). failing_output_excerpt: 'release-gate: self-test problem: invalid manifest fabricated_evidence.json must be rejected but passed' followed by 'release-gate: self-test FAILED with 1 problem(s)' and gate exit 1 -- the gate ACCEPTED a manifest whose verified_by path does not exist, whose normalized_equal:true claim is false (its run_a/run_b are not normalized-equal), and whose protected survivor is 'resolved' by a prose string, because the gate only checked the boolean and field presence. implementation_started_after_failure: true. passing_command: after the gate recomputes the comparison, requires evidence files to exist, and executes script checks, `python3 scripts/release_dogfood_gate.py` passes (valid manifest OK; every invalid manifest including the fabrication rejected) and the fabricated manifest is rejected for all three reasons (verified_by missing, recomputed reports not normalized-equal, survivor evidence not an archived file).",
+      "implementation_summary": "Made the final release dogfood gate verify behavior instead of self-authored claims. scripts/release_dogfood_gate.py adds _normalize_report (a Python port of src/report.zig normalizeForComparison: drop run id / started_at / every duration_ms) and _reports_normalized_equal, and validate_manifest now RECOMPUTES the repeated-run comparison from the archived run_a/run_b reports rather than trusting repeated_comparison.normalized_equal -- a manifest asserting determinism whose reports are not actually normalized-equal is rejected. Every verified_by entry must now be a real on-disk path: a .zig entry must be a real test/**/*_test.zig entrypoint (executed by the CI unit_tests stage), and a .py/.sh entry is actually executed via subprocess (require exit 0) when execute_checks is set; main() validates the real manifest with execute_checks=True so the script checks genuinely run, while self_test uses execute_checks=False (fabrications are still caught by the existence/recompute checks, keeping fixture iteration fast). Each protected-survivor resolution evidence must be an existing archived file, so a survivor 'resolved' by prose is rejected. Added the fabricated_evidence.json fixture and its two non-equal drift reports as the executable proof, and documented the behavior in docs/DOGFOODING.md. release_acceptance.py inherits the recomputation through its rdg.validate_manifest / rdg.main calls (no edit needed). Non-goals respected: release-acceptance criteria unchanged; no hosted-CI workflow files. src/**, build.zig, build.zig.zon untouched (forbidden). Deferred (residual risk): regenerating the 085 dogfood archives from a live binary run (Scope item 3) -- the gate now recomputes their determinism, so the property is genuinely verified, but live-run regeneration is a larger follow-up not required by the acceptance criteria; and the Zig contract mirror test/release_dogfood_gate_test.zig (outside this task's allowed files) is not tightened to the same recompute/verify rules.",
+      "files_changed": [
+        "scripts/release_dogfood_gate.py",
+        "docs/DOGFOODING.md",
+        "test/fixtures/release/invalid/fabricated_evidence.json",
+        "test/fixtures/release/invalid/reports/drift_a.json",
+        "test/fixtures/release/invalid/reports/drift_b.json",
+        "artifacts/pipeline/110/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/release/invalid/fabricated_evidence.json: the audit repro manifest -- a bogus verified_by path (test/fabricated_nonexistent_test.zig), normalized_equal:true over two reports that are not normalized-equal, and a protected survivor 'resolved' by a prose string. The gate self-test must reject it; before the recompute/verify changes it was accepted.",
+        "test/fixtures/release/invalid/reports/drift_a.json and reports/drift_b.json: two minimal reports identical except for run id, timestamp, durations, and summary counts, so they are NOT normalized-equal and exercise the gate's recomputation."
+      ],
+      "tests_run": [
+        "python3 scripts/release_dogfood_gate.py (failing, before the fix): self-test reported the fabricated manifest 'must be rejected but passed', exit 1",
+        "python3 scripts/release_dogfood_gate.py (passing, after the fix): valid manifest OK and every invalid manifest rejected, exit 0",
+        "zig build test (passing): 499 tests; the Zig contract test enumerates only named invalid fixtures and is unaffected by the new fixtures",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 110 was active and again after the complete-state transition with next_task advanced to 111 (111 depends on the now-complete 110). The task-110 verification artifact validates and no coverage-gap rows are deferred to task 110. The gitignored .claude/ lock recreated by the loop wakeup was removed before validating."
+      },
+      "dogfooding_implication": "zentinel's release gate now proves a property rather than trusting a checkbox: it recomputes the repeated-run normalized comparison from the archived dogfood reports and rejects a manifest that claims determinism its reports do not have, rejects fabricated verified_by paths and prose survivor evidence, and actually executes the script-type sub-gate checks. A release can no longer be certified from hand-edited manifest booleans.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/110/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

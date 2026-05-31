@@ -131,7 +131,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 062 | `tasks/107-bound-untrusted-report-integer-casts.md` | complete | 8 |
 | 063 | `tasks/108-deterministic-evidence-excerpts.md` | complete | 8 |
 | 064 | `tasks/109-wire-phase2-mutators.md` | complete | 8 |
-| 065 | `tasks/110-behavioral-release-gates.md` | queued | 8 |
+| 065 | `tasks/110-behavioral-release-gates.md` | complete | 8 |
 | 066 | `tasks/111-real-binary-integration-tests.md` | queued | 8 |
 | 067 | `tasks/112-truthful-environment-policy.md` | queued | 8 |
 | 068 | `tasks/113-wire-doctest-survivor-path.md` | queued | 8 |
