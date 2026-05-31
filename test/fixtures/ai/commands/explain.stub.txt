@@ -1,0 +1,4 @@
+classification: boundary_missing
+confidence: medium
+summary: Mutant m_01hr7p6h0v2fj3drdzt9k2a0xe in src/range.zig (comparison_boundary) is survived; the stub flags a boundary gap.
+next action: Add a test that exercises the boundary case in src/range.zig.

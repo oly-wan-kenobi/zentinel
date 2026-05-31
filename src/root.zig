@@ -102,6 +102,7 @@ pub const ai = struct {
     pub const provider = @import("ai/provider.zig");
     pub const context = @import("ai/context.zig");
     pub const redaction = @import("ai/redaction.zig");
+    pub const command = @import("ai/command.zig");
 };
 
 /// `zentinel doctest` command orchestration (deterministic core).
@@ -243,9 +244,6 @@ const not_implemented_commands = [_][]const u8{
     "list-mutants",
     "run",
     "doctest",
-    "explain",
-    "suggest",
-    "review-tests",
 };
 
 /// Known future global options not owned by task 001 (rejected until their owner lands).
@@ -373,6 +371,9 @@ pub const Route = union(enum) {
     run: RunInvocation,
     list_mutants: RunInvocation,
     doctest: RunInvocation,
+    explain: RunInvocation,
+    suggest: RunInvocation,
+    review_tests: RunInvocation,
 };
 
 /// Decide how to handle argv. `check` and `version` need environment inputs
@@ -414,6 +415,9 @@ pub fn route(args: []const []const u8) Route {
     if (eq(cmd, "run")) return .{ .run = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "list-mutants")) return .{ .list_mutants = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "doctest")) return .{ .doctest = .{ .globals = globals, .args = args[i + 1 ..] } };
+    if (eq(cmd, "explain")) return .{ .explain = .{ .globals = globals, .args = args[i + 1 ..] } };
+    if (eq(cmd, "suggest")) return .{ .suggest = .{ .globals = globals, .args = args[i + 1 ..] } };
+    if (eq(cmd, "review-tests")) return .{ .review_tests = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "version")) {
         // `version` does not own --config/--root; defer to dispatch when present.
         if (globals.config_explicit or !eq(globals.root, ".")) return .passthrough;

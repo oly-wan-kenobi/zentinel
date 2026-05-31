@@ -3110,7 +3110,7 @@
       "title": "AI Advisory Commands",
       "file": "tasks/054-ai-advisory-commands.md",
       "phase": 4,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "053"
       ],

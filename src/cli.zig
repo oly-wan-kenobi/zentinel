@@ -48,6 +48,9 @@ pub fn run(
         .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr),
         .list_mutants => |inv| return runListMutants(gpa, io, dir, inv, stdout, stderr),
         .doctest => |inv| return runDoctest(gpa, io, dir, inv, stdout, stderr),
+        .explain => |inv| return runAiCommand(gpa, io, dir, inv, .explain, stdout, stderr),
+        .suggest => |inv| return runAiCommand(gpa, io, dir, inv, .suggest, stdout, stderr),
+        .review_tests => |inv| return runAiCommand(gpa, io, dir, inv, .review_tests, stdout, stderr),
     }
 }
 
@@ -514,6 +517,127 @@ fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) ![]const u8 {
 /// `zentinel doctest`: read the target doc, execute its normal doctests through
 /// real process/workspace adapters, and emit a deterministic text or JSON
 /// zentinel.doctest.report.v1 report.
+/// Adapter for the advisory AI commands `explain`, `suggest`, and `review-tests`
+/// (task 054). Parses command-local options, reads normalized config and the
+/// selected mutation report read-only, then delegates to the deterministic
+/// `ai.command` engine. AI-only failures print their documented `ZNTL_AI_*` code
+/// and never touch a report.
+fn runAiCommand(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    inv: zentinel.RunInvocation,
+    flow: zentinel.ai.command.Flow,
+    stdout: *std.Io.Writer,
+    stderr: *std.Io.Writer,
+) !u8 {
+    var arena_state = std.heap.ArenaAllocator.init(gpa);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    var mutant_ref: ?[]const u8 = null;
+    var provider_override: ?zentinel.ai.command.Mode = null;
+    var input_report: ?[]const u8 = null;
+    var format: zentinel.ai.command.Format = .text;
+
+    var i: usize = 0;
+    while (i < inv.args.len) : (i += 1) {
+        const a = inv.args[i];
+        if (std.mem.eql(u8, a, "--ai-provider")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
+            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
+                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
+        } else if (std.mem.eql(u8, a, "--input-report")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
+            input_report = inv.args[i];
+        } else if (std.mem.eql(u8, a, "--format")) {
+            i += 1;
+            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
+            if (std.mem.eql(u8, inv.args[i], "text")) {
+                format = .text;
+            } else if (std.mem.eql(u8, inv.args[i], "json")) {
+                format = .json;
+            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
+        } else if (std.mem.startsWith(u8, a, "--")) {
+            return aiOptionError(stderr, "unknown AI command option");
+        } else if (flow != .review_tests and mutant_ref == null) {
+            mutant_ref = a;
+        } else {
+            return aiOptionError(stderr, "unexpected positional argument");
+        }
+    }
+    if (flow != .review_tests and mutant_ref == null) {
+        return aiOptionError(stderr, "missing <mutant-ref>");
+    }
+
+    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+
+    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer root_dir.close(io);
+    const report_path = input_report orelse zentinel.ai.command.default_report_path;
+    const report_json: ?[]const u8 = root_dir.readFileAlloc(io, report_path, arena, read_limit) catch null;
+
+    const input = zentinel.ai.command.Input{
+        .flow = flow,
+        .mutant_ref = mutant_ref,
+        .provider_override = provider_override,
+        .report_json = report_json,
+        .settings = settings,
+    };
+
+    const out = zentinel.ai.command.run(arena, input, format) catch |err| switch (err) {
+        error.OutOfMemory => return err,
+        else => |f| {
+            try stderr.print("error[{s}]: advisory AI command failed\n", .{zentinel.ai.command.failureToken(f)});
+            return zentinel.ai.command.failureExit(f);
+        },
+    };
+
+    try stdout.writeAll(out.body);
+    if (out.format == .json) try stdout.writeAll("\n");
+    return out.exit_code;
+}
+
+fn aiOptionError(stderr: *std.Io.Writer, detail: []const u8) !u8 {
+    try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
+    return 2;
+}
+
+/// Build advisory AI settings from normalized config, falling back to AI-disabled
+/// defaults when no config file is present or it cannot be parsed.
+fn aiSettings(
+    arena: std.mem.Allocator,
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    globals: zentinel.Globals,
+) zentinel.ai.command.Settings {
+    const zig_label: []const u8 = switch (discoverZig(gpa, io)) {
+        .version => |v| v,
+        .not_found => zentinel.supported_zig_version,
+    };
+    var settings = zentinel.ai.command.Settings{
+        .ai_enabled = false,
+        .config_mode = .disabled,
+        .remote_allowed = false,
+        .redact_patterns = &zentinel.ai.command.default_redact_patterns,
+        .project_name = zentinel.project_name,
+        .zig_version = zig_label,
+        .zentinel_version = zentinel.version,
+    };
+    const resolved = resolveConfigPath(arena, globals) catch return settings;
+    const bytes = readConfig(arena, io, dir, resolved) orelse return settings;
+    var diag: zentinel.config.Diagnostic = .{};
+    const cfg = zentinel.config.load(arena, bytes, &diag) catch return settings;
+    settings.ai_enabled = cfg.ai_enabled;
+    settings.config_mode = zentinel.ai.provider.modeFromName(cfg.ai_provider) orelse .disabled;
+    settings.remote_allowed = cfg.ai_remote_allowed;
+    settings.redact_patterns = cfg.ai_redact_patterns;
+    return settings;
+}
+
 fn runDoctest(
     gpa: std.mem.Allocator,
     io: std.Io,

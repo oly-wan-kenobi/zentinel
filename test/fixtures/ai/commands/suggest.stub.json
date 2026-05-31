@@ -1,0 +1,15 @@
+{
+  "schema_version": "zentinel.ai.suggest.response.v1",
+  "classification": "boundary_missing",
+  "suggestions": [
+    {
+      "title": "cover the boundary case",
+      "test_name": "covers boundary",
+      "intent": "Assert the boundary behavior so the mutant is killed on rerun.",
+      "example_values": [
+        "boundary"
+      ],
+      "target_file": "src/range.zig"
+    }
+  ]
+}

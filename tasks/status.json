@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "054",
+  "next_task": "055",
   "completed_tasks": [
     "068",
     "069",
@@ -94,7 +94,8 @@
     "050",
     "051",
     "052",
-    "053"
+    "053",
+    "054"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -105,6 +106,65 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "054",
+      "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: test/ai_commands_test.zig was written first against the not-yet-existent engine and failed to compile with \"struct 'root.ai' has no member named 'command'\" while the rest of the suite stayed green (362/362 tests passed before the transitive failure). implementation_started_after_failure: true. After src/ai/command.zig, the root.zig route/export wiring, and the cli.zig adapters landed, the suite reported 22 pass / 4 fail -- only the four stub snapshot tests mismatched the PLACEHOLDER fixtures (explain JSON, explain text, suggest JSON, review-tests JSON), proving the provider-resolution, mutant-ref, prompt-envelope, response-validation, and malformed-rejection logic already passed. The four snapshots were self-blessed byte-exact from the captured engine output (JSON with no trailing newline, text with one). `zig build` then failed once with \"error set is discarded\" in failureExit, fixed by switching `_ = err` to an exhaustive switch. passing_command: `zig build test` passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean; a CLI smoke run of explain/suggest/review-tests exited 0 with the stub and the AI-disabled/remote-not-allowed/missing-report/unknown-target paths exited 2 with their ZNTL_AI_* codes. AI is advisory-only; self-mutation dogfood is gated to the Phase 5 stages (task 085).",
+      "implementation_summary": "Implemented the advisory AI commands explain, suggest, and review-tests, keeping AI strictly advisory-only. src/ai/command.zig is the deterministic engine: resolveMode derives the effective provider from normalized config plus a command-local --ai-provider override (explicit stub/local/remote opt-in; disabled -> ZNTL_AI_DISABLED; remote without ai.remote_allowed -> ZNTL_AI_PROVIDER_NOT_ALLOWED), the run path parses the report read-only and fails with ZNTL_AI_REPORT_NOT_FOUND when no report is readable, resolveMutant resolves a durable m_ id or a report-local display id scoped to the selected report (unknown/out-of-report -> ZNTL_AI_TARGET_NOT_FOUND), buildPromptValue builds the zentinel.ai.prompt.v1 request envelope embedding a zentinel.ai.context.v1 payload built from the resolved mutant (every command carries failure_kind) and validatePrompt rejects a schema-version-only context placeholder and any non-context schema before any provider call, a deterministic stub provider maps operator+status to a classification and emits the explain/suggest/review-tests responses, and validateResponse enforces each closed response schema plus safety: it rejects unknown fields (including any attempt to set a result status), unknown classification/confidence, an empty summary, more than three suggestions, non-project-relative target paths, non-durable mutant ids, and hidden tool instructions, so malformed or unsafe model output is rejected deterministically (ZNTL_AI_RESPONSE_INVALID) and never alters a report. src/root.zig exports zentinel.ai.command, adds explain/suggest/review-tests Route variants, and drops them from not_implemented_commands; src/cli.zig adds a shared runAiCommand adapter that parses --ai-provider/--input-report/--format, reads config (falling back to AI-disabled defaults) and the report read-only, delegates to the engine, and prints the documented ZNTL_AI_* code on failure. The three response schemas were already complete (explain already carried the five doctest classifications task 055 reuses); only schemas/ai.prompt.v1.schema.json was created. Non-goals respected: no live remote calls, no AI-owned mutation correctness, no doctest-specific flows; src/mutators/**, src/zir_backend.zig, and src/air_backend.zig were not touched (forbidden), and src/main.zig needed no change.",
+      "files_changed": [
+        "src/ai/command.zig",
+        "src/root.zig",
+        "src/cli.zig",
+        "schemas/ai.prompt.v1.schema.json",
+        "test/ai_commands_test.zig",
+        "test/fixtures/ai/commands/report.json",
+        "test/fixtures/ai/commands/explain.stub.json",
+        "test/fixtures/ai/commands/explain.stub.txt",
+        "test/fixtures/ai/commands/suggest.stub.json",
+        "test/fixtures/ai/commands/review_tests.stub.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "artifacts/pipeline/054/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_commands_test.zig: resolveMode covers config-disabled/explicit-disabled (ZNTL_AI_DISABLED), explicit stub opt-in, and remote with/without remote_allowed (ZNTL_AI_PROVIDER_NOT_ALLOWED); failure tokens map to the documented ZNTL_AI_* codes; the default report path is zig-out/zentinel/report.json and a missing report is ZNTL_AI_REPORT_NOT_FOUND; resolveMutant resolves durable ids and report-local display ids and rejects unknown ids and out-of-report display ids; an unknown explain ref is ZNTL_AI_TARGET_NOT_FOUND; buildPrompt embeds a context that passes context.validate, carries command failure_kind, and names the flow's response schema; validatePrompt rejects a schema-version-only context placeholder and an unknown context schema version; validateResponse accepts explain mutation and doctest classifications, rejects unknown classification/status-field/unsafe text, rejects more-than-three suggestions and absolute target paths, accepts valid review-tests clusters and rejects non-durable mutant ids and non-object output; explain/suggest/review-tests stub runs validate and match byte-exact JSON and text snapshots; review-tests clusters only survivors; review-tests with AI disabled fails before touching the report.",
+        "test/fixtures/ai/commands/report.json: a two-mutant (one survived comparison_boundary, one killed arithmetic) read-only mutation report fixture.",
+        "test/fixtures/ai/commands/{explain.stub.json,explain.stub.txt,suggest.stub.json,review_tests.stub.json}: self-blessed stub-provider output snapshots."
+      ],
+      "tests_run": [
+        "zig build test (zigars MCP, failing): struct 'root.ai' has no member named 'command' (362/362 other tests passing)",
+        "zig build test (zigars MCP, partial): 22 pass / 4 fail -- only the PLACEHOLDER stub snapshots mismatched",
+        "zig build test (zigars MCP, passing): full suite green after self-blessing the four snapshots",
+        "zig build (zigars MCP): failed once on 'error set is discarded' in failureExit, then succeeded after the exhaustive switch fix; zig fmt --check src test build.zig clean",
+        "CLI smoke (zig-out/bin/zentinel): explain/suggest/review-tests exit 0 with --ai-provider stub; AI-disabled, remote-not-allowed, missing-report, and unknown-target exit 2 with their ZNTL_AI_* codes",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state, after closing the AI gap-registry rows"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 054 was active and again after the complete-state transition. Closed gap-registry rows zentinel.ai.prompt.v1, zentinel.ai.explain.response.v1, zentinel.ai.suggest.response.v1, zentinel.ai.review_tests.response.v1 (schemas) and F-021, F-026, F-027, F-028 (failure_modes); the task-104 guardrail phrase and the AI CLI contract phrases in docs were unaffected."
+      },
+      "dogfooding_implication": "Stub AI command outputs are now committed byte-exact snapshots, so they become stable docs and doctest targets for later AI documentation, and the advisory-only boundary (responses validated and rejected before rendering, never setting a deterministic field) keeps the doctest AI commands in task 055 safe to dogfood on the same engine.",
+      "follow_up_tasks": [
+        "tasks/055-ai-doctest-assistance.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/054/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/schemas.v1.json": ["zentinel.ai.prompt.v1", "zentinel.ai.explain.response.v1", "zentinel.ai.suggest.response.v1", "zentinel.ai.review_tests.response.v1"],
+        "tests/coverage-gaps/failure_modes.v1.json": ["F-021", "F-026", "F-027", "F-028"]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "053",
       "failing_evidence": "failing_command: `zig build test` via the zigars MCP. failing_output_excerpt: with test/ai_context_test.zig added first, the suite first failed to compile ('root source file struct root has no member named ai' until src/ai/* and the root.zig export landed; then an ObjectMap.put arity error), then crashed with a segmentation fault in std.json.Stringify because validContext() returned a result.commands slice pointing at a freed stack temporary (`&.{validCommand()}`); after moving the command slice to a module-level const it ran 10 pass / 1 fail with only the PLACEHOLDER valid-context snapshot mismatching. implementation_started_after_failure: true; the three src/ai modules were written to satisfy the captured failures, and the valid context snapshot was self-blessed byte-exact from the captured std.json output. passing_command: `zig build test` then passed (full suite green), `zig build` succeeded, and `zig fmt --check src test build.zig` was clean. AI is advisory-only and deterministic; product self-mutation is gated to the Phase 5 stages (task 085).",

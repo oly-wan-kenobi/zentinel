@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/ai.prompt.v1.schema.json",
+  "title": "zentinel AI prompt request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "flow", "instructions", "context", "response_schema"],
+  "properties": {
+    "schema_version": { "const": "zentinel.ai.prompt.v1" },
+    "flow": {
+      "enum": [
+        "explain",
+        "suggest",
+        "review_tests",
+        "explain_doctest_failure",
+        "suggest_doctest",
+        "review_snapshot",
+        "suggest_missing_doctests",
+        "explain_doctest_survivor"
+      ]
+    },
+    "instructions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "context": {
+      "type": "object",
+      "required": ["schema_version"],
+      "properties": {
+        "schema_version": {
+          "enum": ["zentinel.ai.context.v1", "zentinel.ai.doctest.context.v1"]
+        }
+      }
+    },
+    "response_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": { "name": { "type": "string", "minLength": 1 } }
+    }
+  },
+  "allOf": [
+    {
+      "description": "Mutation AI flows embed a registered zentinel.ai.context.v1 payload; the deterministic core additionally validates the context against schemas/ai.context.v1.schema.json before any provider call.",
+      "if": {
+        "properties": { "flow": { "enum": ["explain", "suggest", "review_tests"] } }
+      },
+      "then": {
+        "properties": {
+          "context": {
+            "properties": {
+              "schema_version": { "const": "zentinel.ai.context.v1" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

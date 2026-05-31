@@ -1,0 +1,16 @@
+{
+  "schema_version": "zentinel.ai.review_tests.response.v1",
+  "clusters": [
+    {
+      "classification": "boundary_missing",
+      "mutant_ids": [
+        "m_01hr7p6h0v2fj3drdzt9k2a0xe"
+      ],
+      "summary": "1 survivor(s) share a boundary gap.",
+      "recommended_focus": "Add boundary tests for these survivors."
+    }
+  ],
+  "top_actions": [
+    "Prioritize boundary coverage (1 survivor(s))."
+  ]
+}
