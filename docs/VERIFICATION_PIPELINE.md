@@ -70,13 +70,17 @@ Report must include:
 - residual risk
 - final recommendation
 
-JSON report shape:
+JSON report shape (`schemas/pipeline.verification.v1.schema.json`, refined by task `046`):
 
 ```json
 {
   "schema_version": "zentinel.pipeline.verification.v1",
   "task_id": "046",
   "status": "passed",
+  "source_commit": "baseline",
+  "working_tree_state": "clean",
+  "active_lock": "artifacts/pipeline/046/locks/active-task-lock.json",
+  "handoffs_present": ["artifacts/pipeline/046/handoffs/14-verifier.json"],
   "stages": [
     {
       "name": "task_system_validation",
@@ -88,8 +92,14 @@ JSON report shape:
     {
       "name": "mutation_checks",
       "required": false,
-      "status": "not_applicable",
-      "reason": "documentation-only task"
+      "status": "skipped_by_policy",
+      "policy": "docs/MUTATION_GATE_POLICY.md: not mutation-testable scope"
+    },
+    {
+      "name": "final_artifact_audit",
+      "required": true,
+      "status": "passed",
+      "evidence": "handoffs, active lock, and status updates consistent"
     }
   ],
   "residual_risk": [],
@@ -97,21 +107,21 @@ JSON report shape:
 }
 ```
 
-Allowed stage statuses:
+Per-stage required artifact fields:
 
-```text
-passed
-failed
-blocked
-not_applicable
-skipped_by_policy
-```
+- every stage records `name`, `required`, and `status`
+- a required stage with `status` `passed` records the `command` it ran or an `evidence` summary
+- a `not_applicable` stage records a task-scope `reason`
+- a `skipped_by_policy` stage records a `policy` citation
+- stage `name` values are unique within a record
 
-`skipped_by_policy` requires a policy citation. `not_applicable` requires a task-scope reason.
+Allowed stage statuses are `passed`, `failed`, `blocked`, `not_applicable`, and `skipped_by_policy`.
+
+Derived outcome: `status` is `passed` only when every required stage is `passed`, `not_applicable`, or `skipped_by_policy`; it is `failed` if any required stage `failed`, otherwise `blocked` if any required stage is `blocked`. `recommendation` may be `complete` only when `status` is `passed`; otherwise it is `block`, `retry`, `escalate`, `return_to_role`, or `create_follow_up_task`. Because the outcome is derived from the stage set, stage ordering does not change the decision, and a record with duplicate stage names is rejected.
 
 ## CI Integration
 
-CI should run the same stages available for the current phase:
+The canonical CI entrypoint is `scripts/ci.sh` (see `docs/CI_STRATEGY.md`). CI runs the verification stages by invoking `scripts/ci.sh`; hosted provider workflow files are out of scope and external systems call that script rather than re-listing stages. CI runs the same stages available for the current phase:
 
 - task-system validation
 - Zig tests

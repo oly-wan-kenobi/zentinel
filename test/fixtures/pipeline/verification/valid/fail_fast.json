@@ -1,0 +1,24 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "046",
+  "status": "failed",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "failed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "next_task mismatch"
+    },
+    {
+      "name": "targeted_unit_tests",
+      "required": true,
+      "status": "blocked",
+      "reason": "not run: fail-fast after task-system validation failure"
+    }
+  ],
+  "residual_risk": [
+    "task-control files inconsistent until validation passes"
+  ],
+  "recommendation": "retry"
+}

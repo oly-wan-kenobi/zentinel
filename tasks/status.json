@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "046",
+  "next_task": "047",
   "completed_tasks": [
     "068",
     "069",
@@ -86,7 +86,8 @@
     "042",
     "043",
     "044",
-    "045"
+    "045",
+    "046"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
@@ -97,6 +98,67 @@
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
+    {
+      "task": "046",
+      "failing_evidence": "failing_command: a standard-library-only verification checker that imports subset_validate from scripts/validate_task_system.py, validates each test/fixtures/pipeline/verification/{valid,invalid}/*.json against the refined schemas/pipeline.verification.v1.schema.json, and adds semantic rules (a required passed stage must record a command or evidence; a not_applicable stage needs a reason; a skipped_by_policy stage needs a policy; duplicate stage names are rejected; top-level status is derived as failed if any required stage failed, else blocked if any required stage blocked, else passed; recommendation complete requires status passed). failing_output_excerpt: before the comprehensive fixtures existed it printed `FAIL: no comprehensive verification state fixtures (valid/ subdir)` and exited 1. implementation_started_after_failure: true; the five consistent state fixtures, the seven inconsistent fixtures (including the canonical missing-required-command-result case), and the non-breaking schema refinement were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=7 states=['blocked', 'failed', 'passed', 'skip:not_applicable', 'skip:skipped_by_policy']` and `PASS` (exit 0), proving the pass, fail-fast, skipped-not-applicable, skipped-by-policy, and blocked states, a stage-order permutation property that the derived decision is order-independent, deterministic duplicate-stage-name rejection, and that the task-041 flat valid.json still validates and invalid.json is still rejected under the refined schema. All six real artifacts/pipeline/*/verification/report.json (042-046, 063) re-validate against the refined schema, confirming the refinement is non-breaking. This task changes no executable product code (docs, schema, JSON fixtures, pipeline artifacts only) and implements no command runner (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",
+      "implementation_summary": "Specified the final verification pipeline and refined the baseline task-041 verification schema with the final verifier fields, without weakening it (no new required fields). schemas/pipeline.verification.v1.schema.json gained per-field descriptions, the stage status value skipped_by_policy, optional stage fields policy and evidence, two recommendation values (return_to_role, create_follow_up_task), and optional top-level final-verifier fields (source_commit, working_tree_state, active_lock, handoffs_present) -- every existing verification artifact still validates. docs/VERIFICATION_PIPELINE.md now documents the refined report shape, the per-stage required artifact fields (name/required/status always; a required passed stage records command or evidence; not_applicable records a reason; skipped_by_policy records a policy; unique stage names), the derived status and recommendation rules with order independence and duplicate-name rejection, and the canonical scripts/ci.sh CI entrypoint that runs the verification stages in required order. Connected verification artifacts to task status in docs/TASK_LIFECYCLE.md (a passed report with recommendation complete is the evidence to move active to complete, but artifact stages never edit task-control files), docs/CI_STRATEGY.md (scripts/ci.sh runs the verification stages and requires no remote AI), and docs/PIPELINE_ARTIFACTS.md (verification/report.json contract reference). Added fixtures under test/fixtures/pipeline/verification/{valid,invalid}/ demonstrating the four required states plus skipped_by_policy, alongside seven inconsistent reports each rejected by the checker, and kept the task-041 flat valid/invalid pair as the non-breaking baseline. Dogfooded the refined schema with artifacts/pipeline/046/verification/report.json. The schemas.v1.json verification.v1 row stays deferred to task 041 per the schema-ownership guardrail with its existing superseded-by-046 notes. No hosted CI workflow files, command runners, or performance benchmarks (non-goals); no src/test/build/MUTATOR_SPEC/DOCTEST changes (forbidden).",
+      "files_changed": [
+        "schemas/pipeline.verification.v1.schema.json",
+        "docs/VERIFICATION_PIPELINE.md",
+        "docs/TASK_LIFECYCLE.md",
+        "docs/CI_STRATEGY.md",
+        "docs/PIPELINE_ARTIFACTS.md",
+        "test/fixtures/pipeline/verification/valid/pass_full.json",
+        "test/fixtures/pipeline/verification/valid/fail_fast.json",
+        "test/fixtures/pipeline/verification/valid/skipped_not_applicable.json",
+        "test/fixtures/pipeline/verification/valid/skipped_by_policy.json",
+        "test/fixtures/pipeline/verification/valid/blocked_state.json",
+        "test/fixtures/pipeline/verification/invalid/missing_command_result.json",
+        "test/fixtures/pipeline/verification/invalid/duplicate_stage_names.json",
+        "test/fixtures/pipeline/verification/invalid/passed_with_failed_required.json",
+        "test/fixtures/pipeline/verification/invalid/complete_without_pass.json",
+        "test/fixtures/pipeline/verification/invalid/skipped_by_policy_without_policy.json",
+        "test/fixtures/pipeline/verification/invalid/not_applicable_without_reason.json",
+        "test/fixtures/pipeline/verification/invalid/bad_stage_status.json",
+        "artifacts/pipeline/046/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/fixtures/pipeline/verification/valid/**: five internally-consistent verifier records demonstrating the pass, fail-fast (failed), skipped-not-applicable, skipped-by-policy, and blocked states under the refined schema.",
+        "test/fixtures/pipeline/verification/invalid/**: seven inconsistent records each rejected by the checker (missing required command result, duplicate stage names, passed with a failed required stage, complete without pass, skipped_by_policy without policy, not_applicable without reason, bad stage status).",
+        "Verification checker: subset_validate against the refined schema plus semantic stage rules and status derivation, a stage-order permutation property proving order independence, deterministic duplicate-name rejection, and a non-breaking proof that the task-041 flat valid/invalid pair and all six real verification artifacts still validate."
+      ],
+      "tests_run": [
+        "verification checker over the comprehensive fixture set (failing): before the valid/ subdir existed -> 'FAIL: no comprehensive verification state fixtures', exit 1",
+        "verification checker (passing): valid=5 invalid=7 states=[blocked, failed, passed, skip:not_applicable, skip:skipped_by_policy], PASS, exit 0",
+        "stage-order permutation property and deterministic duplicate-name rejection: PASS",
+        "non-breaking proof: test/fixtures/pipeline/verification/{valid,invalid}.json and all six artifacts/pipeline/*/verification/report.json (042-046, 063) validate against the refined schema",
+        "python3 scripts/validate_task_system.py (passing) in active then complete state",
+        "zig build test (zigars MCP): unchanged and green (no Zig changed); zig build; zig fmt --check src test build.zig clean; git diff --check clean"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 046 was active and again after the complete-state transition. The verification.v1 schema-ownership row stays deferred to task 041 with superseded-by-046 notes per the guardrail; no gap-registry rows were changed."
+      },
+      "dogfooding_implication": "Defines the verification order, fail-fast rules, per-stage required fields, and derived completion decision that later dogfood tasks must satisfy before completion, and gives the verifier a refined, fixture-backed schema (consumed by sequential locking 047 and failure recovery 048).",
+      "follow_up_tasks": [
+        "tasks/047-sequential-task-locking.md",
+        "tasks/048-failure-recovery.md"
+      ],
+      "artifacts": [
+        "artifacts/pipeline/046/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
     {
       "task": "045",
       "failing_evidence": "failing_command: a standard-library-only doctest-evidence checker that loads test/fixtures/pipeline/doctest_policy/{valid,invalid}/*.json and asserts each valid report is internally consistent (every case names a canonical case.kind, a durable dt_ id, and a docs/<path>.md:line source_ref; expectation and snapshot are from the allowed sets; report status equals failed iff any case failed or any snapshot mismatched; every changed Required Doc is covered by at least one case; and an updated snapshot carries recorded approval) while each invalid report is rejected. failing_output_excerpt: before the fixtures existed it printed `FAIL: no valid doctest policy fixtures` and exited 1. implementation_started_after_failure: true; the five consistent fixtures, the eight inconsistent fixtures (including the canonical public-CLI-doc-change-missing-doctest-evidence case), and the policy/cross-link doc edits were written only after capturing that failure. passing_command: the checker then printed `valid=5 invalid=8 kinds=['cli', 'config', 'config_fail', 'zig_compile_fail', 'zig_compile_pass', 'zig_test'] expectations=['diagnostic_expected', 'json_expected', 'none', 'text_output'] snapshots=['matched', 'mismatch', 'not_applicable', 'updated']` and `PASS` (exit 0), demonstrating the compile-pass, compile-fail, CLI, JSON-expected, config, and snapshot case requirements and proving via a case-order permutation that report status and coverage are independent of case ordering. This task changes no executable product code (docs, JSON fixtures, pipeline artifacts only) and implements no doctest parsing or execution (non-goal), so product mutation testing is not applicable and `zig build test` was confirmed unaffected (no Zig changed).",

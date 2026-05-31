@@ -43,7 +43,7 @@ decisions/ADR-<task-id>-<short-name>.md
 
 JSON handoffs are canonical. Optional Markdown summaries may use the same handoff basename with `.md`, but they are companion notes and cannot replace the JSON artifact required by `docs/HANDOFF_CONTRACTS.md`.
 
-`mutation/report.json` is the mutation gate report whose contract, derived `gate_status`, and `blocking_reasons` are defined by `docs/MUTATION_GATE_POLICY.md`; `mutation/triage.md` is the companion survivor-triage note.
+`mutation/report.json` is the mutation gate report whose contract, derived `gate_status`, and `blocking_reasons` are defined by `docs/MUTATION_GATE_POLICY.md`; `mutation/triage.md` is the companion survivor-triage note. `verification/report.json` is the final verifier record (`schemas/pipeline.verification.v1.schema.json`) whose stage fields, derived `status`, and `recommendation` are defined by `docs/VERIFICATION_PIPELINE.md`; `verification/report.md` is its companion summary.
 
 Required handoff basenames are deterministic:
 

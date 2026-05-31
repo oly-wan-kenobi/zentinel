@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zentinel.dev/schemas/pipeline.verification.v1.schema.json",
   "title": "zentinel pipeline verification record v1",
+  "description": "The final verifier's durable record of whether a task has enough evidence to move from active to complete. Written to artifacts/pipeline/<task-id>/verification/report.json. Task 041 created the baseline; task 046 refined it with the final verifier fields below without weakening the baseline (no new required fields). See docs/VERIFICATION_PIPELINE.md for the required stage order, fail-fast rules, and completion decision.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,26 +14,88 @@
     "recommendation"
   ],
   "properties": {
-    "schema_version": { "const": "zentinel.pipeline.verification.v1" },
-    "task_id": { "type": "string", "pattern": "^[0-9]{3}$" },
-    "status": { "enum": ["passed", "failed", "blocked", "not_applicable"] },
+    "schema_version": {
+      "description": "Pinned schema identity for this artifact.",
+      "const": "zentinel.pipeline.verification.v1"
+    },
+    "task_id": {
+      "description": "Three-digit task id this verification record is for.",
+      "type": "string",
+      "pattern": "^[0-9]{3}$"
+    },
+    "status": {
+      "description": "Overall verification outcome derived from the required stages: passed when every required stage is passed, not_applicable, or skipped_by_policy; failed when any required stage failed; blocked when a required stage is blocked and none failed.",
+      "enum": ["passed", "failed", "blocked", "not_applicable"]
+    },
     "stages": {
+      "description": "Verification stages in canonical Required Order. Stage names must be unique within a record.",
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["name", "required", "status"],
         "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "required": { "type": "boolean" },
-          "status": { "enum": ["passed", "failed", "blocked", "not_applicable"] },
-          "command": { "type": "string" },
-          "artifact": { "type": "string" },
-          "reason": { "type": "string" }
+          "name": {
+            "description": "Stage name (for example task_system_validation, property_tests, doctests, mutation_checks, final_artifact_audit).",
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "description": "Whether this stage is required for the active task's type and complexity.",
+            "type": "boolean"
+          },
+          "status": {
+            "description": "Stage outcome. skipped_by_policy requires a policy citation; not_applicable requires a task-scope reason. A required stage that passed must record the command that produced the result.",
+            "enum": ["passed", "failed", "blocked", "not_applicable", "skipped_by_policy"]
+          },
+          "command": {
+            "description": "The exact command whose result this stage records (required for a passed required stage).",
+            "type": "string"
+          },
+          "artifact": {
+            "description": "Repository-relative path to the stage's evidence artifact.",
+            "type": "string"
+          },
+          "evidence": {
+            "description": "Short evidence excerpt or summary when a full artifact path is not applicable.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Task-scope reason a stage is not_applicable.",
+            "type": "string"
+          },
+          "policy": {
+            "description": "Policy citation a stage is skipped_by_policy.",
+            "type": "string"
+          }
         }
       }
     },
-    "residual_risk": { "type": "array", "items": { "type": "string" } },
-    "recommendation": { "enum": ["complete", "block", "retry", "escalate"] }
+    "residual_risk": {
+      "description": "Outstanding risks the verifier accepts or defers, empty when none.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "recommendation": {
+      "description": "Verifier decision. complete is allowed only when status is passed; otherwise block, retry, escalate, return_to_role, or create_follow_up_task.",
+      "enum": ["complete", "block", "retry", "escalate", "return_to_role", "create_follow_up_task"]
+    },
+    "source_commit": {
+      "description": "Optional commit the verification was run against.",
+      "type": "string"
+    },
+    "working_tree_state": {
+      "description": "Optional working-tree state at verification time.",
+      "enum": ["clean", "dirty"]
+    },
+    "active_lock": {
+      "description": "Optional path to the active-task lock the final artifact audit matched against.",
+      "type": "string"
+    },
+    "handoffs_present": {
+      "description": "Optional list of prior role handoff artifacts the final artifact audit confirmed.",
+      "type": "array",
+      "items": { "type": "string" }
+    }
   }
 }

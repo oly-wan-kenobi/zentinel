@@ -45,6 +45,8 @@ active
 
 `tests_authored`, `tests_reviewed`, `implemented`, `reviewed`, `mutation_checked`, and `verified` are artifact stages only. Agents must not write those names to `tasks/queue.json`, `tasks/status.json`, `tasks/QUEUE.md`, or `tasks/STATUS.md`.
 
+The `verified` artifact stage is the verification report at `artifacts/pipeline/<task-id>/verification/report.json` (`docs/VERIFICATION_PIPELINE.md`). A report with `status` `passed` and `recommendation` `complete` is the evidence the Task Queue Manager requires before moving the task-control state from `active` to `complete`; a `failed` or `blocked` report keeps the task `active` or moves it to `blocked`. The report itself never edits the task-control files, so artifact stages do not change task-control state.
+
 The Task Queue Manager owns lifecycle edits to `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`. Those task-control edits are allowed even when a task's implementation scope does not list the files, and the validator must prove the Markdown and JSON state agree before completion.
 
 Before task `041`, the synchronized task-control files are the active-task lock. After task `041`, the active task must also have the `artifacts/pipeline/<task-id>/locks/active-task-lock.json` evidence defined by `docs/PIPELINE_ARTIFACTS.md`.

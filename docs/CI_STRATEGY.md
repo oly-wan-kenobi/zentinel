@@ -34,6 +34,8 @@ zig build test
 
 When implementation provides lint or format checks, `scripts/ci.sh` should run them without modifying files.
 
+`scripts/ci.sh` runs the verification stages defined in `docs/VERIFICATION_PIPELINE.md` that are available for the current phase, in the same required order, and must not require remote AI providers.
+
 ## Mutation Fixture Job
 
 Once Phase 1 exists:
