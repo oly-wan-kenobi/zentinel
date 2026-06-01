@@ -326,8 +326,17 @@ fn projectOf(settings: Settings, report: ?std.json.Value) Project {
         .zentinel_version = sOr(getO(run_info, "zentinel_version"), settings.zentinel_version),
     };
 }
-fn privacyOf(settings: Settings) Privacy {
-    return .{ .remote_allowed = settings.remote_allowed, .source_context_policy = "minimal", .redactions_applied = &.{} };
+fn privacyOf(settings: Settings, log: *context.RedactionLog) Privacy {
+    return .{ .remote_allowed = settings.remote_allowed, .source_context_policy = "minimal", .redactions_applied = log.applied() };
+}
+
+/// Redact a doctest meta's path-bearing fields (file, source_ref) through the
+/// path-normalize + secret-scrub pass, recording redactions into `log` (F-4).
+fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error!DoctestMeta {
+    var meta = meta_in;
+    meta.file = try context.redactField(arena, meta.file, patterns, log);
+    if (meta.source_ref) |sr| meta.source_ref = try context.redactField(arena, sr, patterns, log);
+    return meta;
 }
 
 fn readStrArray(arena: std.mem.Allocator, v: ?std.json.Value) ![]const []const u8 {
@@ -348,21 +357,21 @@ fn readCommand(arena: std.mem.Allocator, v: ?std.json.Value) !?CommandEv {
         .cwd = sOr(get(o, "cwd"), "<project>"),
     };
 }
-fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value) ![]const Diagnostic {
+fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) (redaction.Error || command.Failure)![]const Diagnostic {
     const items = arr(get(case, "diagnostics")) orelse return &.{};
     const buf = try arena.alloc(Diagnostic, items.len);
     for (items, 0..) |it, idx| buf[idx] = .{
         .code = s(get(it, "code")),
-        .message = s(get(it, "message")),
-        .file = optStr(get(it, "file")),
+        .message = try context.redactField(arena, s(get(it, "message")), patterns, log),
+        .file = if (optStr(get(it, "file"))) |f| try context.redactField(arena, f, patterns, log) else null,
         .line = try optU32(get(it, "line")),
         .column = try optU32(get(it, "column")),
     };
     return buf;
 }
-fn redactOpt(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []const u8) redaction.Error!?[]const u8 {
+fn redactOpt(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error!?[]const u8 {
     const t = optStr(v) orelse return null;
-    return try context.redactAndCap(arena, t, patterns, context.excerpt_limit);
+    return try context.redactAndCapLogged(arena, t, patterns, context.excerpt_limit, log);
 }
 
 fn metaFromCase(case: std.json.Value) command.Failure!DoctestMeta {
@@ -405,6 +414,10 @@ fn missingKindFor(path: []const u8) []const u8 {
 pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input: ContextInput, settings: Settings) !std.json.Value {
     const patterns = settings.redact_patterns;
     const provider_mode = provider.modeName(mode);
+    // Accumulates redactions across every field of the selected flow so
+    // privacy.redactions_applied is truthful (audit F-4). Only one switch arm
+    // runs, so a single log spans that arm's evidence, meta, and doc fields.
+    var log = context.RedactionLog.init(arena);
     const bytes = switch (flow) {
         .explain_doctest_failure => blk: {
             const case = input.case orelse return error.DoctestCaseNotFound;
@@ -414,20 +427,21 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ev = CaseFailureEvidence{
                 .status = sOr(get(case, "status"), "failed"),
                 .command = command_ev,
-                .expected_excerpt = try redactOpt(arena, getO(snapshot, "expected_excerpt"), patterns),
-                .actual_excerpt = try redactOpt(arena, getO(snapshot, "actual_excerpt"), patterns),
-                .normalized_expected_excerpt = try redactOpt(arena, getO(snapshot, "normalized_expected_excerpt"), patterns),
-                .normalized_actual_excerpt = try redactOpt(arena, getO(snapshot, "normalized_actual_excerpt"), patterns),
-                .diagnostics = try readDiagnostics(arena, case),
-                .failure_summary = try context.redactAndCap(arena, s(getO(result, "failure_summary")), patterns, context.excerpt_limit),
+                .expected_excerpt = try redactOpt(arena, getO(snapshot, "expected_excerpt"), patterns, &log),
+                .actual_excerpt = try redactOpt(arena, getO(snapshot, "actual_excerpt"), patterns, &log),
+                .normalized_expected_excerpt = try redactOpt(arena, getO(snapshot, "normalized_expected_excerpt"), patterns, &log),
+                .normalized_actual_excerpt = try redactOpt(arena, getO(snapshot, "normalized_actual_excerpt"), patterns, &log),
+                .diagnostics = try readDiagnostics(arena, case, patterns, &log),
+                .failure_summary = try context.redactAndCapLogged(arena, s(getO(result, "failure_summary")), patterns, context.excerpt_limit, &log),
             };
+            const meta = try redactedMeta(arena, try metaFromCase(case), patterns, &log);
             const ctx = DoctestContext(CaseFailureEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = try metaFromCase(case),
+                .doctest = meta,
                 .evidence = ev,
-                .privacy = privacyOf(settings),
+                .privacy = privacyOf(settings, &log),
             };
             break :blk try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
         },
@@ -437,10 +451,10 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ev = SnapshotDiffEvidence{
                 .case_status = sOr(get(case, "status"), "failed"),
                 .snapshot = .{
-                    .expected_excerpt = try context.redactAndCap(arena, s(get(snap, "expected_excerpt")), patterns, context.excerpt_limit),
-                    .actual_excerpt = try context.redactAndCap(arena, s(get(snap, "actual_excerpt")), patterns, context.excerpt_limit),
-                    .normalized_expected_excerpt = try context.redactAndCap(arena, s(get(snap, "normalized_expected_excerpt")), patterns, context.excerpt_limit),
-                    .normalized_actual_excerpt = try context.redactAndCap(arena, s(get(snap, "normalized_actual_excerpt")), patterns, context.excerpt_limit),
+                    .expected_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "expected_excerpt")), patterns, context.excerpt_limit, &log),
+                    .actual_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "actual_excerpt")), patterns, context.excerpt_limit, &log),
+                    .normalized_expected_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_expected_excerpt")), patterns, context.excerpt_limit, &log),
+                    .normalized_actual_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_actual_excerpt")), patterns, context.excerpt_limit, &log),
                     .match_mode = sOr(get(snap, "match_mode"), "exact"),
                     .expected_block_ref = optStr(get(snap, "expected_block_ref")),
                     .actual_ref = sOr(get(snap, "actual_ref"), "stdout"),
@@ -450,20 +464,22 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                     },
                 },
             };
+            const meta = try redactedMeta(arena, try metaFromCase(case), patterns, &log);
             const ctx = DoctestContext(SnapshotDiffEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = try metaFromCase(case),
+                .doctest = meta,
                 .evidence = ev,
-                .privacy = privacyOf(settings),
+                .privacy = privacyOf(settings, &log),
             };
             break :blk try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
         },
         .suggest_doctest => blk: {
             const doc = input.doc_path orelse return error.DoctestDocNotFound;
+            const doc_red = try context.redactField(arena, doc, patterns, &log);
             const ev = DocsTargetEvidence{
-                .target_file = doc,
+                .target_file = doc_red,
                 .heading_context = &.{},
                 .docs_metadata = .{ .public = isPublicDoc(doc), .has_doctests = false, .executable_case_count = 0, .nearest_heading = null },
                 .report_summary = null,
@@ -472,26 +488,27 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = docsTargetMeta(doc),
+                .doctest = docsTargetMeta(doc_red),
                 .evidence = ev,
-                .privacy = privacyOf(settings),
+                .privacy = privacyOf(settings, &log),
             };
             break :blk try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
         },
         .suggest_missing_doctests => blk: {
             const doc = input.doc_path orelse "docs/";
+            const doc_red = try context.redactField(arena, doc, patterns, &log);
             const docs = try arena.alloc(DocsEntry, 1);
-            docs[0] = .{ .file = doc, .public = isPublicDoc(doc), .has_doctests = false, .executable_case_count = 0 };
+            docs[0] = .{ .file = doc_red, .public = isPublicDoc(doc), .has_doctests = false, .executable_case_count = 0 };
             const candidates = try arena.alloc(Candidate, 1);
-            candidates[0] = .{ .file = doc, .heading = "", .line_hint = null, .reason = "Public docs path lacks an executable doctest block.", .missing_kind = missingKindFor(doc) };
+            candidates[0] = .{ .file = doc_red, .heading = "", .line_hint = null, .reason = "Public docs path lacks an executable doctest block.", .missing_kind = missingKindFor(doc) };
             const ev = MissingEvidence{ .docs = docs, .candidates = candidates };
             const ctx = DoctestContext(MissingEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
                 .project = projectOf(settings, input.report),
-                .doctest = docsTargetMeta(doc),
+                .doctest = docsTargetMeta(doc_red),
                 .evidence = ev,
-                .privacy = privacyOf(settings),
+                .privacy = privacyOf(settings, &log),
             };
             break :blk try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
         },
@@ -663,11 +680,13 @@ fn explainClassification(status: []const u8) []const u8 {
     return "unclear";
 }
 
-fn stubExplain(arena: std.mem.Allocator, case: std.json.Value) !Response {
+fn stubExplain(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const status = s(get(case, "status"));
     const classification = explainClassification(status);
     const id = s(get(case, "id"));
-    const file = s(get(case, "file"));
+    // Redact the file the stub echoes into its advisory text (F-4).
+    var sink = context.RedactionLog.init(arena);
+    const file = try context.redactField(arena, s(get(case, "file")), patterns, &sink);
     const refs = try arena.alloc(EvidenceRef, 1);
     refs[0] = .{ .kind = "doctest_case", .ref = id };
     return .{ .explain = .{
@@ -684,10 +703,12 @@ fn supportedBlock(doc_path: []const u8) []const u8 {
     return "```bash cli\nzentinel version\n```";
 }
 
-fn stubSuggest(arena: std.mem.Allocator, doc_path: []const u8) !Response {
+fn stubSuggest(arena: std.mem.Allocator, doc_path: []const u8, patterns: []const []const u8) redaction.Error!Response {
+    var sink = context.RedactionLog.init(arena);
+    const target = try context.redactField(arena, doc_path, patterns, &sink);
     const suggestions = try arena.alloc(Suggestion, 1);
     suggestions[0] = .{
-        .target_file = doc_path,
+        .target_file = target,
         .line_hint = null,
         .reason = "This public documentation path should carry an executable doctest block.",
         .block = supportedBlock(doc_path),
@@ -701,13 +722,15 @@ fn snapshotClassification(expected: []const u8, actual: []const u8) []const u8 {
     return "semantic_change";
 }
 
-fn stubSnapshotReview(arena: std.mem.Allocator, case: std.json.Value) !Response {
+fn stubSnapshotReview(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const snap = getO(get(case, "result"), "snapshot");
     const expected = s(getO(snap, "normalized_expected_excerpt"));
     const actual = s(getO(snap, "normalized_actual_excerpt"));
     const classification = snapshotClassification(expected, actual);
     const risk: []const u8 = if (eqStr(classification, "semantic_change")) "high" else if (eqStr(classification, "wording_change")) "medium" else "low";
-    const block_ref = optStr(getO(snap, "expected_block_ref")) orelse s(get(case, "source_ref"));
+    // The block ref can be a source_ref path; redact it before it is echoed (F-4).
+    var sink = context.RedactionLog.init(arena);
+    const block_ref = try context.redactField(arena, optStr(getO(snap, "expected_block_ref")) orelse s(get(case, "source_ref")), patterns, &sink);
     const refs = try arena.alloc(EvidenceRef, 1);
     refs[0] = .{ .kind = "block_ref", .ref = block_ref };
     return .{ .snapshot_review = .{
@@ -841,12 +864,14 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
             if (input.flow == .review_snapshot and present(getO(get(case, "result"), "snapshot")) == null) return error.DoctestCaseNotFound;
             ctx_input = .{ .case = case, .report = report };
             break :blk if (input.flow == .explain_doctest_failure)
-                (stubExplain(arena, case) catch |e| switch (e) {
+                (stubExplain(arena, case, input.settings.redact_patterns) catch |e| switch (e) {
                     error.OutOfMemory => return error.OutOfMemory,
+                    error.RedactionFailed => return error.AiResponseInvalid,
                 })
             else
-                (stubSnapshotReview(arena, case) catch |e| switch (e) {
+                (stubSnapshotReview(arena, case, input.settings.redact_patterns) catch |e| switch (e) {
                     error.OutOfMemory => return error.OutOfMemory,
+                    error.RedactionFailed => return error.AiResponseInvalid,
                 });
         },
         .suggest_doctest => blk: {
@@ -857,8 +882,9 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
             else
                 null;
             ctx_input = .{ .doc_path = doc, .report = report };
-            break :blk stubSuggest(arena, doc) catch |e| switch (e) {
+            break :blk stubSuggest(arena, doc, input.settings.redact_patterns) catch |e| switch (e) {
                 error.OutOfMemory => return error.OutOfMemory,
+                error.RedactionFailed => return error.AiResponseInvalid,
             };
         },
         .suggest_missing_doctests => blk: {
@@ -866,8 +892,9 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
                 if (!input.doc_exists) return error.DoctestDocNotFound;
                 ctx_input = .{ .doc_path = d };
             }
-            break :blk stubSuggest(arena, input.doc_path orelse "docs/") catch |e| switch (e) {
+            break :blk stubSuggest(arena, input.doc_path orelse "docs/", input.settings.redact_patterns) catch |e| switch (e) {
                 error.OutOfMemory => return error.OutOfMemory,
+                error.RedactionFailed => return error.AiResponseInvalid,
             };
         },
     };
@@ -968,7 +995,7 @@ pub fn resolveSurvivor(report: std.json.Value, ref: []const u8) ?std.json.Value 
     return null;
 }
 
-fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patterns: []const []const u8) !RunnerEvidence {
+fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) !RunnerEvidence {
     const re = present(get(mutation, "runner_evidence")) orelse return RunnerEvidence{
         .status = "survived",
         .command = null,
@@ -992,9 +1019,9 @@ fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patter
             else => false,
         },
         .failure_kind = sOr(get(re, "failure_kind"), "none"),
-        .stdout_excerpt = try context.redactAndCap(arena, s(get(re, "stdout_excerpt")), patterns, context.excerpt_limit),
-        .stderr_excerpt = try context.redactAndCap(arena, s(get(re, "stderr_excerpt")), patterns, context.excerpt_limit),
-        .failure_summary = try context.redactAndCap(arena, s(get(re, "failure_summary")), patterns, context.excerpt_limit),
+        .stdout_excerpt = try context.redactAndCapLogged(arena, s(get(re, "stdout_excerpt")), patterns, context.excerpt_limit, log),
+        .stderr_excerpt = try context.redactAndCapLogged(arena, s(get(re, "stderr_excerpt")), patterns, context.excerpt_limit, log),
+        .failure_summary = try context.redactAndCapLogged(arena, s(get(re, "failure_summary")), patterns, context.excerpt_limit, log),
         .skip_reason = optStr(present(get(re, "skip_reason"))),
     };
 }
@@ -1026,29 +1053,33 @@ const SurvivorContextT = struct {
 /// Build the survivor context as a validated JSON value from a survived case.
 pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std.json.Value, settings: Settings) !std.json.Value {
     const patterns = settings.redact_patterns;
+    var log = context.RedactionLog.init(arena);
     const mutation = present(get(case, "mutation")) orelse return error.DoctestSurvivorNotFound;
     const ev = SurvivorEvidence{
         .survivor_ref = s(get(mutation, "survivor_ref")),
         .source_case = .{
             .doctest_case_id = optStr(get(mutation, "doctest_case_id")),
-            .file = s(get(case, "file")),
-            .source_ref = optStr(get(case, "source_ref")),
+            .file = try context.redactField(arena, s(get(case, "file")), patterns, &log),
+            .source_ref = if (optStr(get(case, "source_ref"))) |sr| try context.redactField(arena, sr, patterns, &log) else null,
         },
         .mutation_case = .{
             .case_id = s(get(case, "id")),
             .mutant_id = s(get(mutation, "mutant_id")),
             .operator = s(get(mutation, "operator")),
-            .mutated_diff = try readStrArray(arena, get(mutation, "mutated_diff")),
+            // The mutated diff is source the AI is meant to see; path-normalize and
+            // secret-scrub it (F-4) without redacting the code itself.
+            .mutated_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutation, "mutated_diff")), patterns, &log),
             .backend_stability = "stable",
-            .runner_evidence = try readRunnerEvidence(arena, mutation, patterns),
+            .runner_evidence = try readRunnerEvidence(arena, mutation, patterns, &log),
         },
     };
+    const meta = try redactedMeta(arena, try survivorMeta(case), patterns, &log);
     const ctx = SurvivorContextT{
         .provider_mode = provider.modeName(mode),
         .project = projectOf(settings, null),
-        .doctest = try survivorMeta(case),
+        .doctest = meta,
         .evidence = ev,
-        .privacy = privacyOf(settings),
+        .privacy = privacyOf(settings, &log),
     };
     const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
     return std.json.parseFromSliceLeaky(std.json.Value, arena, bytes, .{});

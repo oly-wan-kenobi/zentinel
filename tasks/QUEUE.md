@@ -141,7 +141,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 072 | `tasks/117-own-mutant-original-across-teardown.md` | complete | 8 |
 | 073 | `tasks/118-classify-compile-error-vs-killed.md` | complete | 8 |
 | 074 | `tasks/119-symlink-safe-output-containment.md` | complete | 8 |
-| 075 | `tasks/120-redact-all-ai-context-fields.md` | queued | 8 |
+| 075 | `tasks/120-redact-all-ai-context-fields.md` | complete | 8 |
 | 076 | `tasks/121-align-read-side-path-containment.md` | queued | 8 |
 
 ## Reordering Policy

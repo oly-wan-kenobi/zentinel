@@ -7,7 +7,7 @@ This file records implementation task state and handoffs. Documentation bootstra
 | Field | Value |
 | --- | --- |
 | Active task | none |
-| Next task | `120` (`tasks/120-redact-all-ai-context-fields.md`) |
+| Next task | `121` (`tasks/121-align-read-side-path-containment.md`) |
 | Sequential mode | enforced |
 | Machine-readable state | `tasks/status.json` |
 | TDD-first policy | required; mechanical chronology proof limited until pipeline artifact validation |

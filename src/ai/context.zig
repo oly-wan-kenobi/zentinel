@@ -166,6 +166,70 @@ pub fn redactAndCap(arena: std.mem.Allocator, text: []const u8, patterns: []cons
     return capExcerpt(arena, r.text, max_bytes);
 }
 
+/// Synthetic `redactions_applied` labels for redaction kinds that are not
+/// configured patterns (docs/AI_CONTEXT_SCHEMA.md). `absolute_path` marks an
+/// absolute path normalized to `<path>`; `secret_value` marks a built-in
+/// secret-VALUE shape scrubbed (GitHub/AWS/Anthropic/JWT/PEM).
+pub const label_absolute_path = "absolute_path";
+pub const label_secret_value = "secret_value";
+
+/// Accumulates the redaction labels actually applied across every context field,
+/// deduplicated in first-seen order, so `privacy.redactions_applied` is truthful:
+/// non-empty exactly when at least one redaction occurred.
+pub const RedactionLog = struct {
+    arena: std.mem.Allocator,
+    labels: std.ArrayList([]const u8) = .empty,
+
+    pub fn init(arena: std.mem.Allocator) RedactionLog {
+        return .{ .arena = arena };
+    }
+
+    fn has(self: RedactionLog, label: []const u8) bool {
+        for (self.labels.items) |l| {
+            if (std.mem.eql(u8, l, label)) return true;
+        }
+        return false;
+    }
+
+    pub fn add(self: *RedactionLog, label: []const u8) std.mem.Allocator.Error!void {
+        if (!self.has(label)) try self.labels.append(self.arena, label);
+    }
+
+    pub fn applied(self: RedactionLog) []const []const u8 {
+        return self.labels.items;
+    }
+};
+
+/// Redact a path/source-bearing context field: normalize absolute paths to
+/// `<path>` and scrub secret-looking tokens, recording every redaction kind
+/// applied into `log`. Fails closed like `redact`. Used for the file, source,
+/// diff, and path fields that previously passed through verbatim (audit F-4).
+pub fn redactField(arena: std.mem.Allocator, text: []const u8, patterns: []const []const u8, log: *RedactionLog) redaction.Error![]const u8 {
+    const np = try redaction.normalizeAbsolutePaths(arena, text);
+    if (np.changed) try log.add(label_absolute_path);
+    const r = try redaction.redact(arena, np.text, patterns);
+    for (r.applied) |p| try log.add(p);
+    if (r.builtin_matched) try log.add(label_secret_value);
+    return r.text;
+}
+
+/// Redact every line of a string array (e.g. a `diff` or `mutated_diff`) through
+/// `redactField`, accumulating into `log`.
+pub fn redactStrArray(arena: std.mem.Allocator, lines: []const []const u8, patterns: []const []const u8, log: *RedactionLog) redaction.Error![]const []const u8 {
+    const out = try arena.alloc([]const u8, lines.len);
+    for (lines, 0..) |line, i| out[i] = try redactField(arena, line, patterns, log);
+    return out;
+}
+
+/// Redact + cap one evidence excerpt while recording the redactions into `log`,
+/// so evidence-sourced secrets are reflected in `redactions_applied` too.
+pub fn redactAndCapLogged(arena: std.mem.Allocator, text: []const u8, patterns: []const []const u8, max_bytes: usize, log: *RedactionLog) redaction.Error![]const u8 {
+    const r = try redaction.redact(arena, text, patterns);
+    for (r.applied) |p| try log.add(p);
+    if (r.builtin_matched) try log.add(label_secret_value);
+    return capExcerpt(arena, r.text, max_bytes);
+}
+
 // --- Structural validation (schema-subset, JSON level) ---------------------
 
 pub const Violation = enum {

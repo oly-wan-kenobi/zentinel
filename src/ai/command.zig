@@ -247,11 +247,11 @@ fn readStrArray(arena: std.mem.Allocator, v: ?std.json.Value) ![]const []const u
     return buf;
 }
 
-fn redactedEvidence(arena: std.mem.Allocator, ev: ?std.json.Value, patterns: []const []const u8) redaction.Error!context.Evidence {
+fn redactedEvidence(arena: std.mem.Allocator, ev: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error!context.Evidence {
     return .{
-        .stdout_excerpt = try context.redactAndCap(arena, s(getO(ev, "stdout_excerpt")), patterns, context.excerpt_limit),
-        .stderr_excerpt = try context.redactAndCap(arena, s(getO(ev, "stderr_excerpt")), patterns, context.excerpt_limit),
-        .failure_summary = try context.redactAndCap(arena, s(getO(ev, "failure_summary")), patterns, context.excerpt_limit),
+        .stdout_excerpt = try context.redactAndCapLogged(arena, s(getO(ev, "stdout_excerpt")), patterns, context.excerpt_limit, log),
+        .stderr_excerpt = try context.redactAndCapLogged(arena, s(getO(ev, "stderr_excerpt")), patterns, context.excerpt_limit, log),
+        .failure_summary = try context.redactAndCapLogged(arena, s(getO(ev, "failure_summary")), patterns, context.excerpt_limit, log),
     };
 }
 
@@ -307,6 +307,18 @@ fn buildContext(
     const result = get(mutant, "result") orelse return error.RedactionFailed;
     const rstatus = s(get(result, "status"));
     const patterns = settings.redact_patterns;
+    var log = context.RedactionLog.init(arena);
+
+    // Redact every path/source/diff-bearing field through the same path-normalize
+    // + secret-scrub pass as evidence, accumulating what was redacted so
+    // privacy.redactions_applied stays truthful (audit F-4). These must be
+    // computed before the context literal because redactions_applied appears
+    // earlier in the struct and must reflect every field's redactions.
+    const result_evidence = try redactedEvidence(arena, get(result, "evidence"), patterns, &log);
+    const m_file = try context.redactField(arena, s(get(mutant, "file")), patterns, &log);
+    const m_original = try context.redactField(arena, s(get(mutant, "original")), patterns, &log);
+    const m_replacement = try context.redactField(arena, s(get(mutant, "replacement")), patterns, &log);
+    const m_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutant, "diff")), patterns, &log);
 
     const cmd_status = commandStatusFor(rstatus);
     const cmd_failure_kind = blk: {
@@ -331,7 +343,7 @@ fn buildContext(
         .timed_out = false,
         .failure_kind = cmd_failure_kind,
         .duration_ms_normalized = "<duration>",
-        .evidence = try redactedEvidence(arena, get(result, "evidence"), patterns),
+        .evidence = result_evidence,
         .skip_reason = if (eqStr(cmd_status, "skipped")) sOr(get(result, "skip_reason"), "command skipped") else null,
     };
     const commands = try arena.alloc(context.CommandResult, 1);
@@ -346,7 +358,7 @@ fn buildContext(
         .created_by = "zentinel",
         .provider_mode = provider.modeName(mode),
         .privacy = .{
-            .redactions_applied = &.{},
+            .redactions_applied = log.applied(),
             .source_context_policy = "none",
             .remote_allowed = settings.remote_allowed,
         },
@@ -363,11 +375,11 @@ fn buildContext(
             .backend_stability = sOr(get(mutant, "backend_stability"), "stable"),
             .operator = s(get(mutant, "operator")),
             .operator_stability = sOr(get(mutant, "operator_stability"), "stable"),
-            .file = s(get(mutant, "file")),
+            .file = m_file,
             .span = try readSpan(get(mutant, "span")),
-            .original = s(get(mutant, "original")),
-            .replacement = s(get(mutant, "replacement")),
-            .diff = try readStrArray(arena, get(mutant, "diff")),
+            .original = m_original,
+            .replacement = m_replacement,
+            .diff = m_diff,
             .expected_compile = sOr(get(mutant, "expected_compile"), "compiles"),
         },
         .result = .{
@@ -376,7 +388,7 @@ fn buildContext(
             .commands = commands,
             .phase = "mutant",
             .duration_ms_normalized = "<duration>",
-            .evidence = try redactedEvidence(arena, get(result, "evidence"), patterns),
+            .evidence = result_evidence,
             .skip_reason = if (eqStr(rstatus, "skipped")) sOr(get(result, "skip_reason"), "result skipped") else null,
         },
         .source_context = .{
@@ -536,12 +548,15 @@ fn categoryWord(classification: []const u8) []const u8 {
     return "uncovered";
 }
 
-fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Value) !Response {
+fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const operator = s(get(mutant, "operator"));
     const status = s(getO(get(mutant, "result"), "status"));
     const classification = mapClassification(operator, status);
     const word = categoryWord(classification);
-    const file = s(get(mutant, "file"));
+    // Redact the file path the stub echoes into its advisory text so the rendered
+    // output (stdout) never leaks an absolute path or secret-looking token (F-4).
+    var sink = context.RedactionLog.init(arena);
+    const file = try context.redactField(arena, s(get(mutant, "file")), patterns, &sink);
     switch (flow) {
         .explain => {
             const confidence: []const u8 = if (eqStr(classification, "unclear")) "unclear" else "medium";
@@ -838,8 +853,9 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
             const ref = input.mutant_ref orelse return error.AiTargetNotFound;
             const mutant = resolveMutant(report, ref) orelse return error.AiTargetNotFound;
             anchor = mutant;
-            break :blk stubMutantResponse(arena, input.flow, mutant) catch |err| switch (err) {
+            break :blk stubMutantResponse(arena, input.flow, mutant, input.settings.redact_patterns) catch |err| switch (err) {
                 error.OutOfMemory => return error.OutOfMemory,
+                error.RedactionFailed => return error.AiResponseInvalid,
             };
         },
         .review_tests => blk: {

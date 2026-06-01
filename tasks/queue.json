@@ -3916,7 +3916,7 @@
       "title": "Redact All AI Context Fields",
       "file": "tasks/120-redact-all-ai-context-fields.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "119"
       ],

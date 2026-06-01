@@ -112,6 +112,81 @@ test "explain still succeeds on a valid in-range report" {
     try expect(outcome.body.len > 0);
 }
 
+// --- AI context redaction scope (task 120, audit F-4) -----------------------
+//
+// Redaction was wired only to evidence excerpts; the source-, diff-, and
+// path-bearing context fields (mutant.file/original/replacement/diff) passed
+// through verbatim, and privacy.redactions_applied was always empty. A report
+// whose file is an absolute developer path and whose source/diff carries a
+// secret-looking token must not leak either into the built context or the
+// rendered output, and redactions_applied must record what was scrubbed.
+
+const abs_path_secret = "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/calc.zig";
+const github_secret = "ghp_abcdefghijklmnopqrstuvwxyz0123";
+
+const leaky_report =
+    \\{
+    \\  "mutants": [
+    \\    {
+    \\      "id": "m_leak",
+    \\      "display_id": 1,
+    \\      "operator": "arithmetic_add_sub",
+    \\      "backend": "ast",
+    \\      "backend_stability": "stable",
+    \\      "operator_stability": "stable",
+    \\      "file": "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/calc.zig",
+    \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+    \\      "original": "const token = \"ghp_abcdefghijklmnopqrstuvwxyz0123\";",
+    \\      "replacement": "const token = \"x\";",
+    \\      "diff": ["-const token = \"ghp_abcdefghijklmnopqrstuvwxyz0123\";", "+const token = \"x\";"],
+    \\      "expected_compile": "compiles",
+    \\      "result": { "status": "survived", "mode": "Debug", "commands": [], "evidence": {} }
+    \\    }
+    \\  ]
+    \\}
+;
+
+test "explain context redacts absolute paths and secret tokens in every field (F-4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const report = try std.json.parseFromSliceLeaky(std.json.Value, a, leaky_report, .{});
+    const mutant = report.object.get("mutants").?.array.items[0];
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, report, stubSettings());
+    const json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+
+    // Neither the absolute path nor the secret token survives into the context.
+    try expect(std.mem.indexOf(u8, json, abs_path_secret) == null);
+    try expect(std.mem.indexOf(u8, json, github_secret) == null);
+    try expect(std.mem.indexOf(u8, json, "/Users/") == null);
+    // redactions_applied is populated (not the always-empty list it used to be).
+    try expect(std.mem.indexOf(u8, json, "\"redactions_applied\": []") == null);
+    try expect(std.mem.indexOf(u8, json, "absolute_path") != null);
+    try expect(std.mem.indexOf(u8, json, "secret_value") != null);
+}
+
+test "explain rendered output no longer echoes absolute paths or secret tokens (F-4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const input = command.Input{
+        .flow = .explain,
+        .mutant_ref = "m_leak",
+        .provider_override = null,
+        .report_json = leaky_report,
+        .settings = stubSettings(),
+    };
+    inline for (.{ .text, .json }) |fmt| {
+        const outcome = try command.run(a, input, fmt);
+        try expectEqual(@as(u8, 0), outcome.exit_code);
+        try expect(std.mem.indexOf(u8, outcome.body, abs_path_secret) == null);
+        try expect(std.mem.indexOf(u8, outcome.body, github_secret) == null);
+        try expect(std.mem.indexOf(u8, outcome.body, "/Users/") == null);
+    }
+}
+
 test "doctest explain rejects an out-of-range case line instead of panicking" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -145,4 +220,34 @@ test "doctest explain rejects an out-of-range case line instead of panicking" {
         .settings = stubSettings(),
     };
     try expectError(error.AiReportNotFound, doctest_command.run(a, input, .json));
+}
+
+test "doctest survivor context redacts absolute paths and secret tokens in every field (F-4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const survivor_case =
+        \\{
+        \\  "id": "dc_1",
+        \\  "file": "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/docs.md",
+        \\  "source_ref": "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/docs.md#ex",
+        \\  "line_start": 1,
+        \\  "line_end": 2,
+        \\  "mutation": {
+        \\    "survivor_ref": "ds_1",
+        \\    "mutant_id": "m_1",
+        \\    "operator": "arithmetic_add_sub",
+        \\    "mutated_diff": ["-const k = \"ghp_abcdefghijklmnopqrstuvwxyz0123\";", "+const k = \"x\";"],
+        \\    "runner_evidence": { "status": "survived", "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }
+        \\  }
+        \\}
+    ;
+    const case = try std.json.parseFromSliceLeaky(std.json.Value, a, survivor_case, .{});
+    const ctx = try doctest_command.buildSurvivorContextValue(a, .stub, case, stubSettings());
+    const json = try std.json.Stringify.valueAlloc(a, ctx, .{ .whitespace = .indent_2 });
+
+    try expect(std.mem.indexOf(u8, json, github_secret) == null);
+    try expect(std.mem.indexOf(u8, json, "/Users/") == null);
+    try expect(std.mem.indexOf(u8, json, "\"redactions_applied\": []") == null);
 }

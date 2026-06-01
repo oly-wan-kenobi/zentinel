@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "120",
+  "next_task": "121",
   "completed_tasks": [
     "068",
     "069",
@@ -122,14 +122,15 @@
     "116",
     "117",
     "118",
-    "119"
+    "119",
+    "120"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 119 (symlink-safe output containment, audit F-3) completed: config.outputPathHasSymlink refuses any symlinked component in an output path (no-follow stat per prefix), and cli.zig applies it before the report and cache writes so an in-tree symlink that leaves the project tree can no longer redirect the write outside the root. Verified by a failing-before/passing-after unit test over a real symlink and a real-binary before/after escape proof on Debug and ReleaseSafe. next_task advanced to 120."
+    "notes": "Task 120 (redact all AI context fields, audit F-4) completed: every path/source/diff-bearing AI-context field (mutant.file/original/replacement/diff; doctest file/source_ref/mutated_diff; diagnostics; doc paths; evidence) plus the path-echoing stub responses now run through path-normalization (absolute -> <path>) and secret scrubbing in both the mutation and doctest flows, and privacy.redactions_applied records every redaction (configured patterns + synthetic absolute_path/secret_value labels). Verified by failing-before/passing-after context + rendered-output unit tests and a real-binary before/after stdout proof. next_task advanced to 121."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5874,6 +5875,54 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/119/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "120",
+      "failing_evidence": "failing_command: `zig build test` with the redaction tests in test/ai_command_test.zig written first. failing_output_excerpt: 'explain context redacts absolute paths and secret tokens in every field (F-4)' failed at ai_command_test.zig:160 (the prompt context still contained the absolute path '/Users/...' and the ghp_ token, and privacy.redactions_applied was the empty list) and 'explain rendered output no longer echoes...' failed at ai_command_test.zig:184 (the stub body echoed the absolute path) -- 512/514 passed, 2 failed. implementation_started_after_failure: true. passing_command: after routing every path/source/diff field through path-normalize + secret-scrub and populating redactions_applied, `zig build test` passed (518 tests). The real binary confirmed it: `zentinel explain m_leak --ai-provider stub --input-report report.json` echoed '/Users/dev/work-ghp_.../calc.zig' verbatim before the fix and prints '<path>' (no /Users/, no ghp_ token) after.",
+      "implementation_summary": "Fixed adversarial-audit finding F-4 (High, AI-boundary leak). Redaction/normalization was wired only to evidence excerpts; the source-, diff-, and path-bearing context fields passed through verbatim and privacy.redactions_applied was always empty, and docs promised an absolute-path normalization that was never implemented. Added shared primitives: redaction.normalizeAbsolutePaths (replaces an absolute multi-segment path token with <path>, leaving relative paths and a lone `/` division operator intact so the AI still sees the code) and a built-in-match flag on redaction.redact; context.RedactionLog (deduped applied labels), context.redactField/redactStrArray (path-normalize + secret-scrub a field, logging absolute_path/secret_value/configured-pattern labels), and context.redactAndCapLogged (logging evidence variant). Wired both AI flows: command.buildContext redacts mutant.file/original/replacement/diff + evidence and sets redactions_applied = log.applied(); stubMutantResponse redacts the file it echoes. doctest_command.buildContextValue and buildSurvivorContextValue redact doctest file/source_ref, diagnostics file/message, mutated_diff, doc paths, runner evidence, and set redactions_applied; the doctest stubs (stubExplain/stubSnapshotReview/stubSuggest) redact the path they echo. docs/AI_CONTEXT_SCHEMA.md now documents the three-level redaction (path normalization + label + value) over all fields and the truthful redactions_applied. The redaction is deterministic and derived only from input, so AI output still cannot set status/exit_code/failure_kind (I-001). Redaction fails closed (RedactionFailed -> AiResponseInvalid). No forbidden files touched (src/run_command.zig, src/runner.zig, src/report.zig, build.zig, build.zig.zon); no deterministic run/report path change.",
+      "files_changed": [
+        "src/ai/redaction.zig",
+        "src/ai/context.zig",
+        "src/ai/command.zig",
+        "src/ai/doctest_command.zig",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "test/ai_command_test.zig",
+        "test/ai_context_test.zig",
+        "artifacts/pipeline/120/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/ai_command_test.zig: 'explain context redacts absolute paths and secret tokens in every field (F-4)' (buildPromptValue context, fails before the fix: path + secret present, redactions_applied empty), 'explain rendered output no longer echoes absolute paths or secret tokens (F-4)' (run body text+json), 'doctest survivor context redacts absolute paths and secret tokens in every field (F-4)' (buildSurvivorContextValue).",
+        "test/ai_context_test.zig: 'normalizeAbsolutePaths replaces absolute paths but preserves relative paths and division' and 'redactField normalizes paths, scrubs secret values, and logs both kinds' (the new primitives)."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): ai_command_test.zig:160 context retained the absolute path + ghp_ token and redactions_applied []; :184 rendered body echoed the path -- 512/514 passed, 2 failed",
+        "zig build test (passing, after the fix): 518 tests green",
+        "real-binary before/after: `zentinel explain m_leak --ai-provider stub --input-report report.json` echoed /Users/dev/work-ghp_.../calc.zig verbatim pre-fix; prints <path> with no /Users/ or ghp_ token post-fix",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 120 was active (changed files within allowed_files -- src/ai/{redaction,context,command,doctest_command}.zig, docs/AI_CONTEXT_SCHEMA.md, test/ai_command_test.zig, test/ai_context_test.zig, and the artifacts/pipeline/120 verification report -- plus the four task-control files) and again after the complete-state transition with next_task set to 121 (121 depends on 120, now complete). No coverage-gap registry rows were changed."
+      },
+      "dogfooding_implication": "zentinel's own advisory AI commands stop leaking absolute developer paths and secret-looking strings from analyzed source into the AI context and terminal output: every path/source/diff field is path-normalized and secret-scrubbed in both the mutation and doctest flows, and redactions_applied honestly reports what was scrubbed, so running explain/suggest/review-tests/doctest over an untrusted checkout is privacy-safe.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/120/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

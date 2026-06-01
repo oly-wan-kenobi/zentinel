@@ -379,3 +379,57 @@ test "the stub provider is deterministic and disabled mode yields no advisory" {
     try expectError(error.ProviderDisabled, provider.run(a, .disabled, false, req));
     try expectError(error.RemoteNotAllowed, provider.run(a, .remote, false, req));
 }
+
+// --- Path normalization + field redaction primitives (task 120, audit F-4) --
+
+test "normalizeAbsolutePaths replaces absolute paths but preserves relative paths and division" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // An absolute multi-segment path (which can embed a secret segment) becomes a
+    // placeholder; an embedded one is replaced in place.
+    const abs = try redaction.normalizeAbsolutePaths(a, "/Users/dev/secret/calc.zig");
+    try expect(abs.changed);
+    try expectEqualStrings("<path>", abs.text);
+    const emb = try redaction.normalizeAbsolutePaths(a, "see /etc/ssh/key here");
+    try expect(emb.changed);
+    try expectEqualStrings("see <path> here", emb.text);
+
+    // A relative path and a lone division operator stay intact so the AI still
+    // sees the mutated code.
+    const rel = try redaction.normalizeAbsolutePaths(a, "src/calc.zig");
+    try expect(!rel.changed);
+    try expectEqualStrings("src/calc.zig", rel.text);
+    const div = try redaction.normalizeAbsolutePaths(a, "const q = a / b;");
+    try expect(!div.changed);
+    try expectEqualStrings("const q = a / b;", div.text);
+}
+
+test "redactField normalizes paths, scrubs secret values, and logs both kinds" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // An absolute path with a secret segment: the whole path (secret included) is
+    // normalized to <path> and the normalization is recorded.
+    var log = context.RedactionLog.init(a);
+    const out = try context.redactField(a, "/Users/dev/ghp_abcdefghijklmnopqrstuvwxyz0123/x.zig", &.{}, &log);
+    try expect(std.mem.indexOf(u8, out, "/Users/") == null);
+    try expect(std.mem.indexOf(u8, out, "ghp_abcdefghij") == null);
+    try expect(hasLabel(log.applied(), context.label_absolute_path));
+
+    // A bare secret token (no path) is scrubbed and recorded as secret_value, even
+    // with no configured patterns -- the built-in value matchers always run.
+    var log2 = context.RedactionLog.init(a);
+    const out2 = try context.redactField(a, "key=ghp_abcdefghijklmnopqrstuvwxyz0123", &.{}, &log2);
+    try expect(std.mem.indexOf(u8, out2, "ghp_abcdefghij") == null);
+    try expect(hasLabel(log2.applied(), context.label_secret_value));
+}
+
+fn hasLabel(labels: []const []const u8, want: []const u8) bool {
+    for (labels) |l| {
+        if (std.mem.eql(u8, l, want)) return true;
+    }
+    return false;
+}

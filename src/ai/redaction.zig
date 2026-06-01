@@ -25,7 +25,50 @@ pub const Redacted = struct {
     /// The configured patterns (verbatim) that matched at least once, in
     /// configuration order. Recorded in the AI context `privacy.redactions_applied`.
     applied: []const []const u8,
+    /// True if at least one built-in secret-VALUE shape (GitHub/AWS/Anthropic/JWT/
+    /// PEM) matched. Built-in matches are not configured patterns, so they are not
+    /// in `applied`; the caller records them under a synthetic label so
+    /// `redactions_applied` stays truthful about value scrubbing.
+    builtin_matched: bool = false,
 };
+
+/// True for a byte that can appear inside a filesystem path token.
+fn isPathByte(c: u8) bool {
+    return std.ascii.isAlphanumeric(c) or c == '/' or c == '.' or c == '_' or c == '-';
+}
+
+/// Normalize absolute-path tokens in `text` to the `<path>` placeholder so an
+/// absolute developer path (which can itself embed a secret-looking segment)
+/// never reaches a provider or the rendered AI output (docs/AI_CONTEXT_SCHEMA.md).
+/// A token qualifies when a `/` begins a path-byte run at a token boundary (start
+/// of text or after a non-path byte) and that run contains a second `/` -- the
+/// multi-segment requirement keeps a lone division operator (`a / b`) and
+/// in-tree relative paths (`src/x.zig`, `./x.zig`) untouched, so the AI still
+/// sees the mutated code. Pure and deterministic.
+pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error!struct { text: []const u8, changed: bool } {
+    var out: std.ArrayList(u8) = .empty;
+    var changed = false;
+    var i: usize = 0;
+    while (i < text.len) {
+        const at_boundary = i == 0 or !isPathByte(text[i - 1]);
+        if (text[i] == '/' and at_boundary) {
+            var end = i + 1;
+            var inner_slashes: usize = 0;
+            while (end < text.len and isPathByte(text[end])) : (end += 1) {
+                if (text[end] == '/') inner_slashes += 1;
+            }
+            if (inner_slashes >= 1) {
+                try out.appendSlice(arena, "<path>");
+                changed = true;
+                i = end;
+                continue;
+            }
+        }
+        try out.append(arena, text[i]);
+        i += 1;
+    }
+    return .{ .text = try out.toOwnedSlice(arena), .changed = changed };
+}
 
 const Segment = struct {
     literal: []const u8,
@@ -225,6 +268,7 @@ pub fn redact(arena: std.mem.Allocator, text: []const u8, patterns: []const []co
     @memset(applied_flags, false);
 
     var out: std.ArrayList(u8) = .empty;
+    var builtin_matched = false;
     var i: usize = 0;
     while (i < text.len) {
         var matched = false;
@@ -248,6 +292,7 @@ pub fn redact(arena: std.mem.Allocator, text: []const u8, patterns: []const []co
                     try out.appendSlice(arena, marker);
                     i = end;
                     matched = true;
+                    builtin_matched = true;
                 }
             }
         }
@@ -261,5 +306,5 @@ pub fn redact(arena: std.mem.Allocator, text: []const u8, patterns: []const []co
     for (patterns, 0..) |p, pi| {
         if (applied_flags[pi]) try applied.append(arena, p);
     }
-    return .{ .text = try out.toOwnedSlice(arena), .applied = try applied.toOwnedSlice(arena) };
+    return .{ .text = try out.toOwnedSlice(arena), .applied = try applied.toOwnedSlice(arena), .builtin_matched = builtin_matched };
 }
