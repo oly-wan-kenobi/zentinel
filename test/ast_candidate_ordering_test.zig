@@ -30,10 +30,10 @@ test "candidates sort canonically by file, span, operator, replacement, backend"
     const a = arena.allocator();
 
     var collector = ast_backend.Collector.init(a);
-    try collector.add(mk("src/b.zig", 10, 12, "comparison_boundary", "<", "<="));
-    try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", "<", "<="));
-    try collector.add(mk("src/a.zig", 5, 7, "comparison_boundary", "<", "<="));
-    try collector.add(mk("src/a.zig", 10, 12, "arithmetic_add_sub", "+", "-"));
+    try collector.add(mk("src/b.zig", 10, 11, "comparison_boundary", "<", "<="));
+    try collector.add(mk("src/a.zig", 10, 11, "comparison_boundary", "<", "<="));
+    try collector.add(mk("src/a.zig", 5, 6, "comparison_boundary", "<", "<="));
+    try collector.add(mk("src/a.zig", 10, 11, "arithmetic_add_sub", "+", "-"));
 
     const items = try collector.finish();
     try expectEqual(@as(usize, 4), items.len);
@@ -63,6 +63,38 @@ test "identical candidates are deduplicated by durable identity" {
     const items = try collector.finish();
     try expectEqual(@as(usize, 2), items.len);
     try expect(!std.mem.eql(u8, items[0].id, items[1].id));
+}
+
+test "duplicate physical edits from different operators are deduplicated deterministically" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var collector = ast_backend.Collector.init(a);
+    try collector.add(mk("src/range.zig", 10, 12, "loop_boundary", ">=", ">"));
+    try collector.add(mk("src/range.zig", 10, 12, "comparison_boundary", ">=", ">"));
+
+    const items = try collector.finish();
+    try expectEqual(@as(usize, 1), items.len);
+    // Canonical operator ordering keeps comparison_boundary as the representative
+    // for the shared physical edit.
+    try expectEqualStrings("comparison_boundary", items[0].operator);
+}
+
+test "collector rejects structurally invalid candidates before assigning ids" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var collector = ast_backend.Collector.init(a);
+    try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", ">=", ">"));
+    try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", ">=", ">=")); // no-op
+    try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", ">", ">=")); // original length does not match span
+
+    const items = try collector.finish();
+    try expectEqual(@as(usize, 1), items.len);
+    try expectEqualStrings(">=", items[0].original);
+    try expectEqualStrings(">", items[0].replacement);
 }
 
 test "candidate order is stable across repeated collection in different insertion orders" {

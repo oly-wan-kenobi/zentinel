@@ -52,8 +52,12 @@ const MockProvider = struct {
     }
 };
 
+fn outcomeWith(exit_code: ?i64, timed_out: bool, crashed: bool, stdout: []const u8, stderr: []const u8) proc.RawOutcome {
+    return .{ .exit_code = exit_code, .timed_out = timed_out, .crashed = crashed, .duration_ms = 1, .stdout = stdout, .stderr = stderr };
+}
+
 fn outcome(exit_code: ?i64, timed_out: bool, crashed: bool) proc.RawOutcome {
-    return .{ .exit_code = exit_code, .timed_out = timed_out, .crashed = crashed, .duration_ms = 1, .stdout = "", .stderr = "" };
+    return outcomeWith(exit_code, timed_out, crashed, "", "");
 }
 
 fn ctxWith(a: std.mem.Allocator, exec: *MockExec, prov: *MockProvider) runner.Context {
@@ -155,6 +159,24 @@ test "timeout outcome yields timeout status with a null exit code" {
     try expectEqual(runner.Status.timeout, r.status);
     try expect(r.timed_out);
     try expectEqual(@as(?i64, null), r.exit_code);
+}
+
+test "doctest output excerpts are bounded on UTF-8 codepoint boundaries" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const big = try a.alloc(u8, proc.excerpt_limit + 2);
+    @memset(big[0 .. proc.excerpt_limit - 1], 'x');
+    @memcpy(big[proc.excerpt_limit - 1 .. proc.excerpt_limit + 2], "€");
+
+    var exec = MockExec{ .out = outcomeWith(0, false, false, big, big) };
+    var prov = MockProvider{};
+    const r = try runner.runCase(ctxWith(a, &exec, &prov), mkCase(.cli, "dt_utf8"), "zentinel --help");
+    try expectEqual(runner.Status.passed, r.status);
+    try expectEqual(@as(usize, proc.excerpt_limit - 1), r.stdout_excerpt.len);
+    try expect(std.unicode.utf8ValidateSlice(r.stdout_excerpt));
+    try expect(std.unicode.utf8ValidateSlice(r.stderr_excerpt));
 }
 
 test "unsupported CLI command is rejected with ZNTL_DOCTEST_COMMAND_REJECTED" {

@@ -81,6 +81,15 @@ test "operator filter narrows the listing" {
     try expectEqualStrings("src/helper.zig", filtered[0].file);
 }
 
+test "list-mutants reports parse failures instead of silently dropping a source file" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const fs = [_]lm.FileSource{.{ .path = "src/broken.zig", .source = "pub fn broken(\n" }};
+    try expectError(error.BackendParseError, lm.generate(a, loadCfg(a, cfg_toml), &fs, null));
+}
+
 test "parseArgs reads documented options and rejects the rest" {
     const opts = try lm.parseArgs(&.{ "--operator", "arithmetic_add_sub", "--format", "json" });
     try expectEqualStrings("arithmetic_add_sub", opts.operator_filter.?);

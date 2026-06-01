@@ -86,9 +86,16 @@ pub fn statusCode(status: report.CommandStatus) []const u8 {
 /// The normalizer (report.normalizeExcerpt) replaces hex pointer addresses and
 /// absolute machine paths with stable placeholders so repeated runs over the same
 /// project produce identical excerpts (docs/REPORT_FORMAT.md).
+pub fn utf8BoundaryLen(text: []const u8, max_bytes: usize) usize {
+    if (text.len <= max_bytes) return text.len;
+    var end = max_bytes;
+    while (end > 0 and end < text.len and (text[end] & 0xC0) == 0x80) end -= 1;
+    return end;
+}
+
 fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
     const normalized = try report.normalizeExcerpt(arena, text);
-    const len = @min(normalized.len, excerpt_limit);
+    const len = utf8BoundaryLen(normalized, excerpt_limit);
     return normalized[0..len];
 }
 

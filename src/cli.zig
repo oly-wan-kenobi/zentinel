@@ -48,7 +48,7 @@ pub fn run(
         },
         .run => |inv| return runRun(gpa, io, dir, inv, stdout, stderr, parent_env),
         .list_mutants => |inv| return runListMutants(gpa, io, dir, inv, stdout, stderr),
-        .doctest => |inv| return runDoctest(gpa, io, dir, inv, stdout, stderr),
+        .doctest => |inv| return runDoctest(gpa, io, dir, inv, stdout, stderr, parent_env),
         .explain => |inv| return runAiCommand(gpa, io, dir, inv, .explain, stdout, stderr),
         .suggest => |inv| return runAiCommand(gpa, io, dir, inv, .suggest, stdout, stderr),
         .review_tests => |inv| return runAiCommand(gpa, io, dir, inv, .review_tests, stdout, stderr),
@@ -241,7 +241,7 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     while (try walker.next(rt.io)) |entry| {
         if (entry.kind != .file) continue;
         if (copyExcluded(entry.path)) continue;
-        rt.root_dir.copyFile(entry.path, dir, entry.path, rt.io, .{ .make_path = true }) catch continue;
+        try rt.root_dir.copyFile(entry.path, dir, entry.path, rt.io, .{ .make_path = true });
     }
     try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
     return .{ .rel = rel, .dir = dir };
@@ -275,7 +275,7 @@ fn mutantRunFn(
 }
 
 /// Build the run observation metadata (run id, ISO timestamp, config hash).
-fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, zig: zentinel.zig_version.Discovery, root_label: []const u8) !zentinel.run_command.Observation {
+fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, zig_label: []const u8, root_label: []const u8) !zentinel.run_command.Observation {
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
     const run_id = try std.fmt.allocPrint(gpa, "run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
 
@@ -292,11 +292,6 @@ fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, z
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(cfg_bytes, &digest, .{});
     const config_hash = try std.fmt.allocPrint(gpa, "sha256:{s}", .{std.fmt.bytesToHex(digest[0..8], .lower)});
-
-    const zig_label: []const u8 = switch (zig) {
-        .version => |v| v,
-        .not_found => zentinel.supported_zig_version,
-    };
 
     return .{
         .run_id = run_id,
@@ -317,6 +312,16 @@ fn timeoutFromMs(ms: i64) std.Io.Timeout {
     // `.awake` is the monotonic clock that excludes suspend time: the right
     // basis for a wall-bounded test timeout.
     return .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(ms), .clock = .awake } };
+}
+
+const default_command_timeout_ms: i64 = 30000;
+
+fn configuredTimeoutMs(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, globals: zentinel.Globals) i64 {
+    const resolved = resolveConfigPath(gpa, globals) catch return default_command_timeout_ms;
+    const bytes = readConfig(gpa, io, dir, resolved) orelse return default_command_timeout_ms;
+    var diag: zentinel.config.Diagnostic = .{};
+    const cfg = zentinel.config.load(gpa, bytes, &diag) catch return default_command_timeout_ms;
+    return cfg.test_timeout_ms;
 }
 
 /// `zentinel run`: load config, validate Zig, discover eligible source files
@@ -355,12 +360,13 @@ fn runRun(
         return 2;
     };
 
-    // Zig version is validated but non-fatal (mirrors `version`): a mismatch is
-    // surfaced on stderr without blocking the run.
     const zig = discoverZig(gpa, io);
-    if (try zentinel.zig_version.statusLine(gpa, zig)) |line| {
-        try stderr.print("{s}\n", .{line});
+    const fatal_zig = try zentinel.zig_version.fatalStatusLine(gpa, zig);
+    if (fatal_zig.len > 0) {
+        try stderr.print("{s}\n", .{fatal_zig});
+        return zentinel.zig_version.failureExit(zig);
     }
+    const zig_label = zentinel.zig_version.supportedLabel(zig).?;
 
     var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
     defer root_dir.close(io);
@@ -368,16 +374,19 @@ fn runRun(
     const discovered = try zentinel.project_model.discover(gpa, io, root_dir, cfg.include, cfg.exclude);
     var files: std.ArrayList(zentinel.run_command.FileSource) = .empty;
     for (discovered) |rel| {
-        const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch continue;
+        const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch |err| {
+            try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: could not read {s}: {s}\n", .{ rel, @errorName(err) });
+            return 2;
+        };
         try files.append(gpa, .{ .path = rel, .source = bytes });
     }
-
-    const obs = try buildObservation(gpa, io, cfg_bytes, zig, inv.globals.root);
 
     // Build the minimal command environment once; every test command this run
     // spawns is restricted to it (docs/SANDBOX_SECURITY.md, task 112).
     var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
     defer minimal_env.deinit();
+    var obs = try buildObservation(gpa, io, cfg_bytes, zig_label, inv.globals.root);
+    obs.environment_hash = try zentinel.cache.environmentHash(gpa, &minimal_env);
 
     var rt = RunCtx{
         .gpa = gpa,
@@ -395,6 +404,14 @@ fn runRun(
         error.OutputOutsideRoot => {
             try stderr.writeAll("error: --output must stay within the project root\n");
             return 2;
+        },
+        error.BackendParseError => {
+            try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            return 2;
+        },
+        error.SourceFileMissing => {
+            try stderr.writeAll("error[ZNTL_INTERNAL_INVARIANT]: generated mutant references a missing source file\n");
+            return 4;
         },
         error.OutOfMemory => return err,
     };
@@ -514,11 +531,20 @@ fn runListMutants(
     const discovered = try zentinel.project_model.discover(gpa, io, root_dir, cfg.include, cfg.exclude);
     var files: std.ArrayList(zentinel.list_mutants_command.FileSource) = .empty;
     for (discovered) |rel| {
-        const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch continue;
+        const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch |err| {
+            try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: could not read {s}: {s}\n", .{ rel, @errorName(err) });
+            return 2;
+        };
         try files.append(gpa, .{ .path = rel, .source = bytes });
     }
 
-    const candidates = try zentinel.list_mutants_command.generate(gpa, cfg, files.items, options.operator_filter);
+    const candidates = zentinel.list_mutants_command.generate(gpa, cfg, files.items, options.operator_filter) catch |err| switch (err) {
+        error.BackendParseError => {
+            try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            return 2;
+        },
+        error.OutOfMemory => return err,
+    };
 
     // Experimental backend opt-in (task 056: zir). The stable AST default is
     // unchanged; experimental backends are gated by config and emit out-of-report
@@ -590,6 +616,7 @@ const DoctestCtx = struct {
     io: std.Io,
     root_dir: std.Io.Dir,
     timeout: std.Io.Timeout,
+    env: *const std.process.Environ.Map,
 };
 
 /// Execute a doctest CLI command (already validated to begin with `zentinel`)
@@ -602,7 +629,7 @@ fn doctestExecFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.RawO
         .stdout_limit = run_output_limit,
         .stderr_limit = run_output_limit,
         .timeout = rt.timeout,
-        .environ_map = null,
+        .environ_map = rt.env,
     }) catch |err| {
         if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
         return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
@@ -746,10 +773,7 @@ fn aiSettings(
     dir: std.Io.Dir,
     globals: zentinel.Globals,
 ) zentinel.ai.command.Settings {
-    const zig_label: []const u8 = switch (discoverZig(gpa, io)) {
-        .version => |v| v,
-        .not_found => zentinel.supported_zig_version,
-    };
+    const zig_label: []const u8 = zentinel.zig_version.supportedLabel(discoverZig(gpa, io)) orelse "unknown";
     var settings = zentinel.ai.command.Settings{
         .ai_enabled = false,
         .config_mode = .disabled,
@@ -973,11 +997,12 @@ fn runDoctest(
     inv: zentinel.RunInvocation,
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
+    parent_env: *const std.process.Environ.Map,
 ) !u8 {
     // Experimental opt-in: `zentinel doctest --mutate` runs the mutation-aware
     // doctest prototype over fixture docs only (task 039).
     for (inv.args) |arg| {
-        if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr);
+        if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env);
     }
 
     // Advisory doctest-AI subcommands: explain/suggest/review-snapshot/
@@ -1004,18 +1029,20 @@ fn runDoctest(
 
     const doc_file = options.file orelse default_doctest_file;
 
+    const zig = discoverZig(gpa, io);
+    const fatal_zig = try zentinel.zig_version.fatalStatusLine(gpa, zig);
+    if (fatal_zig.len > 0) {
+        try stderr.print("{s}\n", .{fatal_zig});
+        return zentinel.zig_version.failureExit(zig);
+    }
+    const zig_label = zentinel.zig_version.supportedLabel(zig).?;
+
     var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
     defer root_dir.close(io);
 
     const source = root_dir.readFileAlloc(io, doc_file, gpa, read_limit) catch {
         try stderr.print("error: documentation file not found at {s}\n", .{doc_file});
         return 2;
-    };
-
-    const zig = discoverZig(gpa, io);
-    const zig_label: []const u8 = switch (zig) {
-        .version => |v| v,
-        .not_found => zentinel.supported_zig_version,
     };
 
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
@@ -1027,7 +1054,16 @@ fn runDoctest(
     };
     const command = try std.fmt.allocPrint(gpa, "zentinel doctest --file {s} --format {s}", .{ doc_file, fmt_label });
 
-    var dctx = DoctestCtx{ .gpa = gpa, .io = io, .root_dir = root_dir, .timeout = .none };
+    var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
+    defer minimal_env.deinit();
+
+    var dctx = DoctestCtx{
+        .gpa = gpa,
+        .io = io,
+        .root_dir = root_dir,
+        .timeout = timeoutFromMs(configuredTimeoutMs(gpa, io, dir, inv.globals)),
+        .env = &minimal_env,
+    };
     var wctx = DoctestWsCtx{ .gpa = gpa, .io = io, .root_dir = root_dir };
     const deps = zentinel.doctest_command.Deps{
         .executor = .{ .ctx = &dctx, .runFn = doctestExecFn },
@@ -1070,6 +1106,7 @@ const DoctestMutateCtx = struct {
     io: std.Io,
     root_dir: std.Io.Dir,
     timeout: std.Io.Timeout,
+    env: *const std.process.Environ.Map,
 };
 
 /// Real snippet runner for the mutation experiment: write the mutated snippet to
@@ -1089,7 +1126,7 @@ fn doctestMutateRunFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.runn
         .stdout_limit = run_output_limit,
         .stderr_limit = run_output_limit,
         .timeout = rt.timeout,
-        .environ_map = null,
+        .environ_map = rt.env,
     }) catch |err| {
         if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
         return crash;
@@ -1107,6 +1144,7 @@ fn runDoctestMutate(
     inv: zentinel.RunInvocation,
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
+    parent_env: *const std.process.Environ.Map,
 ) !u8 {
     var file: ?[]const u8 = null;
     var i: usize = 0;
@@ -1138,6 +1176,13 @@ fn runDoctestMutate(
     // Opt-in: passing `--mutate` explicitly is the opt-in (task 113 retired the
     // hardcoded fixtures-only gate, so it now runs over any --file documentation).
 
+    const zig = discoverZig(gpa, io);
+    const fatal_zig = try zentinel.zig_version.fatalStatusLine(gpa, zig);
+    if (fatal_zig.len > 0) {
+        try stderr.print("{s}\n", .{fatal_zig});
+        return zentinel.zig_version.failureExit(zig);
+    }
+
     var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
     defer root_dir.close(io);
     const source = root_dir.readFileAlloc(io, doc, gpa, read_limit) catch {
@@ -1145,7 +1190,16 @@ fn runDoctestMutate(
         return 2;
     };
 
-    var ctx = DoctestMutateCtx{ .gpa = gpa, .io = io, .root_dir = root_dir, .timeout = .none };
+    var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
+    defer minimal_env.deinit();
+
+    var ctx = DoctestMutateCtx{
+        .gpa = gpa,
+        .io = io,
+        .root_dir = root_dir,
+        .timeout = timeoutFromMs(configuredTimeoutMs(gpa, io, dir, inv.globals)),
+        .env = &minimal_env,
+    };
     const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn };
     // Produce the STABLE mutation-aware report (durable `dm_` ids, `ds_` survivor
     // refs) and PERSIST it to the survivor report path so `doctest

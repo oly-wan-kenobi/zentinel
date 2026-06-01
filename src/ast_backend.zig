@@ -120,6 +120,7 @@ pub const Collector = struct {
     }
 
     pub fn add(self: *Collector, candidate: Candidate) std.mem.Allocator.Error!void {
+        if (!candidate.hasValidEditShape()) return;
         // Own `original` in the collector's long-lived allocator so it outlives
         // the parsed tree. The stable operators capture `original` as a borrowed
         // slice of `parsed.owned_source` (e.g. `tree.source[start..end]` or

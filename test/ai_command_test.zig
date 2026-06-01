@@ -166,6 +166,70 @@ test "explain context redacts absolute paths and secret tokens in every field (F
     try expect(std.mem.indexOf(u8, json, "secret_value") != null);
 }
 
+test "explain context preserves report command arrays instead of fabricating zig build test" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const command_report =
+        \\{
+        \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+        \\  "baseline": { "status": "passed" },
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_cmd",
+        \\      "display_id": 1,
+        \\      "operator": "arithmetic_add_sub",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/calc.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "+",
+        \\      "replacement": "-",
+        \\      "diff": ["-a + b", "+a - b"],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "survived",
+        \\        "mode": "Debug",
+        \\        "commands": [
+        \\          {
+        \\            "command": {
+        \\              "original": "zig test src/custom.zig --test-filter add",
+        \\              "argv": ["zig", "test", "src/custom.zig", "--test-filter", "add"],
+        \\              "cwd": "<project>",
+        \\              "environment_policy": "minimal",
+        \\              "shell": false
+        \\            },
+        \\            "phase": "mutant",
+        \\            "status": "passed",
+        \\            "exit_code": 0,
+        \\            "timed_out": false,
+        \\            "failure_kind": "none",
+        \\            "duration_ms": 12,
+        \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\            "skip_reason": null
+        \\          }
+        \\        ],
+        \\        "phase": "mutant",
+        \\        "duration_ms": 12,
+        \\        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\        "skip_reason": null
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, command_report, .{});
+    const mutant = parsed.object.get("mutants").?.array.items[0];
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings());
+    const json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+
+    try expect(std.mem.indexOf(u8, json, "zig test src/custom.zig --test-filter add") != null);
+    try expect(std.mem.indexOf(u8, json, "\"--test-filter\"") != null);
+    try expect(std.mem.indexOf(u8, json, "zig build test") == null);
+}
+
 test "explain rendered output no longer echoes absolute paths or secret tokens (F-4)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

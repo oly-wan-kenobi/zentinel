@@ -113,3 +113,22 @@ pub fn statusLine(arena: std.mem.Allocator, discovery: Discovery) std.mem.Alloca
     const msg = try message(arena, status, detected);
     return try std.fmt.allocPrint(arena, "error[{s}]: {s}", .{ codeFor(status).token(), msg });
 }
+
+/// Return the discovered version only when it is the pinned supported Zig. This
+/// prevents execution reports from synthesizing `0.16.0` when Zig is missing.
+pub fn supportedLabel(discovery: Discovery) ?[]const u8 {
+    return switch (discovery) {
+        .version => |v| if (classify(discovery) == .supported) v else null,
+        .not_found => null,
+    };
+}
+
+/// Fatal execution-path diagnostic line. Empty string means the discovered Zig
+/// is supported; non-empty lines should be printed to stderr and exit 2.
+pub fn fatalStatusLine(arena: std.mem.Allocator, discovery: Discovery) std.mem.Allocator.Error![]const u8 {
+    return (try statusLine(arena, discovery)) orelse "";
+}
+
+pub fn failureExit(discovery: Discovery) u8 {
+    return if (classify(discovery) == .supported) 0 else 2;
+}

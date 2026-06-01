@@ -17,10 +17,12 @@ fn baseInputs() cache.KeyInputs {
         .backend_version = "ast.v1.zig-0.16.0",
         .operator = "arithmetic_add_sub",
         .source_hash = "0000000000000000000000000000000000000000000000000000000000000000",
+        .project_hash = "sha256:project",
         .config_hash = "sha256:cfg",
         .test_command = "zig test src/calc.zig",
         .mode = "Debug",
         .environment = "minimal",
+        .environment_hash = "sha256:environment",
     };
 }
 
@@ -58,6 +60,11 @@ test "changing any documented deterministic input changes the key" {
     }
     {
         var i = baseInputs();
+        i.project_hash = "sha256:other-project";
+        try differs(a, base_key, i);
+    }
+    {
+        var i = baseInputs();
         i.zig_version = "0.17.0";
         try differs(a, base_key, i);
     }
@@ -89,6 +96,11 @@ test "changing any documented deterministic input changes the key" {
     {
         var i = baseInputs();
         i.environment = "inherit";
+        try differs(a, base_key, i);
+    }
+    {
+        var i = baseInputs();
+        i.environment_hash = "sha256:other-environment";
         try differs(a, base_key, i);
     }
 }

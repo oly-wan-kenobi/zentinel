@@ -64,6 +64,8 @@ pub const Observation = struct {
     config_hash: []const u8,
     /// Zig compiler cache namespace metadata for cache keys (normalized label).
     zig_cache_namespace: []const u8 = "",
+    /// Hash of the minimal command environment actually used for execution.
+    environment_hash: []const u8 = "",
     duration_ms: u64 = 0,
 };
 
@@ -130,6 +132,8 @@ pub const RunOutcome = struct {
 
 pub const RunError = error{
     OutputOutsideRoot,
+    BackendParseError,
+    SourceFileMissing,
 } || std.mem.Allocator.Error;
 
 pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
@@ -252,7 +256,7 @@ pub fn run(
     var file_cache: std.ArrayList(FileSelection) = .empty;
     var job_list: std.ArrayList(Job) = .empty;
     for (candidates) |candidate| {
-        const source = sourceFor(files, candidate.file) orelse continue;
+        const source = sourceFor(files, candidate.file) orelse return error.SourceFileMissing;
         const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
         const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
         try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .selection = resolution.selection });
@@ -311,6 +315,7 @@ pub fn run(
     // here, serial and parallel runs produce equivalent reports.
     var entries: std.ArrayList(report.Mutant) = .empty;
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
+    const project_hash = try projectHash(arena, files);
     for (jobs, results, 0..) |job, result, ji| {
         const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
             const rows = try arena.alloc(report.ModeResult, matrix_modes.len);
@@ -332,10 +337,12 @@ pub fn run(
                 .backend_version = job.candidate.backend_version,
                 .operator = job.candidate.operator,
                 .source_hash = try cache.sourceHash(arena, job.source),
+                .project_hash = project_hash,
                 .config_hash = obs.config_hash,
                 .test_command = try joinCommands(arena, job.commands),
                 .mode = @tagName(mode),
                 .environment = "minimal",
+                .environment_hash = obs.environment_hash,
             });
             try result_keys.append(arena, .{ .mutant_id = job.candidate.id, .key = key });
         }
@@ -401,6 +408,28 @@ fn joinCommands(arena: std.mem.Allocator, commands: []const []const u8) std.mem.
         try out.appendSlice(arena, c);
     }
     return out.toOwnedSlice(arena);
+}
+
+fn fileSourceLess(_: void, a: FileSource, b: FileSource) bool {
+    return std.mem.lessThan(u8, a.path, b.path);
+}
+
+fn projectHash(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error![]const u8 {
+    const sorted = try arena.dupe(FileSource, files);
+    std.mem.sort(FileSource, sorted, {}, fileSourceLess);
+
+    var h = std.crypto.hash.sha2.Sha256.init(.{});
+    h.update("zentinel.project-sources.v1\n");
+    for (sorted) |f| {
+        h.update(f.path);
+        h.update("\n");
+        h.update(f.source);
+        h.update("\n");
+    }
+    var digest: [32]u8 = undefined;
+    h.final(&digest);
+    const hex = std.fmt.bytesToHex(digest, .lower);
+    return arena.dupe(u8, &hex);
 }
 
 fn strategyFromConfig(s: []const u8) test_selection.Strategy {
@@ -501,7 +530,7 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
     for (files) |f| {
         var parsed = try ast_backend.parse(arena, f.path, f.source);
         defer parsed.deinit();
-        if (!parsed.ok()) continue; // skip files that do not parse
+        if (!parsed.ok()) return error.BackendParseError;
         const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
         try arithmetic.collect(&collector, parsed, f.path, test_ranges);
         try comparison.collect(&collector, parsed, f.path, test_ranges);

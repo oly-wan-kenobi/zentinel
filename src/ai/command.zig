@@ -160,6 +160,30 @@ fn i64v(v: ?std.json.Value) i64 {
     return 0;
 }
 
+fn boolOr(v: ?std.json.Value, default: bool) bool {
+    if (v) |x| return switch (x) {
+        .bool => |b| b,
+        else => default,
+    };
+    return default;
+}
+
+fn optString(v: ?std.json.Value) ?[]const u8 {
+    if (v) |x| return switch (x) {
+        .string => |t| t,
+        else => null,
+    };
+    return null;
+}
+
+fn optI64(v: ?std.json.Value) ?i64 {
+    if (v) |x| return switch (x) {
+        .integer => |n| n,
+        else => null,
+    };
+    return null;
+}
+
 /// Narrow a report-sourced JSON integer to u32 for an AI context field. The
 /// report is untrusted (`--input-report`), so an out-of-range or non-integer
 /// value must become a clean invalid-report failure rather than a panicking
@@ -255,6 +279,89 @@ fn redactedEvidence(arena: std.mem.Allocator, ev: ?std.json.Value, patterns: []c
     };
 }
 
+fn redactedArgv(arena: std.mem.Allocator, argv_value: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error![]const []const u8 {
+    const argv = arrOf(argv_value) orelse return arena.dupe([]const u8, &.{ "zig", "build", "test" });
+    const out = try arena.alloc([]const u8, argv.len);
+    for (argv, 0..) |arg, i| {
+        out[i] = try context.redactField(arena, switch (arg) {
+            .string => |t| t,
+            else => "",
+        }, patterns, log);
+    }
+    return out;
+}
+
+fn commandResultFromReport(
+    arena: std.mem.Allocator,
+    value: std.json.Value,
+    patterns: []const []const u8,
+    log: *context.RedactionLog,
+    default_status: []const u8,
+    default_failure_kind: []const u8,
+) redaction.Error!context.CommandResult {
+    const cmd = get(value, "command");
+    const original = try context.redactField(arena, sOr(getO(cmd, "original"), "zig build test"), patterns, log);
+    const argv = try redactedArgv(arena, getO(cmd, "argv"), patterns, log);
+    const cwd = try context.redactField(arena, sOr(getO(cmd, "cwd"), "<project>"), patterns, log);
+    return .{
+        .command = .{
+            .original = original,
+            .argv = argv,
+            .cwd = cwd,
+            .environment_policy = sOr(getO(cmd, "environment_policy"), "minimal"),
+            .shell = boolOr(getO(cmd, "shell"), false),
+        },
+        .phase = sOr(get(value, "phase"), "mutant"),
+        .status = sOr(get(value, "status"), default_status),
+        .exit_code = optI64(get(value, "exit_code")),
+        .timed_out = boolOr(get(value, "timed_out"), false),
+        .failure_kind = sOr(get(value, "failure_kind"), default_failure_kind),
+        .duration_ms_normalized = "<duration>",
+        .evidence = try redactedEvidence(arena, get(value, "evidence"), patterns, log),
+        .skip_reason = optString(get(value, "skip_reason")),
+    };
+}
+
+fn commandsFromResult(
+    arena: std.mem.Allocator,
+    result: std.json.Value,
+    result_evidence: context.Evidence,
+    patterns: []const []const u8,
+    log: *context.RedactionLog,
+    default_status: []const u8,
+    default_failure_kind: []const u8,
+) redaction.Error![]const context.CommandResult {
+    if (arrOf(get(result, "commands"))) |items| {
+        if (items.len > 0) {
+            const out = try arena.alloc(context.CommandResult, items.len);
+            for (items, 0..) |item, i| {
+                out[i] = try commandResultFromReport(arena, item, patterns, log, default_status, default_failure_kind);
+            }
+            return out;
+        }
+    }
+    const fallback = context.CommandResult{
+        .command = .{
+            .original = "zig build test",
+            .argv = &.{ "zig", "build", "test" },
+            .cwd = "<project>",
+            .environment_policy = "minimal",
+            .shell = false,
+        },
+        .phase = "mutant",
+        .status = default_status,
+        .exit_code = exitCodeFor(s(get(result, "status"))),
+        .timed_out = false,
+        .failure_kind = default_failure_kind,
+        .duration_ms_normalized = "<duration>",
+        .evidence = result_evidence,
+        .skip_reason = if (eqStr(default_status, "skipped")) sOr(get(result, "skip_reason"), "command skipped") else null,
+    };
+    const out = try arena.alloc(context.CommandResult, 1);
+    out[0] = fallback;
+    return out;
+}
+
 fn commandStatusFor(status: []const u8) []const u8 {
     if (eqStr(status, "survived")) return "passed";
     if (eqStr(status, "skipped")) return "skipped";
@@ -329,25 +436,7 @@ fn buildContext(
         };
         break :blk failureKindFor(rstatus);
     };
-    const command = context.CommandResult{
-        .command = .{
-            .original = "zig build test",
-            .argv = &.{ "zig", "build", "test" },
-            .cwd = "<project>",
-            .environment_policy = "minimal",
-            .shell = false,
-        },
-        .phase = "mutant",
-        .status = cmd_status,
-        .exit_code = exitCodeFor(rstatus),
-        .timed_out = false,
-        .failure_kind = cmd_failure_kind,
-        .duration_ms_normalized = "<duration>",
-        .evidence = result_evidence,
-        .skip_reason = if (eqStr(cmd_status, "skipped")) sOr(get(result, "skip_reason"), "command skipped") else null,
-    };
-    const commands = try arena.alloc(context.CommandResult, 1);
-    commands[0] = command;
+    const commands = try commandsFromResult(arena, result, result_evidence, patterns, &log, cmd_status, cmd_failure_kind);
 
     const run_info = get(report, "run");
     const selection = get(mutant, "test_selection");

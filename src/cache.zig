@@ -25,11 +25,18 @@ pub const KeyInputs = struct {
     operator: []const u8,
     /// Hex SHA-256 of the mutated file's content (never a bare file path).
     source_hash: []const u8,
+    /// Hex SHA-256 over every discovered source path and content hash. This is
+    /// required before result reuse because tests may depend on helper files
+    /// outside the mutated source.
+    project_hash: []const u8,
     config_hash: []const u8,
     test_command: []const u8,
     mode: []const u8,
     /// Normalized environment policy label (e.g. "minimal").
     environment: []const u8,
+    /// Hex SHA-256 of the minimal environment key/value set actually passed to
+    /// commands. Environment policy alone is too coarse for safe reuse.
+    environment_hash: []const u8,
 };
 
 fn toHex(arena: std.mem.Allocator, digest: [32]u8) std.mem.Allocator.Error![]const u8 {
@@ -57,13 +64,38 @@ pub fn computeKey(arena: std.mem.Allocator, inputs: KeyInputs) std.mem.Allocator
         inputs.backend_version,
         inputs.operator,
         inputs.source_hash,
+        inputs.project_hash,
         inputs.config_hash,
         inputs.test_command,
         inputs.mode,
         inputs.environment,
+        inputs.environment_hash,
     };
     for (fields) |f| {
         h.update(f);
+        h.update("\n");
+    }
+    var digest: [32]u8 = undefined;
+    h.final(&digest);
+    return toHex(arena, digest);
+}
+
+fn stringLess(_: void, a: []const u8, b: []const u8) bool {
+    return std.mem.lessThan(u8, a, b);
+}
+
+/// Deterministic hash of a process environment map: sorted key/value pairs,
+/// independent of map iteration order. Used as a result-cache input.
+pub fn environmentHash(arena: std.mem.Allocator, env: *const std.process.Environ.Map) std.mem.Allocator.Error![]const u8 {
+    const sorted = try arena.dupe([]const u8, env.keys());
+    std.mem.sort([]const u8, sorted, {}, stringLess);
+
+    var h = std.crypto.hash.sha2.Sha256.init(.{});
+    h.update("zentinel.environment.v1\n");
+    for (sorted) |key| {
+        h.update(key);
+        h.update("\n");
+        h.update(env.get(key) orelse "");
         h.update("\n");
     }
     var digest: [32]u8 = undefined;

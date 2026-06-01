@@ -93,6 +93,18 @@ pub const Mutant = struct {
         if (std.mem.eql(u8, self.original, self.replacement)) return false;
         return true;
     }
+
+    /// Source-length-independent candidate shape check used by collectors before
+    /// a full source buffer is available to the sandbox. The sandbox still owns
+    /// the authoritative span/source match validation.
+    pub fn hasValidEditShape(self: Mutant) bool {
+        if (self.span.byte_start > self.span.byte_end) return false;
+        if (self.span.line_start == 0 or self.span.column_start == 0 or self.span.line_end == 0 or self.span.column_end == 0) return false;
+        if (self.span.line_end < self.span.line_start) return false;
+        if (self.span.len() != self.original.len) return false;
+        if (std.mem.eql(u8, self.original, self.replacement)) return false;
+        return true;
+    }
 };
 
 /// Lowercase Crockford base32 alphabet (excludes i, l, o, u).
@@ -176,6 +188,16 @@ pub fn sort(mutants: []Mutant) void {
     std.mem.sort(Mutant, mutants, {}, lessThan);
 }
 
+/// True when two candidates produce the same physical edit, regardless of which
+/// operator recognized it. The first candidate in canonical order is retained.
+pub fn samePhysicalEdit(a: Mutant, b: Mutant) bool {
+    return std.mem.eql(u8, a.file, b.file) and
+        a.span.byte_start == b.span.byte_start and
+        a.span.byte_end == b.span.byte_end and
+        std.mem.eql(u8, a.original, b.original) and
+        std.mem.eql(u8, a.replacement, b.replacement);
+}
+
 /// Compute the durable id from `m.identity()` and store it in `m.id`, allocating
 /// the id bytes into `arena`.
 pub fn assignId(arena: std.mem.Allocator, m: *Mutant) std.mem.Allocator.Error!void {
@@ -184,15 +206,22 @@ pub fn assignId(arena: std.mem.Allocator, m: *Mutant) std.mem.Allocator.Error!vo
 }
 
 /// Return a canonically-sorted copy of `mutants` with exact-identity duplicates
-/// (equal durable id) removed. Ids must already be assigned. Deterministic:
-/// identical candidates share canonical sort keys, so they are adjacent after
-/// sorting and equal-id neighbors are dropped.
+/// and duplicate physical edits removed. Ids must already be assigned. When two
+/// operators recognize the same edit, the first candidate in canonical order is
+/// retained so the representative is deterministic.
 pub fn sortAndDedupe(arena: std.mem.Allocator, mutants: []const Mutant) std.mem.Allocator.Error![]Mutant {
     const copy = try arena.dupe(Mutant, mutants);
     sort(copy);
     var out: std.ArrayList(Mutant) = .empty;
-    for (copy, 0..) |m, i| {
-        if (i > 0 and std.mem.eql(u8, m.id, copy[i - 1].id)) continue;
+    for (copy) |m| {
+        var duplicate = false;
+        for (out.items) |prior| {
+            if (std.mem.eql(u8, m.id, prior.id) or samePhysicalEdit(m, prior)) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (duplicate) continue;
         try out.append(arena, m);
     }
     return out.toOwnedSlice(arena);

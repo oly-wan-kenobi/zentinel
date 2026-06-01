@@ -68,3 +68,21 @@ test "version-command Zig status is silent when supported and coded otherwise" {
     try expect(std.mem.indexOf(u8, unsupported, "ZNTL_ZIG_UNSUPPORTED_VERSION") != null);
     try expect(std.mem.indexOf(u8, unsupported, "0.15.1") != null);
 }
+
+test "execution paths use a fatal Zig diagnostic and never synthesize the pinned label" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    try expectEqualStrings("0.16.0", (zig_version.supportedLabel(.{ .version = "0.16.0" })).?);
+    try expect(zig_version.supportedLabel(.not_found) == null);
+    try expect(zig_version.supportedLabel(.{ .version = "0.15.1" }) == null);
+
+    const missing = try zig_version.fatalStatusLine(a, .not_found);
+    try expect(std.mem.indexOf(u8, missing, "ZNTL_ZIG_NOT_FOUND") != null);
+    try expectEqual(@as(u8, 2), zig_version.failureExit(.not_found));
+
+    const supported = try zig_version.fatalStatusLine(a, .{ .version = "0.16.0" });
+    try expectEqualStrings("", supported);
+    try expectEqual(@as(u8, 0), zig_version.failureExit(.{ .version = "0.16.0" }));
+}

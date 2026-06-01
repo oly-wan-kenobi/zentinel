@@ -229,6 +229,6 @@ fn base(
 }
 
 fn bounded(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
-    const len = @min(text.len, proc.excerpt_limit);
+    const len = proc.utf8BoundaryLen(text, proc.excerpt_limit);
     return arena.dupe(u8, text[0..len]);
 }

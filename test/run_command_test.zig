@@ -312,6 +312,17 @@ test "--output outside the project root is rejected" {
     try expectError(error.OutputOutsideRoot, rc.run(a, loadCfg(a, cfg_toml), &files, .{ .output = "../escape.json" }, baselineExecutor(&env), mutantRunner(&env), observation()));
 }
 
+test "run reports parse failures instead of silently dropping a source file" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/broken.zig", .source = "pub fn broken(\n" }};
+
+    try expectError(error.BackendParseError, rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation()));
+}
+
 // A source with several arithmetic operators so a run produces multiple mutants
 // to actually schedule across workers.
 const three_ops_src = "pub fn f(a: i32, b: i32) i32 {\n    return a + b - a * b + b;\n}\n";

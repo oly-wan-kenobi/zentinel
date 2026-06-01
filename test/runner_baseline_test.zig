@@ -114,6 +114,23 @@ test "captured output excerpts are bounded" {
     try expectEqual(@as(usize, runner.excerpt_limit), res.commands[0].evidence.stderr_excerpt.len);
 }
 
+test "captured output excerpts are bounded on UTF-8 codepoint boundaries" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const big = try a.alloc(u8, runner.excerpt_limit + 2);
+    @memset(big[0 .. runner.excerpt_limit - 1], 'x');
+    @memcpy(big[runner.excerpt_limit - 1 .. runner.excerpt_limit + 2], "€");
+
+    const outs = [_]runner.RawOutcome{outcome(0, false, false, big, big)};
+    var mock = Mock{ .outcomes = &outs };
+    const res = try runner.runBaseline(a, mock.exec(), &.{"zig build test"}, "<project>");
+    try expectEqual(@as(usize, runner.excerpt_limit - 1), res.commands[0].evidence.stdout_excerpt.len);
+    try expect(std.unicode.utf8ValidateSlice(res.commands[0].evidence.stdout_excerpt));
+    try expect(std.unicode.utf8ValidateSlice(res.commands[0].evidence.stderr_excerpt));
+}
+
 test "commands execute in config order as parsed argv without a shell" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

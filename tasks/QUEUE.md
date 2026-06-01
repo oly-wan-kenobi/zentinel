@@ -143,6 +143,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 074 | `tasks/119-symlink-safe-output-containment.md` | complete | 8 |
 | 075 | `tasks/120-redact-all-ai-context-fields.md` | complete | 8 |
 | 076 | `tasks/121-align-read-side-path-containment.md` | complete | 8 |
+| 077 | `tasks/122-close-remaining-audit-findings.md` | complete | 8 |
 
 ## Reordering Policy
 

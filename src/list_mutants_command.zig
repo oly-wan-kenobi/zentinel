@@ -29,6 +29,7 @@ pub const Options = struct {
 };
 
 pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat };
+pub const GenerateError = error{BackendParseError} || std.mem.Allocator.Error;
 
 /// Pure parser for the documented `list-mutants` options.
 pub fn parseArgs(args: []const []const u8) ParseError!Options {
@@ -72,12 +73,12 @@ pub fn generate(
     cfg: config.Config,
     files: []const FileSource,
     operator_filter: ?[]const u8,
-) std.mem.Allocator.Error![]mutant.Mutant {
+) GenerateError![]mutant.Mutant {
     var collector = ast_backend.Collector.init(arena);
     for (files) |f| {
         var parsed = try ast_backend.parse(arena, f.path, f.source);
         defer parsed.deinit();
-        if (!parsed.ok()) continue;
+        if (!parsed.ok()) return error.BackendParseError;
         const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
         try arithmetic.collect(&collector, parsed, f.path, test_ranges);
         try comparison.collect(&collector, parsed, f.path, test_ranges);

@@ -241,7 +241,7 @@ Command output excerpts are bounded by `docs/SANDBOX_SECURITY.md`: stdout and st
 
 Generated same-file commands that were not part of `baseline.commands` must appear in `test_selection.preflight_commands` before they can classify a mutant. Each preflight entry uses the shared structured command object with `phase = "selection_preflight"` and records deterministic status, exit code, timeout flag, failure kind, duration, bounded evidence, and `skip_reason = null`. A generated selected command may classify a mutant only when its corresponding preflight entry has `status = "passed"` and `failure_kind = "none"`.
 
-If generated-command preflight fails, times out, or crashes the compiler, the mutant result must be `skipped`, `result.skip_reason` must name the deterministic preflight failure reason, and the failed preflight evidence remains in `test_selection.preflight_commands`.
+If generated-command preflight fails, times out, or crashes the compiler, the generated command cannot classify the mutant. zentinel must fall back to the configured command set, record `fallback_used = true`, and keep the failed preflight evidence in `test_selection.preflight_commands`. The mutant result is classified from the configured commands, not marked `skipped` solely because the generated-command preflight failed.
 
 ## Stability Fields
 
