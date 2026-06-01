@@ -210,6 +210,39 @@ pub fn isOutsideRoot(path: []const u8) bool {
     return outsideRoot(path);
 }
 
+/// True if writing project-relative `path` under `root_dir` would traverse a
+/// symlinked path component. The string-level `outsideRoot` check rejects
+/// absolute paths and `..` segments but never resolves symlinks, so an untrusted
+/// checkout can ship an in-tree symlink to an out-of-root directory (or a
+/// symlinked output file) and redirect a report/cache write -- which follows
+/// symlinks in the sub-path -- outside the project tree (docs/SANDBOX_SECURITY.md,
+/// audit F-3). This refuses any symlinked component, an intermediate directory or
+/// the final file, by no-follow-stat'ing each path prefix. It reads the
+/// filesystem deterministically (reads only; like `project_model.discover`), so
+/// it stays in the deterministic core next to `isOutsideRoot`; the caller must
+/// still apply `isOutsideRoot` first to reject absolute/`..` paths.
+pub fn outputPathHasSymlink(io: std.Io, root_dir: std.Io.Dir, path: []const u8) bool {
+    var start: usize = 0;
+    while (start < path.len) {
+        const slash = std.mem.indexOfScalarPos(u8, path, start, '/') orelse path.len;
+        if (slash > start) {
+            // No-follow stat of the prefix ending at this component: only the
+            // final component is checked for being a symlink, and we check every
+            // prefix in increasing length, so the earliest symlinked component is
+            // caught before any later prefix would traverse through it.
+            const prefix = path[0..slash];
+            if (root_dir.statFile(io, prefix, .{ .follow_symlinks = false })) |st| {
+                if (st.kind == .sym_link) return true;
+            } else |_| {
+                // A component that does not exist yet cannot be a symlink; a stat
+                // error (including not-found) is not by itself an escape.
+            }
+        }
+        start = slash + 1;
+    }
+    return false;
+}
+
 // Paths are normalized to forward slashes per docs/CONFIG_SPEC.md.
 fn normalizePath(arena: std.mem.Allocator, s: []const u8) Error![]const u8 {
     if (std.mem.indexOfScalar(u8, s, '\\') == null) return s;

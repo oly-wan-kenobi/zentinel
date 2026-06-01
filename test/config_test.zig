@@ -275,3 +275,46 @@ test "an unknown selection strategy is still rejected" {
     try expectEqualStrings("test", diag.section);
     try expectEqualStrings("selection", diag.key);
 }
+
+// --- Symlink-safe output containment (task 119, audit F-3) ------------------
+//
+// `config.isOutsideRoot` is string-only: it rejects absolute paths and `..`
+// segments but never resolves symlinks, so an in-tree symlink that leaves the
+// project tree slips past it and the report/cache write (which follows symlinks
+// in the sub-path) lands outside the root. `outputPathHasSymlink` resolves
+// containment by refusing any symlinked component in the output path (no-follow
+// semantics, docs/SANDBOX_SECURITY.md). It reads the filesystem deterministically
+// (like project_model.discover), so it lives next to isOutsideRoot in the
+// deterministic core and is exercised here with a real temp directory + symlink.
+
+test "outputPathHasSymlink flags a symlinked output component the string check misses (F-3)" {
+    const io = std.testing.io;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // An in-tree symlink whose target leaves the project root, and a legitimate
+    // in-root output directory (a real directory, not a symlink).
+    try tmp.dir.symLink(io, "../outside_root_target", "escape_link", .{});
+    try tmp.dir.createDirPath(io, "out");
+
+    // The existing string-only containment check misses the symlink: the path is
+    // relative and has no `..` segment, so it cannot keep the write in-tree.
+    try expect(!config.isOutsideRoot("escape_link/report.json"));
+
+    // The symlink-aware check catches the escape, while legitimate in-root output
+    // (a plain subdirectory or a bare filename) still passes.
+    try expect(config.outputPathHasSymlink(io, tmp.dir, "escape_link/report.json"));
+    try expect(!config.outputPathHasSymlink(io, tmp.dir, "out/report.json"));
+    try expect(!config.outputPathHasSymlink(io, tmp.dir, "report.json"));
+}
+
+test "outputPathHasSymlink flags a symlinked final output file" {
+    const io = std.testing.io;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    // An untrusted checkout could ship the report path itself as a symlink to an
+    // out-of-root file; following it on write would clobber that file.
+    try tmp.dir.symLink(io, "../outside.json", "report.json", .{});
+    try expect(config.outputPathHasSymlink(io, tmp.dir, "report.json"));
+}

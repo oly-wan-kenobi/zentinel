@@ -3889,7 +3889,7 @@
       "title": "Symlink-Safe Output Containment",
       "file": "tasks/119-symlink-safe-output-containment.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "118"
       ],

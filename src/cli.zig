@@ -383,6 +383,16 @@ fn runRun(
     // Write the JSON report to the resolved output path (under the project root).
     const json = try zentinel.report.toJson(gpa, outcome.report);
     const out_path = options.output orelse try std.fmt.allocPrint(gpa, "{s}/report.json", .{cfg.report_output_dir});
+    // Symlink-safe containment (F-3): the string-level --output check
+    // (run_command.run -> OutputOutsideRoot) already rejected absolute and `..`
+    // paths, but `writeFile` follows symlinks in the sub-path, so an in-tree
+    // symlink that leaves the project tree could redirect the report outside the
+    // root. Refuse a symlinked output component before creating any directory or
+    // writing, so an untrusted checkout cannot escape the analyzed project.
+    if (zentinel.config.outputPathHasSymlink(io, root_dir, out_path)) {
+        try stderr.writeAll("error: --output must stay within the project root\n");
+        return 2;
+    }
     if (std.fs.path.dirname(out_path)) |parent| {
         root_dir.createDirPath(io, parent) catch {};
     }
@@ -391,11 +401,15 @@ fn runRun(
         return 2;
     };
 
-    // Emit deterministic cache metadata alongside the report (best-effort).
+    // Emit deterministic cache metadata alongside the report (best-effort). The
+    // cache write shares the symlink containment guard; an escape is skipped
+    // rather than fatal because the cache is best-effort.
     const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
     const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.report_output_dir});
-    if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
-    root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
+    if (!zentinel.config.outputPathHasSymlink(io, root_dir, cache_path)) {
+        if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
+        root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
+    }
 
     // The canonical JSON report is always written to the output path; --report
     // selects only the stdout rendering, so the canonical report data is the same

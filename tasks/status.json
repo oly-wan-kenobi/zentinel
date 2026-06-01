@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "119",
+  "next_task": "120",
   "completed_tasks": [
     "068",
     "069",
@@ -121,14 +121,15 @@
     "115",
     "116",
     "117",
-    "118"
+    "118",
+    "119"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 118 (classify compile error versus killed, audit F-2) completed: runner.classifyCommand now sets failure_kind=.compile_error for a non-zero command whose captured output carries a Zig compile diagnostic and no test-runner completion summary, so terminalStatus reports compile_error instead of crediting a compiler rejection to the tests as killed. Verified by failing-before/passing-after classifier and terminal-status unit tests plus a real-binary before/after verdict over an errdefer_remove compile-breaking mutant. next_task advanced to 119."
+    "notes": "Task 119 (symlink-safe output containment, audit F-3) completed: config.outputPathHasSymlink refuses any symlinked component in an output path (no-follow stat per prefix), and cli.zig applies it before the report and cache writes so an in-tree symlink that leaves the project tree can no longer redirect the write outside the root. Verified by a failing-before/passing-after unit test over a real symlink and a real-binary before/after escape proof on Debug and ReleaseSafe. next_task advanced to 120."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5829,6 +5830,50 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/118/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "119",
+      "failing_evidence": "failing_command: `zig build test` with the containment tests in test/config_test.zig written first. failing_output_excerpt: test/config_test.zig:306 and :319 failed to compile -- 'root source file struct config has no member named outputPathHasSymlink' (2 compilation errors), because the symlink-aware containment check did not exist; the existing string-only config.isOutsideRoot returns false for `escape_link/report.json` (relative, no `..`), so nothing kept the write in-tree. implementation_started_after_failure: true. passing_command: after adding config.outputPathHasSymlink and wiring it into cli.zig before the report and cache writes, `zig build test` passed (512 tests). The real binary confirmed the escape and its fix: pre-fix, `--output escape_link/pwned.json` (escape_link -> ../outside) exited 0 and wrote the report to the out-of-root directory; post-fix it exits 2 with 'error: --output must stay within the project root' and writes nothing outside the root, identically on Debug and ReleaseSafe, while legitimate `--output out/report.json` still writes and `--output ../escape.json` stays rejected.",
+      "implementation_summary": "Fixed adversarial-audit finding F-3 (High, sandbox/integrity escape). config.isOutsideRoot was string-only (rejects absolute paths and `..` segments) and never resolved symlinks, while cli.zig's report write (root_dir.writeFile with a sub_path) follows symlinks, so an in-tree symlinked directory that points out of the tree let the report (and the cache.json write, which shared the unguarded pattern) land anywhere -- a real escape-root primitive when mutation-testing an untrusted checkout. Added config.outputPathHasSymlink(io, root_dir, path): it no-follow-stats each path prefix (follow_symlinks=false) and returns true if any component (an intermediate directory or the final file) is a symlink, refusing symlinked output components (the no-follow alternative the task sanctions, since std.Io.Dir exposes no realpath in pinned Zig 0.16). It reads the filesystem deterministically and stays in the deterministic core next to isOutsideRoot, mirroring project_model.discover (also deterministic_core taking std.Io); it imports nothing new, so no architecture import edge changes. cli.zig calls it before createDirPath/writeFile for the report (escape -> exit 2 with the existing 'must stay within the project root' message, nothing created outside) and before the cache write (escape -> skipped, best-effort). The string-level rejection of absolute/`..` paths (run_command OutputOutsideRoot + isOutsideRoot) is preserved. No forbidden files touched (src/ai/**, src/runner.zig, src/mutant_runner.zig, build.zig, build.zig.zon); no report content or mutation verdict changed.",
+      "files_changed": [
+        "src/config.zig",
+        "src/cli.zig",
+        "test/config_test.zig",
+        "artifacts/pipeline/119/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/config_test.zig: 'outputPathHasSymlink flags a symlinked output component the string check misses (F-3)' -- builds a real temp dir with an in-tree symlink leaving the root plus a plain in-root output directory, asserts config.isOutsideRoot misses the symlink and config.outputPathHasSymlink flags `escape_link/report.json` while passing `out/report.json` and `report.json`. Fails to compile before the helper exists.",
+        "test/config_test.zig: 'outputPathHasSymlink flags a symlinked final output file' -- a symlinked report file itself is refused."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): test/config_test.zig:306/:319 'config has no member named outputPathHasSymlink' -- 2 compilation errors",
+        "zig build test (passing, after the fix): 512 tests green",
+        "real-binary before/after (Debug and ReleaseSafe): pre-fix symlink --output exited 0 and leaked the report to the out-of-root dir; post-fix exit 2 'must stay within the project root', no out-of-root file; legit in-root --output writes (exit 0); ../ escape rejected (exit 2)",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 119 was active (changed files within allowed_files -- src/config.zig, src/cli.zig, test/config_test.zig, and the artifacts/pipeline/119 verification report -- plus the four task-control files) and again after the complete-state transition with next_task set to 120 (120 depends on 119, now complete). No coverage-gap registry rows were changed."
+      },
+      "dogfooding_implication": "Running zentinel against an untrusted checkout can no longer be tricked into writing its report or cache outside the analyzed project: a shipped in-tree symlink that leaves the tree is refused before any write, on Debug and ReleaseSafe alike, while legitimate in-root output is unaffected.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/119/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

@@ -1,0 +1,60 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "119",
+  "status": "passed",
+  "working_tree_state": "clean",
+  "stages": [
+    {
+      "name": "task_system_validation",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "artifact": "artifacts/pipeline/119/verification/report.json"
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "test/config_test.zig 'outputPathHasSymlink flags a symlinked output component the string check misses (F-3)' creates a real temp dir with an in-tree symlink leaving the root and a plain in-root output directory, asserts config.isOutsideRoot misses the symlink (relative, no `..`), and asserts config.outputPathHasSymlink flags `escape_link/report.json` while passing `out/report.json` and `report.json`. 'outputPathHasSymlink flags a symlinked final output file' covers a symlinked report file itself. Both failed to compile before the helper existed ('config has no member outputPathHasSymlink'); full suite green after (512 tests)."
+    },
+    {
+      "name": "real_binary_behavior",
+      "required": true,
+      "status": "passed",
+      "command": "zig build -Doptimize=<Debug|ReleaseSafe> && (cd root && ln -s ../outside escape_link && ./zentinel --config zentinel.toml run --output escape_link/pwned.json)",
+      "evidence": "Before the fix the Debug binary wrote the report through the in-tree symlink to the out-of-root directory and exited 0 (escape-root confirmed: /outside/pwned.json created). After the fix, on Debug and ReleaseSafe identically, `--output escape_link/pwned.json` is refused with exit 2 and 'error: --output must stay within the project root' and no file is created outside the root; legitimate `--output out/report.json` still writes the report (exit 0); `--output ../escape.json` stays rejected (exit 2). The cache.json write shares the same guard."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test build.zig"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "mutation_checks",
+      "required": false,
+      "status": "not_applicable",
+      "reason": "Task 119 adds a deterministic filesystem-containment guard; the fix is proven by a failing-before/passing-after unit test over a real symlink plus a real-binary before/after escape proof on Debug and ReleaseSafe. Full self-mutation dogfood remains gated to task 085."
+    }
+  ],
+  "residual_risk": [
+    "outputPathHasSymlink refuses any symlinked component in the output path (no-follow stat per prefix), the alternative the task sanctions to realpath (std.Io.Dir exposes no realpath in pinned Zig 0.16). This is the stricter deterministic choice: it also refuses an in-root symlink in the output path, which is acceptable for an untrusted-checkout threat model and never rejects a plain in-root path.",
+    "The helper lives in config.zig (deterministic_core) and reads the filesystem deterministically, mirroring project_model.discover (also deterministic_core taking std.Io). It imports nothing new (std only), so no architecture import edge changes. The caller still applies the string-level isOutsideRoot/OutputOutsideRoot check first, preserving absolute-path and `..` rejection.",
+    "The guard runs before createDirPath and writeFile, so an escaping path creates nothing (not even an empty directory) outside the root. The cache.json write reuses the guard and is skipped (best-effort) rather than fatal on an escape.",
+    "A non-existent path component cannot be a symlink, so a fresh in-root output directory is created and written normally; only an already-existing symlinked component (shipped by the checkout) is refused."
+  ],
+  "recommendation": "complete"
+}
