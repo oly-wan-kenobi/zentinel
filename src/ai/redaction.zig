@@ -34,7 +34,44 @@ pub const Redacted = struct {
 
 /// True for a byte that can appear inside a filesystem path token.
 fn isPathByte(c: u8) bool {
-    return std.ascii.isAlphanumeric(c) or c == '/' or c == '.' or c == '_' or c == '-';
+    return std.ascii.isAlphanumeric(c) or c == '/' or c == '\\' or c == ':' or c == '.' or c == '_' or c == '-';
+}
+
+fn isPathSpace(c: u8) bool {
+    return c == ' ' or c == '\t' or c == '\n' or c == '\r';
+}
+
+fn pathSpaceContinues(text: []const u8, space_index: usize) bool {
+    if (text[space_index] == '\n' or text[space_index] == '\r') return false;
+    var i = space_index;
+    while (i < text.len and (text[i] == ' ' or text[i] == '\t')) i += 1;
+    while (i < text.len) : (i += 1) {
+        if (isPathSpace(text[i]) or isQuote(text[i])) return false;
+        if (text[i] == '/' or text[i] == '\\') return true;
+    }
+    return false;
+}
+
+fn isQuote(c: u8) bool {
+    return c == '"' or c == '\'';
+}
+
+fn isWindowsAbsoluteAt(text: []const u8, i: usize) bool {
+    return i + 2 < text.len and
+        std.ascii.isAlphabetic(text[i]) and
+        text[i + 1] == ':' and
+        (text[i + 2] == '\\' or text[i + 2] == '/');
+}
+
+fn trimTrailingPathPunctuation(text: []const u8, start: usize, end_in: usize) usize {
+    var end = end_in;
+    while (end > start) {
+        switch (text[end - 1]) {
+            '.', ',', ';', ')' => end -= 1,
+            else => break,
+        }
+    }
+    return end;
 }
 
 /// Normalize absolute-path tokens in `text` to the `<path>` placeholder so an
@@ -54,15 +91,38 @@ pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.me
         if (text[i] == '/' and at_boundary) {
             var end = i + 1;
             var inner_slashes: usize = 0;
-            while (end < text.len and isPathByte(text[end])) : (end += 1) {
+            const quote: ?u8 = if (i > 0 and isQuote(text[i - 1])) text[i - 1] else null;
+            while (end < text.len) : (end += 1) {
+                if (quote) |q| {
+                    if (text[end] == q) break;
+                } else if (isPathSpace(text[end])) {
+                    if (!pathSpaceContinues(text, end)) break;
+                }
                 if (text[end] == '/') inner_slashes += 1;
             }
+            end = trimTrailingPathPunctuation(text, i, end);
             if (inner_slashes >= 1) {
                 try out.appendSlice(arena, "<path>");
                 changed = true;
                 i = end;
                 continue;
             }
+        }
+        if (isWindowsAbsoluteAt(text, i) and at_boundary) {
+            var end = i + 3;
+            const quote: ?u8 = if (i > 0 and isQuote(text[i - 1])) text[i - 1] else null;
+            while (end < text.len) : (end += 1) {
+                if (quote) |q| {
+                    if (text[end] == q) break;
+                } else if (isPathSpace(text[end])) {
+                    if (!pathSpaceContinues(text, end)) break;
+                } else if (text[end] == '"' or text[end] == '\'') break;
+            }
+            end = trimTrailingPathPunctuation(text, i, end);
+            try out.appendSlice(arena, "<path>");
+            changed = true;
+            i = end;
+            continue;
         }
         try out.append(arena, text[i]);
         i += 1;

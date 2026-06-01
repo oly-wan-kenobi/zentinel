@@ -1,0 +1,61 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "124",
+  "status": "passed",
+  "working_tree_state": "dirty",
+  "active_lock": "artifacts/pipeline/124/locks/active-task-lock.json",
+  "stages": [
+    {
+      "name": "unit_tests_failing_first",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "Before implementation, task-specific tests exposed the audited regressions: explicit --config cwd-relative reads, generated same-file command parsing for metacharacter paths, doctest AI snapshot refs and project metadata leaking into prompts, malformed AI reports fabricating command evidence, doctest mutation parse failures disappearing, cleanup-warning visibility, and overclaimed coverage-gap rows."
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Full suite passed after implementation (544 tests)."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "task_system_validation_active",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed with task 124 active after implementation and before completion-state edits."
+    },
+    {
+      "name": "task_system_validation_complete",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed after moving task 124 to complete with active_task and next_task set to null."
+    }
+  ],
+  "residual_risk": [
+    "F-045 coverage is intentionally not overstated: shared symlink containment and explicit --config adapter behavior are executable, while separate symlink fixtures for every guarded CLI read/write call site remain out of this task's claim.",
+    "Generated same-file command evidence still stores rendered command text for reports; execution paths use structured argv specs so report text is not reparsed for mutation classification.",
+    "AI contexts reject malformed missing command evidence rather than inventing defaults; this can make previously accepted malformed fixtures fail as invalid reports, which is the intended contract."
+  ],
+  "recommendation": "complete"
+}

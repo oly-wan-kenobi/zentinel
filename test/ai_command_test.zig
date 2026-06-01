@@ -140,7 +140,30 @@ const leaky_report =
     \\      "replacement": "const token = \"x\";",
     \\      "diff": ["-const token = \"ghp_abcdefghijklmnopqrstuvwxyz0123\";", "+const token = \"x\";"],
     \\      "expected_compile": "compiles",
-    \\      "result": { "status": "survived", "mode": "Debug", "commands": [], "evidence": {} }
+    \\      "result": {
+    \\        "status": "survived",
+    \\        "mode": "Debug",
+    \\        "commands": [
+    \\          {
+    \\            "command": {
+    \\              "original": "zig test /Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/calc.zig",
+    \\              "argv": ["zig", "test", "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/calc.zig"],
+    \\              "cwd": "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123",
+    \\              "environment_policy": "minimal",
+    \\              "shell": false
+    \\            },
+    \\            "phase": "mutant",
+    \\            "status": "passed",
+    \\            "exit_code": 0,
+    \\            "timed_out": false,
+    \\            "failure_kind": "none",
+    \\            "duration_ms": 0,
+    \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+    \\            "skip_reason": null
+    \\          }
+    \\        ],
+    \\        "evidence": {}
+    \\      }
     \\    }
     \\  ]
     \\}
@@ -230,6 +253,158 @@ test "explain context preserves report command arrays instead of fabricating zig
     try expect(std.mem.indexOf(u8, json, "zig build test") == null);
 }
 
+test "explain rejects mutants without structured command evidence instead of fabricating defaults" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const missing_command_report =
+        \\{
+        \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+        \\  "baseline": { "status": "passed" },
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_missing_cmd",
+        \\      "display_id": 1,
+        \\      "operator": "arithmetic_add_sub",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/calc.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "+",
+        \\      "replacement": "-",
+        \\      "diff": ["-a + b", "+a - b"],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "survived",
+        \\        "mode": "Debug",
+        \\        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\        "skip_reason": null
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, missing_command_report, .{});
+    const mutant = parsed.object.get("mutants").?.array.items[0];
+    try expectError(error.AiReportNotFound, command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings()));
+}
+
+test "explain rejects partial command result evidence instead of defaulting fields" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const partial_command_report =
+        \\{
+        \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+        \\  "baseline": { "status": "passed" },
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_partial_cmd",
+        \\      "display_id": 1,
+        \\      "operator": "arithmetic_add_sub",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/calc.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "+",
+        \\      "replacement": "-",
+        \\      "diff": ["-a + b", "+a - b"],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "survived",
+        \\        "mode": "Debug",
+        \\        "commands": [
+        \\          {
+        \\            "command": {
+        \\              "original": "zig test src/custom.zig",
+        \\              "argv": ["zig", "test", "src/custom.zig"],
+        \\              "cwd": "<project>"
+        \\            },
+        \\            "exit_code": 0,
+        \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }
+        \\          }
+        \\        ],
+        \\        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, partial_command_report, .{});
+    const mutant = parsed.object.get("mutants").?.array.items[0];
+    try expectError(error.AiReportNotFound, command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings()));
+}
+
+test "explain context redacts project metadata before it reaches the prompt" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const project_secret = "ghp_projectmetadataabcdefghijklmnopqr";
+    const report_with_project_metadata =
+        \\{
+        \\  "run": { "zig_version": "/Users/dev/zig-ghp_projectmetadataabcdefghijklmnopqr/0.16.0", "zentinel_version": "0.0.0-ghp_projectmetadataabcdefghijklmnopqr" },
+        \\  "baseline": { "status": "passed" },
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_project_meta",
+        \\      "display_id": 1,
+        \\      "operator": "arithmetic_add_sub",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/calc.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "+",
+        \\      "replacement": "-",
+        \\      "diff": ["-a + b", "+a - b"],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "survived",
+        \\        "mode": "Debug",
+        \\        "commands": [
+        \\          {
+        \\            "command": {
+        \\              "original": "zig test src/calc.zig",
+        \\              "argv": ["zig", "test", "src/calc.zig"],
+        \\              "cwd": "<project>",
+        \\              "environment_policy": "minimal",
+        \\              "shell": false
+        \\            },
+        \\            "phase": "mutant",
+        \\            "status": "passed",
+        \\            "exit_code": 0,
+        \\            "timed_out": false,
+        \\            "failure_kind": "none",
+        \\            "duration_ms": 12,
+        \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\            "skip_reason": null
+        \\          }
+        \\        ],
+        \\        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\        "skip_reason": null
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    var settings = stubSettings();
+    settings.project_name = project_secret;
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, report_with_project_metadata, .{});
+    const mutant = parsed.object.get("mutants").?.array.items[0];
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, parsed, settings);
+    const json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+
+    try expect(std.mem.indexOf(u8, json, project_secret) == null);
+    try expect(std.mem.indexOf(u8, json, "/Users/") == null);
+    try expect(std.mem.indexOf(u8, json, "[REDACTED]") != null);
+    try expect(std.mem.indexOf(u8, json, "<path>") != null);
+}
+
 test "explain rendered output no longer echoes absolute paths or secret tokens (F-4)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -303,7 +478,23 @@ test "doctest survivor context redacts absolute paths and secret tokens in every
         \\    "mutant_id": "m_1",
         \\    "operator": "arithmetic_add_sub",
         \\    "mutated_diff": ["-const k = \"ghp_abcdefghijklmnopqrstuvwxyz0123\";", "+const k = \"x\";"],
-        \\    "runner_evidence": { "status": "survived", "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }
+        \\    "runner_evidence": {
+        \\      "status": "survived",
+        \\      "command": {
+        \\        "original": "zig test /Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/docs.md",
+        \\        "argv": ["zig", "test", "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123/docs.md"],
+        \\        "cwd": "/Users/dev/work-ghp_abcdefghijklmnopqrstuvwxyz0123",
+        \\        "environment_policy": "minimal",
+        \\        "shell": false
+        \\      },
+        \\      "exit_code": 0,
+        \\      "timed_out": false,
+        \\      "failure_kind": "none",
+        \\      "stdout_excerpt": "",
+        \\      "stderr_excerpt": "",
+        \\      "failure_summary": "",
+        \\      "skip_reason": null
+        \\    }
         \\  }
         \\}
     ;

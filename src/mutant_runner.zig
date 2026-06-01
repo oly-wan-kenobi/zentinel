@@ -103,6 +103,20 @@ fn skippedCommand(arena: std.mem.Allocator, original: []const u8, cwd: []const u
     };
 }
 
+fn skippedCommandSpec(spec: command.Spec, cwd: []const u8) report.CommandResult {
+    return .{
+        .command = .{ .original = spec.original, .argv = spec.argv, .cwd = cwd, .environment_policy = .minimal, .shell = false },
+        .phase = .mutant,
+        .status = .skipped,
+        .exit_code = null,
+        .timed_out = false,
+        .failure_kind = .skipped,
+        .duration_ms = 0,
+        .evidence = .{},
+        .skip_reason = "fail-fast: an earlier command determined the mutant result",
+    };
+}
+
 /// Run one mutant: check workspace creation (F-010), apply the patch (sandbox
 /// validation -> `invalid` on span/original failure), run the mutant's commands
 /// through the injected executor with fail-fast (later commands recorded as
@@ -113,6 +127,31 @@ pub fn run(
     source: []const u8,
     workspace: WorkspaceOutcome,
     commands: []const []const u8,
+    cwd: []const u8,
+    executor: runner.Executor,
+    mode: report.Mode,
+) std.mem.Allocator.Error!MutationResult {
+    var specs: std.ArrayList(command.Spec) = .empty;
+    for (commands) |original| {
+        const argv = switch (try command.parse(arena, original)) {
+            .ok => |a| a,
+            .invalid => return invalidResult(m.id, mode, "sandbox: configured command is not valid argv"),
+        };
+        try specs.append(arena, .{ .original = original, .argv = argv });
+    }
+    return runSpecs(arena, m, source, workspace, try specs.toOwnedSlice(arena), cwd, executor, mode);
+}
+
+/// Run one mutant with already-structured command argv. Used by generated
+/// same-file selections so report evidence can keep rendered command text while
+/// execution uses exact shell-free argv for filenames that are not valid command
+/// language tokens.
+pub fn runSpecs(
+    arena: std.mem.Allocator,
+    m: mutant.Mutant,
+    source: []const u8,
+    workspace: WorkspaceOutcome,
+    commands: []const command.Spec,
     cwd: []const u8,
     executor: runner.Executor,
     mode: report.Mode,
@@ -128,17 +167,13 @@ pub fn run(
 
     var results: std.ArrayList(report.CommandResult) = .empty;
     var decided = false;
-    for (commands) |original| {
+    for (commands) |spec| {
         if (decided) {
-            try results.append(arena, try skippedCommand(arena, original, cwd));
+            try results.append(arena, skippedCommandSpec(spec, cwd));
             continue;
         }
-        const argv = switch (try command.parse(arena, original)) {
-            .ok => |a| a,
-            .invalid => return invalidResult(m.id, mode, "sandbox: configured command is not valid argv"),
-        };
-        const raw = executor.run(argv);
-        const cr = try runner.classifyCommand(arena, .mutant, original, argv, cwd, raw);
+        const raw = executor.run(spec.argv);
+        const cr = try runner.classifyCommand(arena, .mutant, spec.original, spec.argv, cwd, raw);
         try results.append(arena, cr);
         if (terminalStatus(cr) != null) decided = true;
     }

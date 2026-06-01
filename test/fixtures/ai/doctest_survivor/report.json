@@ -1,14 +1,35 @@
 {
   "schema_version": "zentinel.doctest.report.v1",
-  "mutation_summary": {
-    "total": 3,
-    "killed": 1,
-    "survived": 1,
+  "run": {
+    "id": "doctest_mutation_run",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel doctest --mutate",
+    "project_root": "<project>",
+    "started_at": "1970-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "summary": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
     "compile_error": 0,
-    "compiler_crash": 0,
+    "expected_compile_error": 0,
     "timeout": 0,
-    "skipped": 1,
-    "invalid": 0
+    "skipped": 0,
+    "invalid": 0,
+    "mutation": {
+      "total": 3,
+      "killed": 1,
+      "survived": 1,
+      "compile_error": 0,
+      "compiler_crash": 0,
+      "timeout": 0,
+      "skipped": 1,
+      "invalid": 0
+    }
   },
   "cases": [
     {
@@ -17,8 +38,14 @@
       "line_start": 5,
       "line_end": 15,
       "source_ref": "docs/survived.md:5",
+      "block_refs": ["docs/survived.md:5"],
       "kind": "mutation",
       "status": "survived",
+      "expectation": null,
+      "command": null,
+      "result": null,
+      "diagnostics": [],
+      "advisory": { "ai": null },
       "mutation": {
         "doctest_case_id": "dt_3h51e3pehabwywr7hv6fsryqdy",
         "mutant_id": "m_8gjkdzyacjhze4s5smk9mbbgmr",
@@ -45,16 +72,22 @@
       }
     },
     {
-      "id": "dm_killed00000000000000000000",
+      "id": "dm_0000000000000000000000000a",
       "file": "docs/survived.md",
       "line_start": 20,
       "line_end": 30,
       "source_ref": "docs/survived.md:20",
+      "block_refs": ["docs/survived.md:20"],
       "kind": "mutation",
       "status": "killed",
+      "expectation": null,
+      "command": null,
+      "result": null,
+      "diagnostics": [],
+      "advisory": { "ai": null },
       "mutation": {
         "doctest_case_id": "dt_3h51e3pehabwywr7hv6fsryqdy",
-        "mutant_id": "m_killed0000000000000000000000",
+        "mutant_id": "m_0000000000000000000000000b",
         "operator": "arithmetic_add_sub",
         "mutated_diff": ["- +", "+ -"],
         "survivor_ref": null,
@@ -78,25 +111,37 @@
       }
     },
     {
-      "id": "dm_skipped0000000000000000000",
+      "id": "dm_0000000000000000000000000c",
       "file": "docs/survived.md",
       "line_start": 40,
       "line_end": 45,
       "source_ref": "docs/survived.md:40",
+      "block_refs": ["docs/survived.md:40"],
       "kind": "mutation",
       "status": "skipped",
+      "expectation": null,
+      "command": null,
+      "result": null,
+      "diagnostics": [],
+      "advisory": { "ai": null },
       "mutation": {
         "doctest_case_id": "dt_3h51e3pehabwywr7hv6fsryqdy",
-        "mutant_id": "m_skipped000000000000000000000",
+        "mutant_id": "m_0000000000000000000000000d",
         "operator": "logical_and_or",
         "mutated_diff": ["- and", "+ or"],
         "survivor_ref": null,
         "runner_evidence": {
           "status": "skipped",
-          "command": null,
+          "command": {
+            "original": "zig test src/doctest.zig",
+            "argv": ["zig", "test", "src/doctest.zig"],
+            "cwd": ".",
+            "environment_policy": "minimal",
+            "shell": false
+          },
           "exit_code": null,
           "timed_out": false,
-          "failure_kind": "none",
+          "failure_kind": "skipped",
           "stdout_excerpt": "",
           "stderr_excerpt": "",
           "failure_summary": "",

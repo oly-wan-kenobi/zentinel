@@ -144,6 +144,10 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 075 | `tasks/120-redact-all-ai-context-fields.md` | complete | 8 |
 | 076 | `tasks/121-align-read-side-path-containment.md` | complete | 8 |
 | 077 | `tasks/122-close-remaining-audit-findings.md` | complete | 8 |
+| 078 | `tasks/123-resolve-follow-up-audit-findings.md` | complete | 8 |
+| 079 | `tasks/124-close-task-122-123-audit-regressions.md` | complete | 8 |
+| 080 | `tasks/125-close-task-124-audit-followups.md` | complete | 8 |
+| 081 | `tasks/126-close-post-125-adversarial-audit-findings.md` | complete | 8 |
 
 ## Reordering Policy
 

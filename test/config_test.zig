@@ -318,3 +318,18 @@ test "outputPathHasSymlink flags a symlinked final output file" {
     try tmp.dir.symLink(io, "../outside.json", "report.json", .{});
     try expect(config.outputPathHasSymlink(io, tmp.dir, "report.json"));
 }
+
+test "pathEscapesRoot combines lexical and symlink containment for reads and writes" {
+    const io = std.testing.io;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    try tmp.dir.symLink(io, "../outside_root_target", "escape_link", .{});
+    try tmp.dir.createDirPath(io, "docs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "docs/README.md", .data = "# ok\n" });
+
+    try expect(config.pathEscapesRoot(io, tmp.dir, "/absolute/path"));
+    try expect(config.pathEscapesRoot(io, tmp.dir, "docs/../outside.md"));
+    try expect(config.pathEscapesRoot(io, tmp.dir, "escape_link/secret.md"));
+    try expect(!config.pathEscapesRoot(io, tmp.dir, "docs/README.md"));
+}

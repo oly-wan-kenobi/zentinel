@@ -1,0 +1,61 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "126",
+  "status": "passed",
+  "working_tree_state": "dirty",
+  "active_lock": "artifacts/pipeline/126/locks/active-task-lock.json",
+  "stages": [
+    {
+      "name": "unit_tests_failing_first",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Before implementation, task-specific tests exposed the accepted post-125 audit findings: operator-filtered duplicate candidates could disappear, project.root was not effective for list-mutants/doctest flows, invalid run commands mapped through an internal failure path, report config_hash length and selection_preflight skipped evidence drifted from schema, doctest mutation metadata/survivor contracts were incomplete, explicit doctest/advisory-AI config failures fell back too late, AI path redaction and runner failure-kind validation were too weak, and task/schema prose guardrails missed stale claims."
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Full suite passed after implementation (564 tests)."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "task_system_validation_active",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed with task 126 active after implementation and before completion-state edits."
+    },
+    {
+      "name": "task_system_validation_complete",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed after moving task 126 to complete with active_task and next_task set to null."
+    }
+  ],
+  "residual_risk": [
+    "Read-side symlink containment is covered by shared guard tests and representative CLI integration paths rather than every possible adapter call site.",
+    "Task-system stale-prose validation targets explicit active-task and schema Future claims; broad semantic drift still requires review plus product tests.",
+    "AI validation remains structural and provider-neutral; live remote provider behavior is still outside deterministic correctness authority."
+  ],
+  "recommendation": "complete"
+}

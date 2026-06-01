@@ -24,6 +24,13 @@ fn parse(a: std.mem.Allocator, s: []const u8) !command.Result {
     return command.parse(a, s);
 }
 
+fn expectInvalid(a: std.mem.Allocator, s: []const u8, reason: command.Reason) !void {
+    switch (try parse(a, s)) {
+        .invalid => |got| try expectEqual(reason, got),
+        .ok => return error.TestUnexpectedResult,
+    }
+}
+
 // --- Shared command parser (src/command.zig) -------------------------------
 
 test "command parser splits bare argv fields" {
@@ -92,6 +99,8 @@ test "command parser rejects shell metacharacters, expansion, and chaining" {
     try expectEqual(command.Reason.metacharacter, (try parse(a, "echo *.zig")).invalid); // glob
     // Metacharacters are rejected even inside quotes.
     try expectEqual(command.Reason.metacharacter, (try parse(a, "zig \"$HOME\"")).invalid);
+    try expectInvalid(a, "zig \"*.zig\"", .metacharacter);
+    try expectInvalid(a, "zig \"test[0]\"", .metacharacter);
 }
 
 test "command parser rejects environment-assignment prefixes" {

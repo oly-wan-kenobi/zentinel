@@ -375,6 +375,37 @@ pub const Globals = struct {
     root: []const u8 = ".",
 };
 
+pub const ConfigPathError = error{ConfigOutsideRoot} || std.mem.Allocator.Error;
+
+/// Resolve the config path relative to the selected project root. An explicit
+/// `--config` is project-root-relative, not process-cwd-relative, so `--root x
+/// --config zentinel.toml` reads `x/zentinel.toml`.
+pub fn resolveConfigPathForRoot(arena: std.mem.Allocator, globals: Globals) ConfigPathError![]const u8 {
+    if (globals.config_explicit and config.isOutsideRoot(globals.config_path)) return error.ConfigOutsideRoot;
+    if (std.mem.eql(u8, globals.root, ".")) return arena.dupe(u8, globals.config_path);
+    return std.fmt.allocPrint(arena, "{s}/{s}", .{ globals.root, globals.config_path });
+}
+
+/// Stable cleanup warning surface shared by the CLI adapter and tests.
+pub fn cleanupWarningText(arena: std.mem.Allocator, count: u32) std.mem.Allocator.Error![]const u8 {
+    return std.fmt.allocPrint(arena, "warning: failed to remove {d} mutation workspace(s)\n", .{count});
+}
+
+/// Adapter-visible cleanup warning emission. A zero count is intentionally
+/// silent; non-zero counts use the single stable diagnostic text above.
+pub fn emitCleanupWarningIfNeeded(arena: std.mem.Allocator, count: u32, stderr: *std.Io.Writer) !void {
+    _ = arena;
+    if (count == 0) return;
+    try stderr.print("warning: failed to remove {d} mutation workspace(s)\n", .{count});
+}
+
+/// Redact user-supplied path values before echoing them in diagnostics that may
+/// cross the same privacy boundary as advisory AI logs.
+pub fn redactCliDiagnosticPath(arena: std.mem.Allocator, path: []const u8) ![]const u8 {
+    var log = ai.context.RedactionLog.init(arena);
+    return ai.context.redactField(arena, path, &ai.command.default_redact_patterns, &log);
+}
+
 /// What the presentation adapter should do with an argv. The pure Phase 0
 /// `dispatch` above stays frozen for the commands it already owns; `route` adds
 /// the task-005 surface (global options, `check`, and Zig-aware `version`)

@@ -159,3 +159,57 @@ test "readPathOutsideRootOption rejects out-of-root --input-report and --file (F
     try std.testing.expect(zentinel.readPathOutsideRootOption(&[_][]const u8{ "suggest", "--file", "docs/CLI_SPEC.md" }) == null);
     try std.testing.expect(zentinel.readPathOutsideRootOption(&[_][]const u8{"review-tests"}) == null);
 }
+
+test "explicit --config is resolved under --root, not the process cwd" {
+    const resolved = try zentinel.resolveConfigPathForRoot(std.testing.allocator, .{
+        .root = "proj",
+        .config_path = "cwd-only.toml",
+        .config_explicit = true,
+    });
+    defer std.testing.allocator.free(resolved);
+    try std.testing.expectEqualStrings("proj/cwd-only.toml", resolved);
+}
+
+test "explicit --config symlink escapes are rejected as containment errors" {
+    const io = std.testing.io;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj");
+    try tmp.dir.writeFile(io, .{ .sub_path = "outside.toml", .data = zentinel.default_config });
+    try tmp.dir.symLink(io, "../outside.toml", "proj/link.toml", .{});
+    var project_dir = try tmp.dir.openDir(io, "proj", .{ .iterate = true });
+    defer project_dir.close(io);
+    try std.testing.expect(zentinel.config.pathEscapesRoot(io, project_dir, "link.toml"));
+}
+
+test "doctest missing-file diagnostics redact secret-like path values" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const a = arena_state.allocator();
+
+    const secret_path = "docs/ghp_abcdefghijklmnopqrstuvwxyz0123456789/missing.md";
+    const redacted = try zentinel.redactCliDiagnosticPath(a, secret_path);
+    try std.testing.expect(std.mem.indexOf(u8, redacted, secret_path) == null);
+    try std.testing.expect(std.mem.indexOf(u8, redacted, "[REDACTED]") != null or std.mem.indexOf(u8, redacted, "<path>") != null);
+}
+
+test "cleanup warning text is a stable CLI diagnostic" {
+    const warning = try zentinel.cleanupWarningText(std.testing.allocator, 2);
+    defer std.testing.allocator.free(warning);
+    try std.testing.expectEqualStrings(
+        "warning: failed to remove 2 mutation workspace(s)\n",
+        warning,
+    );
+}
+
+test "CLI cleanup warning emission writes only when cleanup failures occur" {
+    var out = std.Io.Writer.Allocating.init(std.testing.allocator);
+    defer out.deinit();
+    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 0, &out.writer);
+    try std.testing.expectEqualStrings("", out.writer.buffer[0..out.writer.end]);
+    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 2, &out.writer);
+    try std.testing.expectEqualStrings(
+        "warning: failed to remove 2 mutation workspace(s)\n",
+        out.writer.buffer[0..out.writer.end],
+    );
+}

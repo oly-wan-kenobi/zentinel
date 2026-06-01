@@ -29,7 +29,7 @@ pub const Options = struct {
 };
 
 pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat };
-pub const GenerateError = error{BackendParseError} || std.mem.Allocator.Error;
+pub const GenerateError = error{ BackendParseError, InvalidCandidate } || std.mem.Allocator.Error;
 
 /// Pure parser for the documented `list-mutants` options.
 pub fn parseArgs(args: []const []const u8) ParseError!Options {
@@ -92,7 +92,8 @@ pub fn generate(
         try integer_boundary.collect(&collector, parsed, f.path, test_ranges);
         try loop_boundary.collect(&collector, parsed, f.path, test_ranges);
     }
-    const all = try collector.finish();
+    if (collector.invalidCount() > 0) return error.InvalidCandidate;
+    const all = try collector.finishRaw();
 
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {
@@ -102,7 +103,7 @@ pub fn generate(
         }
         try kept.append(arena, c);
     }
-    return kept.toOwnedSlice(arena);
+    return mutant.sortAndDedupe(arena, kept.items);
 }
 
 /// Compact, deterministic text listing: one line per candidate plus a count.

@@ -8,6 +8,7 @@
 //! the recursive `*_test.zig` discovery) so it receives the built binary's path
 //! and the fixture directory through the generated `integration_options` module.
 const std = @import("std");
+const zentinel = @import("zentinel");
 const options = @import("integration_options");
 
 const expect = std.testing.expect;
@@ -20,6 +21,21 @@ fn copyFixtureFile(io: std.Io, dst: std.Io.Dir, name: []const u8, a: std.mem.All
     const src = try std.fmt.allocPrint(a, "{s}/{s}", .{ options.fixture_dir, name });
     const bytes = try std.Io.Dir.cwd().readFileAlloc(io, src, a, read_limit);
     try dst.writeFile(io, .{ .sub_path = name, .data = bytes });
+}
+
+fn exePath(a: std.mem.Allocator) ![]const u8 {
+    return if (std.fs.path.isAbsolute(options.zentinel_exe))
+        options.zentinel_exe
+    else
+        try std.fs.path.join(a, &.{ options.root_dir, options.zentinel_exe });
+}
+
+fn tmpPath(a: std.mem.Allocator, tmp: std.testing.TmpDir, suffix: []const u8) ![]const u8 {
+    return std.fmt.allocPrint(a, ".zig-cache/tmp/{s}/{s}", .{ tmp.sub_path[0..], suffix });
+}
+
+fn absTmpPath(a: std.mem.Allocator, tmp: std.testing.TmpDir, suffix: []const u8) ![]const u8 {
+    return std.fs.path.join(a, &.{ options.root_dir, try tmpPath(a, tmp, suffix) });
 }
 
 test "the built binary mutates a real fixture project and reports one killed and one surviving mutant" {
@@ -37,10 +53,7 @@ test "the built binary mutates a real fixture project and reports one killed and
 
     // The built-binary path is relative to the project root, but the child runs
     // with cwd = the fixture copy, so resolve it to an absolute argv[0] first.
-    const exe_path = if (std.fs.path.isAbsolute(options.zentinel_exe))
-        options.zentinel_exe
-    else
-        try std.fs.path.join(a, &.{ options.root_dir, options.zentinel_exe });
+    const exe_path = try exePath(a);
 
     // Spawn the actual built binary with the fixture copy as its project root.
     // This drives the real execProcess / setupWorkspace / report-writing adapters.
@@ -68,6 +81,9 @@ test "the built binary mutates a real fixture project and reports one killed and
         return err;
     };
     const summary = parsed.object.get("summary").?.object;
+    const config_hash = parsed.object.get("run").?.object.get("config_hash").?.string;
+    try expectEqual(@as(usize, "sha256:".len + 64), config_hash.len);
+    try expect(std.mem.startsWith(u8, config_hash, "sha256:"));
 
     // The real run produced the fixture's two arithmetic mutants plus the
     // error-path mutant: add's is killed by the same-file test; mul's and
@@ -96,4 +112,312 @@ test "the built binary mutates a real fixture project and reports one killed and
         }
     }
     try expect(saw_error_catch);
+}
+
+test "project.root moves discovery and command execution into the configured root" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/pkg/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data =
+        \\[project]
+        \\name = "nested"
+        \\root = "pkg"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig test src/calc.zig"]
+        \\
+    });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/pkg/src/calc.zig", .data =
+        \\pub fn add(a: i32, b: i32) i32 {
+        \\    return a + b;
+        \\}
+        \\
+        \\test "add" {
+        \\    try std.testing.expectEqual(@as(i32, 3), add(1, 2));
+        \\}
+        \\
+        \\const std = @import("std");
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "run", "--report", "json" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, result.stdout, .{});
+    try expectEqualStrings("completed", parsed.object.get("run").?.object.get("status").?.string);
+    try expectEqual(@as(i64, 1), parsed.object.get("summary").?.object.get("total").?.integer);
+    try expectEqualStrings("src/calc.zig", parsed.object.get("mutants").?.array.items[0].object.get("file").?.string);
+}
+
+test "project.root moves list-mutants discovery into the configured root" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/pkg/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data =
+        \\[project]
+        \\name = "nested-list"
+        \\root = "pkg"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+    });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/pkg/src/calc.zig", .data =
+        \\pub fn add(a: i32, b: i32) i32 {
+        \\    return a + b;
+        \\}
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "list-mutants", "--format", "json" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, result.stdout, .{});
+    try expectEqual(@as(i64, 1), parsed.object.get("total").?.integer);
+    try expectEqualStrings("src/calc.zig", parsed.object.get("mutants").?.array.items[0].object.get("file").?.string);
+}
+
+test "project.root moves doctest mutation docs and command evidence into the configured root" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/pkg/docs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data =
+        \\[project]
+        \\name = "nested-doctest"
+        \\root = "pkg"
+        \\
+    });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/pkg/docs/killed.md", .data =
+        \\# killed documentation mutant
+        \\
+        \\```zig test
+        \\const std = @import("std");
+        \\
+        \\fn add(a: i32, b: i32) i32 {
+        \\    return a + b;
+        \\}
+        \\
+        \\test "add is correct" {
+        \\    try std.testing.expect(add(2, 3) == 5);
+        \\}
+        \\```
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "doctest", "--mutate", "--file", "docs/killed.md" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, result.stdout, .{});
+    const first = parsed.object.get("cases").?.array.items[0].object;
+    const command = first.get("mutation").?.object.get("runner_evidence").?.object.get("command").?.object;
+    const original = command.get("original").?.string;
+    try expect(std.mem.indexOf(u8, original, ".zig-cache/zentinel/doctest-mutate/") != null);
+    try expect(std.mem.indexOf(u8, original, "src/doctest.zig") == null);
+    try expectEqualStrings("docs/killed.md", first.get("file").?.string);
+}
+
+test "explicit doctest config failures are rejected before missing docs" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/docs");
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "--config", "missing.toml", "doctest", "--file", "docs/missing.md", "--format", "json" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 2), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stderr, "config not found") != null);
+    try expect(std.mem.indexOf(u8, result.stderr, "documentation file not found") == null);
+}
+
+test "explicit doctest AI invalid config is rejected instead of silently falling back" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/docs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/bad.toml", .data = "[ai]\nprovider = \"remote\"\n" });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/docs/x.md", .data = "# x\n" });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{
+            exe_path,
+            "--root",
+            root_abs,
+            "--config",
+            "bad.toml",
+            "doctest",
+            "suggest",
+            "--file",
+            "docs/x.md",
+            "--ai-provider",
+            "stub",
+            "--format",
+            "json",
+        },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 2), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stderr, "ZNTL_CONFIG_INVALID_VALUE") != null);
+    try expectEqual(@as(usize, 0), result.stdout.len);
+}
+
+test "the built binary rejects explicit doctest AI config paths that escape root" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/docs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "outside.toml", .data = zentinel.default_config });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/docs/x.md", .data = "# x\n" });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{
+            exe_path,
+            "--root",
+            root_abs,
+            "--config",
+            "../outside.toml",
+            "doctest",
+            "suggest",
+            "--file",
+            "docs/x.md",
+            "--ai-provider",
+            "stub",
+            "--format",
+            "json",
+        },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 2), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stderr, "--config must stay within the project root") != null);
+}
+
+test "the built binary accepts a valid absolute root for config loading" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data = zentinel.default_config });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "check" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+}
+
+test "the built binary rejects explicit config symlink escapes through the adapter" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj");
+    try tmp.dir.writeFile(io, .{ .sub_path = "outside.toml", .data = zentinel.default_config });
+    try tmp.dir.symLink(io, "../outside.toml", "proj/link.toml", .{});
+
+    const exe_path = try exePath(a);
+    const root_rel = try tmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_rel, "--config", "link.toml", "check" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 2), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stderr, "--config must stay within the project root") != null);
 }

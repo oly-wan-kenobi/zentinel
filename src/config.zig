@@ -194,9 +194,17 @@ const Lookup = struct {
     }
 };
 
+fn windowsAbsolute(path: []const u8) bool {
+    if (path.len >= 2 and path[0] == '\\' and path[1] == '\\') return true;
+    if (path.len < 3) return false;
+    const drive = path[0];
+    const is_drive = (drive >= 'a' and drive <= 'z') or (drive >= 'A' and drive <= 'Z');
+    return is_drive and path[1] == ':' and (path[2] == '/' or path[2] == '\\');
+}
+
 fn outsideRoot(path: []const u8) bool {
-    if (std.fs.path.isAbsolute(path)) return true;
-    var it = std.mem.splitScalar(u8, path, '/');
+    if (std.fs.path.isAbsolute(path) or windowsAbsolute(path)) return true;
+    var it = std.mem.tokenizeAny(u8, path, "/\\");
     while (it.next()) |seg| {
         if (std.mem.eql(u8, seg, "..")) return true;
     }
@@ -241,6 +249,14 @@ pub fn outputPathHasSymlink(io: std.Io, root_dir: std.Io.Dir, path: []const u8) 
         start = slash + 1;
     }
     return false;
+}
+
+/// Shared read/write containment predicate for project-relative paths. It
+/// combines the lexical root check with the same no-follow symlink component
+/// guard used for report outputs, so adapters can apply one contract before any
+/// root-relative filesystem read, write, workspace creation, or report path.
+pub fn pathEscapesRoot(io: std.Io, root_dir: std.Io.Dir, path: []const u8) bool {
+    return isOutsideRoot(path) or outputPathHasSymlink(io, root_dir, path);
 }
 
 // Paths are normalized to forward slashes per docs/CONFIG_SPEC.md.
@@ -383,9 +399,14 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     const ai_context_lines = try look.getInt("ai", "source_context_lines", 4, diag);
     if (ai_context_lines < 0) return fail(diag, .invalid_value, "ai", "source_context_lines", "context lines must not be negative");
 
+    const project_root = try normalizePath(arena, try look.getString("project", "root", ".", diag));
+    if (outsideRoot(project_root)) {
+        return fail(diag, .invalid_value, "project", "root", "project root must stay within the selected root");
+    }
+
     return Config{
         .project_name = try look.getString("project", "name", "example", diag),
-        .project_root = try normalizePath(arena, try look.getString("project", "root", ".", diag)),
+        .project_root = project_root,
         .include = try normalizePaths(arena, try look.getArray("project", "include", &.{"src/**/*.zig"}, diag)),
         .exclude = try normalizePaths(arena, try look.getArray("project", "exclude", &default_exclude, diag)),
         .zig_version = zig_version,

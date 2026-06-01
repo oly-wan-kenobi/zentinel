@@ -184,6 +184,18 @@ fn optI64(v: ?std.json.Value) ?i64 {
     return null;
 }
 
+fn requiredBool(v: ?std.json.Value) Failure!bool {
+    const x = v orelse return error.AiReportNotFound;
+    return switch (x) {
+        .bool => |b| b,
+        else => error.AiReportNotFound,
+    };
+}
+
+fn requiredString(v: ?std.json.Value) Failure![]const u8 {
+    return optString(v) orelse error.AiReportNotFound;
+}
+
 /// Narrow a report-sourced JSON integer to u32 for an AI context field. The
 /// report is untrusted (`--input-report`), so an out-of-range or non-integer
 /// value must become a clean invalid-report failure rather than a panicking
@@ -279,13 +291,14 @@ fn redactedEvidence(arena: std.mem.Allocator, ev: ?std.json.Value, patterns: []c
     };
 }
 
-fn redactedArgv(arena: std.mem.Allocator, argv_value: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error![]const []const u8 {
-    const argv = arrOf(argv_value) orelse return arena.dupe([]const u8, &.{ "zig", "build", "test" });
+fn redactedArgv(arena: std.mem.Allocator, argv_value: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) (redaction.Error || Failure)![]const []const u8 {
+    const argv = arrOf(argv_value) orelse return error.AiReportNotFound;
+    if (argv.len == 0) return error.AiReportNotFound;
     const out = try arena.alloc([]const u8, argv.len);
     for (argv, 0..) |arg, i| {
         out[i] = try context.redactField(arena, switch (arg) {
             .string => |t| t,
-            else => "",
+            else => return error.AiReportNotFound,
         }, patterns, log);
     }
     return out;
@@ -296,41 +309,49 @@ fn commandResultFromReport(
     value: std.json.Value,
     patterns: []const []const u8,
     log: *context.RedactionLog,
-    default_status: []const u8,
-    default_failure_kind: []const u8,
-) redaction.Error!context.CommandResult {
-    const cmd = get(value, "command");
-    const original = try context.redactField(arena, sOr(getO(cmd, "original"), "zig build test"), patterns, log);
+    _: []const u8,
+    _: []const u8,
+) (redaction.Error || Failure)!context.CommandResult {
+    const cmd = get(value, "command") orelse return error.AiReportNotFound;
+    const original = try context.redactField(arena, try requiredString(get(cmd, "original")), patterns, log);
     const argv = try redactedArgv(arena, getO(cmd, "argv"), patterns, log);
-    const cwd = try context.redactField(arena, sOr(getO(cmd, "cwd"), "<project>"), patterns, log);
+    const cwd = try context.redactField(arena, try requiredString(get(cmd, "cwd")), patterns, log);
+    const environment_policy = try requiredString(get(cmd, "environment_policy"));
+    if (!eqStr(environment_policy, "minimal")) return error.AiReportNotFound;
+    const shell = try requiredBool(get(cmd, "shell"));
+    if (shell) return error.AiReportNotFound;
+    const phase = try requiredString(get(value, "phase"));
+    const status = try requiredString(get(value, "status"));
+    const timed_out = try requiredBool(get(value, "timed_out"));
+    const failure_kind = try requiredString(get(value, "failure_kind"));
     return .{
         .command = .{
             .original = original,
             .argv = argv,
             .cwd = cwd,
-            .environment_policy = sOr(getO(cmd, "environment_policy"), "minimal"),
-            .shell = boolOr(getO(cmd, "shell"), false),
+            .environment_policy = environment_policy,
+            .shell = shell,
         },
-        .phase = sOr(get(value, "phase"), "mutant"),
-        .status = sOr(get(value, "status"), default_status),
+        .phase = phase,
+        .status = status,
         .exit_code = optI64(get(value, "exit_code")),
-        .timed_out = boolOr(get(value, "timed_out"), false),
-        .failure_kind = sOr(get(value, "failure_kind"), default_failure_kind),
+        .timed_out = timed_out,
+        .failure_kind = failure_kind,
         .duration_ms_normalized = "<duration>",
         .evidence = try redactedEvidence(arena, get(value, "evidence"), patterns, log),
-        .skip_reason = optString(get(value, "skip_reason")),
+        .skip_reason = if (optString(get(value, "skip_reason"))) |sr| try context.redactField(arena, sr, patterns, log) else null,
     };
 }
 
 fn commandsFromResult(
     arena: std.mem.Allocator,
     result: std.json.Value,
-    result_evidence: context.Evidence,
+    _: context.Evidence,
     patterns: []const []const u8,
     log: *context.RedactionLog,
     default_status: []const u8,
     default_failure_kind: []const u8,
-) redaction.Error![]const context.CommandResult {
+) (redaction.Error || Failure)![]const context.CommandResult {
     if (arrOf(get(result, "commands"))) |items| {
         if (items.len > 0) {
             const out = try arena.alloc(context.CommandResult, items.len);
@@ -340,26 +361,7 @@ fn commandsFromResult(
             return out;
         }
     }
-    const fallback = context.CommandResult{
-        .command = .{
-            .original = "zig build test",
-            .argv = &.{ "zig", "build", "test" },
-            .cwd = "<project>",
-            .environment_policy = "minimal",
-            .shell = false,
-        },
-        .phase = "mutant",
-        .status = default_status,
-        .exit_code = exitCodeFor(s(get(result, "status"))),
-        .timed_out = false,
-        .failure_kind = default_failure_kind,
-        .duration_ms_normalized = "<duration>",
-        .evidence = result_evidence,
-        .skip_reason = if (eqStr(default_status, "skipped")) sOr(get(result, "skip_reason"), "command skipped") else null,
-    };
-    const out = try arena.alloc(context.CommandResult, 1);
-    out[0] = fallback;
-    return out;
+    return error.AiReportNotFound;
 }
 
 fn commandStatusFor(status: []const u8) []const u8 {
@@ -426,6 +428,7 @@ fn buildContext(
     const m_original = try context.redactField(arena, s(get(mutant, "original")), patterns, &log);
     const m_replacement = try context.redactField(arena, s(get(mutant, "replacement")), patterns, &log);
     const m_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutant, "diff")), patterns, &log);
+    const project_name = try context.redactField(arena, settings.project_name, patterns, &log);
 
     const cmd_status = commandStatusFor(rstatus);
     const cmd_failure_kind = blk: {
@@ -440,6 +443,8 @@ fn buildContext(
 
     const run_info = get(report, "run");
     const selection = get(mutant, "test_selection");
+    const project_zig = try context.redactField(arena, sOr(getO(run_info, "zig_version"), settings.zig_version), patterns, &log);
+    const project_zentinel = try context.redactField(arena, sOr(getO(run_info, "zentinel_version"), settings.zentinel_version), patterns, &log);
 
     return context.Context{
         .schema_version = "zentinel.ai.context.v1",
@@ -452,10 +457,10 @@ fn buildContext(
             .remote_allowed = settings.remote_allowed,
         },
         .project = .{
-            .name = settings.project_name,
+            .name = project_name,
             .root_label = "<project>",
-            .zig_version = sOr(getO(run_info, "zig_version"), settings.zig_version),
-            .zentinel_version = sOr(getO(run_info, "zentinel_version"), settings.zentinel_version),
+            .zig_version = project_zig,
+            .zentinel_version = project_zentinel,
         },
         .mutant = .{
             .id = s(get(mutant, "id")),
@@ -478,7 +483,7 @@ fn buildContext(
             .phase = "mutant",
             .duration_ms_normalized = "<duration>",
             .evidence = result_evidence,
-            .skip_reason = if (eqStr(rstatus, "skipped")) sOr(get(result, "skip_reason"), "result skipped") else null,
+            .skip_reason = if (eqStr(rstatus, "skipped")) try context.redactField(arena, sOr(get(result, "skip_reason"), "result skipped"), patterns, &log) else null,
         },
         .source_context = .{
             .policy = "none",

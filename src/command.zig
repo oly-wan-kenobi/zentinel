@@ -25,17 +25,27 @@ pub const Result = union(enum) {
     invalid: Reason,
 };
 
+pub const Spec = struct {
+    original: []const u8,
+    argv: []const []const u8,
+};
+
 fn isSpace(c: u8) bool {
     return c == ' ' or c == '\t';
 }
 
-/// Shell metacharacters rejected even inside quotes or escapes. Rejecting these
-/// keeps argv construction deterministic instead of approximating a shell.
+/// Shell metacharacters rejected in every field, including quoted fields. The
+/// configured command grammar is intentionally stricter than argv execution so
+/// glob-like text never gains a second interpretation in config review.
 fn isMeta(c: u8) bool {
     return switch (c) {
         '|', '<', '>', '$', '`', '*', '?', '[', ']', '{', '}', '(', ')', '&', ';' => true,
         else => false,
     };
+}
+
+fn isQuotedMeta(c: u8) bool {
+    return isMeta(c);
 }
 
 pub fn parse(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!Result {
@@ -71,7 +81,7 @@ pub fn parse(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Err
                         }
                         continue;
                     }
-                    if (isMeta(q)) return .{ .invalid = .metacharacter };
+                    if (isQuotedMeta(q)) return .{ .invalid = .metacharacter };
                     try buf.append(arena, q);
                     i += 1;
                 }

@@ -162,7 +162,8 @@ pub fn capExcerpt(arena: std.mem.Allocator, text: []const u8, max_bytes: usize) 
 /// Redact then cap one evidence excerpt. Fails closed: if redaction cannot be
 /// applied the whole AI flow must abort rather than risk leaking a secret.
 pub fn redactAndCap(arena: std.mem.Allocator, text: []const u8, patterns: []const []const u8, max_bytes: usize) redaction.Error![]const u8 {
-    const r = try redaction.redact(arena, text, patterns);
+    const np = try redaction.normalizeAbsolutePaths(arena, text);
+    const r = try redaction.redact(arena, np.text, patterns);
     return capExcerpt(arena, r.text, max_bytes);
 }
 
@@ -224,7 +225,9 @@ pub fn redactStrArray(arena: std.mem.Allocator, lines: []const []const u8, patte
 /// Redact + cap one evidence excerpt while recording the redactions into `log`,
 /// so evidence-sourced secrets are reflected in `redactions_applied` too.
 pub fn redactAndCapLogged(arena: std.mem.Allocator, text: []const u8, patterns: []const []const u8, max_bytes: usize, log: *RedactionLog) redaction.Error![]const u8 {
-    const r = try redaction.redact(arena, text, patterns);
+    const np = try redaction.normalizeAbsolutePaths(arena, text);
+    if (np.changed) try log.add(label_absolute_path);
+    const r = try redaction.redact(arena, np.text, patterns);
     for (r.applied) |p| try log.add(p);
     if (r.builtin_matched) try log.add(label_secret_value);
     return capExcerpt(arena, r.text, max_bytes);
@@ -279,6 +282,7 @@ fn requireAll(obj: std.json.ObjectMap, keys: []const []const u8) bool {
 
 const result_statuses = [_][]const u8{ "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid" };
 const command_statuses = [_][]const u8{ "passed", "failed", "compiler_crash", "timeout", "skipped" };
+const failure_kinds = [_][]const u8{ "none", "compile_error", "test_failure", "compiler_crash", "timeout", "skipped" };
 const modes = [_][]const u8{ "Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall" };
 
 fn validateEvidence(v: std.json.Value) Violation {
@@ -309,6 +313,7 @@ fn validateCommand(v: std.json.Value) Violation {
     const c = asObject(v) orelse return .not_object;
     if (!requireAll(c, &.{ "command", "phase", "status", "exit_code", "timed_out", "failure_kind", "duration_ms_normalized", "evidence", "skip_reason" })) return .missing_field;
     if (!enumOk(c, "status", &command_statuses)) return .bad_enum;
+    if (!enumOk(c, "failure_kind", &failure_kinds)) return .bad_enum;
     if (!enumOk(c, "phase", &.{"mutant"})) return .bad_enum;
 
     const cmd = asObject(c.get("command").?) orelse return .not_object;

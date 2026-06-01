@@ -47,6 +47,19 @@ fn observation() rc.Observation {
     };
 }
 
+test "backend parse error helper identifies the offending project-relative file" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const files = [_]rc.FileSource{
+        .{ .path = "src/ok.zig", .source = "pub fn ok() bool { return true; }\n" },
+        .{ .path = "src/broken.zig", .source = "pub fn broken( {\n" },
+    };
+    const failed = (try rc.firstBackendParseError(a, &files)) orelse return error.TestUnexpectedResult;
+    try expectEqualStrings("src/broken.zig", failed);
+}
+
 fn pass() runner.RawOutcome {
     return .{ .exit_code = 0, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
 }
@@ -282,6 +295,41 @@ test "--operator filter narrows candidates to one operator" {
     try expectEqualStrings("src/helper.zig", filtered.report.mutants[0].file);
 }
 
+test "enabled operator filtering happens before physical-edit dedupe in run" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const cfg =
+        \\[project]
+        \\name = "loop-only"
+        \\
+        \\[mutators]
+        \\enabled = ["loop_boundary"]
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\
+    ;
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{
+        .path = "src/loop.zig",
+        .source =
+        \\pub fn count(n: usize) usize {
+        \\    var i: usize = 0;
+        \\    while (i < n) : (i += 1) {}
+        \\    return i;
+        \\}
+        ,
+    }};
+
+    const outcome = try rc.run(a, loadCfg(a, cfg), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(@as(usize, 1), outcome.report.mutants.len);
+    try expectEqualStrings("loop_boundary", outcome.report.mutants[0].operator);
+    try expectEqual(report.ResultStatus.killed, outcome.report.mutants[0].result.status);
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
+
 test "--mutant filter selects exactly one durable id" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -299,6 +347,28 @@ test "--mutant filter selects exactly one durable id" {
     const filtered = try rc.run(a, loadCfg(a, cfg_toml), &files, .{ .mutant_filter = chosen }, baselineExecutor(&env), mutantRunner(&env), observation());
     try expectEqual(@as(usize, 1), filtered.report.mutants.len);
     try expectEqualStrings(chosen, filtered.report.mutants[0].id);
+}
+
+test "run rejects invalid configured commands instead of misclassifying them" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const bad_command_cfg =
+        \\[project]
+        \\name = "bad-command"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig test 'unterminated"]
+        \\
+    ;
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    try expectError(error.InvalidCommand, rc.run(a, loadCfg(a, bad_command_cfg), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation()));
 }
 
 test "--output outside the project root is rejected" {
@@ -536,10 +606,7 @@ test "--no-cache disables the result cache but keeps build-cache isolation and r
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {
     const io = std.testing.io;
     const existing = std.Io.Dir.cwd().readFileAlloc(io, path, a, std.Io.Limit.limited(1 << 20)) catch |err| switch (err) {
-        error.FileNotFound => {
-            try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = actual });
-            return; // first run blesses the snapshot
-        },
+        error.FileNotFound => return err,
         else => return err,
     };
     try expectEqualStrings(existing, actual);

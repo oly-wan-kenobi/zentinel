@@ -219,7 +219,7 @@
         "scripts/validate_task_system.py"
       ],
       "deferred_to": null,
-      "notes": "Task metadata validation exists."
+      "notes": "Task metadata validation exists and covers queue/status JSON sync, Markdown Current State sync, stale active-task prose outside the status table, clean_handoff_baseline hashes, active task changed-file scope, concrete follow-up references, and stale schema-registry Future rows that point at already-created schema files."
     },
     {
       "number": "F-025",
@@ -399,6 +399,17 @@
       ],
       "deferred_to": null,
       "notes": "Doctest CLI allowlist command-rejection: the doctest runner rejects any CLI doctest command that is not a shell-free `zentinel` invocation -- non-zentinel argv[0] and every shell metacharacter variant (pipe, `;`, `&&`, command substitution, redirects, backticks) are classified `invalid` with a ZNTL_DOCTEST_COMMAND_REJECTED diagnostic and never executed."
+    },
+    {
+      "number": "F-045",
+      "covered": true,
+      "tests": [
+        "test/config_test.zig",
+        "test/cli_test.zig",
+        "test/integration_run_test.zig"
+      ],
+      "deferred_to": null,
+      "notes": "Read-path symlink escape coverage is scoped to executable evidence: config_test covers the shared pathEscapesRoot guard over lexical absolute/.. paths, a symlinked component, and an ordinary in-root file; cli_test covers explicit --config resolution under --root and lexical --input-report/--file rejection through the CLI helper; integration_run_test exercises built-binary explicit --config symlink rejection through the adapter. This row does not claim separate per-command symlink fixtures for every guarded adapter call site."
     }
   ]
 }

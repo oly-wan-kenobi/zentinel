@@ -81,9 +81,15 @@ pub const FileSource = struct {
 pub const MutantRunner = struct {
     ctx: *anyopaque,
     runFn: *const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult,
+    runSpecsFn: ?*const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const command.Spec, mode: report.Mode) mutant_runner.MutationResult = null,
 
     pub fn run(self: MutantRunner, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
         return self.runFn(self.ctx, m, source, commands, mode);
+    }
+
+    pub fn runSpecs(self: MutantRunner, m: mutant.Mutant, source: []const u8, specs: []const command.Spec, originals: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+        if (self.runSpecsFn) |f| return f(self.ctx, m, source, specs, mode);
+        return self.runFn(self.ctx, m, source, originals, mode);
     }
 };
 
@@ -93,6 +99,7 @@ const Job = struct {
     candidate: mutant.Mutant,
     source: []const u8,
     commands: []const []const u8,
+    command_specs: []const command.Spec,
     selection: report.TestSelection,
 };
 
@@ -112,7 +119,7 @@ fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
     _ = slot;
     const pc: *ParallelCtx = @ptrCast(@alignCast(ctx));
     const job = pc.jobs[index];
-    pc.results[index] = pc.mutant_executor.run(job.candidate, job.source, job.commands, pc.mode);
+    pc.results[index] = pc.mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, pc.mode);
 }
 
 /// Normalize the configured `run.jobs` (validated `>= 1` by the config parser)
@@ -133,6 +140,8 @@ pub const RunOutcome = struct {
 pub const RunError = error{
     OutputOutsideRoot,
     BackendParseError,
+    InvalidCandidate,
+    InvalidCommand,
     SourceFileMissing,
 } || std.mem.Allocator.Error;
 
@@ -228,7 +237,7 @@ pub fn run(
     // Baseline.
     const baseline = runner.runBaseline(arena, baseline_executor, cfg.test_commands, obs.project_root) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,
-        error.InvalidCommand => return error.OutOfMemory, // configured commands are check-validated; treat as fatal
+        error.InvalidCommand => return error.InvalidCommand,
     };
 
     if (baseline.status != .passed) {
@@ -259,7 +268,8 @@ pub fn run(
         const source = sourceFor(files, candidate.file) orelse return error.SourceFileMissing;
         const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
         const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
-        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .selection = resolution.selection });
+        const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
+        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .command_specs = specs, .selection = resolution.selection });
     }
     const jobs = try job_list.toOwnedSlice(arena);
 
@@ -287,7 +297,8 @@ pub fn run(
     for (jobs, 0..) |job, ji| {
         if (results[ji].status != .survived) continue;
         if (!test_selection.needsConfiguredReverification(job.commands, cfg.test_commands)) continue;
-        const reverify = mutant_executor.run(job.candidate, job.source, cfg.test_commands, mode);
+        const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
+        const reverify = mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, mode);
         results[ji] = try mergeReverification(arena, results[ji], reverify);
     }
 
@@ -303,7 +314,7 @@ pub fn run(
             if (m == mode) {
                 for (results, 0..) |r, ji| col[ji] = r.status;
             } else {
-                for (jobs, 0..) |job, ji| col[ji] = mutant_executor.run(job.candidate, job.source, job.commands, m).status;
+                for (jobs, 0..) |job, ji| col[ji] = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m).status;
             }
             grid[mi] = col;
         }
@@ -388,6 +399,18 @@ fn sourceFor(files: []const FileSource, path: []const u8) ?[]const u8 {
     return null;
 }
 
+/// Return the first project-relative source file that fails AST parsing.
+/// Adapters use this after `BackendParseError` to report a concrete file while
+/// the core error set remains compact and deterministic.
+pub fn firstBackendParseError(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!?[]const u8 {
+    for (files) |f| {
+        var parsed = try ast_backend.parse(arena, f.path, f.source);
+        defer parsed.deinit();
+        if (!parsed.ok()) return f.path;
+    }
+    return null;
+}
+
 /// Assemble run cache metadata. `--no-cache` disables the result cache (no
 /// result keys, mode disabled) but leaves the Zig build-cache isolation metadata
 /// intact (docs/PERFORMANCE_STRATEGY.md). Result reuse is never enabled here.
@@ -451,6 +474,39 @@ const FileSelection = struct {
     generated_in_baseline: bool,
 };
 
+fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const command.Spec {
+    const specs = try arena.alloc(command.Spec, commands.len);
+    for (commands, 0..) |original, i| {
+        const argv = switch (try command.parse(arena, original)) {
+            .ok => |a| a,
+            // Configured commands are validated by `check`; preserve the old
+            // fail-closed runner behavior by passing an argv that will not be
+            // mistaken for a generated structured command.
+            .invalid => try arena.dupe([]const u8, &.{original}),
+        };
+        specs[i] = .{ .original = original, .argv = argv };
+    }
+    return specs;
+}
+
+fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const u8, file: []const u8) std.mem.Allocator.Error![]const command.Spec {
+    const generated = try test_selection.generatedCommand(arena, file);
+    const generated_argv = try test_selection.generatedCommandArgv(arena, file);
+    const specs = try arena.alloc(command.Spec, commands.len);
+    for (commands, 0..) |original, i| {
+        if (std.mem.eql(u8, original, generated)) {
+            specs[i] = .{ .original = original, .argv = generated_argv };
+        } else {
+            const parsed = switch (try command.parse(arena, original)) {
+                .ok => |a| a,
+                .invalid => try arena.dupe([]const u8, &.{original}),
+            };
+            specs[i] = .{ .original = original, .argv = parsed };
+        }
+    }
+    return specs;
+}
+
 /// Compute (and cache) the selection inputs for `file`. When the strategy uses
 /// same-file tests and the generated `zig test <file>` command is not already a
 /// baseline command, this runs the generated command against the UNMUTATED
@@ -484,7 +540,7 @@ fn selectionForFile(
 
     var preflight: ?report.CommandResult = null;
     if (same_file_enabled and same_file_tests.len > 0 and !generated_in_baseline) {
-        preflight = try runPreflight(arena, baseline_executor, generated, cwd);
+        preflight = try runPreflight(arena, baseline_executor, generated, try test_selection.generatedCommandArgv(arena, file), cwd);
     }
 
     const sel = FileSelection{
@@ -506,12 +562,7 @@ fn contains(haystack: []const []const u8, needle: []const u8) bool {
 
 /// Run the generated selected command against the unmutated project and classify
 /// it as a `selection_preflight` command result.
-fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: []const u8, cwd: []const u8) std.mem.Allocator.Error!?report.CommandResult {
-    const parsed = try command.parse(arena, original);
-    const argv = switch (parsed) {
-        .ok => |a| a,
-        .invalid => return null, // generated command is always well-formed; defensively skip
-    };
+fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: []const u8, argv: []const []const u8, cwd: []const u8) std.mem.Allocator.Error!?report.CommandResult {
     const raw = executor.run(argv);
     return try runner.classifyCommand(arena, .selection_preflight, original, argv, cwd, raw);
 }
@@ -544,7 +595,8 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         try integer_boundary.collect(&collector, parsed, f.path, test_ranges);
         try loop_boundary.collect(&collector, parsed, f.path, test_ranges);
     }
-    const all = try collector.finish();
+    if (collector.invalidCount() > 0) return error.InvalidCandidate;
+    const all = try collector.finishRaw();
 
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {
@@ -557,7 +609,7 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         }
         try kept.append(arena, c);
     }
-    return kept.toOwnedSlice(arena);
+    return mutant.sortAndDedupe(arena, kept.items);
 }
 
 /// Merge a narrowed-selection survivor with its configured-suite re-verification.

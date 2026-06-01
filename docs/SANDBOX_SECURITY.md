@@ -47,7 +47,7 @@ Config starts with string commands for UX, but zentinel must parse those strings
 
 The command parser must support only the grammar documented in `docs/CONFIG_SPEC.md`. Unsupported shell syntax is a config error, not a best-effort execution request.
 
-Generated same-file selected commands are authorized only by `docs/TEST_SELECTION.md`. They are built from normalized project-relative Zig source paths, parsed to argv directly, and must pass unmutated preflight evidence before mutant execution can use them for classification.
+Generated same-file selected commands are authorized only by `docs/TEST_SELECTION.md`. They are built from normalized project-relative Zig source paths, rendered with quoting when path bytes need it, parsed or constructed into argv without a shell, and must pass unmutated preflight evidence before mutant execution can use them for classification. If zentinel cannot construct valid argv for a generated selected command, it must fall back to configured commands and record visible selection-preflight evidence.
 
 Reports must record:
 
@@ -75,6 +75,7 @@ Rules:
 - shared Zig compiler cache use is allowed only for content-addressed cache entries that cannot be corrupted by concurrent writes
 - cleanup failures are warnings unless they risk source corruption
 - patch application validates original text before replacement
+- workspace, scratch, report, config, and documentation paths are checked with the shared project-root containment guard before filesystem access
 
 No two workers may write the same local cache, output, or temporary build artifact path. This includes `.zig-cache/`, `zig-out/`, generated doctest workspaces, and mutation runner scratch files.
 
@@ -96,12 +97,13 @@ Mutation targets must resolve inside the project root.
 
 Allowed:
 
-- symlinks whose real target remains inside the project root
+- ordinary in-tree files and directories
 
 Forbidden:
 
 - mutating a symlink target outside the project root
 - using symlink traversal to write outside the sandbox
+- using symlink traversal to read config, docs, reports, workspaces, scratch files, or report outputs outside the project root
 
 ## Environment Policy
 
@@ -142,6 +144,7 @@ Future tasks must add tests for:
 
 - patch cannot write outside project root
 - symlink escape is rejected
+- read-side symlink escape is rejected for docs, config, and AI report inputs
 - command timeout is enforced
 - output excerpts are bounded
 - secret-like environment content is not included in AI context

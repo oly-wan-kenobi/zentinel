@@ -31,6 +31,7 @@ The version check must:
 - parse the Zig version
 - compare it with zentinel's compiled-in pinned supported Zig version
 - fail fast when unsupported
+- use a bounded discovery timeout and classify timeout or execution failure as Zig not found
 - include remediation text
 
 Example diagnostic:

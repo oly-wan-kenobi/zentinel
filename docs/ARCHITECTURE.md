@@ -12,7 +12,7 @@ Ports and adapters are boundary tools, not the system architecture. zentinel use
 - filesystem, process execution, sandbox workspace, cache storage, and report writers are side-effect adapters.
 - AI provider integrations are advisory adapters that consume deterministic artifacts.
 - pipeline orchestration coordinates the flow without owning mutation semantics.
-- deterministic core modules own source mapping, command parsing, mutant identity, candidate generation, filtering, test-selection rules, result classification, and canonical report data.
+- deterministic core modules own source mapping, command parsing, mutant identity, candidate generation, filtering, test-selection rules, result classification, advisory-context validation/redaction, and canonical report data.
 
 This follows ADR-0008. A task that changes these boundaries must update `docs/INTERNAL_API_CONTRACTS.md` and either cite ADR-0008 or add a superseding ADR.
 
@@ -52,15 +52,17 @@ The deterministic core includes:
 - assigning mutant IDs
 - applying and reverting mutations
 - selecting tests
-- invoking Zig commands
+- planning Zig command argv and classifying executor outcomes
 - classifying mutant results as killed, survived, timeout, compile_error, compiler_crash, skipped, or invalid, and run-level baseline failures as baseline_failed
-- writing machine-readable and human-readable reports
-- reading and writing cache entries
+- building machine-readable and human-readable report data
+- building cache keys and cache entry data
+- validating and redacting advisory AI context before any provider boundary
 
 The deterministic core must not depend on:
 
 - LLM responses
 - remote network availability
+- AI provider execution
 - wall-clock ordering for IDs
 - nondeterministic filesystem iteration
 - random scheduling decisions without an explicit seed
@@ -88,7 +90,7 @@ Reviewers must check ownership, not only compile success:
 
 ## AI Boundary
 
-The AI assistance layer may consume deterministic artifacts and produce advisory artifacts.
+The AI assistance layer may consume deterministic artifacts and produce advisory artifacts. Pure AI context builders, redactors, schema validators, and prompt-envelope validators are allowed in the deterministic core because they are deterministic data-safety gates: they only reject or normalize existing evidence. Provider execution, remote access, model selection, and advisory text generation stay at the advisory-adapter boundary and never feed result classification.
 
 Allowed:
 

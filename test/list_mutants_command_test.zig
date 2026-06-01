@@ -39,10 +39,7 @@ fn files() [2]lm.FileSource {
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {
     const io = std.testing.io;
     const existing = std.Io.Dir.cwd().readFileAlloc(io, path, a, std.Io.Limit.limited(1 << 20)) catch |err| switch (err) {
-        error.FileNotFound => {
-            try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = actual });
-            return;
-        },
+        error.FileNotFound => return err,
         else => return err,
     };
     try expectEqualStrings(existing, actual);
@@ -79,6 +76,40 @@ test "operator filter narrows the listing" {
     try expectEqual(@as(usize, 1), filtered.len);
     try expectEqualStrings("arithmetic_mul_div", filtered[0].operator);
     try expectEqualStrings("src/helper.zig", filtered[0].file);
+}
+
+test "operator filtering happens before physical-edit dedupe" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const cfg =
+        \\[project]
+        \\name = "loop-only"
+        \\
+        \\[mutators]
+        \\enabled = ["loop_boundary"]
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\
+    ;
+    const fs = [_]lm.FileSource{.{
+        .path = "src/loop.zig",
+        .source =
+        \\pub fn count(n: usize) usize {
+        \\    var i: usize = 0;
+        \\    while (i < n) : (i += 1) {}
+        \\    return i;
+        \\}
+        ,
+    }};
+
+    const candidates = try lm.generate(a, loadCfg(a, cfg), &fs, null);
+    try expectEqual(@as(usize, 1), candidates.len);
+    try expectEqualStrings("loop_boundary", candidates[0].operator);
+    try expectEqualStrings("<", candidates[0].original);
+    try expectEqualStrings("<=", candidates[0].replacement);
 }
 
 test "list-mutants reports parse failures instead of silently dropping a source file" {

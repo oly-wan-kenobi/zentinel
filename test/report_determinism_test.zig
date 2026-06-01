@@ -117,4 +117,11 @@ test "normalizeExcerpt replaces hex addresses and absolute paths but keeps other
     // to identical bytes.
     const other = try report.normalizeExcerpt(a, "panic at /home/ci/build/src/x.zig:7:3: 0x12 in f (line a + b)");
     try expectEqualStrings(norm, other);
+
+    const spaced = try report.normalizeExcerpt(a, "panic at \"/Users/oli/My Project/src/x.zig:7:3\"");
+    try expectEqualStrings("panic at \"<path>\"", spaced);
+    const unquoted_spaced = try report.normalizeExcerpt(a, "panic at /Users/oli/My Project/src/x.zig:7:3");
+    try expectEqualStrings("panic at <path>", unquoted_spaced);
+    const windows = try report.normalizeExcerpt(a, "panic at C:\\Users\\oli\\My Project\\src\\x.zig:7:3");
+    try expectEqualStrings("panic at <path>", windows);
 }

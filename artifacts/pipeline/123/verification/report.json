@@ -1,0 +1,60 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "123",
+  "status": "passed",
+  "working_tree_state": "dirty",
+  "active_lock": "artifacts/pipeline/123/locks/active-task-lock.json",
+  "stages": [
+    {
+      "name": "unit_tests_failing_first",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test",
+      "evidence": "Before implementation, task-specific tests exposed the audited failures: symlink-blind containment helper behavior, argv-unsafe generated same-file commands, missing backend parse-error file context, doctest report schema drift, invalid AST candidate diagnostics, snapshot helpers that could self-bless missing files, doctest AI command-evidence redaction gaps, and duplicate physical edits from the real comparison/loop-boundary AST overlap."
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Full suite passed after implementation (533 tests)."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "json_syntax_check",
+      "required": true,
+      "status": "passed",
+      "command": "python3 -m json.tool tasks/queue.json tasks/status.json tests/coverage-gaps/failure_modes.v1.json tests/coverage-gaps/invariants.v1.json tests/coverage-gaps/schemas.v1.json"
+    },
+    {
+      "name": "task_system_validation_active",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed with task 123 active after synchronizing task Markdown and queue JSON allowed files and using stable F-045 numbering for the new symlink-escape failure mode."
+    }
+  ],
+  "residual_risk": [
+    "The shared containment helper is unit-tested against lexical escapes and symlinked components; most CLI call sites are covered by adapter code paths and docs rather than a separate integration test per flag.",
+    "Cleanup failures are surfaced as deterministic stderr warnings from the CLI adapter; no platform-specific forced-cleanup-failure fixture was added because reliably creating one without mutating unrelated filesystem state is brittle.",
+    "Result-cache reuse remains disabled; this task only hardens read/write containment and generated-command evidence before future reuse."
+  ],
+  "recommendation": "complete"
+}

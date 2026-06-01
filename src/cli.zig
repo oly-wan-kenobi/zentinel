@@ -32,9 +32,9 @@ pub fn run(
             return 0;
         },
         .check => |globals| {
-            const resolved = (try configPathOrReject(gpa, globals, stderr)) orelse return 2;
+            const resolved = (try configPathOrReject(gpa, io, dir, globals, stderr)) orelse return 2;
             const result = try zentinel.check_command.run(gpa, .{
-                .config_source = readConfig(gpa, io, dir, resolved),
+                .config_source = readResolvedConfig(gpa, io, dir, resolved),
                 .config_path = resolved,
                 .zig = discoverZig(gpa, io),
             });
@@ -81,6 +81,10 @@ fn runPassthrough(
     }
 
     if (outcome.write_config) {
+        if (zentinel.config.pathEscapesRoot(io, dir, config_path)) {
+            try stderr.writeAll("error: zentinel.toml must stay within the project root\n");
+            return 2;
+        }
         const text = try zentinel.initConfigText(gpa, outcome.init_test_command);
         try dir.writeFile(io, .{ .sub_path = config_path, .data = text });
     }
@@ -88,41 +92,45 @@ fn runPassthrough(
     return outcome.exit_code;
 }
 
-/// Resolve the config path: an explicit `--config` wins; otherwise the default
-/// config name is looked up under `--root` (default `.`).
-const ConfigPathError = error{ConfigOutsideRoot} || std.mem.Allocator.Error;
-
-fn resolveConfigPath(gpa: std.mem.Allocator, globals: zentinel.Globals) ConfigPathError![]const u8 {
-    if (globals.config_explicit) {
-        // Read-side path containment (F-5): an explicit --config is read verbatim,
-        // so reject one that escapes the project root, matching the write-side guard.
-        if (zentinel.config.isOutsideRoot(globals.config_path)) return error.ConfigOutsideRoot;
-        return globals.config_path;
-    }
-    if (std.mem.eql(u8, globals.root, ".")) return globals.config_path;
-    return std.fmt.allocPrint(gpa, "{s}/{s}", .{ globals.root, globals.config_path });
-}
-
 /// Resolve the config path, writing a clear error and returning null when an
 /// explicit `--config` escapes the project root (F-5). The caller exits 2 on null.
-fn configPathOrReject(gpa: std.mem.Allocator, globals: zentinel.Globals, stderr: *std.Io.Writer) !?[]const u8 {
-    return resolveConfigPath(gpa, globals) catch |e| switch (e) {
+fn configPathOrReject(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, globals: zentinel.Globals, stderr: *std.Io.Writer) !?[]const u8 {
+    const resolved = zentinel.resolveConfigPathForRoot(gpa, globals) catch |e| switch (e) {
         error.ConfigOutsideRoot => {
-            try stderr.writeAll("error: --config must stay within the project root\n");
+            try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --config must stay within the project root\n");
             return null;
         },
         error.OutOfMemory => return error.OutOfMemory,
     };
+    if (std.fs.path.isAbsolute(globals.root)) {
+        var root_dir = dir.openDir(io, globals.root, .{ .iterate = true }) catch return resolved;
+        defer root_dir.close(io);
+        if (zentinel.config.pathEscapesRoot(io, root_dir, globals.config_path)) {
+            try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --config must stay within the project root\n");
+            return null;
+        }
+    } else {
+        if (zentinel.config.pathEscapesRoot(io, dir, resolved)) {
+            try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --config must stay within the project root\n");
+            return null;
+        }
+    }
+    return resolved;
 }
 
-fn readConfig(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, path: []const u8) ?[]const u8 {
+fn readResolvedConfig(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, path: []const u8) ?[]const u8 {
+    if (std.fs.path.isAbsolute(path)) return dir.readFileAlloc(io, path, gpa, read_limit) catch null;
+    if (zentinel.config.pathEscapesRoot(io, dir, path)) return null;
     return dir.readFileAlloc(io, path, gpa, read_limit) catch null;
 }
 
 /// Run `zig version` and classify the result. Any failure to obtain a version
 /// (executable missing, non-zero exit, empty output) is reported as not found.
 fn discoverZig(gpa: std.mem.Allocator, io: std.Io) zentinel.zig_version.Discovery {
-    const result = std.process.run(gpa, io, .{ .argv = &.{ "zig", "version" } }) catch return .not_found;
+    const result = std.process.run(gpa, io, .{
+        .argv = &.{ "zig", "version" },
+        .timeout = .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(5000), .clock = .awake } },
+    }) catch return .not_found;
     switch (result.term) {
         .exited => |code| if (code != 0) return .not_found,
         else => return .not_found,
@@ -152,6 +160,7 @@ const RunCtx = struct {
     /// command (docs/SANDBOX_SECURITY.md). This is what makes the report's
     /// `environment_policy = minimal` label truthful (task 112).
     env: *const std.process.Environ.Map,
+    cleanup_failures: std.atomic.Value(u32),
 };
 
 /// Run one configured command via direct argv (no shell), honoring the
@@ -232,6 +241,7 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     // Content-addressed, per-mutant root so concurrent workers never share a
     // writable workspace, local .zig-cache, or zig-out (tasks/050).
     const rel = try zentinel.worker_pool.workspaceRoot(rt.gpa, rt.run_id, m.id);
+    if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, rel)) return error.WorkspaceCreateFailed;
     try rt.root_dir.createDirPath(rt.io, rel);
     var dir = try rt.root_dir.openDir(rt.io, rel, .{});
     errdefer dir.close(rt.io);
@@ -241,8 +251,10 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     while (try walker.next(rt.io)) |entry| {
         if (entry.kind != .file) continue;
         if (copyExcluded(entry.path)) continue;
+        if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, entry.path)) return error.WorkspaceCreateFailed;
         try rt.root_dir.copyFile(entry.path, dir, entry.path, rt.io, .{ .make_path = true });
     }
+    if (zentinel.config.pathEscapesRoot(rt.io, dir, m.file)) return error.WorkspaceCreateFailed;
     try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
     return .{ .rel = rel, .dir = dir };
 }
@@ -255,23 +267,44 @@ fn mutantRunFn(
     mode: zentinel.report.Mode,
 ) zentinel.mutant_runner.MutationResult {
     const rt: *RunCtx = @ptrCast(@alignCast(ctx));
+    var specs: std.ArrayList(zentinel.command.Spec) = .empty;
+    for (commands) |original| {
+        const argv = switch (zentinel.command.parse(rt.gpa, original) catch @panic("out of memory")) {
+            .ok => |a| a,
+            .invalid => return zentinel.mutant_runner.run(rt.gpa, m, source, .created, commands, rt.root_label, zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn }, mode) catch @panic("out of memory"),
+        };
+        specs.append(rt.gpa, .{ .original = original, .argv = argv }) catch @panic("out of memory");
+    }
+    return mutantRunSpecsFn(ctx, m, source, specs.items, mode);
+}
+
+fn mutantRunSpecsFn(
+    ctx: *anyopaque,
+    m: zentinel.mutant.Mutant,
+    source: []const u8,
+    commands: []const zentinel.command.Spec,
+    mode: zentinel.report.Mode,
+) zentinel.mutant_runner.MutationResult {
+    const rt: *RunCtx = @ptrCast(@alignCast(ctx));
     const disabled = zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn };
 
     // Compute patched bytes up front; an invalid patch is classified by the
     // deterministic runner (which re-validates and returns without executing).
     const patched = zentinel.sandbox.apply(rt.gpa, source, m) catch {
-        return zentinel.mutant_runner.run(rt.gpa, m, source, .created, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
+        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
     };
     const ws = setupWorkspace(rt, m, patched) catch {
-        return zentinel.mutant_runner.run(rt.gpa, m, source, .create_failed, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
+        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
     };
     defer {
         ws.dir.close(rt.io);
-        rt.root_dir.deleteTree(rt.io, ws.rel) catch {};
+        rt.root_dir.deleteTree(rt.io, ws.rel) catch {
+            _ = rt.cleanup_failures.fetchAdd(1, .monotonic);
+        };
     }
     var wctx = WorkspaceCtx{ .rt = rt, .dir = ws.dir };
     const executor = zentinel.runner.Executor{ .ctx = &wctx, .runFn = workspaceRunFn };
-    return zentinel.mutant_runner.run(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch @panic("out of memory");
+    return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch @panic("out of memory");
 }
 
 /// Build the run observation metadata (run id, ISO timestamp, config hash).
@@ -291,7 +324,7 @@ fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, z
 
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(cfg_bytes, &digest, .{});
-    const config_hash = try std.fmt.allocPrint(gpa, "sha256:{s}", .{std.fmt.bytesToHex(digest[0..8], .lower)});
+    const config_hash = try std.fmt.allocPrint(gpa, "sha256:{s}", .{std.fmt.bytesToHex(digest, .lower)});
 
     return .{
         .run_id = run_id,
@@ -314,14 +347,75 @@ fn timeoutFromMs(ms: i64) std.Io.Timeout {
     return .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(ms), .clock = .awake } };
 }
 
-const default_command_timeout_ms: i64 = 30000;
+const EffectiveProjectRoot = struct {
+    selected: std.Io.Dir,
+    nested: ?std.Io.Dir = null,
 
-fn configuredTimeoutMs(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, globals: zentinel.Globals) i64 {
-    const resolved = resolveConfigPath(gpa, globals) catch return default_command_timeout_ms;
-    const bytes = readConfig(gpa, io, dir, resolved) orelse return default_command_timeout_ms;
+    fn dir(self: EffectiveProjectRoot) std.Io.Dir {
+        return self.nested orelse self.selected;
+    }
+
+    fn close(self: *EffectiveProjectRoot, io: std.Io) void {
+        if (self.nested) |*nested| nested.close(io);
+        self.selected.close(io);
+    }
+};
+
+fn openEffectiveProjectRoot(
+    io: std.Io,
+    dir: std.Io.Dir,
+    selected_root: []const u8,
+    project_root: []const u8,
+    stderr: *std.Io.Writer,
+) !?EffectiveProjectRoot {
+    var selected = try dir.openDir(io, selected_root, .{ .iterate = true });
+    errdefer selected.close(io);
+    if (std.mem.eql(u8, project_root, ".")) return .{ .selected = selected };
+    if (zentinel.config.pathEscapesRoot(io, selected, project_root)) {
+        try stderr.writeAll("error[ZNTL_CONFIG_INVALID_VALUE]: project.root must stay within the selected root\n");
+        return null;
+    }
+    const nested = selected.openDir(io, project_root, .{ .iterate = true }) catch |err| {
+        try stderr.print("error[ZNTL_CONFIG_INVALID_VALUE]: could not open project.root {s}: {s}\n", .{ project_root, @errorName(err) });
+        return null;
+    };
+    return .{ .selected = selected, .nested = nested };
+}
+
+fn defaultLoadedConfig(arena: std.mem.Allocator) !zentinel.config.Config {
     var diag: zentinel.config.Diagnostic = .{};
-    const cfg = zentinel.config.load(gpa, bytes, &diag) catch return default_command_timeout_ms;
-    return cfg.test_timeout_ms;
+    return zentinel.config.load(arena, "", &diag) catch |err| switch (err) {
+        error.Invalid => unreachable,
+        error.OutOfMemory => return error.OutOfMemory,
+    };
+}
+
+fn doctestConfigOrDefault(
+    arena: std.mem.Allocator,
+    io: std.Io,
+    dir: std.Io.Dir,
+    globals: zentinel.Globals,
+    stderr: *std.Io.Writer,
+) !?zentinel.config.Config {
+    const resolved = (try configPathOrReject(arena, io, dir, globals, stderr)) orelse return null;
+    const bytes = readResolvedConfig(arena, io, dir, resolved) orelse {
+        if (globals.config_explicit) {
+            try stderr.print("error: config not found at {s}\n", .{resolved});
+            return null;
+        }
+        return try defaultLoadedConfig(arena);
+    };
+    var diag: zentinel.config.Diagnostic = .{};
+    return zentinel.config.load(arena, bytes, &diag) catch |err| switch (err) {
+        error.Invalid => {
+            if (globals.config_explicit) {
+                try stderr.print("error[{s}]: {s}\n", .{ diag.code.token(), diag.message });
+                return null;
+            }
+            return try defaultLoadedConfig(arena);
+        },
+        error.OutOfMemory => return error.OutOfMemory,
+    };
 }
 
 /// `zentinel run`: load config, validate Zig, discover eligible source files
@@ -349,8 +443,8 @@ fn runRun(
         return 2;
     };
 
-    const cfg_path = (try configPathOrReject(gpa, inv.globals, stderr)) orelse return 2;
-    const cfg_bytes = readConfig(gpa, io, dir, cfg_path) orelse {
+    const cfg_path = (try configPathOrReject(gpa, io, dir, inv.globals, stderr)) orelse return 2;
+    const cfg_bytes = readResolvedConfig(gpa, io, dir, cfg_path) orelse {
         try stderr.print("error: config not found at {s}\n", .{cfg_path});
         return 2;
     };
@@ -368,12 +462,29 @@ fn runRun(
     }
     const zig_label = zentinel.zig_version.supportedLabel(zig).?;
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var selected_root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
+    defer selected_root_dir.close(io);
+    var effective_root_dir: ?std.Io.Dir = null;
+    defer if (effective_root_dir) |*d| d.close(io);
+    if (!std.mem.eql(u8, cfg.project_root, ".")) {
+        if (zentinel.config.pathEscapesRoot(io, selected_root_dir, cfg.project_root)) {
+            try stderr.writeAll("error[ZNTL_CONFIG_INVALID_VALUE]: project.root must stay within the selected root\n");
+            return 2;
+        }
+        effective_root_dir = selected_root_dir.openDir(io, cfg.project_root, .{ .iterate = true }) catch |err| {
+            try stderr.print("error[ZNTL_CONFIG_INVALID_VALUE]: could not open project.root {s}: {s}\n", .{ cfg.project_root, @errorName(err) });
+            return 2;
+        };
+    }
+    const root_dir = effective_root_dir orelse selected_root_dir;
 
     const discovered = try zentinel.project_model.discover(gpa, io, root_dir, cfg.include, cfg.exclude);
     var files: std.ArrayList(zentinel.run_command.FileSource) = .empty;
     for (discovered) |rel| {
+        if (zentinel.config.pathEscapesRoot(io, root_dir, rel)) {
+            try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: source path must stay within the project root: {s}\n", .{rel});
+            return 2;
+        }
         const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch |err| {
             try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: could not read {s}: {s}\n", .{ rel, @errorName(err) });
             return 2;
@@ -385,20 +496,21 @@ fn runRun(
     // spawns is restricted to it (docs/SANDBOX_SECURITY.md, task 112).
     var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
     defer minimal_env.deinit();
-    var obs = try buildObservation(gpa, io, cfg_bytes, zig_label, inv.globals.root);
+    var obs = try buildObservation(gpa, io, cfg_bytes, zig_label, "<project>");
     obs.environment_hash = try zentinel.cache.environmentHash(gpa, &minimal_env);
 
     var rt = RunCtx{
         .gpa = gpa,
         .io = io,
         .root_dir = root_dir,
-        .root_label = inv.globals.root,
+        .root_label = "<project>",
         .run_id = obs.run_id,
         .timeout = timeoutFromMs(cfg.test_timeout_ms),
         .env = &minimal_env,
+        .cleanup_failures = std.atomic.Value(u32).init(0),
     };
     const baseline_executor = zentinel.runner.Executor{ .ctx = &rt, .runFn = baselineRunFn };
-    const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn };
+    const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn };
 
     const outcome = zentinel.run_command.run(gpa, cfg, files.items, options, baseline_executor, mutant_executor, obs) catch |err| switch (err) {
         error.OutputOutsideRoot => {
@@ -406,7 +518,19 @@ fn runRun(
             return 2;
         },
         error.BackendParseError => {
-            try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            if (try zentinel.run_command.firstBackendParseError(gpa, files.items)) |path| {
+                try stderr.print("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse source file {s}\n", .{path});
+            } else {
+                try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            }
+            return 2;
+        },
+        error.InvalidCandidate => {
+            try stderr.writeAll("error[ZNTL_INTERNAL_INVARIANT]: AST backend emitted an invalid mutation candidate\n");
+            return 4;
+        },
+        error.InvalidCommand => {
+            try stderr.writeAll("error[ZNTL_CONFIG_INVALID_COMMAND]: configured test command cannot be parsed\n");
             return 2;
         },
         error.SourceFileMissing => {
@@ -415,6 +539,8 @@ fn runRun(
         },
         error.OutOfMemory => return err,
     };
+
+    try zentinel.emitCleanupWarningIfNeeded(gpa, rt.cleanup_failures.load(.monotonic), stderr);
 
     // Write the JSON report to the resolved output path (under the project root).
     const json = try zentinel.report.toJson(gpa, outcome.report);
@@ -425,7 +551,7 @@ fn runRun(
     // symlink that leaves the project tree could redirect the report outside the
     // root. Refuse a symlinked output component before creating any directory or
     // writing, so an untrusted checkout cannot escape the analyzed project.
-    if (zentinel.config.outputPathHasSymlink(io, root_dir, out_path)) {
+    if (zentinel.config.pathEscapesRoot(io, root_dir, out_path)) {
         try stderr.writeAll("error: --output must stay within the project root\n");
         return 2;
     }
@@ -442,7 +568,7 @@ fn runRun(
     // rather than fatal because the cache is best-effort.
     const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
     const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.report_output_dir});
-    if (!zentinel.config.outputPathHasSymlink(io, root_dir, cache_path)) {
+    if (!zentinel.config.pathEscapesRoot(io, root_dir, cache_path)) {
         if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
         root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
     }
@@ -514,8 +640,8 @@ fn runListMutants(
         return 2;
     };
 
-    const cfg_path = (try configPathOrReject(gpa, inv.globals, stderr)) orelse return 2;
-    const cfg_bytes = readConfig(gpa, io, dir, cfg_path) orelse {
+    const cfg_path = (try configPathOrReject(gpa, io, dir, inv.globals, stderr)) orelse return 2;
+    const cfg_bytes = readResolvedConfig(gpa, io, dir, cfg_path) orelse {
         try stderr.print("error: config not found at {s}\n", .{cfg_path});
         return 2;
     };
@@ -525,12 +651,17 @@ fn runListMutants(
         return 2;
     };
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
 
     const discovered = try zentinel.project_model.discover(gpa, io, root_dir, cfg.include, cfg.exclude);
     var files: std.ArrayList(zentinel.list_mutants_command.FileSource) = .empty;
     for (discovered) |rel| {
+        if (zentinel.config.pathEscapesRoot(io, root_dir, rel)) {
+            try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: source path must stay within the project root: {s}\n", .{rel});
+            return 2;
+        }
         const bytes = root_dir.readFileAlloc(io, rel, gpa, read_limit) catch |err| {
             try stderr.print("error[ZNTL_SOURCE_READ_FAILED]: could not read {s}: {s}\n", .{ rel, @errorName(err) });
             return 2;
@@ -540,8 +671,16 @@ fn runListMutants(
 
     const candidates = zentinel.list_mutants_command.generate(gpa, cfg, files.items, options.operator_filter) catch |err| switch (err) {
         error.BackendParseError => {
-            try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            if (try zentinel.run_command.firstBackendParseError(gpa, files.items)) |path| {
+                try stderr.print("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse source file {s}\n", .{path});
+            } else {
+                try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+            }
             return 2;
+        },
+        error.InvalidCandidate => {
+            try stderr.writeAll("error[ZNTL_INTERNAL_INVARIANT]: AST backend emitted an invalid mutation candidate\n");
+            return 4;
         },
         error.OutOfMemory => return err,
     };
@@ -648,8 +787,10 @@ const DoctestWsCtx = struct { gpa: std.mem.Allocator, io: std.Io, root_dir: std.
 fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.doctest.workspace.MaterializeError!void {
     const w: *DoctestWsCtx = @ptrCast(@alignCast(ctx));
     if (!zentinel.doctest.workspace.isConfined(plan)) return error.WorkspaceCreateFailed;
+    if (zentinel.config.pathEscapesRoot(w.io, w.root_dir, plan.dir)) return error.WorkspaceCreateFailed;
     w.root_dir.createDirPath(w.io, plan.dir) catch return error.WorkspaceCreateFailed;
     for (plan.files) |f| {
+        if (zentinel.config.pathEscapesRoot(w.io, w.root_dir, f.rel_path)) return error.WorkspaceCreateFailed;
         if (std.fs.path.dirname(f.rel_path)) |parent| {
             w.root_dir.createDirPath(w.io, parent) catch return error.WorkspaceCreateFailed;
         }
@@ -731,11 +872,15 @@ fn runAiCommand(
         return aiOptionError(stderr, try std.fmt.allocPrint(arena, "{s} must stay within the project root", .{opt}));
     }
 
-    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+    const ai_cfg = (try aiSettings(arena, gpa, io, dir, inv.globals, stderr)) orelse return 2;
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, ai_cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
     const report_path = input_report orelse zentinel.ai.command.default_report_path;
+    if (zentinel.config.pathEscapesRoot(io, root_dir, report_path)) {
+        return aiOptionError(stderr, "--input-report must stay within the project root");
+    }
     const report_json: ?[]const u8 = root_dir.readFileAlloc(io, report_path, arena, read_limit) catch null;
 
     const input = zentinel.ai.command.Input{
@@ -743,7 +888,7 @@ fn runAiCommand(
         .mutant_ref = mutant_ref,
         .provider_override = provider_override,
         .report_json = report_json,
-        .settings = settings,
+        .settings = ai_cfg.settings,
     };
 
     const out = zentinel.ai.command.run(arena, input, format) catch |err| switch (err) {
@@ -764,15 +909,22 @@ fn aiOptionError(stderr: *std.Io.Writer, detail: []const u8) !u8 {
     return 2;
 }
 
-/// Build advisory AI settings from normalized config, falling back to AI-disabled
-/// defaults when no config file is present or it cannot be parsed.
+const AiCliSettings = struct {
+    settings: zentinel.ai.command.Settings,
+    project_root: []const u8,
+};
+
+/// Build advisory AI settings from normalized config. An omitted or invalid
+/// implicit config keeps AI disabled; an explicit missing/invalid config is a
+/// usage error and never falls through to provider execution.
 fn aiSettings(
     arena: std.mem.Allocator,
     gpa: std.mem.Allocator,
     io: std.Io,
     dir: std.Io.Dir,
     globals: zentinel.Globals,
-) zentinel.ai.command.Settings {
+    stderr: *std.Io.Writer,
+) !?AiCliSettings {
     const zig_label: []const u8 = zentinel.zig_version.supportedLabel(discoverZig(gpa, io)) orelse "unknown";
     var settings = zentinel.ai.command.Settings{
         .ai_enabled = false,
@@ -783,15 +935,31 @@ fn aiSettings(
         .zig_version = zig_label,
         .zentinel_version = zentinel.version,
     };
-    const resolved = resolveConfigPath(arena, globals) catch return settings;
-    const bytes = readConfig(arena, io, dir, resolved) orelse return settings;
+    const resolved = (try configPathOrReject(arena, io, dir, globals, stderr)) orelse return null;
+    const bytes = readResolvedConfig(arena, io, dir, resolved) orelse {
+        if (globals.config_explicit) {
+            try stderr.print("error: config not found at {s}\n", .{resolved});
+            return null;
+        }
+        return .{ .settings = settings, .project_root = "." };
+    };
     var diag: zentinel.config.Diagnostic = .{};
-    const cfg = zentinel.config.load(arena, bytes, &diag) catch return settings;
+    const cfg = zentinel.config.load(arena, bytes, &diag) catch |err| switch (err) {
+        error.Invalid => {
+            if (globals.config_explicit) {
+                try stderr.print("error[{s}]: {s}\n", .{ diag.code.token(), diag.message });
+                return null;
+            }
+            return .{ .settings = settings, .project_root = "." };
+        },
+        error.OutOfMemory => return error.OutOfMemory,
+    };
     settings.ai_enabled = cfg.ai_enabled;
     settings.config_mode = zentinel.ai.provider.modeFromName(cfg.ai_provider) orelse .disabled;
     settings.remote_allowed = cfg.ai_remote_allowed;
     settings.redact_patterns = cfg.ai_redact_patterns;
-    return settings;
+    settings.project_name = cfg.project_name;
+    return .{ .settings = settings, .project_root = cfg.project_root };
 }
 
 /// Adapter for the advisory doctest-AI subcommands (task 055). Parses
@@ -869,10 +1037,15 @@ fn runDoctestAi(
         if (zentinel.config.isOutsideRoot(d)) return aiOptionError(stderr, "documentation path must stay within the project root");
     }
 
-    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+    const ai_cfg = (try aiSettings(arena, gpa, io, dir, inv.globals, stderr)) orelse return 2;
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, ai_cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
+
+    if (doc_path) |d| {
+        if (zentinel.config.pathEscapesRoot(io, root_dir, d)) return aiOptionError(stderr, "documentation path must stay within the project root");
+    }
 
     const doc_exists = blk: {
         const d = doc_path orelse break :blk false;
@@ -882,8 +1055,10 @@ fn runDoctestAi(
     const report_json: ?[]const u8 = blk: {
         if (flow_is_case) {
             const rp = input_report orelse zentinel.ai.doctest_command.default_report_path;
+            if (zentinel.config.pathEscapesRoot(io, root_dir, rp)) return aiOptionError(stderr, "--input-report must stay within the project root");
             break :blk root_dir.readFileAlloc(io, rp, arena, read_limit) catch null;
         } else if (input_report) |rp| {
+            if (zentinel.config.pathEscapesRoot(io, root_dir, rp)) return aiOptionError(stderr, "--input-report must stay within the project root");
             break :blk root_dir.readFileAlloc(io, rp, arena, read_limit) catch null;
         }
         break :blk null;
@@ -896,7 +1071,7 @@ fn runDoctestAi(
         .doc_exists = doc_exists,
         .provider_override = provider_override,
         .report_json = report_json,
-        .settings = settings,
+        .settings = ai_cfg.settings,
     }, format) catch |err| switch (err) {
         error.OutOfMemory => return err,
         else => |f| {
@@ -965,18 +1140,22 @@ fn runDoctestSurvivorAi(
         return aiOptionError(stderr, try std.fmt.allocPrint(arena, "{s} must stay within the project root", .{opt}));
     }
 
-    const settings = aiSettings(arena, gpa, io, dir, inv.globals);
+    const ai_cfg = (try aiSettings(arena, gpa, io, dir, inv.globals, stderr)) orelse return 2;
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, ai_cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
     const report_path = input_report orelse zentinel.ai.doctest_command.default_report_path;
+    if (zentinel.config.pathEscapesRoot(io, root_dir, report_path)) {
+        return aiOptionError(stderr, "--input-report must stay within the project root");
+    }
     const report_json: ?[]const u8 = root_dir.readFileAlloc(io, report_path, arena, read_limit) catch null;
 
     const out = zentinel.ai.doctest_command.runSurvivor(arena, .{
         .survivor_ref = survivor_ref,
         .provider_override = provider_override,
         .report_json = report_json,
-        .settings = settings,
+        .settings = ai_cfg.settings,
     }, format) catch |err| switch (err) {
         error.OutOfMemory => return err,
         else => |f| {
@@ -1028,6 +1207,7 @@ fn runDoctest(
     };
 
     const doc_file = options.file orelse default_doctest_file;
+    const cfg = (try doctestConfigOrDefault(gpa, io, dir, inv.globals, stderr)) orelse return 2;
 
     const zig = discoverZig(gpa, io);
     const fatal_zig = try zentinel.zig_version.fatalStatusLine(gpa, zig);
@@ -1037,11 +1217,17 @@ fn runDoctest(
     }
     const zig_label = zentinel.zig_version.supportedLabel(zig).?;
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
+
+    if (zentinel.config.pathEscapesRoot(io, root_dir, doc_file)) {
+        try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --file must stay within the project root\n");
+        return 2;
+    }
 
     const source = root_dir.readFileAlloc(io, doc_file, gpa, read_limit) catch {
-        try stderr.print("error: documentation file not found at {s}\n", .{doc_file});
+        try stderr.print("error: documentation file not found at {s}\n", .{try zentinel.redactCliDiagnosticPath(gpa, doc_file)});
         return 2;
     };
 
@@ -1061,7 +1247,7 @@ fn runDoctest(
         .gpa = gpa,
         .io = io,
         .root_dir = root_dir,
-        .timeout = timeoutFromMs(configuredTimeoutMs(gpa, io, dir, inv.globals)),
+        .timeout = timeoutFromMs(cfg.test_timeout_ms),
         .env = &minimal_env,
     };
     var wctx = DoctestWsCtx{ .gpa = gpa, .io = io, .root_dir = root_dir };
@@ -1074,7 +1260,7 @@ fn runDoctest(
         .started_at = started_at,
         .zentinel_version = zentinel.version,
         .zig_version = zig_label,
-        .project_root = inv.globals.root,
+        .project_root = "<project>",
         .command = command,
     };
 
@@ -1109,15 +1295,31 @@ const DoctestMutateCtx = struct {
     env: *const std.process.Environ.Map,
 };
 
+fn doctestMutateRelPath(gpa: std.mem.Allocator, mutated_source: []const u8) ?[]const u8 {
+    var digest: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(mutated_source, &digest, .{});
+    return std.fmt.allocPrint(gpa, ".zig-cache/zentinel/doctest-mutate/{s}.zig", .{std.fmt.bytesToHex(digest[0..8], .lower)}) catch null;
+}
+
+fn doctestMutateCommandFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.doctest.mutation_experiment.StableCommand {
+    const rt: *DoctestMutateCtx = @ptrCast(@alignCast(ctx));
+    const rel = doctestMutateRelPath(rt.gpa, mutated_source) orelse return .{ .original = "zig test src/doctest.zig", .argv = &.{ "zig", "test", "src/doctest.zig" }, .cwd = "." };
+    const original = std.fmt.allocPrint(rt.gpa, "zig test {s}", .{rel}) catch return .{ .original = "zig test src/doctest.zig", .argv = &.{ "zig", "test", "src/doctest.zig" }, .cwd = "." };
+    const argv = rt.gpa.alloc([]const u8, 3) catch return .{ .original = "zig test src/doctest.zig", .argv = &.{ "zig", "test", "src/doctest.zig" }, .cwd = "." };
+    argv[0] = "zig";
+    argv[1] = "test";
+    argv[2] = rel;
+    return .{ .original = original, .argv = argv, .cwd = "<project>" };
+}
+
 /// Real snippet runner for the mutation experiment: write the mutated snippet to
 /// a content-addressed file under the zentinel cache and run `zig test` on it.
 /// Confined to the cache dir, so the documentation file is never modified.
 fn doctestMutateRunFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.runner.RawOutcome {
     const rt: *DoctestMutateCtx = @ptrCast(@alignCast(ctx));
     const crash: zentinel.runner.RawOutcome = .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
-    var digest: [32]u8 = undefined;
-    std.crypto.hash.sha2.Sha256.hash(mutated_source, &digest, .{});
-    const rel = std.fmt.allocPrint(rt.gpa, ".zig-cache/zentinel/doctest-mutate/{s}.zig", .{std.fmt.bytesToHex(digest[0..8], .lower)}) catch return crash;
+    const rel = doctestMutateRelPath(rt.gpa, mutated_source) orelse return crash;
+    if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, rel)) return crash;
     if (std.fs.path.dirname(rel)) |parent| rt.root_dir.createDirPath(rt.io, parent) catch return crash;
     rt.root_dir.writeFile(rt.io, .{ .sub_path = rel, .data = mutated_source }) catch return crash;
     const result = std.process.run(rt.gpa, rt.io, .{
@@ -1159,7 +1361,7 @@ fn runDoctestMutate(
             }
             file = inv.args[i];
         } else {
-            try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: unsupported doctest --mutate option {s}\n", .{arg});
+            try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: unsupported doctest --mutate option {s}\n", .{try zentinel.redactCliDiagnosticPath(gpa, arg)});
             return 2;
         }
     }
@@ -1173,6 +1375,7 @@ fn runDoctestMutate(
         try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --file must stay within the project root\n");
         return 2;
     }
+    const cfg = (try doctestConfigOrDefault(gpa, io, dir, inv.globals, stderr)) orelse return 2;
     // Opt-in: passing `--mutate` explicitly is the opt-in (task 113 retired the
     // hardcoded fixtures-only gate, so it now runs over any --file documentation).
 
@@ -1183,10 +1386,15 @@ fn runDoctestMutate(
         return zentinel.zig_version.failureExit(zig);
     }
 
-    var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
-    defer root_dir.close(io);
+    var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, cfg.project_root, stderr)) orelse return 2;
+    defer roots.close(io);
+    const root_dir = roots.dir();
+    if (zentinel.config.pathEscapesRoot(io, root_dir, doc)) {
+        try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --file must stay within the project root\n");
+        return 2;
+    }
     const source = root_dir.readFileAlloc(io, doc, gpa, read_limit) catch {
-        try stderr.print("error: documentation file not found at {s}\n", .{doc});
+        try stderr.print("error: documentation file not found at {s}\n", .{try zentinel.redactCliDiagnosticPath(gpa, doc)});
         return 2;
     };
 
@@ -1197,15 +1405,19 @@ fn runDoctestMutate(
         .gpa = gpa,
         .io = io,
         .root_dir = root_dir,
-        .timeout = timeoutFromMs(configuredTimeoutMs(gpa, io, dir, inv.globals)),
+        .timeout = timeoutFromMs(cfg.test_timeout_ms),
         .env = &minimal_env,
     };
-    const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn };
+    const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn, .commandFn = doctestMutateCommandFn };
     // Produce the STABLE mutation-aware report (durable `dm_` ids, `ds_` survivor
     // refs) and PERSIST it to the survivor report path so `doctest
     // explain-survivor` can resolve a real survivor (task 113).
     const json = try zentinel.doctest.mutation_experiment.mutateReportJson(gpa, doc, source, sr);
     const out_path = zentinel.ai.doctest_command.default_report_path;
+    if (zentinel.config.pathEscapesRoot(io, root_dir, out_path)) {
+        try stderr.writeAll("error: doctest mutation report path must stay within the project root\n");
+        return 2;
+    }
     if (std.fs.path.dirname(out_path)) |parent| root_dir.createDirPath(io, parent) catch {};
     root_dir.writeFile(io, .{ .sub_path = out_path, .data = json }) catch |err| {
         try stderr.print("error: could not write doctest mutation report to {s}: {s}\n", .{ out_path, @errorName(err) });

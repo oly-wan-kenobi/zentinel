@@ -120,6 +120,16 @@ fn optStr(v: ?std.json.Value) ?[]const u8 {
     };
     return null;
 }
+fn requiredStr(v: ?std.json.Value) command.Failure![]const u8 {
+    return optStr(v) orelse error.AiReportNotFound;
+}
+fn requiredBool(v: ?std.json.Value) command.Failure!bool {
+    const x = v orelse return error.AiReportNotFound;
+    return switch (x) {
+        .bool => |b| b,
+        else => error.AiReportNotFound,
+    };
+}
 /// Narrow an optional report-sourced JSON integer to `?u32`. The report is
 /// untrusted (`--input-report`), so a value above maxInt(u32) or a present
 /// non-integer must become a clean invalid-report failure rather than a panicking
@@ -159,6 +169,9 @@ fn present(v: ?std.json.Value) ?std.json.Value {
 fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     return std.ascii.indexOfIgnoreCase(haystack, needle) != null;
 }
+
+const mutation_runner_statuses = [_][]const u8{ "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid" };
+const runner_failure_kinds = [_][]const u8{ "none", "compile_error", "test_failure", "compiler_crash", "timeout", "skipped", "invalid" };
 
 // --- Case-ref resolution ---------------------------------------------------
 
@@ -317,13 +330,13 @@ pub const ContextInput = struct {
     report: ?std.json.Value = null,
 };
 
-fn projectOf(settings: Settings, report: ?std.json.Value) Project {
+fn projectOf(arena: std.mem.Allocator, settings: Settings, report: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error!Project {
     const run_info = if (report) |r| get(r, "run") else null;
     return .{
-        .name = settings.project_name,
+        .name = try context.redactField(arena, settings.project_name, patterns, log),
         .root_label = "<project>",
-        .zig_version = sOr(getO(run_info, "zig_version"), settings.zig_version),
-        .zentinel_version = sOr(getO(run_info, "zentinel_version"), settings.zentinel_version),
+        .zig_version = try context.redactField(arena, sOr(getO(run_info, "zig_version"), settings.zig_version), patterns, log),
+        .zentinel_version = try context.redactField(arena, sOr(getO(run_info, "zentinel_version"), settings.zentinel_version), patterns, log),
     };
 }
 fn privacyOf(settings: Settings, log: *context.RedactionLog) Privacy {
@@ -348,13 +361,34 @@ fn readStrArray(arena: std.mem.Allocator, v: ?std.json.Value) ![]const []const u
     };
     return buf;
 }
-fn readCommand(arena: std.mem.Allocator, v: ?std.json.Value) !?CommandEv {
+
+fn readRequiredRedactedStrArray(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) (redaction.Error || command.Failure)![]const []const u8 {
+    const items = arr(v) orelse return error.AiReportNotFound;
+    if (items.len == 0) return error.AiReportNotFound;
+    const buf = try arena.alloc([]const u8, items.len);
+    for (items, 0..) |it, idx| {
+        const text: []const u8 = switch (it) {
+            .string => |t| t,
+            else => return error.AiReportNotFound,
+        };
+        buf[idx] = try context.redactField(arena, text, patterns, log);
+    }
+    return buf;
+}
+
+fn readCommand(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) (redaction.Error || command.Failure)!?CommandEv {
     const o = v orelse return null;
     if (objOf(o) == null) return null;
+    const environment_policy = try requiredStr(get(o, "environment_policy"));
+    if (!eqStr(environment_policy, "minimal")) return error.AiReportNotFound;
+    const shell = try requiredBool(get(o, "shell"));
+    if (shell) return error.AiReportNotFound;
     return CommandEv{
-        .original = s(get(o, "original")),
-        .argv = try readStrArray(arena, get(o, "argv")),
-        .cwd = sOr(get(o, "cwd"), "<project>"),
+        .original = try context.redactField(arena, try requiredStr(get(o, "original")), patterns, log),
+        .argv = try readRequiredRedactedStrArray(arena, get(o, "argv"), patterns, log),
+        .cwd = try context.redactField(arena, try requiredStr(get(o, "cwd")), patterns, log),
+        .environment_policy = environment_policy,
+        .shell = shell,
     };
 }
 fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) (redaction.Error || command.Failure)![]const Diagnostic {
@@ -423,7 +457,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const case = input.case orelse return error.DoctestCaseNotFound;
             const result = get(case, "result");
             const snapshot = getO(result, "snapshot");
-            const command_ev = try readCommand(arena, get(case, "command"));
+            const command_ev = try readCommand(arena, get(case, "command"), patterns, &log);
             const ev = CaseFailureEvidence{
                 .status = sOr(get(case, "status"), "failed"),
                 .command = command_ev,
@@ -438,7 +472,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ctx = DoctestContext(CaseFailureEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
-                .project = projectOf(settings, input.report),
+                .project = try projectOf(arena, settings, input.report, patterns, &log),
                 .doctest = meta,
                 .evidence = ev,
                 .privacy = privacyOf(settings, &log),
@@ -456,8 +490,8 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                     .normalized_expected_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_expected_excerpt")), patterns, context.excerpt_limit, &log),
                     .normalized_actual_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_actual_excerpt")), patterns, context.excerpt_limit, &log),
                     .match_mode = sOr(get(snap, "match_mode"), "exact"),
-                    .expected_block_ref = optStr(get(snap, "expected_block_ref")),
-                    .actual_ref = sOr(get(snap, "actual_ref"), "stdout"),
+                    .expected_block_ref = if (optStr(get(snap, "expected_block_ref"))) |ref| try context.redactField(arena, ref, patterns, &log) else null,
+                    .actual_ref = try context.redactField(arena, sOr(get(snap, "actual_ref"), "stdout"), patterns, &log),
                     .matched = switch (get(snap, "matched") orelse std.json.Value{ .bool = false }) {
                         .bool => |b| b,
                         else => false,
@@ -468,7 +502,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ctx = DoctestContext(SnapshotDiffEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
-                .project = projectOf(settings, input.report),
+                .project = try projectOf(arena, settings, input.report, patterns, &log),
                 .doctest = meta,
                 .evidence = ev,
                 .privacy = privacyOf(settings, &log),
@@ -487,7 +521,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ctx = DoctestContext(DocsTargetEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
-                .project = projectOf(settings, input.report),
+                .project = try projectOf(arena, settings, input.report, patterns, &log),
                 .doctest = docsTargetMeta(doc_red),
                 .evidence = ev,
                 .privacy = privacyOf(settings, &log),
@@ -505,7 +539,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const ctx = DoctestContext(MissingEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
-                .project = projectOf(settings, input.report),
+                .project = try projectOf(arena, settings, input.report, patterns, &log),
                 .doctest = docsTargetMeta(doc_red),
                 .evidence = ev,
                 .privacy = privacyOf(settings, &log),
@@ -996,33 +1030,32 @@ pub fn resolveSurvivor(report: std.json.Value, ref: []const u8) ?std.json.Value 
 }
 
 fn readRunnerEvidence(arena: std.mem.Allocator, mutation: std.json.Value, patterns: []const []const u8, log: *context.RedactionLog) !RunnerEvidence {
-    const re = present(get(mutation, "runner_evidence")) orelse return RunnerEvidence{
-        .status = "survived",
-        .command = null,
-        .exit_code = null,
-        .timed_out = false,
-        .failure_kind = "none",
-        .stdout_excerpt = "",
-        .stderr_excerpt = "",
-        .failure_summary = "",
-        .skip_reason = null,
-    };
+    const re = present(get(mutation, "runner_evidence")) orelse return error.AiReportNotFound;
+    const cmd = try readCommand(arena, get(re, "command"), patterns, log) orelse return error.AiReportNotFound;
+    const status = try requiredStr(get(re, "status"));
+    const timed_out = try requiredBool(get(re, "timed_out"));
+    const failure_kind = try requiredStr(get(re, "failure_kind"));
+    if (!inSet(status, &mutation_runner_statuses)) return error.AiReportNotFound;
+    if (!inSet(failure_kind, &runner_failure_kinds)) return error.AiReportNotFound;
+    const stdout_excerpt = try requiredStr(get(re, "stdout_excerpt"));
+    const stderr_excerpt = try requiredStr(get(re, "stderr_excerpt"));
+    const failure_summary = try requiredStr(get(re, "failure_summary"));
+    const exit_code_value = get(re, "exit_code") orelse return error.AiReportNotFound;
+    if (get(re, "skip_reason") == null) return error.AiReportNotFound;
     return RunnerEvidence{
-        .status = sOr(get(re, "status"), "survived"),
-        .command = try readCommand(arena, get(re, "command")),
-        .exit_code = switch (get(re, "exit_code") orelse std.json.Value{ .null = {} }) {
+        .status = status,
+        .command = cmd,
+        .exit_code = switch (exit_code_value) {
             .integer => |n| n,
-            else => null,
+            .null => null,
+            else => return error.AiReportNotFound,
         },
-        .timed_out = switch (get(re, "timed_out") orelse std.json.Value{ .bool = false }) {
-            .bool => |b| b,
-            else => false,
-        },
-        .failure_kind = sOr(get(re, "failure_kind"), "none"),
-        .stdout_excerpt = try context.redactAndCapLogged(arena, s(get(re, "stdout_excerpt")), patterns, context.excerpt_limit, log),
-        .stderr_excerpt = try context.redactAndCapLogged(arena, s(get(re, "stderr_excerpt")), patterns, context.excerpt_limit, log),
-        .failure_summary = try context.redactAndCapLogged(arena, s(get(re, "failure_summary")), patterns, context.excerpt_limit, log),
-        .skip_reason = optStr(present(get(re, "skip_reason"))),
+        .timed_out = timed_out,
+        .failure_kind = failure_kind,
+        .stdout_excerpt = try context.redactAndCapLogged(arena, stdout_excerpt, patterns, context.excerpt_limit, log),
+        .stderr_excerpt = try context.redactAndCapLogged(arena, stderr_excerpt, patterns, context.excerpt_limit, log),
+        .failure_summary = try context.redactAndCapLogged(arena, failure_summary, patterns, context.excerpt_limit, log),
+        .skip_reason = if (optStr(present(get(re, "skip_reason")))) |sr| try context.redactField(arena, sr, patterns, log) else null,
     };
 }
 
@@ -1076,7 +1109,7 @@ pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std
     const meta = try redactedMeta(arena, try survivorMeta(case), patterns, &log);
     const ctx = SurvivorContextT{
         .provider_mode = provider.modeName(mode),
-        .project = projectOf(settings, null),
+        .project = try projectOf(arena, settings, null, patterns, &log),
         .doctest = meta,
         .evidence = ev,
         .privacy = privacyOf(settings, &log),
@@ -1110,7 +1143,16 @@ pub fn validateSurvivorContext(value: std.json.Value) ContextViolation {
     if (!std.mem.startsWith(u8, s(mc.get("case_id")), "dm_")) return .bad_evidence;
     if (!std.mem.startsWith(u8, s(mc.get("mutant_id")), "m_")) return .bad_evidence;
     const re = objOf(mc.get("runner_evidence").?) orelse return .bad_evidence;
-    if (!requireKeys(re, &.{ "status", "failure_kind" })) return .bad_evidence;
+    if (!requireKeys(re, &.{ "status", "command", "exit_code", "timed_out", "failure_kind", "stdout_excerpt", "stderr_excerpt", "failure_summary", "skip_reason" })) return .bad_evidence;
+    if (!enumOk(re, "status", &mutation_runner_statuses)) return .bad_evidence;
+    if (!enumOk(re, "failure_kind", &runner_failure_kinds)) return .bad_evidence;
+    const cmd = objOf(re.get("command").?) orelse return .bad_evidence;
+    if (!requireKeys(cmd, &.{ "original", "argv", "cwd", "environment_policy", "shell" })) return .bad_evidence;
+    if (!enumOk(cmd, "environment_policy", &.{"minimal"})) return .bad_evidence;
+    switch (cmd.get("shell").?) {
+        .bool => |shell| if (shell) return .bad_evidence,
+        else => return .bad_evidence,
+    }
 
     const project = objOf(obj.get("project").?) orelse return .not_object;
     if (!requireKeys(project, &.{ "name", "root_label", "zig_version", "zentinel_version" })) return .missing_field;

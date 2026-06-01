@@ -36,9 +36,39 @@ fn lessSelected(_: void, a: report.SelectedTest, b: report.SelectedTest) bool {
     return std.mem.lessThan(u8, a.name, b.name);
 }
 
-/// The generated same-file command for a file: `zig test <file>`.
+fn generatedNeedsQuote(file: []const u8) bool {
+    for (file) |c| {
+        if (c == ' ' or c == '\t' or c == '"' or c == '\\') return true;
+        switch (c) {
+            '*', '?', '[', ']', '{', '}', '(', ')' => return true,
+            else => {},
+        }
+    }
+    return false;
+}
+
+fn quoteGeneratedPath(arena: std.mem.Allocator, file: []const u8) std.mem.Allocator.Error![]const u8 {
+    if (!generatedNeedsQuote(file)) return arena.dupe(u8, file);
+    var out: std.ArrayList(u8) = .empty;
+    try out.append(arena, '"');
+    for (file) |c| {
+        if (c == '"' or c == '\\') try out.append(arena, '\\');
+        try out.append(arena, c);
+    }
+    try out.append(arena, '"');
+    return out.toOwnedSlice(arena);
+}
+
+/// The generated same-file command for a file, rendered for report evidence.
 pub fn generatedCommand(arena: std.mem.Allocator, file: []const u8) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(arena, "zig test {s}", .{file});
+    return std.fmt.allocPrint(arena, "zig test {s}", .{try quoteGeneratedPath(arena, file)});
+}
+
+/// Shell-free argv for the generated same-file command. The path is never
+/// re-parsed from a shell-like string by selection logic.
+pub fn generatedCommandArgv(arena: std.mem.Allocator, file: []const u8) std.mem.Allocator.Error![]const []const u8 {
+    const file_arg = try arena.dupe(u8, file);
+    return arena.dupe([]const u8, &.{ "zig", "test", file_arg });
 }
 
 pub const Resolution = struct {

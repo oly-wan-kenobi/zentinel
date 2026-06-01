@@ -299,6 +299,18 @@ fn evidenceArgvOk(cmds: []const CommandResult) bool {
     return true;
 }
 
+fn commandSkipReasonViolation(cmds: []const CommandResult) ?Violation {
+    for (cmds) |c| {
+        if (c.status == .skipped) {
+            const reason = c.skip_reason orelse return .skip_reason_required;
+            if (reason.len == 0) return .skip_reason_required;
+        } else if (c.skip_reason != null) {
+            return .skip_reason_must_be_null;
+        }
+    }
+    return null;
+}
+
 /// Deterministic semantic validator: the second report oracle beyond JSON
 /// Schema. Returns `.ok` or the first violated invariant in a fixed order.
 pub fn validate(report: Report) Violation {
@@ -341,6 +353,7 @@ pub fn validate(report: Report) Violation {
         if (c.status == .timeout and report.run.status != .baseline_failed) return .baseline_timeout_requires_baseline_failed;
     }
     if (!evidenceArgvOk(report.baseline.commands)) return .empty_argv0;
+    if (commandSkipReasonViolation(report.baseline.commands)) |v| return v;
 
     // Mutant result invariants.
     for (report.mutants) |m| {
@@ -349,6 +362,8 @@ pub fn validate(report: Report) Violation {
         for (m.result.commands) |c| {
             if (c.phase != .mutant) return .mutant_command_phase;
         }
+        if (commandSkipReasonViolation(m.result.commands)) |v| return v;
+        if (commandSkipReasonViolation(m.test_selection.preflight_commands)) |v| return v;
         if (m.result.status == .skipped) {
             const reason = m.result.skip_reason orelse return .skip_reason_required;
             if (reason.len == 0) return .skip_reason_required;
@@ -468,13 +483,42 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
             while (i < text.len and isHexDigit(text[i])) i += 1;
             continue;
         }
-        // Absolute path token: a `/`-rooted run at the start of the excerpt or
-        // after whitespace (matches stack-trace `/abs/path/file.zig:line:col`
-        // entries). The whole non-whitespace token is replaced.
-        if (text[i] == '/' and (i == 0 or isExcerptSpace(text[i - 1]))) {
+        // Absolute path token: Unix `/abs/path` entries and Windows `C:\path`
+        // entries are replaced even when quoted paths contain spaces. This keeps
+        // repeated-run comparison stable across developer machines.
+        const at_boundary = i == 0 or isExcerptBoundary(text[i - 1]);
+        if (text[i] == '/' and at_boundary) {
+            var end = i + 1;
+            var inner_slashes: usize = 0;
+            const quote: ?u8 = if (i > 0 and isExcerptQuote(text[i - 1])) text[i - 1] else null;
+            while (end < text.len) : (end += 1) {
+                if (quote) |q| {
+                    if (text[end] == q) break;
+                } else if (isExcerptSpace(text[end])) {
+                    if (!excerptSpaceContinuesPath(text, end)) break;
+                }
+                if (text[end] == '/') inner_slashes += 1;
+            }
+            end = trimPathPunctuation(text, i, end);
+            if (inner_slashes >= 1) {
+                try out.appendSlice(arena, "<path>");
+                i = end;
+                continue;
+            }
+        }
+        if (isWindowsExcerptPathAt(text, i) and at_boundary) {
+            var end = i + 3;
+            const quote: ?u8 = if (i > 0 and isExcerptQuote(text[i - 1])) text[i - 1] else null;
+            while (end < text.len) : (end += 1) {
+                if (quote) |q| {
+                    if (text[end] == q) break;
+                } else if (isExcerptSpace(text[end])) {
+                    if (!excerptSpaceContinuesPath(text, end)) break;
+                } else if (text[end] == '"' or text[end] == '\'') break;
+            }
+            end = trimPathPunctuation(text, i, end);
             try out.appendSlice(arena, "<path>");
-            i += 1;
-            while (i < text.len and !isExcerptSpace(text[i])) i += 1;
+            i = end;
             continue;
         }
         try out.append(arena, text[i]);
@@ -488,6 +532,38 @@ fn isHexDigit(c: u8) bool {
 }
 fn isExcerptSpace(c: u8) bool {
     return c == ' ' or c == '\t' or c == '\n' or c == '\r';
+}
+fn isExcerptQuote(c: u8) bool {
+    return c == '"' or c == '\'';
+}
+fn excerptSpaceContinuesPath(text: []const u8, space_index: usize) bool {
+    if (text[space_index] == '\n' or text[space_index] == '\r') return false;
+    var i = space_index;
+    while (i < text.len and (text[i] == ' ' or text[i] == '\t')) i += 1;
+    while (i < text.len) : (i += 1) {
+        if (isExcerptSpace(text[i]) or isExcerptQuote(text[i])) return false;
+        if (text[i] == '/' or text[i] == '\\') return true;
+    }
+    return false;
+}
+fn isExcerptBoundary(c: u8) bool {
+    return isExcerptSpace(c) or isExcerptQuote(c) or c == '(' or c == '[' or c == '{';
+}
+fn isWindowsExcerptPathAt(text: []const u8, i: usize) bool {
+    return i + 2 < text.len and
+        std.ascii.isAlphabetic(text[i]) and
+        text[i + 1] == ':' and
+        (text[i + 2] == '\\' or text[i + 2] == '/');
+}
+fn trimPathPunctuation(text: []const u8, start: usize, end_in: usize) usize {
+    var end = end_in;
+    while (end > start) {
+        switch (text[end - 1]) {
+            '.', ',', ';', ')' => end -= 1,
+            else => break,
+        }
+    }
+    return end;
 }
 
 // --- Performance equivalence + benchmark output (tasks/052) -----------------

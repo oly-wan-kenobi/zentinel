@@ -93,6 +93,145 @@ test "buildPrompt embeds a valid doctest context and names the flow response sch
     try expectEqualStrings("explain_doctest_failure", prompt.object.get("flow").?.string);
 }
 
+test "doctest failure AI context redacts command evidence fields" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const secret = "ghp_123456789012345678901234567890123456";
+    const case = parseValue(arena,
+        \\{
+        \\  "id": "dt_secret00000000000000000000",
+        \\  "file": "docs/SECRET.md",
+        \\  "line_start": 1,
+        \\  "line_end": 4,
+        \\  "source_ref": "docs/SECRET.md:1:case",
+        \\  "block_refs": ["docs/SECRET.md:1:case"],
+        \\  "kind": "cli",
+        \\  "status": "failed",
+        \\  "command": {
+        \\    "original": "zentinel check --token ghp_123456789012345678901234567890123456 --config /Users/oli/Projects/secret/zentinel.toml",
+        \\    "argv": ["zentinel", "check", "--token", "ghp_123456789012345678901234567890123456", "--config", "/Users/oli/Projects/secret/zentinel.toml"],
+        \\    "cwd": "/Users/oli/Projects/secret",
+        \\    "environment_policy": "minimal",
+        \\    "shell": false
+        \\  },
+        \\  "result": {
+        \\    "snapshot": null,
+        \\    "failure_summary": "failed with ghp_123456789012345678901234567890123456 under /Users/oli/Projects/secret"
+        \\  },
+        \\  "diagnostics": []
+        \\}
+    );
+
+    const ctx = try dc.buildContextValue(arena, .explain_doctest_failure, .stub, .{ .case = case }, stubSettings());
+    const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
+    try expect(std.mem.indexOf(u8, bytes, secret) == null);
+    try expect(std.mem.indexOf(u8, bytes, "/Users/oli") == null);
+    try expect(std.mem.indexOf(u8, bytes, "[REDACTED]") != null);
+    try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
+}
+
+test "review_snapshot AI context redacts snapshot refs, not only excerpts" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const secret = "ghp_snapshotrefabcdefghijklmnopqrstuvwx";
+    const case = parseValue(arena,
+        \\{
+        \\  "id": "dt_secret00000000000000000001",
+        \\  "file": "docs/SECRET.md",
+        \\  "line_start": 1,
+        \\  "line_end": 4,
+        \\  "source_ref": "docs/SECRET.md:1:case",
+        \\  "block_refs": ["docs/SECRET.md:1:case"],
+        \\  "kind": "cli",
+        \\  "status": "failed",
+        \\  "result": {
+        \\    "snapshot": {
+        \\      "expected_excerpt": "want ghp_snapshotrefabcdefghijklmnopqrstuvwx",
+        \\      "actual_excerpt": "got /Users/oli/private/out.txt",
+        \\      "normalized_expected_excerpt": "want ghp_snapshotrefabcdefghijklmnopqrstuvwx",
+        \\      "normalized_actual_excerpt": "got /Users/oli/private/out.txt",
+        \\      "match_mode": "contains",
+        \\      "expected_block_ref": "/Users/oli/private/docs.md:3:ghp_snapshotrefabcdefghijklmnopqrstuvwx",
+        \\      "actual_ref": "/Users/oli/private/out-ghp_snapshotrefabcdefghijklmnopqrstuvwx.txt",
+        \\      "matched": false
+        \\    }
+        \\  }
+        \\}
+    );
+
+    const ctx = try dc.buildContextValue(arena, .review_snapshot, .stub, .{ .case = case }, stubSettings());
+    const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
+    try expect(std.mem.indexOf(u8, bytes, secret) == null);
+    try expect(std.mem.indexOf(u8, bytes, "/Users/oli") == null);
+    try expect(std.mem.indexOf(u8, bytes, "[REDACTED]") != null);
+    try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
+}
+
+test "doctest survivor context rejects reports missing runner evidence" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const survivor_case = parseValue(arena,
+        \\{
+        \\  "id": "dm_11111111111111111111111111",
+        \\  "file": "docs/MUTATOR_SPEC.md",
+        \\  "line_start": 1,
+        \\  "line_end": 2,
+        \\  "source_ref": "docs/MUTATOR_SPEC.md:1:case",
+        \\  "block_refs": ["docs/MUTATOR_SPEC.md:1:case"],
+        \\  "kind": "mutation",
+        \\  "status": "survived",
+        \\  "mutation": {
+        \\    "doctest_case_id": "dt_11111111111111111111111111",
+        \\    "mutant_id": "m_11111111111111111111111111",
+        \\    "operator": "arithmetic_add_sub",
+        \\    "mutated_diff": ["-a + b", "+a - b"],
+        \\    "survivor_ref": "ds_11111111111111111111111111"
+        \\  }
+        \\}
+    );
+    try expectError(error.AiReportNotFound, dc.buildSurvivorContextValue(arena, .stub, survivor_case, stubSettings()));
+}
+
+test "doctest survivor context rejects partial runner command evidence" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const survivor_case = parseValue(arena,
+        \\{
+        \\  "id": "dm_11111111111111111111111111",
+        \\  "file": "docs/MUTATOR_SPEC.md",
+        \\  "line_start": 1,
+        \\  "line_end": 2,
+        \\  "source_ref": "docs/MUTATOR_SPEC.md:1:case",
+        \\  "block_refs": ["docs/MUTATOR_SPEC.md:1:case"],
+        \\  "kind": "mutation",
+        \\  "status": "survived",
+        \\  "mutation": {
+        \\    "doctest_case_id": "dt_11111111111111111111111111",
+        \\    "mutant_id": "m_11111111111111111111111111",
+        \\    "operator": "arithmetic_add_sub",
+        \\    "mutated_diff": ["-a + b", "+a - b"],
+        \\    "survivor_ref": "ds_11111111111111111111111111",
+        \\    "runner_evidence": {
+        \\      "status": "survived",
+        \\      "command": { "original": "zig test src/doctest.zig" },
+        \\      "exit_code": 0,
+        \\      "timed_out": false,
+        \\      "failure_kind": "none",
+        \\      "stdout_excerpt": "",
+        \\      "stderr_excerpt": "",
+        \\      "failure_summary": "",
+        \\      "skip_reason": null
+        \\    }
+        \\  }
+        \\}
+    );
+    try expectError(error.AiReportNotFound, dc.buildSurvivorContextValue(arena, .stub, survivor_case, stubSettings()));
+}
+
 test "validateContext rejects the deferred survivor flow and survivor evidence (task 067)" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();

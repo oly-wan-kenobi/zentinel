@@ -125,14 +125,18 @@
     "119",
     "120",
     "121",
-    "122"
+    "122",
+    "123",
+    "124",
+    "125",
+    "126"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 122 complete: remaining Claude-assessed audit findings closed; zig build test, zig build, zig fmt --check src test, git diff --check, and task-system validation passed."
+    "notes": "Active-state validation passed before task 126 completion; completion-state validation passed after task-control updates."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -6048,6 +6052,408 @@
         "tasks/STATUS.md",
         "tasks/status.json"
       ]
+    },
+    {
+      "task": "123",
+      "failing_evidence": "failing_command: task-specific `zig build test` runs were executed before implementation. failing_output_excerpt: new tests exposed the audited gaps before fixes, including the shared containment helper not rejecting symlinked path components, generated same-file command strings losing literal metacharacter filenames, missing backend parse-error file context, doctest report schema requirements drifting from implementation, invalid AST candidates being silently dropped, snapshot helpers self-blessing missing files, doctest AI command evidence and skip reasons leaking, and the real comparison/loop-boundary AST overlap needing deterministic physical-edit dedupe. implementation_started_after_failure: true. passing_command: after implementation, `zig build test --summary all` passed with 533 tests.",
+      "implementation_summary": "Resolved the post-122 audit follow-up findings. Added config.pathEscapesRoot as a shared lexical-plus-symlink containment guard and applied it to config reads/writes, source reads, normal doctest --file paths, doctest mutation scratch/report paths, generated workspaces, report writes, and mutation/doctest/survivor AI input reads. Generated same-file test commands now quote filenames when needed and expose argv directly; command parsing accepts quoted literal glob characters while still rejecting shell constructs, and generated-command parse failures produce deterministic selection preflight evidence. Backend parse errors now preserve the offending project-relative file, invalid AST candidates become deterministic generation failures for run/list-mutants, and sandbox cleanup failures increment a counter that the CLI reports as a deterministic warning. Doctest AI context redacts command originals, argv entries, cwd, and runner skip reasons before context construction; AI redaction now normalizes absolute paths before capping/logging. The doctest report schema was aligned so run.error.details is optional, command.argv is non-empty, and command.shell is const false. Snapshot helpers now fail on missing approved files instead of writing them. Docs and coverage-gap rows were synchronized, including new failure mode F-045 for read-path symlink escapes and I-011 coverage for invalid candidate diagnostics and real physical-edit overlap.",
+      "files_changed": [
+        "src/config.zig",
+        "src/cli.zig",
+        "src/command.zig",
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "src/list_mutants_command.zig",
+        "src/ast_backend.zig",
+        "src/ai/command.zig",
+        "src/ai/context.zig",
+        "src/ai/doctest_command.zig",
+        "schemas/doctest.report.v1.schema.json",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/FAILURE_MODES.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SANDBOX_SECURITY.md",
+        "docs/TEST_SELECTION.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "test/ai_doctest_test.zig",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/ast_candidate_ordering_test.zig",
+        "test/config_test.zig",
+        "test/list_mutants_command_test.zig",
+        "test/report_renderers_test.zig",
+        "test/report_schema_test.zig",
+        "test/run_command_test.zig",
+        "test/test_selection_test.zig",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "artifacts/pipeline/123/locks/active-task-lock.json",
+        "artifacts/pipeline/123/context/orchestrator.json",
+        "artifacts/pipeline/123/verification/report.json",
+        "tasks/123-resolve-follow-up-audit-findings.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/config_test.zig: pathEscapesRoot rejects lexical absolute/.. escapes and symlinked in-root components while accepting ordinary in-root paths.",
+        "test/test_selection_test.zig: generated same-file commands preserve exact argv for filenames containing spaces and command-parser metacharacter characters; missing selection metadata snapshots fail instead of being self-blessed.",
+        "test/ai_doctest_test.zig and test/ai_doctest_survivor_cli_test.zig: doctest AI redacts command originals, argv, cwd, runner command evidence, and skip reasons.",
+        "test/run_command_test.zig and test/list_mutants_command_test.zig: backend parse errors and invalid candidate diagnostics surface deterministically, and snapshots no longer self-bless.",
+        "test/report_schema_test.zig: doctest report schema matches implementation for optional run.error.details, non-empty argv, and shell=false.",
+        "test/ast_candidate_ordering_test.zig: invalid candidates are counted, synthetic physical duplicates dedupe, and the real comparison_boundary/loop_boundary AST overlap collapses to one deterministic representative."
+      ],
+      "tests_run": [
+        "zig build test --summary all (failing before implementation for the new task-specific tests, then passing with 533/533 tests)",
+        "zig build (passing)",
+        "zig fmt --check src test (passing)",
+        "git diff --check (passing)",
+        "python3 -m json.tool tasks/queue.json tasks/status.json tests/coverage-gaps/failure_modes.v1.json tests/coverage-gaps/invariants.v1.json tests/coverage-gaps/schemas.v1.json (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed with task 123 active after queue/task markdown synchronization and stable F-045 numbering, then passed again after the complete-state transition with no next task."
+      },
+      "dogfooding_implication": "zentinel dogfood and audit runs now reject symlink read/write escapes, avoid leaking command evidence into advisory AI contexts, preserve exact generated same-file test argv for unusual valid paths, show backend parse and invalid-candidate failures deterministically, and warn about sandbox cleanup failures instead of hiding them behind successful mutation outcomes.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/123/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-045"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-011"
+        ],
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.doctest.report.v1"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "124",
+      "failing_evidence": "failing_command: task-specific `zig build test` runs were executed before implementation. failing_output_excerpt: new tests exposed the audited regressions before fixes, including explicit --config paths resolving from process cwd instead of --root, generated same-file command strings losing literal metacharacter filenames, doctest AI snapshot refs and project metadata reaching prompt context, malformed AI reports without command/runner evidence being accepted with fabricated defaults, doctest mutation parse failures disappearing instead of producing invalid/diagnostic output, and cleanup warnings plus F-045/I-011 gap-row claims lacking executable proof. implementation_started_after_failure: true. passing_command: after implementation, `zig build test --summary all` passed with 544 tests.",
+      "implementation_summary": "Closed the post-123 adversarial audit regressions. Explicit --config resolution now uses the selected project root, rejects lexical and symlink escapes, and shares public helper coverage. Generated same-file selected commands now flow as structured command specs through selection preflight and mutant execution; rendered command text remains report evidence only. AI mutation and doctest survivor contexts now reject missing structured command evidence instead of fabricating defaults, redact project metadata and doctest snapshot refs before prompt construction, and keep command evidence redacted. Doctest mutation candidate generation now surfaces unparseable snippets as deterministic invalid report entries, and mutator-spec before-block parse failures emit backend parse diagnostics instead of snapshot mismatch noise. Cleanup warning text is a stable tested diagnostic. The doctest report schema now admits invalid mutation runner failure_kind, the doctest AI context schema requires non-null survivor runner commands, and F-045/I-011/schema gap rows now name only the executable evidence they actually have.",
+      "files_changed": [
+        "src/config.zig",
+        "src/root.zig",
+        "src/cli.zig",
+        "src/command.zig",
+        "src/test_selection.zig",
+        "src/run_command.zig",
+        "src/list_mutants_command.zig",
+        "src/ast_backend.zig",
+        "src/mutant_runner.zig",
+        "src/ai/command.zig",
+        "src/ai/context.zig",
+        "src/ai/doctest_command.zig",
+        "src/doctest/mutation_experiment.zig",
+        "src/doctest/mutator_doctest.zig",
+        "schemas/doctest.report.v1.schema.json",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/FAILURE_MODES.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SANDBOX_SECURITY.md",
+        "docs/TEST_SELECTION.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "test/ai_command_test.zig",
+        "test/ai_doctest_test.zig",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/ast_candidate_ordering_test.zig",
+        "test/cli_test.zig",
+        "test/config_test.zig",
+        "test/doctest_mutate_stabilization_test.zig",
+        "test/doctest_mutator_spec_test.zig",
+        "test/list_mutants_command_test.zig",
+        "test/report_renderers_test.zig",
+        "test/report_schema_test.zig",
+        "test/run_command_test.zig",
+        "test/test_selection_test.zig",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "artifacts/pipeline/123/locks/active-task-lock.json",
+        "artifacts/pipeline/123/context/orchestrator.json",
+        "artifacts/pipeline/123/verification/report.json",
+        "artifacts/pipeline/124/locks/active-task-lock.json",
+        "artifacts/pipeline/124/context/orchestrator.json",
+        "artifacts/pipeline/124/verification/report.json",
+        "tasks/123-resolve-follow-up-audit-findings.md",
+        "tasks/124-close-task-122-123-audit-regressions.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/cli_test.zig: explicit --config resolves under --root, explicit --config symlink escapes are rejected through the shared guard, doctest missing-file diagnostics redact secret-like path values, and cleanup warning text is stable.",
+        "test/test_selection_test.zig: generated same-file commands execute through exact argv for project-relative filenames containing command-parser metacharacters.",
+        "test/ai_command_test.zig: mutation AI rejects missing structured command evidence and redacts report-derived project metadata before prompt construction.",
+        "test/ai_doctest_test.zig and test/ai_doctest_survivor_cli_test.zig: doctest AI redacts snapshot refs and requires structured survivor runner command evidence.",
+        "test/doctest_mutate_stabilization_test.zig and test/doctest_mutator_spec_test.zig: unparseable doctest mutation snippets become visible invalid report cases and unparseable mutator-spec before blocks emit backend parse diagnostics.",
+        "test/report_schema_test.zig and test/doctest_mutate_stabilization_test.zig: doctest report schema drift points are locked, including invalid mutation runner failure_kind; ai.doctest context schema requires non-null survivor runner commands."
+      ],
+      "tests_run": [
+        "zig build test --summary all (failing before implementation for the new task-specific tests, then passing with 544/544 tests)",
+        "zig build (passing)",
+        "zig fmt --check src test (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 124 was active after implementation, then passed again after the complete-state transition with active_task and next_task set to null. F-045, I-011, and doctest schema gap rows were updated without overclaiming untested per-adapter symlink fixtures."
+      },
+      "dogfooding_implication": "zentinel dogfood and advisory AI runs now reject cwd-relative/outside-root config reads, preserve generated same-file selected tests for unusual but valid paths, avoid prompt leakage from report-derived metadata or doctest snapshot refs, and expose doctest mutation parse defects as deterministic invalid/diagnostic outcomes.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/124/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-045"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-011"
+        ],
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.doctest.report.v1"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "125",
+      "failing_evidence": "failing_command: task-specific `zig build test --summary all` was run after writing failing regression tests and before implementation. failing_output_excerpt: new tests exposed the post-124 audit issues, including public doctest --mutate JSON missing run/summary case fields, explicit doctest/advisory AI --config escape paths not rejected, absolute --root config reads failing, malformed AI command/runner evidence being accepted, quoted glob metacharacters being parsed contrary to the documented contract, adapter-level F-045 and cleanup-warning coverage gaps, and stale doctest survivor schema metadata. implementation_started_after_failure: true. passing_command: after implementation, `zig build test --summary all` passed with 551 tests.",
+      "implementation_summary": "Closed the post-124 audit follow-up findings. `zentinel doctest --mutate` now emits the public zentinel.doctest.report.v1 shape with run metadata, top-level ordinary summary, summary.mutation, required mutation case fields, and schema-valid survivor fixtures. Explicit --config paths are resolved against the selected root and rejected consistently for doctest and advisory AI paths, while valid absolute --root projects can load project-root-relative configs. AI mutation and doctest survivor flows reject partial structured command/runner evidence instead of fabricating defaults, and survivor context validation requires non-null minimal-env command evidence. The configured command parser again rejects quoted glob/metacharacter fields per the documented shell-free contract. Adapter-visible symlink containment and cleanup-warning behavior are covered. Doctest invalid-candidate handling distinguishes backend parse failures from mutator invalid-candidate diagnostics, and docs/schema/gap rows plus the task-system docs validator now match the compact survivor evidence shape.",
+      "files_changed": [
+        "docs/CLI_SPEC.md",
+        "docs/DOCTEST_AI_INTEGRATION.md",
+        "docs/FAILURE_MODES.md",
+        "docs/REPORT_FORMAT.md",
+        "docs/SANDBOX_SECURITY.md",
+        "docs/TEST_SELECTION.md",
+        "docs/ZIG_VERSION_POLICY.md",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/doctest.report.v1.schema.json",
+        "scripts/validate_task_system.py",
+        "src/ai/command.zig",
+        "src/ai/context.zig",
+        "src/ai/doctest_command.zig",
+        "src/ast_backend.zig",
+        "src/cli.zig",
+        "src/command.zig",
+        "src/config.zig",
+        "src/doctest/mutation_experiment.zig",
+        "src/doctest/mutator_doctest.zig",
+        "src/list_mutants_command.zig",
+        "src/mutant_runner.zig",
+        "src/root.zig",
+        "src/run_command.zig",
+        "src/test_selection.zig",
+        "tasks/QUEUE.md",
+        "tasks/STATUS.md",
+        "tasks/queue.json",
+        "tasks/status.json",
+        "test/ai_command_test.zig",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/ai_doctest_test.zig",
+        "test/ast_candidate_ordering_test.zig",
+        "test/check_command_test.zig",
+        "test/cli_test.zig",
+        "test/config_test.zig",
+        "test/doctest_mutate_stabilization_test.zig",
+        "test/doctest_mutator_spec_test.zig",
+        "test/fixtures/ai/doctest_survivor/report.json",
+        "test/fixtures/doctest/mutation_stabilization/killed.stable.json",
+        "test/fixtures/doctest/mutation_stabilization/survived.stable.json",
+        "test/integration_run_test.zig",
+        "test/list_mutants_command_test.zig",
+        "test/report_renderers_test.zig",
+        "test/report_schema_test.zig",
+        "test/run_command_test.zig",
+        "test/test_selection_test.zig",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tests/coverage-gaps/schemas.v1.json",
+        "artifacts/pipeline/123/locks/active-task-lock.json",
+        "artifacts/pipeline/123/context/orchestrator.json",
+        "artifacts/pipeline/123/verification/report.json",
+        "artifacts/pipeline/124/locks/active-task-lock.json",
+        "artifacts/pipeline/124/context/orchestrator.json",
+        "artifacts/pipeline/124/verification/report.json",
+        "artifacts/pipeline/125/locks/active-task-lock.json",
+        "artifacts/pipeline/125/context/orchestrator.json",
+        "artifacts/pipeline/125/verification/report.json",
+        "tasks/123-resolve-follow-up-audit-findings.md",
+        "tasks/124-close-task-122-123-audit-regressions.md",
+        "tasks/125-close-task-124-audit-followups.md"
+      ],
+      "tests_added": [
+        "test/doctest_mutate_stabilization_test.zig: public doctest.report.v1 shape for mutate output and updated stable snapshots.",
+        "test/integration_run_test.zig: built-binary explicit --config escape rejection, absolute --root config loading, and symlink config escape rejection.",
+        "test/ai_command_test.zig and test/ai_doctest_test.zig: partial command/runner evidence is rejected instead of defaulted.",
+        "test/check_command_test.zig: quoted glob/metacharacter command fields reject as metacharacter.",
+        "test/cli_test.zig: cleanup warning emission seam covers adapter-visible output.",
+        "test/ai_doctest_survivor_cli_test.zig and survivor fixture: compact survivor evidence and schema-valid mutation report fixture."
+      ],
+      "tests_run": [
+        "zig build test --summary all (failing before implementation; passing after implementation with 551 tests)",
+        "zig build",
+        "zig fmt --check src test",
+        "git diff --check",
+        "python3 scripts/validate_task_system.py (active state)",
+        "python3 scripts/validate_task_system.py (completion state)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "active-state validation passed before completion; complete-state validation passed after completion."
+      },
+      "dogfooding_implication": "Future dogfood and advisory AI runs consume schema-valid mutation-aware doctest reports, reject unsafe config paths before reading outside the selected root, preserve exact structured command evidence, and fail closed on malformed AI report evidence.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/125/locks/active-task-lock.json",
+        "artifacts/pipeline/125/context/orchestrator.json",
+        "artifacts/pipeline/125/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-045"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-011"
+        ],
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.doctest.report.v1",
+          "zentinel.ai.doctest.context.v1"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/124-close-task-122-123-audit-regressions.md",
+        "tasks/125-close-task-124-audit-followups.md"
+      ]
+    },
+    {
+      "task": "126",
+      "failing_evidence": "failing_command: task-specific `zig build test --summary all` was run after writing failing regression tests and before implementation. failing_output_excerpt: the new tests exposed the accepted post-125 audit findings: operator-filtered duplicate physical edits disappeared from loop_boundary listings/runs, [project].root did not become the effective root for list-mutants and doctest mutation, invalid run command parsing reached an internal failure path, report config_hash and selection_preflight skipped evidence drifted from schema/docs, doctest mutation metadata and survivor_ref invariants were incomplete, explicit doctest/advisory-AI --config failures fell back or read targets first, AI redaction missed paths with spaces/Windows paths, runner evidence status/failure_kind fields accepted arbitrary strings, and the task/schema validators missed stale prose/registry claims. implementation_started_after_failure: true. passing_command: after implementation, `zig build test --summary all` passed with 564 tests.",
+      "implementation_summary": "Closed the post-125 adversarial audit findings. Candidate generation now filters enabled operators before duplicate physical-edit dedupe, preserving operator-specific mutants. CLI flows resolve [project].root as the effective root for run, list-mutants, doctest, doctest mutation, advisory AI, reports, and generated doctest mutation commands, with explicit config failures rejected before doc/report reads. Invalid configured run commands now return the documented command-parse failure. Report v1 emits full SHA-256 config_hash values and schema-valid skipped selection_preflight evidence. Doctest mutation reports now require mutation metadata, runner evidence enums, and survivor_ref cross-field invariants, and survivor AI consumes the real runner command evidence. AI context redaction/validation now handles absolute Unix paths with spaces, Windows paths, command evidence, skip reasons, runner statuses, and failure kinds before prompt construction. The task-system validator now rejects stale active-task prose and schema registry rows that still mark existing files as Future. Docs and coverage-gap rows were tightened to describe the exact covered surfaces and residual limits.",
+      "files_changed": [
+        "artifacts/pipeline/126/context/orchestrator.json",
+        "artifacts/pipeline/126/locks/active-task-lock.json",
+        "artifacts/pipeline/126/verification/report.json",
+        "docs/ARCHITECTURE.md",
+        "docs/FAILURE_MODES.md",
+        "docs/SCHEMA_REGISTRY.md",
+        "schemas/ai.doctest.context.v1.schema.json",
+        "schemas/doctest.report.v1.schema.json",
+        "schemas/report.v1.schema.json",
+        "scripts/validate_task_system.py",
+        "src/ai/context.zig",
+        "src/ai/doctest_command.zig",
+        "src/ai/redaction.zig",
+        "src/ast_backend.zig",
+        "src/cli.zig",
+        "src/config.zig",
+        "src/doctest/mutation_experiment.zig",
+        "src/list_mutants_command.zig",
+        "src/report.zig",
+        "src/run_command.zig",
+        "tasks/126-close-post-125-adversarial-audit-findings.md",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "test/ai_context_test.zig",
+        "test/ai_doctest_survivor_cli_test.zig",
+        "test/doctest_mutate_stabilization_test.zig",
+        "test/fixtures/doctest/mutation_stabilization/killed.stable.json",
+        "test/fixtures/doctest/mutation_stabilization/survived.stable.json",
+        "test/integration_run_test.zig",
+        "test/list_mutants_command_test.zig",
+        "test/report_determinism_test.zig",
+        "test/report_schema_test.zig",
+        "test/run_command_test.zig",
+        "tests/coverage-gaps/failure_modes.v1.json",
+        "tests/coverage-gaps/invariants.v1.json",
+        "tests/coverage-gaps/schemas.v1.json"
+      ],
+      "tests_added": [
+        "test/list_mutants_command_test.zig and test/run_command_test.zig: operator filtering before duplicate physical-edit dedupe and invalid configured command parse failure.",
+        "test/integration_run_test.zig: built-binary [project].root coverage for list-mutants and doctest --mutate, explicit doctest config rejection before doc reads, and explicit advisory-AI config rejection.",
+        "test/report_schema_test.zig: full SHA-256 config_hash contract, skipped selection_preflight schema validity, doctest mutation metadata/runner enum/survivor_ref schema checks.",
+        "test/doctest_mutate_stabilization_test.zig and stable fixtures: doctest mutation report producer metadata, real generated command evidence, invalid/survivor shape stability.",
+        "test/ai_context_test.zig and test/report_determinism_test.zig: redaction/normalization for quoted and unquoted absolute paths with spaces, Windows paths, and command failure_kind enum rejection.",
+        "test/ai_doctest_survivor_cli_test.zig: strict survivor runner evidence status/failure_kind validation and redaction of command evidence/skip reasons.",
+        "scripts/validate_task_system.py: structural guardrails for stale active-task status prose and stale schema-registry Future rows that reference existing files."
+      ],
+      "tests_run": [
+        "zig build test --summary all (failing before implementation; passing after implementation with 564 tests)",
+        "zig build",
+        "zig fmt --check src test",
+        "git diff --check",
+        "python3 -m py_compile scripts/validate_task_system.py",
+        "python3 scripts/validate_task_system.py (active state)",
+        "python3 scripts/validate_task_system.py (completion state)"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "active-state validation passed before completion; complete-state validation passed after completion."
+      },
+      "dogfooding_implication": "Future dogfood and advisory AI runs preserve distinct logical mutants, honor configured project roots, emit schema-valid deterministic reports, reject unsafe explicit configs before reading outside the selected root, and keep AI prompts grounded in redacted, enum-validated deterministic evidence rather than report prose or provider output.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/126/locks/active-task-lock.json",
+        "artifacts/pipeline/126/context/orchestrator.json",
+        "artifacts/pipeline/126/verification/report.json"
+      ],
+      "gap_registry_rows_changed": {
+        "tests/coverage-gaps/failure_modes.v1.json": [
+          "F-024",
+          "F-045"
+        ],
+        "tests/coverage-gaps/invariants.v1.json": [
+          "I-004",
+          "I-011"
+        ],
+        "tests/coverage-gaps/schemas.v1.json": [
+          "zentinel.report.v1",
+          "zentinel.ai.context.v1",
+          "zentinel.doctest.report.v1",
+          "zentinel.ai.doctest.context.v1"
+        ]
+      },
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json",
+        "tasks/126-close-post-125-adversarial-audit-findings.md"
+      ]
     }
   ],
   "history": [
@@ -6510,6 +6916,42 @@
       "event": "output_bound_wording_cleanup_completed",
       "task": "104",
       "notes": "Completed task 104 before project bootstrap. Validator guardrails and contracts now reject stale character-unit output-bound wording in AI-context cleanup targets and preserve the canonical 4096 UTF-8 byte output excerpt bound before task 000 starts."
+    },
+    {
+      "event": "resolve_follow_up_audit_findings_started",
+      "task": "123",
+      "notes": "Activated task 123 to resolve every high, medium, and low finding from the post-122 multi-agent audit."
+    },
+    {
+      "event": "resolve_follow_up_audit_findings_completed",
+      "task": "123",
+      "notes": "Completed task 123. Symlink-safe containment, doctest AI redaction, generated-command argv handling, backend parse-file context, invalid AST candidate diagnostics, cleanup warnings, doctest schema alignment, snapshot missing-file failures, and real AST physical-edit overlap coverage are now implemented and validated."
+    },
+    {
+      "event": "close_task_122_123_audit_regressions_started",
+      "task": "124",
+      "notes": "Activated task 124 to resolve every high, medium, and low issue found in the post-123 adversarial audit."
+    },
+    {
+      "event": "close_task_122_123_audit_regressions_completed",
+      "task": "124",
+      "notes": "Completed task 124. Explicit --config containment, structured generated same-file command execution, AI evidence rejection/redaction, doctest mutation invalid-candidate visibility, cleanup warning coverage, schema alignment, and precise gap-row evidence are implemented and validated."
+    },
+    {
+      "event": "close_task_124_audit_followups_started",
+      "task": "125",
+      "notes": "Activated task 125 to resolve every high, medium, and low issue found in the post-task-124 adversarial audit."
+    },
+    {
+      "event": "close_task_124_audit_followups_completed",
+      "task": "125",
+      "notes": "Completed task 125. Public doctest mutation report shape, config containment, strict AI evidence validation, command-parser contract restoration, adapter coverage, invalid-candidate diagnostics, survivor docs/schema/fixtures, and coverage-gap metadata are implemented and validated."
+    },
+    {
+      "task": "126",
+      "from": "queued",
+      "to": "active",
+      "reason": "Post-125 adversarial repository audit found contract, schema, containment, deterministic-core, AI privacy, and task-system issues requiring implementation follow-up."
     }
   ]
 }

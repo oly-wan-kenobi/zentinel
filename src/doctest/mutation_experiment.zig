@@ -30,14 +30,28 @@ pub const schema_version = "zentinel.doctest.mutation_experiment.v1";
 const snippet_file = "doctest_snippet.zig";
 const mutate_command = "zig test src/doctest.zig";
 
+pub const StableCommand = struct {
+    original: []const u8,
+    argv: []const []const u8,
+    cwd: []const u8,
+    environment_policy: []const u8 = "minimal",
+    shell: bool = false,
+};
+
 /// Injected runner for a mutated doctest snippet. The real runner writes the
 /// snippet into a generated workspace and runs `zig test`; tests inject a mock.
 pub const SnippetRunner = struct {
     ctx: *anyopaque,
     runFn: *const fn (ctx: *anyopaque, mutated_source: []const u8) runner.RawOutcome,
+    commandFn: ?*const fn (ctx: *anyopaque, mutated_source: []const u8) StableCommand = null,
 
     pub fn run(self: SnippetRunner, mutated_source: []const u8) runner.RawOutcome {
         return self.runFn(self.ctx, mutated_source);
+    }
+
+    pub fn command(self: SnippetRunner, mutated_source: []const u8) StableCommand {
+        if (self.commandFn) |f| return f(self.ctx, mutated_source);
+        return mutationCommand();
     }
 };
 
@@ -110,7 +124,7 @@ pub fn run(arena: std.mem.Allocator, file: []const u8, source: []const u8, snipp
         }
 
         // Preflight: a normal doctest failure prevents mutation for this case.
-        const pre = try classify(arena, snippet_runner.run(snippet));
+        const pre = try classify(arena, snippet_runner.run(snippet), mutationCommand());
         if (pre.status != .passed) {
             summary.skipped_cases += 1;
             try cases.append(arena, skippedCase(c, "normal_doctest_did_not_pass"));
@@ -121,7 +135,8 @@ pub fn run(arena: std.mem.Allocator, file: []const u8, source: []const u8, snipp
         var outcomes: std.ArrayList(MutantOutcome) = .empty;
         for (cands) |m| {
             const mutated = try applyCandidate(arena, snippet, m);
-            const cr = try classify(arena, snippet_runner.run(mutated));
+            const command = snippet_runner.command(mutated);
+            const cr = try classify(arena, snippet_runner.run(mutated), command);
             const single = try arena.dupe(report.CommandResult, &.{cr});
             const mr = mutant_runner.classifyFromCommands(m.id, .Debug, single);
             summary.mutants += 1;
@@ -169,8 +184,8 @@ fn skippedCase(c: case_mod.Case, reason: []const u8) CaseExperiment {
     };
 }
 
-fn classify(arena: std.mem.Allocator, raw: runner.RawOutcome) std.mem.Allocator.Error!report.CommandResult {
-    return runner.classifyCommand(arena, .mutant, mutate_command, &.{ "zig", "test", "src/doctest.zig" }, ".", raw);
+fn classify(arena: std.mem.Allocator, raw: runner.RawOutcome, command: StableCommand) std.mem.Allocator.Error!report.CommandResult {
+    return runner.classifyCommand(arena, .mutant, command.original, command.argv, command.cwd, raw);
 }
 
 /// A doctest has a behavioral assertion when it declares a `test` and uses an
@@ -180,15 +195,11 @@ fn hasBehavioralAssertion(snippet: []const u8) bool {
 }
 
 fn candidates(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]mutant.Mutant {
-    var parsed = ast_backend.parse(arena, snippet_file, source) catch return &.{};
-    if (!parsed.ok()) return &.{};
-    var collector = ast_backend.Collector.init(arena);
-    const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
-    try arithmetic.collect(&collector, parsed, snippet_file, test_ranges);
-    try comparison.collect(&collector, parsed, snippet_file, test_ranges);
-    try logical.collect(&collector, parsed, snippet_file, test_ranges);
-    try boolean.collect(&collector, parsed, snippet_file, test_ranges);
-    return collector.finish();
+    return switch (try candidatesOrParseError(arena, source)) {
+        .ok => |items| items,
+        .parse_error => &.{},
+        .invalid_candidate => &.{},
+    };
 }
 
 fn applyCandidate(arena: std.mem.Allocator, source: []const u8, m: mutant.Mutant) std.mem.Allocator.Error![]const u8 {
@@ -216,14 +227,6 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
 
 pub const StableError = error{NotOptedIn} || std.mem.Allocator.Error;
 
-pub const StableCommand = struct {
-    original: []const u8,
-    argv: []const []const u8,
-    cwd: []const u8,
-    environment_policy: []const u8 = "minimal",
-    shell: bool = false,
-};
-
 pub const StableRunnerEvidence = struct {
     status: []const u8,
     command: StableCommand,
@@ -236,10 +239,32 @@ pub const StableRunnerEvidence = struct {
     skip_reason: ?[]const u8,
 };
 
+pub const StableRun = struct {
+    id: []const u8 = "doctest_mutation_run",
+    status: []const u8 = "completed",
+    @"error": ?[]const u8 = null,
+    zentinel_version: []const u8 = "0.0.0",
+    zig_version: []const u8 = "0.16.0",
+    command: []const u8 = "zentinel doctest --mutate",
+    project_root: []const u8 = "<project>",
+    started_at: []const u8 = "1970-01-01T00:00:00Z",
+    duration_ms: u64 = 0,
+};
+
+pub const StableAdvisory = struct {
+    ai: ?[]const u8 = null,
+};
+
 pub const StableMutation = struct {
     doctest_case_id: []const u8,
     mutant_id: []const u8,
     operator: []const u8,
+    operator_stability: []const u8,
+    backend: []const u8,
+    backend_stability: []const u8,
+    doc_file: []const u8,
+    doc_line: u32,
+    source_ref: []const u8,
     mutated_diff: []const []const u8,
     survivor_ref: ?[]const u8,
     runner_evidence: StableRunnerEvidence,
@@ -251,8 +276,14 @@ pub const StableMutationCase = struct {
     line_start: u32,
     line_end: u32,
     source_ref: []const u8,
+    block_refs: []const []const u8,
     kind: []const u8 = "mutation",
     status: []const u8,
+    expectation: ?[]const u8 = null,
+    command: ?StableCommand = null,
+    result: ?[]const u8 = null,
+    diagnostics: []const []const u8 = &.{},
+    advisory: StableAdvisory = .{},
     mutation: StableMutation,
 };
 
@@ -267,11 +298,24 @@ pub const StableMutationSummary = struct {
     invalid: u64 = 0,
 };
 
+pub const StableSummary = struct {
+    total: u64 = 0,
+    passed: u64 = 0,
+    failed: u64 = 0,
+    compile_error: u64 = 0,
+    expected_compile_error: u64 = 0,
+    timeout: u64 = 0,
+    skipped: u64 = 0,
+    invalid: u64 = 0,
+    mutation: StableMutationSummary,
+};
+
 /// The mutation-aware extension counted separately from the top-level
 /// (preflight, non-mutation) doctest summary.
 pub const StableReport = struct {
     schema_version: []const u8 = "zentinel.doctest.report.v1",
-    mutation_summary: StableMutationSummary,
+    run: StableRun = .{},
+    summary: StableSummary,
     cases: []const StableMutationCase,
 };
 
@@ -290,6 +334,10 @@ fn lessById(_: void, a: StableMutationCase, b: StableMutationCase) bool {
     return std.mem.order(u8, a.id, b.id) == .lt;
 }
 
+fn blockRefs(arena: std.mem.Allocator, c: case_mod.Case) std.mem.Allocator.Error![]const []const u8 {
+    return arena.dupe([]const u8, &.{c.source_ref});
+}
+
 fn skippedMutationCase(arena: std.mem.Allocator, c: case_mod.Case, reason: []const u8) std.mem.Allocator.Error!StableMutationCase {
     const ident = mutation_id.Identity{
         .doctest_case_id = c.id,
@@ -305,11 +353,18 @@ fn skippedMutationCase(arena: std.mem.Allocator, c: case_mod.Case, reason: []con
         .line_start = c.line_start,
         .line_end = c.line_end,
         .source_ref = c.source_ref,
+        .block_refs = try blockRefs(arena, c),
         .status = "skipped",
         .mutation = .{
             .doctest_case_id = c.id,
             .mutant_id = "",
             .operator = "",
+            .operator_stability = "stable",
+            .backend = "ast",
+            .backend_stability = "stable",
+            .doc_file = c.file,
+            .doc_line = c.line_start,
+            .source_ref = c.source_ref,
             .mutated_diff = &.{},
             .survivor_ref = null,
             .runner_evidence = .{
@@ -325,6 +380,69 @@ fn skippedMutationCase(arena: std.mem.Allocator, c: case_mod.Case, reason: []con
             },
         },
     };
+}
+
+fn invalidMutationCase(arena: std.mem.Allocator, c: case_mod.Case, reason: []const u8) std.mem.Allocator.Error!StableMutationCase {
+    const ident = mutation_id.Identity{
+        .doctest_case_id = c.id,
+        .mutant_id = "",
+        .operator = "backend_parse",
+        .doc_file = c.file,
+        .source_ref = c.source_ref,
+        .normalized_mutated_diff = reason,
+    };
+    return .{
+        .id = try arena.dupe(u8, &mutation_id.mutationCaseId(ident)),
+        .file = c.file,
+        .line_start = c.line_start,
+        .line_end = c.line_end,
+        .source_ref = c.source_ref,
+        .block_refs = try blockRefs(arena, c),
+        .status = "invalid",
+        .mutation = .{
+            .doctest_case_id = c.id,
+            .mutant_id = "",
+            .operator = "backend_parse",
+            .operator_stability = "stable",
+            .backend = "ast",
+            .backend_stability = "stable",
+            .doc_file = c.file,
+            .doc_line = c.line_start,
+            .source_ref = c.source_ref,
+            .mutated_diff = &.{},
+            .survivor_ref = null,
+            .runner_evidence = .{
+                .status = "invalid",
+                .command = mutationCommand(),
+                .exit_code = null,
+                .timed_out = false,
+                .failure_kind = "invalid",
+                .stdout_excerpt = "",
+                .stderr_excerpt = "",
+                .failure_summary = reason,
+                .skip_reason = null,
+            },
+        },
+    };
+}
+
+const CandidateSet = union(enum) {
+    ok: []mutant.Mutant,
+    parse_error,
+    invalid_candidate,
+};
+
+fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!CandidateSet {
+    var parsed = ast_backend.parse(arena, snippet_file, source) catch return .parse_error;
+    if (!parsed.ok()) return .parse_error;
+    var collector = ast_backend.Collector.init(arena);
+    const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
+    try arithmetic.collect(&collector, parsed, snippet_file, test_ranges);
+    try comparison.collect(&collector, parsed, snippet_file, test_ranges);
+    try logical.collect(&collector, parsed, snippet_file, test_ranges);
+    try boolean.collect(&collector, parsed, snippet_file, test_ranges);
+    if (collector.invalidCount() > 0) return .invalid_candidate;
+    return .{ .ok = try collector.finish() };
 }
 
 /// Run the stabilized mutation-aware pass over `source`. Opt-in only; a normal
@@ -344,7 +462,7 @@ pub fn stableMutationRun(
     const extracted = try extractor.extract(arena, file, parsed.blocks, parsed.diagnostics);
 
     var cases: std.ArrayList(StableMutationCase) = .empty;
-    var summary = StableMutationSummary{};
+    var mutation_summary = StableMutationSummary{};
 
     for (extracted.cases) |c| {
         if (c.kind != .zig_test) continue;
@@ -353,24 +471,41 @@ pub fn stableMutationRun(
 
         if (!hasBehavioralAssertion(snippet)) {
             try cases.append(arena, try skippedMutationCase(arena, c, "no_behavioral_assertion"));
-            summary.total += 1;
-            summary.skipped += 1;
+            mutation_summary.total += 1;
+            mutation_summary.skipped += 1;
             continue;
         }
         // Preflight gate: a normal doctest failure blocks mutation-aware
         // execution for this case.
-        const pre = try classify(arena, snippet_runner.run(snippet));
+        const pre = try classify(arena, snippet_runner.run(snippet), mutationCommand());
         if (pre.status != .passed) {
             try cases.append(arena, try skippedMutationCase(arena, c, "normal_doctest_did_not_pass"));
-            summary.total += 1;
-            summary.skipped += 1;
+            mutation_summary.total += 1;
+            mutation_summary.skipped += 1;
             continue;
         }
 
-        const cands = try candidates(arena, snippet);
+        const cands = switch (try candidatesOrParseError(arena, snippet)) {
+            .ok => |items| items,
+            .parse_error => {
+                const reason = "backend: could not parse doctest mutation snippet";
+                try cases.append(arena, try invalidMutationCase(arena, c, reason));
+                mutation_summary.total += 1;
+                mutation_summary.invalid += 1;
+                continue;
+            },
+            .invalid_candidate => {
+                const reason = "ZNTL_MUTATOR_INVALID_CANDIDATE: AST backend emitted an invalid mutation candidate";
+                try cases.append(arena, try invalidMutationCase(arena, c, reason));
+                mutation_summary.total += 1;
+                mutation_summary.invalid += 1;
+                continue;
+            },
+        };
         for (cands) |m| {
             const mutated = try applyCandidate(arena, snippet, m);
-            const cr = try classify(arena, snippet_runner.run(mutated));
+            const command = snippet_runner.command(mutated);
+            const cr = try classify(arena, snippet_runner.run(mutated), command);
             const single = try arena.dupe(report.CommandResult, &.{cr});
             const mr = mutant_runner.classifyFromCommands(m.id, .Debug, single);
 
@@ -391,15 +526,15 @@ pub fn stableMutationRun(
             else
                 null;
 
-            summary.total += 1;
+            mutation_summary.total += 1;
             switch (mr.status) {
-                .killed => summary.killed += 1,
-                .survived => summary.survived += 1,
-                .compile_error => summary.compile_error += 1,
-                .compiler_crash => summary.compiler_crash += 1,
-                .timeout => summary.timeout += 1,
-                .skipped => summary.skipped += 1,
-                .invalid => summary.invalid += 1,
+                .killed => mutation_summary.killed += 1,
+                .survived => mutation_summary.survived += 1,
+                .compile_error => mutation_summary.compile_error += 1,
+                .compiler_crash => mutation_summary.compiler_crash += 1,
+                .timeout => mutation_summary.timeout += 1,
+                .skipped => mutation_summary.skipped += 1,
+                .invalid => mutation_summary.invalid += 1,
             }
 
             try cases.append(arena, .{
@@ -408,16 +543,23 @@ pub fn stableMutationRun(
                 .line_start = c.line_start,
                 .line_end = c.line_end,
                 .source_ref = c.source_ref,
+                .block_refs = try blockRefs(arena, c),
                 .status = @tagName(mr.status),
                 .mutation = .{
                     .doctest_case_id = c.id,
                     .mutant_id = m.id,
                     .operator = m.operator,
+                    .operator_stability = @tagName(m.operator_stability),
+                    .backend = @tagName(m.backend),
+                    .backend_stability = @tagName(m.backend_stability),
+                    .doc_file = c.file,
+                    .doc_line = c.line_start,
+                    .source_ref = c.source_ref,
                     .mutated_diff = diff,
                     .survivor_ref = survivor,
                     .runner_evidence = .{
                         .status = @tagName(mr.status),
-                        .command = mutationCommand(),
+                        .command = command,
                         .exit_code = cr.exit_code,
                         .timed_out = cr.timed_out,
                         .failure_kind = @tagName(cr.failure_kind),
@@ -433,7 +575,7 @@ pub fn stableMutationRun(
 
     const out = try cases.toOwnedSlice(arena);
     std.mem.sort(StableMutationCase, out, {}, lessById);
-    return .{ .mutation_summary = summary, .cases = out };
+    return .{ .summary = .{ .mutation = mutation_summary }, .cases = out };
 }
 
 pub fn stableToJson(arena: std.mem.Allocator, r: StableReport) std.mem.Allocator.Error![]u8 {

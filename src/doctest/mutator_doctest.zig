@@ -24,6 +24,8 @@ pub const Result = struct {
     matched: bool,
     operator: []const u8,
     candidate_count: usize,
+    parse_error: bool = false,
+    invalid_candidate: bool = false,
 };
 
 pub const PairResult = struct {
@@ -47,18 +49,33 @@ pub const DocValidation = struct {
     diagnostics: []const Diagnostic,
 };
 
+const CandidateSet = union(enum) {
+    ok: []mutant.Mutant,
+    parse_error,
+    invalid_candidate,
+};
+
 /// Generate the stable Phase 1 candidate set for a parseable Zig snippet. An
 /// unparseable snippet yields no candidates.
 pub fn candidates(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]mutant.Mutant {
-    var parsed = ast_backend.parse(arena, doctest_file, source) catch return &.{};
-    if (!parsed.ok()) return &.{};
+    return switch (try candidatesOrParseError(arena, source)) {
+        .ok => |items| items,
+        .parse_error => &.{},
+        .invalid_candidate => &.{},
+    };
+}
+
+fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!CandidateSet {
+    var parsed = ast_backend.parse(arena, doctest_file, source) catch return .parse_error;
+    if (!parsed.ok()) return .parse_error;
     var collector = ast_backend.Collector.init(arena);
     const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
     try arithmetic.collect(&collector, parsed, doctest_file, test_ranges);
     try comparison.collect(&collector, parsed, doctest_file, test_ranges);
     try logical.collect(&collector, parsed, doctest_file, test_ranges);
     try boolean.collect(&collector, parsed, doctest_file, test_ranges);
-    return collector.finish();
+    if (collector.invalidCount() > 0) return .invalid_candidate;
+    return .{ .ok = try collector.finish() };
 }
 
 /// Apply a candidate by replacing its byte span with its replacement. Uses only
@@ -75,7 +92,11 @@ fn applyCandidate(arena: std.mem.Allocator, source: []const u8, m: mutant.Mutant
 /// `after`? Returns the producing operator when it does. Trailing whitespace is
 /// ignored so fenced-block newlines do not defeat a match.
 pub fn validatePair(arena: std.mem.Allocator, before: []const u8, after: []const u8) std.mem.Allocator.Error!Result {
-    const cands = try candidates(arena, before);
+    const cands = switch (try candidatesOrParseError(arena, before)) {
+        .ok => |items| items,
+        .parse_error => return .{ .matched = false, .operator = "", .candidate_count = 0, .parse_error = true },
+        .invalid_candidate => return .{ .matched = false, .operator = "", .candidate_count = 0, .invalid_candidate = true },
+    };
     const want = std.mem.trim(u8, after, " \t\r\n");
     for (cands) |m| {
         const mutated = try applyCandidate(arena, before, m);
@@ -115,7 +136,19 @@ pub fn validateDoc(arena: std.mem.Allocator, file: []const u8, source: []const u
             .matched = res.matched,
             .operator = res.operator,
         });
-        if (!res.matched) {
+        if (res.parse_error) {
+            try diags.append(arena, .{
+                .code = "ZNTL_BACKEND_PARSE_ERROR",
+                .message = "could not parse mutator-spec before block",
+                .line = c.anchor_line,
+            });
+        } else if (res.invalid_candidate) {
+            try diags.append(arena, .{
+                .code = "ZNTL_MUTATOR_INVALID_CANDIDATE",
+                .message = "mutator generated an invalid candidate for mutator-spec before block",
+                .line = c.anchor_line,
+            });
+        } else if (!res.matched) {
             try diags.append(arena, .{
                 .code = error_codes.doctest_snapshot_mismatch,
                 .message = "documented transformation is not produced by any stable mutator",

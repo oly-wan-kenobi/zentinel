@@ -1,14 +1,35 @@
 {
   "schema_version": "zentinel.doctest.report.v1",
-  "mutation_summary": {
-    "total": 1,
-    "killed": 1,
-    "survived": 0,
+  "run": {
+    "id": "doctest_mutation_run",
+    "status": "completed",
+    "error": null,
+    "zentinel_version": "0.0.0",
+    "zig_version": "0.16.0",
+    "command": "zentinel doctest --mutate",
+    "project_root": "<project>",
+    "started_at": "1970-01-01T00:00:00Z",
+    "duration_ms": 0
+  },
+  "summary": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
     "compile_error": 0,
-    "compiler_crash": 0,
+    "expected_compile_error": 0,
     "timeout": 0,
     "skipped": 0,
-    "invalid": 0
+    "invalid": 0,
+    "mutation": {
+      "total": 1,
+      "killed": 1,
+      "survived": 0,
+      "compile_error": 0,
+      "compiler_crash": 0,
+      "timeout": 0,
+      "skipped": 0,
+      "invalid": 0
+    }
   },
   "cases": [
     {
@@ -17,12 +38,28 @@
       "line_start": 5,
       "line_end": 15,
       "source_ref": "docs/killed.md:5",
+      "block_refs": [
+        "docs/killed.md:5"
+      ],
       "kind": "mutation",
       "status": "killed",
+      "expectation": null,
+      "command": null,
+      "result": null,
+      "diagnostics": [],
+      "advisory": {
+        "ai": null
+      },
       "mutation": {
         "doctest_case_id": "dt_sdmcn4y56k9fhk39t1xpw8n8vk",
         "mutant_id": "m_03fm4q804wf7emg71yrk0dbmzz",
         "operator": "arithmetic_add_sub",
+        "operator_stability": "stable",
+        "backend": "ast",
+        "backend_stability": "stable",
+        "doc_file": "docs/killed.md",
+        "doc_line": 5,
+        "source_ref": "docs/killed.md:5",
         "mutated_diff": [
           "- +",
           "+ -"

@@ -112,10 +112,7 @@ fn baselineFailedReport() report.Report {
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {
     const io = std.testing.io;
     const existing = std.Io.Dir.cwd().readFileAlloc(io, path, a, std.Io.Limit.limited(1 << 20)) catch |err| switch (err) {
-        error.FileNotFound => {
-            try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = actual });
-            return;
-        },
+        error.FileNotFound => return err,
         else => return err,
     };
     try expectEqualStrings(existing, actual);

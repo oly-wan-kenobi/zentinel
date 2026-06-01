@@ -174,6 +174,18 @@ test "result command evidence rejects empty argv0, non-minimal environment polic
     }
 }
 
+test "result command evidence rejects unknown failure kinds" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var ctx = validContext();
+    var cmd = validCommand();
+    cmd.failure_kind = "prompt_injected";
+    ctx.result.commands = &.{cmd};
+    try expectEqual(context.Violation.bad_enum, validateJson(a, ctx));
+}
+
 test "skipped entries require deterministic skip reasons; non-skipped require null" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -404,6 +416,24 @@ test "normalizeAbsolutePaths replaces absolute paths but preserves relative path
     const div = try redaction.normalizeAbsolutePaths(a, "const q = a / b;");
     try expect(!div.changed);
     try expectEqualStrings("const q = a / b;", div.text);
+}
+
+test "normalizeAbsolutePaths handles paths with spaces and Windows absolute paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const spaced = try redaction.normalizeAbsolutePaths(a, "panic at \"/Users/dev/My Project/src/main.zig:7:3\"");
+    try expect(spaced.changed);
+    try expectEqualStrings("panic at \"<path>\"", spaced.text);
+
+    const unquoted = try redaction.normalizeAbsolutePaths(a, "panic at /Users/dev/My Project/src/main.zig:7:3");
+    try expect(unquoted.changed);
+    try expectEqualStrings("panic at <path>", unquoted.text);
+
+    const windows = try redaction.normalizeAbsolutePaths(a, "panic at C:\\Users\\dev\\My Project\\src\\main.zig:7:3");
+    try expect(windows.changed);
+    try expectEqualStrings("panic at <path>", windows.text);
 }
 
 test "redactField normalizes paths, scrubs secret values, and logs both kinds" {

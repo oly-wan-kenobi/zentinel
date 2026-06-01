@@ -883,6 +883,21 @@ def validate_markdown_status(status: object, tasks: list[dict[str, object]], err
             expected_file = task.get("file") if isinstance(task, dict) else None
             require(isinstance(next_task, str) and (next_task in next_value or (isinstance(expected_file, str) and expected_file in next_value)), errors, "tasks/STATUS.md Next task must match status.json next_task")
 
+    active_mentions: list[str] = []
+    for match in re.finditer(r"\b[Tt]ask `(?P<task>[0-9]{3})`[^.\n|]*\bis active\b", text):
+        active_mentions.append(match.group("task"))
+    for match in re.finditer(r"\bactive task `(?P<task>[0-9]{3})`\b", text, flags=re.IGNORECASE):
+        active_mentions.append(match.group("task"))
+    for match in re.finditer(r"\b[Tt]ask `(?P<task>[0-9]{3})`[^.\n|]*\bactive [^.\n|]*task\b", text):
+        active_mentions.append(match.group("task"))
+    if active_task is None:
+        for task_id in sorted(set(active_mentions)):
+            fail(errors, f"tasks/STATUS.md contains stale active-task prose for task {task_id}")
+    elif isinstance(active_task, str):
+        require("No task is active" not in text, errors, "tasks/STATUS.md contains stale no-active-task prose while a task is active")
+        for task_id in sorted(set(active_mentions)):
+            require(task_id == active_task, errors, f"tasks/STATUS.md active-task prose mentions task {task_id} but status.json active_task is {active_task}")
+
 
 def git_stdout(args: list[str], errors: list[str], action: str) -> str:
     result = subprocess.run(
@@ -1272,6 +1287,10 @@ def validate_schema_registry(errors: list[str]) -> None:
     for version, file_path in SCHEMA_REGISTRY_PAIRS:
         require(version in text, errors, f"schema registry missing version {version}")
         require(file_path in text, errors, f"schema registry missing file {file_path}")
+    for match in re.finditer(r"Future `(?P<path>[^`]+)`", text):
+        rel = match.group("path")
+        if (ROOT / rel).exists():
+            fail(errors, f"schema registry marks existing file {rel} as Future")
 
 
 def validate_governance_files(errors: list[str]) -> None:
@@ -2047,11 +2066,11 @@ def validate_doctest_identity_contracts(errors: list[str]) -> None:
         require(isinstance(source_case, dict), errors, f"doctest_survivor example {index} source_case must be an object")
         require(isinstance(mutation_case, dict), errors, f"doctest_survivor example {index} mutation_case must be an object")
         if isinstance(source_case, dict):
-            source_id = source_case.get("id")
-            require(isinstance(source_id, str) and source_id.startswith("dt_"), errors, f"doctest_survivor example {index} source_case.id must use dt_ ordinary doctest case identity")
+            source_id = source_case.get("doctest_case_id", source_case.get("id"))
+            require(isinstance(source_id, str) and source_id.startswith("dt_"), errors, f"doctest_survivor example {index} source_case doctest identity must use dt_ ordinary doctest case identity")
         if isinstance(mutation_case, dict):
-            mutation_id = mutation_case.get("id")
-            require(isinstance(mutation_id, str) and mutation_id.startswith("dm_"), errors, f"doctest_survivor example {index} mutation_case.id must use dm_ mutation-aware report entry identity")
+            mutation_id = mutation_case.get("case_id", mutation_case.get("id"))
+            require(isinstance(mutation_id, str) and mutation_id.startswith("dm_"), errors, f"doctest_survivor example {index} mutation_case identity must use dm_ mutation-aware report entry identity")
 
 
 def validate_ai_contracts(errors: list[str]) -> None:
@@ -4031,7 +4050,14 @@ def validate_clean_handoff_lifecycle_closure_contracts(
         phrase = "Before task `041`, run `python3 scripts/validate_task_system.py` immediately after marking a task active."
         require(text.count(phrase) == 1, errors, "docs/AUTONOMOUS_AGENT_PROTOCOL.md must contain the pre-041 active validator sentence exactly once")
 
-    require(isinstance(status, dict) and status.get("clean_handoff_baseline") is None, errors, "status clean_handoff_baseline must be null after committed task 099 handoff")
+    if isinstance(status, dict):
+        baseline = status.get("clean_handoff_baseline")
+        if isinstance(baseline, dict):
+            require(
+                baseline.get("task") != "099",
+                errors,
+                "status clean_handoff_baseline must not preserve task 099 after the committed task 099 handoff",
+            )
 
     task_by_id = {task.get("id"): task for task in tasks if isinstance(task.get("id"), str)}
     task000 = task_by_id.get("000")

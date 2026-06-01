@@ -9,6 +9,7 @@ const runner = zentinel.runner;
 const mutant_runner = zentinel.mutant_runner;
 const mutant = zentinel.mutant;
 const config = zentinel.config;
+const command = zentinel.command;
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -83,6 +84,21 @@ test "same_file_then_package selects zig test <file> when the preflight passes" 
     try expectEqual(report.Phase.selection_preflight, res.selection.preflight_commands[0].phase);
     try expectEqual(report.Strategy.same_file_then_package, res.selection.strategy);
     try expectEqual(@as(usize, 2), res.selection.selected.len);
+}
+
+test "generated same-file command preserves path bytes through shell-free argv parsing" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const generated = try ts.generatedCommand(a, "src/with space/[range].zig");
+    try expectEqualStrings("zig test \"src/with space/[range].zig\"", generated);
+
+    const argv = try ts.generatedCommandArgv(a, "src/with space/[range].zig");
+    try expectEqual(@as(usize, 3), argv.len);
+    try expectEqualStrings("zig", argv[0]);
+    try expectEqualStrings("test", argv[1]);
+    try expectEqualStrings("src/with space/[range].zig", argv[2]);
 }
 
 test "a failed preflight falls back to configured commands and records the evidence" {
@@ -168,6 +184,11 @@ fn mutantRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: 
     const ex = runner.Executor{ .ctx = env, .runFn = mutantCmd };
     return mutant_runner.run(env.arena, m, source, .created, commands, "<project>", ex, mode) catch @panic("mutant run failed");
 }
+fn mutantRunSpecsFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const command.Spec, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *RunEnv = @ptrCast(@alignCast(ctx));
+    const ex = runner.Executor{ .ctx = env, .runFn = mutantCmd };
+    return mutant_runner.runSpecs(env.arena, m, source, .created, commands, "<project>", ex, mode) catch @panic("mutant run failed");
+}
 
 fn runObservation() rc.Observation {
     return .{ .run_id = "run_sel", .started_at = "1970-01-01T00:00:00Z", .project_root = "<project>", .zentinel_version = "0.0.0", .zig_version = "0.16.0", .config_hash = "sha256:0", .duration_ms = 0 };
@@ -197,7 +218,7 @@ test "run integrates same-file selection with a passing preflight" {
     // Baseline and preflight pass; the mutant fails the selected command -> killed.
     var env = RunEnv{ .arena = a, .baseline_outcome = okOutcome(), .mutant_outcome = failOutcome() };
     const baseline_executor = runner.Executor{ .ctx = &env, .runFn = baselineCmd };
-    const mutant_executor = rc.MutantRunner{ .ctx = &env, .runFn = mutantRunFn };
+    const mutant_executor = rc.MutantRunner{ .ctx = &env, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn };
 
     const outcome = try rc.run(a, cfg, &files, .{}, baseline_executor, mutant_executor, runObservation());
 
@@ -216,6 +237,45 @@ test "run integrates same-file selection with a passing preflight" {
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
+test "run executes generated same-file commands with exact argv for metacharacter paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const source = try readFixture(a, "test/fixtures/test_selection/with_tests.zig");
+    const files = [_]rc.FileSource{.{ .path = "src/with$dollar.zig", .source = source }};
+
+    var diag: config.Diagnostic = .{};
+    const cfg = try config.load(a,
+        \\[project]
+        \\name = "sel"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig build test"]
+        \\
+    , &diag);
+
+    var env = RunEnv{ .arena = a, .baseline_outcome = okOutcome(), .mutant_outcome = failOutcome() };
+    const baseline_executor = runner.Executor{ .ctx = &env, .runFn = baselineCmd };
+    const mutant_executor = rc.MutantRunner{ .ctx = &env, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn };
+
+    const outcome = try rc.run(a, cfg, &files, .{}, baseline_executor, mutant_executor, runObservation());
+    try expectEqual(@as(usize, 1), outcome.report.mutants.len);
+    const m = outcome.report.mutants[0];
+    try expect(!m.test_selection.fallback_used);
+    try expectEqual(@as(usize, 1), m.test_selection.preflight_commands.len);
+    try expectEqual(report.CommandStatus.passed, m.test_selection.preflight_commands[0].status);
+    try expectEqual(@as(usize, 3), m.test_selection.preflight_commands[0].command.argv.len);
+    try expectEqualStrings("src/with$dollar.zig", m.test_selection.preflight_commands[0].command.argv[2]);
+    try expectEqual(report.ResultStatus.killed, m.result.status);
+    try expectEqual(@as(usize, 1), m.result.commands.len);
+    try expectEqualStrings("src/with$dollar.zig", m.result.commands[0].command.argv[2]);
+    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
+
 test "snapshot: selection metadata has exactly the documented fields" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -227,10 +287,7 @@ test "snapshot: selection metadata has exactly the documented fields" {
 
     const path = "test/fixtures/test_selection/selection_metadata.json";
     const existing = std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20)) catch |err| switch (err) {
-        error.FileNotFound => {
-            try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = json });
-            return;
-        },
+        error.FileNotFound => return err,
         else => return err,
     };
     try expectEqualStrings(existing, json);

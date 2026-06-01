@@ -29,7 +29,7 @@
       "covered": true,
       "tests": ["test/ai_context_test.zig"],
       "deferred_to": null,
-      "notes": "AI advisory-only boundary: the AI context (ai_context_test) carries only redacted, normalized advisory inputs and validates against the v1 schema; the deterministic stub provider produces advisory text under advisory fields and never a mutant status or any deterministic result field; redaction fails closed so a context that cannot be sanitized never reaches a provider. AI cannot alter deterministic result fields."
+      "notes": "AI advisory-only boundary: the AI context (ai_context_test) carries only redacted, normalized advisory inputs and validates against the v1 schema; path normalization covers absolute Unix paths with spaces and Windows drive paths before prompt construction, and command/runner failure kinds are enum-checked instead of accepted as free text. The deterministic stub provider produces advisory text under advisory fields and never a mutant status or any deterministic result field; redaction fails closed so a context that cannot be sanitized never reaches a provider. AI cannot alter deterministic result fields."
     },
     {
       "number": "I-005",
@@ -76,9 +76,9 @@
     {
       "number": "I-011",
       "covered": true,
-      "tests": ["test/mutant_model_test.zig"],
+      "tests": ["test/mutant_model_test.zig", "test/ast_candidate_ordering_test.zig", "test/doctest_mutate_stabilization_test.zig", "test/doctest_mutator_spec_test.zig"],
       "deferred_to": null,
-      "notes": "Invalid mutant semantics start with the shared mutant model and continue through sandbox tests."
+      "notes": "Invalid mutant semantics start with the shared mutant model and continue through sandbox tests. ast_candidate_ordering_test proves the AST collector counts structurally invalid candidates instead of dropping them without a diagnostic surface. doctest_mutate_stabilization_test proves unparseable doctest mutation snippets become visible invalid report cases, and doctest_mutator_spec_test proves unparseable mutator-spec before blocks emit backend parse diagnostics while the doctest mutation helpers keep mutator invalid-candidate diagnostics distinct from backend parse failures."
     },
     {
       "number": "I-012",

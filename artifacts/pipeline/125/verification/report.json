@@ -1,0 +1,61 @@
+{
+  "schema_version": "zentinel.pipeline.verification.v1",
+  "task_id": "125",
+  "status": "passed",
+  "working_tree_state": "dirty",
+  "active_lock": "artifacts/pipeline/125/locks/active-task-lock.json",
+  "stages": [
+    {
+      "name": "unit_tests_failing_first",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Before implementation, task-specific tests exposed the audited regressions: doctest --mutate emitted a non-public report shape, explicit --config paths escaped or fell back in doctest/advisory AI paths, absolute --root config reads failed, malformed AI command/runner evidence was accepted, quoted glob metacharacters were parsed contrary to the documented contract, and adapter coverage/gap rows overclaimed behavior."
+    },
+    {
+      "name": "unit_tests",
+      "required": true,
+      "status": "passed",
+      "command": "zig build test --summary all",
+      "evidence": "Full suite passed after implementation (551 tests)."
+    },
+    {
+      "name": "build",
+      "required": true,
+      "status": "passed",
+      "command": "zig build"
+    },
+    {
+      "name": "format_check",
+      "required": true,
+      "status": "passed",
+      "command": "zig fmt --check src test"
+    },
+    {
+      "name": "diff_whitespace_check",
+      "required": true,
+      "status": "passed",
+      "command": "git diff --check"
+    },
+    {
+      "name": "task_system_validation_active",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed with task 125 active after implementation and before completion-state edits."
+    },
+    {
+      "name": "task_system_validation_complete",
+      "required": true,
+      "status": "passed",
+      "command": "python3 scripts/validate_task_system.py",
+      "evidence": "Validator passed after moving task 125 to complete with active_task and next_task set to null."
+    }
+  ],
+  "residual_risk": [
+    "The invalid-candidate distinction is now represented in deterministic helper paths, but current stable doctest mutators do not intentionally emit invalid candidates in ordinary fixtures.",
+    "F-045 coverage remains scoped to shared containment and representative adapter-visible symlink/config reads rather than separate symlink fixtures for every guarded CLI path.",
+    "AI report parsing now fails closed on missing structured evidence, which can reject older hand-authored malformed fixtures by design."
+  ],
+  "recommendation": "complete"
+}

@@ -9,6 +9,18 @@ const expectEqualStrings = std.testing.expectEqualStrings;
 
 const minimal_snapshot = @embedFile("snapshots/report_minimal.json");
 
+fn readJson(a: std.mem.Allocator, path: []const u8) !std.json.Value {
+    const bytes = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));
+    return std.json.parseFromSliceLeaky(std.json.Value, a, bytes, .{});
+}
+
+fn arrayContainsString(items: []const std.json.Value, needle: []const u8) bool {
+    for (items) |item| {
+        if (item == .string and std.mem.eql(u8, item.string, needle)) return true;
+    }
+    return false;
+}
+
 // --- Reusable, statically-scoped report components -------------------------
 
 const empty_evidence = report.Evidence{};
@@ -143,6 +155,31 @@ test "minimal report serializes to the deterministic snapshot" {
     defer arena.deinit();
     const json = try report.toJson(arena.allocator(), completedReport(&no_mutants));
     try harness.expectSnapshot(minimal_snapshot, json);
+}
+
+test "doctest report schema matches command and run_error contracts" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const schema = try readJson(arena.allocator(), "schemas/doctest.report.v1.schema.json");
+    const defs = schema.object.get("$defs").?.object;
+
+    const run_error = defs.get("run_error").?.object;
+    const required = run_error.get("required").?.array.items;
+    try expect(!arrayContainsString(required, "details"));
+
+    const command_def = defs.get("command").?.object;
+    const props = command_def.get("properties").?.object;
+    const argv = props.get("argv").?.object;
+    const min_items = argv.get("minItems") orelse return error.TestUnexpectedResult;
+    try expectEqual(@as(i64, 1), min_items.integer);
+
+    const shell = props.get("shell").?.object;
+    const shell_const = shell.get("const") orelse return error.TestUnexpectedResult;
+    try expect(shell_const.bool == false);
+
+    const evidence_props = defs.get("mutation_runner_evidence").?.object.get("properties").?.object;
+    const failure_kind_enum = evidence_props.get("failure_kind").?.object.get("enum").?.array.items;
+    try expect(arrayContainsString(failure_kind_enum, "invalid"));
 }
 
 test "mutant entries sort by canonical candidate order with sequential display ids" {
@@ -337,6 +374,51 @@ test "test_selection carries exactly the documented fields" {
     inline for ([_][]const u8{ "strategy", "selected", "commands", "preflight_commands", "fallback_used" }) |field| {
         try expect(@hasField(report.TestSelection, field));
     }
+}
+
+test "selection preflight schema can represent skipped command evidence" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const schema = try readJson(arena.allocator(), "schemas/report.v1.schema.json");
+    const defs = schema.object.get("$defs").?.object;
+    const preflight = defs.get("selection_preflight_command_result").?.object;
+    const props = preflight.get("properties").?.object;
+
+    const status_enum = props.get("status").?.object.get("enum").?.array.items;
+    const failure_kind_enum = props.get("failure_kind").?.object.get("enum").?.array.items;
+    try expect(arrayContainsString(status_enum, "skipped"));
+    try expect(arrayContainsString(failure_kind_enum, "skipped"));
+
+    const skip_type = props.get("skip_reason").?.object.get("type").?.array.items;
+    try expect(arrayContainsString(skip_type, "string"));
+    try expect(arrayContainsString(skip_type, "null"));
+}
+
+test "preflight command skip reasons follow the command status" {
+    var skipped_preflight = passed_mutant_cmd;
+    skipped_preflight.phase = .selection_preflight;
+    skipped_preflight.status = .skipped;
+    skipped_preflight.failure_kind = .skipped;
+    skipped_preflight.exit_code = null;
+    skipped_preflight.skip_reason = null;
+    const skipped_preflights = [_]report.CommandResult{skipped_preflight};
+    var skipped_selection = sample_selection;
+    skipped_selection.preflight_commands = &skipped_preflights;
+    var skipped_mutant = sample_mutant;
+    skipped_mutant.test_selection = skipped_selection;
+    const skipped_arr = [_]report.Mutant{skipped_mutant};
+    try expectEqual(report.Violation.skip_reason_required, report.validate(completedReport(&skipped_arr)));
+
+    var spurious_preflight = passed_mutant_cmd;
+    spurious_preflight.phase = .selection_preflight;
+    spurious_preflight.skip_reason = "should be null";
+    const spurious_preflights = [_]report.CommandResult{spurious_preflight};
+    var spurious_selection = sample_selection;
+    spurious_selection.preflight_commands = &spurious_preflights;
+    var spurious_mutant = sample_mutant;
+    spurious_mutant.test_selection = spurious_selection;
+    const spurious_arr = [_]report.Mutant{spurious_mutant};
+    try expectEqual(report.Violation.skip_reason_must_be_null, report.validate(completedReport(&spurious_arr)));
 }
 
 test "backend_stability and operator_stability are distinct fields with separate enums" {

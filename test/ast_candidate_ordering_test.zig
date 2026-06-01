@@ -2,6 +2,7 @@ const std = @import("std");
 const zentinel = @import("zentinel");
 const mutant = zentinel.mutant;
 const ast_backend = zentinel.ast_backend;
+const mutators = zentinel.mutators;
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -81,6 +82,34 @@ test "duplicate physical edits from different operators are deduplicated determi
     try expectEqualStrings("comparison_boundary", items[0].operator);
 }
 
+test "real AST overlap between comparison and loop boundary keeps one physical edit" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var parsed = try ast_backend.parse(std.testing.allocator, "src/loop.zig",
+        \\pub fn count(n: usize) usize {
+        \\    var i: usize = 0;
+        \\    while (i < n) : (i += 1) {}
+        \\    return i;
+        \\}
+    );
+    defer parsed.deinit();
+
+    const test_ranges = try ast_backend.testDeclRanges(parsed, a);
+    var collector = ast_backend.Collector.init(a);
+    try mutators.comparison.collect(&collector, parsed, "src/loop.zig", test_ranges);
+    try mutators.loop_boundary.collect(&collector, parsed, "src/loop.zig", test_ranges);
+
+    const items = try collector.finish();
+    try expectEqual(@as(usize, 1), items.len);
+    try expectEqual(@as(usize, 0), collector.invalidCount());
+    try expectEqualStrings("src/loop.zig", items[0].file);
+    try expectEqualStrings("comparison_boundary", items[0].operator);
+    try expectEqualStrings("<", items[0].original);
+    try expectEqualStrings("<=", items[0].replacement);
+}
+
 test "collector rejects structurally invalid candidates before assigning ids" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -91,6 +120,7 @@ test "collector rejects structurally invalid candidates before assigning ids" {
     try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", ">=", ">=")); // no-op
     try collector.add(mk("src/a.zig", 10, 12, "comparison_boundary", ">", ">=")); // original length does not match span
 
+    try expectEqual(@as(usize, 2), collector.invalidCount());
     const items = try collector.finish();
     try expectEqual(@as(usize, 1), items.len);
     try expectEqualStrings(">=", items[0].original);

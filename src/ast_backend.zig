@@ -114,13 +114,17 @@ pub const Candidate = mutant.Mutant;
 pub const Collector = struct {
     allocator: std.mem.Allocator,
     items: std.ArrayList(Candidate),
+    invalid_count: usize = 0,
 
     pub fn init(allocator: std.mem.Allocator) Collector {
         return .{ .allocator = allocator, .items = .empty };
     }
 
     pub fn add(self: *Collector, candidate: Candidate) std.mem.Allocator.Error!void {
-        if (!candidate.hasValidEditShape()) return;
+        if (!candidate.hasValidEditShape()) {
+            self.invalid_count += 1;
+            return;
+        }
         // Own `original` in the collector's long-lived allocator so it outlives
         // the parsed tree. The stable operators capture `original` as a borrowed
         // slice of `parsed.owned_source` (e.g. `tree.source[start..end]` or
@@ -138,11 +142,24 @@ pub const Collector = struct {
         try self.items.append(self.allocator, owned);
     }
 
+    pub fn invalidCount(self: Collector) usize {
+        return self.invalid_count;
+    }
+
     /// Assign durable ids, sort by canonical candidate order, and remove
     /// exact-identity duplicates.
     pub fn finish(self: *Collector) std.mem.Allocator.Error![]mutant.Mutant {
+        const raw = try self.finishRaw();
+        return mutant.sortAndDedupe(self.allocator, raw);
+    }
+
+    /// Assign durable ids and return every valid candidate without physical-edit
+    /// dedupe. Callers that apply config/operator filters must use this first and
+    /// dedupe only the kept set, otherwise a disabled operator can erase the
+    /// enabled representative of the same physical edit.
+    pub fn finishRaw(self: *Collector) std.mem.Allocator.Error![]mutant.Mutant {
         for (self.items.items) |*candidate| try mutant.assignId(self.allocator, candidate);
-        return mutant.sortAndDedupe(self.allocator, self.items.items);
+        return self.allocator.dupe(mutant.Mutant, self.items.items);
     }
 
     pub fn deinit(self: *Collector) void {

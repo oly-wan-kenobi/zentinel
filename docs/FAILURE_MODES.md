@@ -181,7 +181,7 @@ Each failure mode has:
 
 **F-024. Task metadata invalid**
 - *Phase.* Task system.
-- *Expected outcome.* Validator fails and agents repair task metadata before implementation work.
+- *Expected outcome.* Validator fails and agents repair task metadata, Markdown status prose, or stale schema-registry claims before implementation work.
 - *Code/status.* `ZNTL_TASK_STATE_INVALID`.
 - *Invariants stressed.* I-017, I-018, I-020.
 - *Required test surface.* `scripts/validate_task_system.py` self-checks and CI invocation.
@@ -325,3 +325,10 @@ Each failure mode has:
 - *Code/status.* `ZNTL_DOCTEST_COMMAND_REJECTED`.
 - *Invariants stressed.* I-001, I-016.
 - *Required test surface.* Doctest runner CLI allowlist fixture.
+
+**F-045. Read path symlink escape**
+- *Phase.* CLI / Adapter.
+- *Expected outcome.* Config, source, doctest `--file`, doctest AI `--input-report`, mutation AI `--input-report`, generated workspace, scratch, and report paths are rejected before filesystem access when lexical containment passes but a symlinked component would leave the project root.
+- *Code/status.* `ZNTL_CLI_INVALID_OPTION` for user-supplied read paths; source/report/workspace adapters fail with their documented deterministic error or warning surface.
+- *Invariants stressed.* I-001, I-014, I-016.
+- *Required test surface.* Shared symlink-containment unit test plus CLI adapter regression tests for read-side paths.

@@ -48,6 +48,64 @@ test "doctest --mutate stabilization rejects non-opt-in documentation" {
     try expectError(error.NotOptedIn, me.stableMutationRun(a, "docs/killed.md", src, mock(), false));
 }
 
+test "stable mutation report records invalid snippets instead of dropping candidates silently" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const invalid_src =
+        \\# invalid snippet
+        \\
+        \\```zig test
+        \\const std = @import("std");
+        \\
+        \\test "invalid but asserted" {
+        \\    try std.testing.expect(true)
+        \\}
+        \\```
+        \\
+    ;
+    const r = try me.stableMutationRun(a, "docs/invalid.md", invalid_src, mock(), true);
+    try expectEqual(@as(u64, 1), r.summary.mutation.total);
+    try expectEqual(@as(u64, 1), r.summary.mutation.invalid);
+    try expectEqual(@as(usize, 1), r.cases.len);
+    try expectEqualStrings("invalid", r.cases[0].status);
+    try expectEqualStrings("backend: could not parse doctest mutation snippet", r.cases[0].mutation.runner_evidence.failure_summary);
+    try expect(r.cases[0].mutation.survivor_ref == null);
+}
+
+test "doctest --mutate JSON uses the public doctest.report.v1 shape" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const src = try readFile(a, base ++ "killed.md");
+
+    const json = try me.mutateReportJson(a, "docs/killed.md", src, mock());
+    const parsed = try std.json.parseFromSlice(std.json.Value, a, json, .{});
+    const obj = parsed.value.object;
+
+    try expectEqualStrings("zentinel.doctest.report.v1", obj.get("schema_version").?.string);
+    try expect(obj.get("run") != null);
+    try expect(obj.get("summary") != null);
+    try expect(obj.get("mutation_summary") == null);
+    try expect(obj.get("summary").?.object.get("mutation") != null);
+
+    const first = obj.get("cases").?.array.items[0].object;
+    try expectEqualStrings("mutation", first.get("kind").?.string);
+    try expect(first.get("expectation") != null);
+    try expect(first.get("command") != null);
+    try expect(first.get("result") != null);
+    try expect(first.get("diagnostics") != null);
+    try expect(first.get("advisory") != null);
+
+    const mutation = first.get("mutation").?.object;
+    try expectEqualStrings("stable", mutation.get("operator_stability").?.string);
+    try expectEqualStrings("ast", mutation.get("backend").?.string);
+    try expectEqualStrings("stable", mutation.get("backend_stability").?.string);
+    try expectEqualStrings("docs/killed.md", mutation.get("doc_file").?.string);
+    try expect(mutation.get("doc_line").?.integer > 0);
+    try expectEqualStrings(first.get("source_ref").?.string, mutation.get("source_ref").?.string);
+}
+
 // --- Deterministic stable mutation report snapshots ------------------------
 
 test "deterministic stable mutation report snapshot for killed/survived mutants" {
@@ -57,9 +115,9 @@ test "deterministic stable mutation report snapshot for killed/survived mutants"
     const src = try readFile(a, base ++ "killed.md");
     const r = try me.stableMutationRun(a, "docs/killed.md", src, mock(), true);
     try expect(r.cases.len > 0);
-    try expect(r.mutation_summary.killed >= 1);
+    try expect(r.summary.mutation.killed >= 1);
     const json = try me.stableToJson(a, r);
-    try expectEqualStrings(killed_snapshot, json);
+    try expectEqualStrings(std.mem.trimEnd(u8, killed_snapshot, "\n"), json);
 }
 
 test "survived documentation mutant gets a ds_ survivor ref and a stable snapshot" {
@@ -79,7 +137,7 @@ test "survived documentation mutant gets a ds_ survivor ref and a stable snapsho
     }
     try expect(found);
     const json = try me.stableToJson(a, r);
-    try expectEqualStrings(survived_snapshot, json);
+    try expectEqualStrings(std.mem.trimEnd(u8, survived_snapshot, "\n"), json);
 }
 
 // --- runner_evidence carries failure_kind ----------------------------------
@@ -140,9 +198,9 @@ test "normal doctest failure blocks mutation-aware execution for that case" {
         try expectEqual(@as(usize, 0), c.mutation.mutant_id.len); // no mutant executed
         try expectEqualStrings("normal_doctest_did_not_pass", c.mutation.runner_evidence.skip_reason.?);
     }
-    try expect(r.mutation_summary.skipped >= 1);
-    try expectEqual(@as(u64, 0), r.mutation_summary.killed);
-    try expectEqual(@as(u64, 0), r.mutation_summary.survived);
+    try expect(r.summary.mutation.skipped >= 1);
+    try expectEqual(@as(u64, 0), r.summary.mutation.killed);
+    try expectEqual(@as(u64, 0), r.summary.mutation.survived);
 }
 
 // --- Schema agreement + identity determinism -------------------------------
@@ -181,6 +239,42 @@ test "doctest.report.v1 schema defines the additive mutation extension" {
         if (std.mem.eql(u8, r.string, "failure_kind")) has_failure_kind = true;
     }
     try expect(has_failure_kind);
+
+    const ev_props = defs.get("mutation_runner_evidence").?.object.get("properties").?.object;
+    const runner_status_enum = ev_props.get("status").?.object.get("enum").?.array.items;
+    var has_runner_killed = false;
+    var has_runner_survived = false;
+    for (runner_status_enum) |value| {
+        if (std.mem.eql(u8, value.string, "killed")) has_runner_killed = true;
+        if (std.mem.eql(u8, value.string, "survived")) has_runner_survived = true;
+    }
+    try expect(has_runner_killed and has_runner_survived);
+
+    const failure_kind_enum = ev_props.get("failure_kind").?.object.get("enum").?.array.items;
+    var has_invalid_failure_kind = false;
+    for (failure_kind_enum) |value| {
+        if (std.mem.eql(u8, value.string, "invalid")) has_invalid_failure_kind = true;
+    }
+    try expect(has_invalid_failure_kind);
+
+    const mutation_required = defs.get("case_mutation").?.object.get("required").?.array.items;
+    for ([_][]const u8{ "operator_stability", "backend", "backend_stability", "doc_file", "doc_line", "source_ref" }) |required_field| {
+        var found = false;
+        for (mutation_required) |r| {
+            if (std.mem.eql(u8, r.string, required_field)) found = true;
+        }
+        try expect(found);
+    }
+
+    const case_rules = defs.get("case").?.object.get("allOf").?.array.items;
+    var has_survivor_rule = false;
+    for (case_rules) |rule| {
+        const txt = try std.json.Stringify.valueAlloc(a, rule, .{});
+        if (std.mem.indexOf(u8, txt, "survivor_ref") != null and std.mem.indexOf(u8, txt, "survived") != null) {
+            has_survivor_rule = true;
+        }
+    }
+    try expect(has_survivor_rule);
 }
 
 test "dm_ and ds_ derivation is deterministic and distinct" {

@@ -75,6 +75,36 @@ test "a documented transformation no mutator produces is reported as drift" {
     try expectEqualStrings(mismatch_snapshot, rendered);
 }
 
+test "unparseable mutator-spec before blocks report backend parse diagnostics" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const doc =
+        \\# invalid mutator spec
+        \\
+        \\```zig before
+        \\const std = @import("std");
+        \\test "invalid" {
+        \\    try std.testing.expect(true)
+        \\}
+        \\```
+        \\
+        \\```zig after
+        \\const std = @import("std");
+        \\test "invalid" {
+        \\    try std.testing.expect(false);
+        \\}
+        \\```
+        \\
+    ;
+    const v = try md.validateDoc(a, "docs/INVALID_MUTATOR_SPEC.md", doc);
+    try expectEqual(@as(usize, 1), v.pairs.len);
+    try expect(!v.pairs[0].matched);
+    try expectEqual(@as(usize, 1), v.diagnostics.len);
+    try expectEqualStrings("ZNTL_BACKEND_PARSE_ERROR", v.diagnostics[0].code);
+    try expect(std.mem.indexOf(u8, v.diagnostics[0].message, "could not parse") != null);
+}
+
 test "docs/MUTATOR_SPEC.md before/after pairs all match the mutators" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
