@@ -32,7 +32,7 @@ pub fn run(
             return 0;
         },
         .check => |globals| {
-            const resolved = try resolveConfigPath(gpa, globals);
+            const resolved = (try configPathOrReject(gpa, globals, stderr)) orelse return 2;
             const result = try zentinel.check_command.run(gpa, .{
                 .config_source = readConfig(gpa, io, dir, resolved),
                 .config_path = resolved,
@@ -90,10 +90,29 @@ fn runPassthrough(
 
 /// Resolve the config path: an explicit `--config` wins; otherwise the default
 /// config name is looked up under `--root` (default `.`).
-fn resolveConfigPath(gpa: std.mem.Allocator, globals: zentinel.Globals) ![]const u8 {
-    if (globals.config_explicit) return globals.config_path;
+const ConfigPathError = error{ConfigOutsideRoot} || std.mem.Allocator.Error;
+
+fn resolveConfigPath(gpa: std.mem.Allocator, globals: zentinel.Globals) ConfigPathError![]const u8 {
+    if (globals.config_explicit) {
+        // Read-side path containment (F-5): an explicit --config is read verbatim,
+        // so reject one that escapes the project root, matching the write-side guard.
+        if (zentinel.config.isOutsideRoot(globals.config_path)) return error.ConfigOutsideRoot;
+        return globals.config_path;
+    }
     if (std.mem.eql(u8, globals.root, ".")) return globals.config_path;
     return std.fmt.allocPrint(gpa, "{s}/{s}", .{ globals.root, globals.config_path });
+}
+
+/// Resolve the config path, writing a clear error and returning null when an
+/// explicit `--config` escapes the project root (F-5). The caller exits 2 on null.
+fn configPathOrReject(gpa: std.mem.Allocator, globals: zentinel.Globals, stderr: *std.Io.Writer) !?[]const u8 {
+    return resolveConfigPath(gpa, globals) catch |e| switch (e) {
+        error.ConfigOutsideRoot => {
+            try stderr.writeAll("error: --config must stay within the project root\n");
+            return null;
+        },
+        error.OutOfMemory => return error.OutOfMemory,
+    };
 }
 
 fn readConfig(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, path: []const u8) ?[]const u8 {
@@ -325,7 +344,7 @@ fn runRun(
         return 2;
     };
 
-    const cfg_path = try resolveConfigPath(gpa, inv.globals);
+    const cfg_path = (try configPathOrReject(gpa, inv.globals, stderr)) orelse return 2;
     const cfg_bytes = readConfig(gpa, io, dir, cfg_path) orelse {
         try stderr.print("error: config not found at {s}\n", .{cfg_path});
         return 2;
@@ -478,7 +497,7 @@ fn runListMutants(
         return 2;
     };
 
-    const cfg_path = try resolveConfigPath(gpa, inv.globals);
+    const cfg_path = (try configPathOrReject(gpa, inv.globals, stderr)) orelse return 2;
     const cfg_bytes = readConfig(gpa, io, dir, cfg_path) orelse {
         try stderr.print("error: config not found at {s}\n", .{cfg_path});
         return 2;
@@ -679,6 +698,11 @@ fn runAiCommand(
     if (flow != .review_tests and mutant_ref == null) {
         return aiOptionError(stderr, "missing <mutant-ref>");
     }
+    // Read-side path containment (F-5): an out-of-root --input-report escapes the
+    // project root, so reject it like the write-side --output guard.
+    if (zentinel.readPathOutsideRootOption(inv.args)) |opt| {
+        return aiOptionError(stderr, try std.fmt.allocPrint(arena, "{s} must stay within the project root", .{opt}));
+    }
 
     const settings = aiSettings(arena, gpa, io, dir, inv.globals);
 
@@ -811,6 +835,16 @@ fn runDoctestAi(
     };
     const case_ref: ?[]const u8 = if (flow_is_case) positional else null;
 
+    // Read-side path containment (F-5): reject an out-of-root --input-report,
+    // --file, or positional documentation path so reads honor the write-side
+    // root-containment contract.
+    if (zentinel.readPathOutsideRootOption(inv.args)) |opt| {
+        return aiOptionError(stderr, try std.fmt.allocPrint(arena, "{s} must stay within the project root", .{opt}));
+    }
+    if (doc_path) |d| {
+        if (zentinel.config.isOutsideRoot(d)) return aiOptionError(stderr, "documentation path must stay within the project root");
+    }
+
     const settings = aiSettings(arena, gpa, io, dir, inv.globals);
 
     var root_dir = try dir.openDir(io, inv.globals.root, .{ .iterate = true });
@@ -902,6 +936,10 @@ fn runDoctestSurvivorAi(
         }
     }
     if (survivor_ref == null) return aiOptionError(stderr, "missing <survivor-ref>");
+    // Read-side path containment (F-5): reject an out-of-root --input-report.
+    if (zentinel.readPathOutsideRootOption(inv.args)) |opt| {
+        return aiOptionError(stderr, try std.fmt.allocPrint(arena, "{s} must stay within the project root", .{opt}));
+    }
 
     const settings = aiSettings(arena, gpa, io, dir, inv.globals);
 
@@ -1092,6 +1130,11 @@ fn runDoctestMutate(
         try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: doctest --mutate requires --file\n");
         return 2;
     };
+    // Read-side path containment (F-5): reject an out-of-root --file.
+    if (zentinel.config.isOutsideRoot(doc)) {
+        try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --file must stay within the project root\n");
+        return 2;
+    }
     // Opt-in: passing `--mutate` explicitly is the opt-in (task 113 retired the
     // hardcoded fixtures-only gate, so it now runs over any --file documentation).
 

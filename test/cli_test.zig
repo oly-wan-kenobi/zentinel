@@ -137,3 +137,25 @@ test "known future global option returns ZNTL_CLI_INVALID_OPTION before its owne
     try std.testing.expectEqualStrings("ZNTL_CLI_INVALID_OPTION", out.error_code.token());
     try std.testing.expectEqualStrings("--config", out.detail);
 }
+
+// --- Read-side path containment (task 121, audit F-5) -----------------------
+//
+// The write side rejects an out-of-root `--output`; the read side must honor the
+// same root-containment contract for the untrusted read paths so the CLI no
+// longer claims a guarantee it does not enforce. `readPathOutsideRootOption`
+// flags a `--input-report`/`--file` value that escapes the root (absolute or a
+// `..` segment) -- the same `config.isOutsideRoot` test as the write side --
+// while legitimate in-root reads pass.
+
+test "readPathOutsideRootOption rejects out-of-root --input-report and --file (F-5)" {
+    // Absolute and `..`-traversal read paths escape the project root and are named
+    // for a clear usage error.
+    try std.testing.expectEqualStrings("--input-report", zentinel.readPathOutsideRootOption(&[_][]const u8{ "m", "--input-report", "/abs/outside.json" }).?);
+    try std.testing.expectEqualStrings("--input-report", zentinel.readPathOutsideRootOption(&[_][]const u8{ "m", "--input-report", "../../../tmp/outside.json" }).?);
+    try std.testing.expectEqualStrings("--file", zentinel.readPathOutsideRootOption(&[_][]const u8{ "suggest", "--file", "/etc/passwd" }).?);
+
+    // Legitimate in-root reads (the default report path, a relative doc path) pass.
+    try std.testing.expect(zentinel.readPathOutsideRootOption(&[_][]const u8{ "m", "--input-report", "zig-out/zentinel/report.json" }) == null);
+    try std.testing.expect(zentinel.readPathOutsideRootOption(&[_][]const u8{ "suggest", "--file", "docs/CLI_SPEC.md" }) == null);
+    try std.testing.expect(zentinel.readPathOutsideRootOption(&[_][]const u8{"review-tests"}) == null);
+}

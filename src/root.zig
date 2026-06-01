@@ -449,6 +449,23 @@ pub fn route(args: []const []const u8) Route {
     return .passthrough;
 }
 
+/// Read-side path containment (audit F-5): a user-supplied `--input-report` or
+/// `--file` value that escapes the project root (an absolute path or a `..`
+/// segment) is rejected so the read paths honor the same root-containment
+/// contract as the write-side `--output` guard (`config.isOutsideRoot`). Returns
+/// the offending option name for a clear usage error, or null when every read
+/// path in `args` stays within the project root. Pure; reads no filesystem.
+pub fn readPathOutsideRootOption(args: []const []const u8) ?[]const u8 {
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const a = args[i];
+        if ((eq(a, "--input-report") or eq(a, "--file")) and i + 1 < args.len) {
+            if (config.isOutsideRoot(args[i + 1])) return a;
+        }
+    }
+    return null;
+}
+
 test "project name is the stable constant" {
     try std.testing.expectEqualStrings("zentinel", project_name);
 }

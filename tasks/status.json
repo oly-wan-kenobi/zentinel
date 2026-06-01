@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "121",
+  "next_task": null,
   "completed_tasks": [
     "068",
     "069",
@@ -123,14 +123,15 @@
     "117",
     "118",
     "119",
-    "120"
+    "120",
+    "121"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 120 (redact all AI context fields, audit F-4) completed: every path/source/diff-bearing AI-context field (mutant.file/original/replacement/diff; doctest file/source_ref/mutated_diff; diagnostics; doc paths; evidence) plus the path-echoing stub responses now run through path-normalization (absolute -> <path>) and secret scrubbing in both the mutation and doctest flows, and privacy.redactions_applied records every redaction (configured patterns + synthetic absolute_path/secret_value labels). Verified by failing-before/passing-after context + rendered-output unit tests and a real-binary before/after stdout proof. next_task advanced to 121."
+    "notes": "Task 121 (align read-side path containment, audit F-5) completed: --input-report, doctest --file, the positional doc path, and an explicit --config now reuse the write-side config.isOutsideRoot guard, rejecting absolute and `..`-escaping read paths with a clear exit-2 error so reads honor the same root-containment contract as --output. CLI_SPEC is outside the task's allowed files, so the within-scope resolution is enforcement. Verified by a failing-before/passing-after unit test over the pure readPathOutsideRootOption helper and a real-binary before/after read proof. The audit-finding backlog (tasks 117-121) is complete; no dependency-ready queued task remains, so next_task is null."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5923,6 +5924,49 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/120/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "121",
+      "failing_evidence": "failing_command: `zig build test` with the containment test in test/cli_test.zig written first. failing_output_excerpt: test/cli_test.zig:153 failed to compile -- 'root source file struct root has no member named readPathOutsideRootOption' (1 compilation error) -- because the read-side containment helper did not exist; the read paths accepted absolute and `..` values silently. implementation_started_after_failure: true. passing_command: after adding root.readPathOutsideRootOption and wiring it (plus the resolveConfigPath --config check) into the cli read sites, `zig build test` passed (519 tests). The real binary confirmed it: pre-fix `explain m_secret --input-report /abs/outside.json` exited 0 and surfaced the out-of-root file's mutant; post-fix the absolute and `..` --input-report/--config are rejected with exit 2 and a clear 'must stay within the project root' message, while in-root reads still work.",
+      "implementation_summary": "Fixed adversarial-audit finding F-5 (Low, integrity asymmetry). The write side rejects an out-of-root --output, but the read side accepted absolute paths and `..` traversal for --input-report (read via root_dir.readFileAlloc with the raw path) and an explicit --config (resolveConfigPath returned it verbatim), silently violating the stated root-containment invariant. docs/CLI_SPEC.md is outside task 121's allowed files, so the within-scope resolution is to enforce containment (the acceptance criterion's first branch) rather than document an exception. Added pure root.readPathOutsideRootOption(args): it scans for a --input-report/--file value that escapes the root via the write-side config.isOutsideRoot string guard (absolute or `..`) and returns the offending option name. Wired it into runAiCommand, runDoctestAi (which also checks the positional/--file documentation path), runDoctestSurvivorAi, and runDoctestMutate, each rejecting with a clear exit-2 ZNTL_CLI_INVALID_OPTION message. resolveConfigPath now returns error.ConfigOutsideRoot for an out-of-root explicit --config, caught by the new configPathOrReject helper into a clean exit-2 'error: --config must stay within the project root' in check/run/list-mutants; aiSettings already swallows the config error (AI falls back to defaults rather than reading an out-of-root config). Containment stays string-level (matching the audit's confirmed cases); read-side symlink resolution is intentionally not added because a read path is an explicit invoker input, not an untrusted-checkout target. No forbidden files touched (src/ai/**, src/runner.zig, build.zig, build.zig.zon); no mutation verdict or AI redaction change. Legitimate in-root reads are unaffected.",
+      "files_changed": [
+        "src/root.zig",
+        "src/cli.zig",
+        "test/cli_test.zig",
+        "artifacts/pipeline/121/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/cli_test.zig: 'readPathOutsideRootOption rejects out-of-root --input-report and --file (F-5)' -- asserts an absolute and a `..`-traversal --input-report/--file value is flagged with its option name while the default report path, a relative doc path, and an option-free arg list pass. Fails to compile before the helper exists."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): test/cli_test.zig:153 'root has no member named readPathOutsideRootOption' -- 1 compilation error",
+        "zig build test (passing, after the fix): 519 tests green",
+        "real-binary before/after: pre-fix absolute --input-report exited 0 and read the out-of-root file; post-fix absolute and `..` --input-report/--config rejected with exit 2 and a clear message; in-root --input-report still exits 0",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 121 was active (changed files within allowed_files -- src/root.zig, src/cli.zig, test/cli_test.zig, and the artifacts/pipeline/121 verification report -- plus the four task-control files) and again after the complete-state transition with next_task set to null (no dependency-ready queued task remains; the audit-finding backlog 117-121 is complete). No coverage-gap registry rows were changed."
+      },
+      "dogfooding_implication": "zentinel's read and write path-containment story is now consistent: its own CLI no longer claims a root-containment guarantee it does not enforce, so running its advisory and config-reading commands against a checkout cannot be pointed at an out-of-root file through --input-report, --file, or --config without a clear rejection, while legitimate in-root reads are unchanged.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/121/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",
