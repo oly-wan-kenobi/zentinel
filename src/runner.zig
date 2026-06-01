@@ -92,6 +92,33 @@ fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.
     return normalized[0..len];
 }
 
+/// Markers that distinguish a Zig compile failure from a post-compile test
+/// failure in pinned Zig 0.16 `zig test`/`zig build` output (docs/REPORT_FORMAT.md,
+/// I-010). A compile failure emits compiler diagnostics of the form
+/// `<path>:<line>:<col>: error: ...` and never runs the test binary, so the test
+/// runner's completion summary (`N passed; M skipped; K failed.`) is absent; a
+/// runtime assertion failure always prints that summary.
+const compile_diagnostic_marker = ": error: ";
+const test_runner_summary_marker = "passed;";
+
+/// True if `marker` appears in either captured stream.
+fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bool {
+    return std.mem.indexOf(u8, stderr, marker) != null or std.mem.indexOf(u8, stdout, marker) != null;
+}
+
+/// Deterministically decide whether a non-zero (non-timeout, non-crash) command
+/// outcome is a Zig compile failure rather than a post-compile test failure. The
+/// signal is taken only from captured command output -- AI never influences
+/// `failure_kind` or `status` (I-001). It is a compile failure exactly when the
+/// output carries a Zig compile diagnostic and shows no evidence that the test
+/// runner ran (its completion summary is absent). When neither signal is present
+/// (for example a custom non-Zig command), the result conservatively stays a test
+/// failure, preserving the prior classification.
+fn isCompileFailure(stdout: []const u8, stderr: []const u8) bool {
+    if (outputContains(stdout, stderr, test_runner_summary_marker)) return false;
+    return outputContains(stdout, stderr, compile_diagnostic_marker);
+}
+
 /// Classify one raw outcome into a `CommandResult` for the given phase. Status is
 /// derived only from the command outcome (runner evidence authority, I-001); AI
 /// cannot influence it. Reused for baseline and mutant command classification.
@@ -121,7 +148,10 @@ pub fn classifyCommand(
             failure_kind = .none;
         } else {
             status = .failed;
-            failure_kind = .test_failure;
+            // A compile failure is a normal Zig compile diagnostic with no test
+            // run; a post-compile assertion failure stays `test_failure`. This
+            // keeps `compile_error` out of the headline kill count (I-010, F-2).
+            failure_kind = if (isCompileFailure(raw.stdout, raw.stderr)) .compile_error else .test_failure;
         }
     } else {
         // No exit code without timeout/crash: treat as a command failure.

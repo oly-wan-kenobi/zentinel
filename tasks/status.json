@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "118",
+  "next_task": "119",
   "completed_tasks": [
     "068",
     "069",
@@ -120,14 +120,15 @@
     "114",
     "115",
     "116",
-    "117"
+    "117",
+    "118"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 117 (own Mutant.original across parse teardown, audit F-1) completed: ast_backend.Collector.add dupes candidate.original into the collector's long-lived allocator so stable-operator candidates survive the per-file `defer parsed.deinit()` and are classified instead of misclassified `invalid`. Verified by a failing-before/passing-after sandbox unit test and a real-binary before/after verdict identical across Debug/ReleaseSafe/ReleaseFast/ReleaseSmall (total=3 killed=1 survived=2 invalid=0). next_task advanced to 118."
+    "notes": "Task 118 (classify compile error versus killed, audit F-2) completed: runner.classifyCommand now sets failure_kind=.compile_error for a non-zero command whose captured output carries a Zig compile diagnostic and no test-runner completion summary, so terminalStatus reports compile_error instead of crediting a compiler rejection to the tests as killed. Verified by failing-before/passing-after classifier and terminal-status unit tests plus a real-binary before/after verdict over an errdefer_remove compile-breaking mutant. next_task advanced to 119."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5783,6 +5784,51 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/117/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "118",
+      "failing_evidence": "failing_command: `zig build test` with the classifier/terminal-status tests written first. failing_output_excerpt: test/runner_baseline_test.zig:184 'a non-zero command carrying a Zig compile diagnostic classifies as compile_error' failed with 'expected .compile_error, found .test_failure', and test/mutant_runner_test.zig:88 'mutant whose project fails to compile is classified compile_error, not killed' failed with 'expected .compile_error, found .killed' (508/510 passed, 2 failed). implementation_started_after_failure: true. passing_command: after adding the deterministic compile-vs-test detector to runner.classifyCommand, `zig build test` passed (510 tests). The real binary confirmed it: an errdefer_remove mutant that orphans an unused local (`error: unused local constant`) went from status=killed/failure_kind=test_failure (pre-fix, killed=1 compile_error=0) to status=compile_error/failure_kind=compile_error (post-fix, killed=0 compile_error=1).",
+      "implementation_summary": "Fixed adversarial-audit finding F-2 (High, wrong deterministic field). runner.classifyCommand set failure_kind=.test_failure for every non-zero exit and never emitted .compile_error, so terminalStatus always took the else=>.killed branch and a mutant whose project failed to compile was reported `killed`, inflating the headline kill count and falsely crediting a compiler rejection to the test suite. Added a deterministic, output-only detector (isCompileFailure): a non-zero (non-timeout, non-crash) command is a compile failure iff its captured stdout/stderr carries a Zig compile diagnostic (the `: error: ` token of the `<path>:<line>:<col>: error: ...` form) and shows no test-runner completion summary (`passed;`). On pinned Zig 0.16 a compile failure emits diagnostics and never runs the test binary (no summary), while a post-compile assertion failure always prints the summary. classifyCommand now sets failure_kind=.compile_error in that case; terminalStatus already mapped it to ResultStatus .compile_error, so src/mutant_runner.zig needed no change. Documented the heuristic in docs/REPORT_FORMAT.md (the failure_kind/status table already matched the intended behavior). The signal is derived only from command output, so AI cannot influence failure_kind or status (I-001, I-010). Conservative default preserves prior `test_failure` classification when neither signal is present. No forbidden files touched (src/ai/**, src/report.zig, build.zig, build.zig.zon); the compile_error counter and ResultStatus/FailureKind enums already existed (no schema change).",
+      "files_changed": [
+        "src/runner.zig",
+        "docs/REPORT_FORMAT.md",
+        "test/runner_baseline_test.zig",
+        "test/mutant_runner_test.zig",
+        "artifacts/pipeline/118/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/runner_baseline_test.zig: 'a non-zero command carrying a Zig compile diagnostic classifies as compile_error' (fails before the fix: found .test_failure), 'a post-compile assertion failure stays test_failure' (output with the `0 passed; 0 skipped; 1 failed.` summary), and 'a bare non-zero exit with no compile diagnostic stays test_failure' (conservative default).",
+        "test/mutant_runner_test.zig: 'mutant whose project fails to compile is classified compile_error, not killed' -- a compile-diagnostic command result yields terminal ResultStatus .compile_error and failure_kind .compile_error (fails before the fix: found .killed). Added an outcomeErr helper carrying stderr."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): runner_baseline_test.zig:184 found .test_failure; mutant_runner_test.zig:88 found .killed -- 508/510 passed, 2 failed",
+        "zig build test (passing, after the fix): 510 tests green",
+        "real-binary before/after (errdefer_remove compile-breaking mutant): pre-fix killed/test_failure (killed=1 compile_error=0); post-fix compile_error/compile_error (killed=0 compile_error=1)",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 118 was active (changed files within allowed_files -- src/runner.zig, docs/REPORT_FORMAT.md, test/runner_baseline_test.zig, test/mutant_runner_test.zig, and the artifacts/pipeline/118 verification report -- plus the four task-control files) and again after the complete-state transition with next_task set to 119 (119 depends on 118, now complete, so it is the first dependency-ready queued task). No coverage-gap registry rows were changed."
+      },
+      "dogfooding_implication": "zentinel reports an honest kill count for its own suite: mutants the compiler rejects are surfaced as compile_error, not credited to the tests as killed. Combined with task 117 (valid candidates no longer dropped to invalid), the run/report path now classifies survivors, kills, and compile errors truthfully for self-mutation.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/118/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

@@ -56,6 +56,10 @@ fn classify(a: std.mem.Allocator, source: []const u8, original: []const u8, work
     return mutant_runner.run(a, plusMutant(source, original), source, workspace, commands, "<project>", mock.exec(), .Debug);
 }
 
+fn outcomeErr(exit: ?i64, stderr: []const u8) runner.RawOutcome {
+    return .{ .exit_code = exit, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = stderr };
+}
+
 test "mutant whose tests fail is classified killed" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -66,6 +70,24 @@ test "mutant whose tests fail is classified killed" {
     try expect(res.classifier_source == .runner_command_evidence);
     try expect(res.commands[0].phase == .mutant);
     try expect(res.commands[0].command.argv.len == 3); // structured argv, not a display string
+}
+
+test "mutant whose project fails to compile is classified compile_error, not killed" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const src = try readTarget(a);
+    // A pinned-Zig-0.16 compile diagnostic with no test-runner summary: the mutated
+    // project never compiled, so the tests cannot have caught it (audit F-2, I-010).
+    const diag =
+        \\target.zig:2:14: error: expected type 'i64', found 'bool'
+        \\    return a - b;
+        \\           ^
+    ;
+    const res = try classify(a, src, "+", .created, &.{"zig build test"}, &.{outcomeErr(1, diag)});
+    try expectEqual(report.ResultStatus.compile_error, res.status);
+    try expect(res.classifier_source == .runner_command_evidence);
+    try expectEqual(report.FailureKind.compile_error, res.commands[0].failure_kind);
 }
 
 test "mutant whose tests pass is classified survived" {

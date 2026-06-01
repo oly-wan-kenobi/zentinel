@@ -146,6 +146,65 @@ test "baseline command evidence matches the documented snapshot shape" {
     try expectEqualStrings(command_snapshot, json);
 }
 
+// --- Compile error vs test failure classification (task 118, audit F-2) -----
+//
+// On pinned Zig 0.16 a `zig test`/`zig build` invocation that fails to compile
+// emits compiler diagnostics (`<path>:<line>:<col>: error: ...`) and never runs
+// the test binary, so the test-runner completion summary
+// (`N passed; M skipped; K failed.`) is absent. A post-compile assertion failure
+// always prints that summary. The runner must classify the former as
+// `compile_error` and the latter as `test_failure`, so a compile-broken mutant is
+// reported `compile_error` (I-010), not credited to the tests as `killed`.
+
+const zig_compile_diagnostic =
+    \\calc.zig:13:14: error: use of undeclared identifier 'gone'
+    \\    return a + gone;
+    \\             ^~~~
+;
+
+const zig_test_failure =
+    \\1/1 calc.test.add...expected 5, found -1
+    \\FAIL (TestExpectedEqual)
+    \\0 passed; 0 skipped; 1 failed.
+    \\error: the following test command failed with exit code 1:
+;
+
+fn classifyOne(a: std.mem.Allocator, raw: runner.RawOutcome) !report.CommandResult {
+    const parsed = try command.parse(a, "zig test calc.zig");
+    return runner.classifyCommand(a, .mutant, "zig test calc.zig", parsed.ok, "<workspace>", raw);
+}
+
+test "a non-zero command carrying a Zig compile diagnostic classifies as compile_error" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const cr = try classifyOne(a, outcome(1, false, false, "", zig_compile_diagnostic));
+    try expectEqual(report.CommandStatus.failed, cr.status);
+    try expectEqual(report.FailureKind.compile_error, cr.failure_kind);
+}
+
+test "a post-compile assertion failure stays test_failure" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const cr = try classifyOne(a, outcome(1, false, false, "", zig_test_failure));
+    try expectEqual(report.CommandStatus.failed, cr.status);
+    try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
+}
+
+test "a bare non-zero exit with no compile diagnostic stays test_failure" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // No compile diagnostic and no test-runner summary: conservatively keep the
+    // existing test_failure classification rather than over-claiming compile_error.
+    const cr = try classifyOne(a, outcome(1, false, false, "", "boom"));
+    try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
+}
+
 // --- Truthful minimal environment (task 112) -------------------------------
 //
 // The report labels every command `environment_policy = minimal`; the real

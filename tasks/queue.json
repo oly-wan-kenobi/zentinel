@@ -3861,7 +3861,7 @@
       "title": "Classify Compile Error Versus Killed",
       "file": "tasks/118-classify-compile-error-vs-killed.md",
       "phase": 8,
-      "state": "queued",
+      "state": "complete",
       "dependencies": [
         "117"
       ],
