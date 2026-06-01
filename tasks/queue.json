@@ -3821,6 +3821,149 @@
         "build.zig",
         "build.zig.zon"
       ]
+    },
+    {
+      "id": "117",
+      "order": "072",
+      "title": "Own Mutant Original Across Parse Teardown",
+      "file": "tasks/117-own-mutant-original-across-teardown.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "116"
+      ],
+      "allowed_files": [
+        "src/ast_backend.zig",
+        "src/mutators/boolean.zig",
+        "src/mutators/error_path.zig",
+        "src/mutators/optional.zig",
+        "src/mutators/integer_boundary.zig",
+        "src/mutators/loop_boundary.zig",
+        "test/mutators/**",
+        "test/sandbox_test.zig",
+        "test/integration_run_test.zig",
+        "test/fixtures/integration/**",
+        "artifacts/pipeline/117/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/runner.zig",
+        "src/report.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "118",
+      "order": "073",
+      "title": "Classify Compile Error Versus Killed",
+      "file": "tasks/118-classify-compile-error-vs-killed.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "117"
+      ],
+      "allowed_files": [
+        "src/runner.zig",
+        "src/mutant_runner.zig",
+        "docs/REPORT_FORMAT.md",
+        "test/runner_baseline_test.zig",
+        "test/mutant_runner_test.zig",
+        "test/snapshots/**",
+        "artifacts/pipeline/118/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/report.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "119",
+      "order": "074",
+      "title": "Symlink-Safe Output Containment",
+      "file": "tasks/119-symlink-safe-output-containment.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "118"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/config.zig",
+        "test/cli_test.zig",
+        "test/config_test.zig",
+        "artifacts/pipeline/119/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/runner.zig",
+        "src/mutant_runner.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "120",
+      "order": "075",
+      "title": "Redact All AI Context Fields",
+      "file": "tasks/120-redact-all-ai-context-fields.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "119"
+      ],
+      "allowed_files": [
+        "src/ai/context.zig",
+        "src/ai/command.zig",
+        "src/ai/doctest_command.zig",
+        "src/ai/redaction.zig",
+        "docs/AI_CONTEXT_SCHEMA.md",
+        "test/ai_context_test.zig",
+        "test/ai_command_test.zig",
+        "artifacts/pipeline/120/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/run_command.zig",
+        "src/runner.zig",
+        "src/report.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
+    },
+    {
+      "id": "121",
+      "order": "076",
+      "title": "Align Read-Side Path Containment",
+      "file": "tasks/121-align-read-side-path-containment.md",
+      "phase": 8,
+      "state": "queued",
+      "dependencies": [
+        "120"
+      ],
+      "allowed_files": [
+        "src/cli.zig",
+        "src/root.zig",
+        "test/cli_test.zig",
+        "artifacts/pipeline/121/**",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "forbidden_files": [
+        "src/ai/**",
+        "src/runner.zig",
+        "build.zig",
+        "build.zig.zon"
+      ]
     }
   ]
 }

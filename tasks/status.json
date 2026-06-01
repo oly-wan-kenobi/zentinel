@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": null,
+  "next_task": "117",
   "completed_tasks": [
     "068",
     "069",
@@ -126,7 +126,7 @@
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Task 116 CLI and spec drift cleanup completed (final Phase-8 task). Reconciled the cluster of low-impact CLI/spec drift: (1) --help now lists the doctest AI/mutation subcommands and the report formats (run text|json|jsonl|junit, doctest text|json), synced across src/root.zig help_text, test/snapshots/cli_help.txt, and docs/CLI_SPEC.md; (2) the advertised-but-unimplemented `doctest --format jsonl` was removed from CLI_SPEC (the code only ever accepted text|json, which is now the truthful advertisement); (3) compound-assignment arithmetic (+=,-=,*=,/=) is documented as out of scope for v1 in docs/MUTATOR_SPEC.md and src/mutators/arithmetic.zig (no behavior change, respecting the no-large-new-mutator-work non-goal); (4) the vestigial not_implemented_commands list and its orphaned contains helper were removed from src/root.zig since route() owns the full command surface. Proven by two CLI tests that fail before the fix (help omits 'doctest explain' at cli_test.zig:33; dispatch('run') returned ZNTL_CLI_COMMAND_NOT_IMPLEMENTED) and pass after, plus the real binary's --help and `doctest --format jsonl` (exit 2, clear 'must be text or json'). Full suite green (506 tests); zig build, zig fmt --check, git diff --check, validator all clean. next_task is null: tasks 106-116 (Phase 8) are all complete and no dependency-ready queued task remains."
+    "notes": "Queued Phase-8 audit-follow-up backlog tasks 117-121 (orders 072-076) addressing adversarial-audit findings F-1..F-5: 117 owns Mutant.original across parse teardown (Critical false-survivor / mode-dependent invalid); 118 classifies compile_error vs killed; 119 makes --output containment symlink-safe; 120 redacts all AI-context fields; 121 aligns read-side path containment. All five are queued (no active task) in a strict dependency chain 116<-117<-118<-119<-120<-121; next_task is 117 (its only dependency 116 is complete). No product source changed; this is a Task-Queue-Manager backlog insertion synchronized across queue.json, QUEUE.md, status.json, and STATUS.md."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
