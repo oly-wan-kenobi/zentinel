@@ -12,6 +12,7 @@ const options = @import("integration_options");
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
+const expectEqualStrings = std.testing.expectEqualStrings;
 
 const read_limit = std.Io.Limit.limited(1 << 20);
 
@@ -68,9 +69,31 @@ test "the built binary mutates a real fixture project and reports one killed and
     };
     const summary = parsed.object.get("summary").?.object;
 
-    // The real run produced exactly the fixture's two arithmetic mutants: add's is
-    // killed by the same-file test, mul's survives (no test exercises it).
-    try expectEqual(@as(i64, 2), summary.get("total").?.integer);
+    // The real run produced the fixture's two arithmetic mutants plus the
+    // error-path mutant: add's is killed by the same-file test; mul's and
+    // parsePositive's error_catch_unreachable mutant survive (no test exercises
+    // them). `invalid` must be zero -- before task 117 the error_catch_unreachable
+    // mutant's `original` borrowed the parsed tree's source, dangled past the
+    // per-file `defer parsed.deinit()`, and the real binary misclassified this
+    // valid candidate as `invalid` on a Debug build (the freed bytes poisoned to
+    // 0xAA), hiding a real survivor behind a false "0 survivors" for that operator.
+    try expectEqual(@as(i64, 3), summary.get("total").?.integer);
     try expectEqual(@as(i64, 1), summary.get("killed").?.integer);
-    try expectEqual(@as(i64, 1), summary.get("survived").?.integer);
+    try expectEqual(@as(i64, 2), summary.get("survived").?.integer);
+    try expectEqual(@as(i64, 0), summary.get("invalid").?.integer);
+
+    // A non-arithmetic operator (error_catch_unreachable) is executed end-to-end
+    // and classified `survived`, never dropped to `invalid`; its `original` is the
+    // real handler text (`0`), not freed memory (task 117 acceptance criterion 4).
+    const mutants = parsed.object.get("mutants").?.array;
+    var saw_error_catch = false;
+    for (mutants.items) |entry| {
+        const obj = entry.object;
+        if (std.mem.eql(u8, obj.get("operator").?.string, "error_catch_unreachable")) {
+            saw_error_catch = true;
+            try expectEqualStrings("survived", obj.get("result").?.object.get("status").?.string);
+            try expectEqualStrings("0", obj.get("original").?.string);
+        }
+    }
+    try expect(saw_error_catch);
 }

@@ -1,12 +1,15 @@
-# Integration fixture config (task 111). The shipped binary discovers calc.zig,
-# generates the two arithmetic mutants, and runs the same-file test command in an
-# isolated per-mutant workspace. `add`'s mutant is killed; `mul`'s survives.
+# Integration fixture config (task 111, extended in task 117). The shipped
+# binary discovers calc.zig, generates two arithmetic mutants and one
+# error-path mutant, and runs the same-file test command in an isolated
+# per-mutant workspace. `add`'s mutant is killed; `mul`'s and parsePositive's
+# error_catch_unreachable mutant survive. The error-path operator exercises a
+# non-arithmetic mutant end-to-end through the real binary (F-1 regression).
 [project]
 name = "integration_sample"
 include = ["calc.zig"]
 
 [mutators]
-enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+enabled = ["arithmetic_add_sub", "arithmetic_mul_div", "error_catch_unreachable"]
 
 [test]
 commands = ["zig test calc.zig"]

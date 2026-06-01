@@ -1,7 +1,7 @@
 {
   "schema_version": "zentinel.tasks.status.v1",
   "active_task": null,
-  "next_task": "117",
+  "next_task": "118",
   "completed_tasks": [
     "068",
     "069",
@@ -119,14 +119,15 @@
     "113",
     "114",
     "115",
-    "116"
+    "116",
+    "117"
   ],
   "blocked_tasks": [],
   "blocked_task_details": [],
   "last_validation": {
     "command": "python3 scripts/validate_task_system.py",
     "status": "passed",
-    "notes": "Queued Phase-8 audit-follow-up backlog tasks 117-121 (orders 072-076) addressing adversarial-audit findings F-1..F-5: 117 owns Mutant.original across parse teardown (Critical false-survivor / mode-dependent invalid); 118 classifies compile_error vs killed; 119 makes --output containment symlink-safe; 120 redacts all AI-context fields; 121 aligns read-side path containment. All five are queued (no active task) in a strict dependency chain 116<-117<-118<-119<-120<-121; next_task is 117 (its only dependency 116 is complete). No product source changed; this is a Task-Queue-Manager backlog insertion synchronized across queue.json, QUEUE.md, status.json, and STATUS.md."
+    "notes": "Task 117 (own Mutant.original across parse teardown, audit F-1) completed: ast_backend.Collector.add dupes candidate.original into the collector's long-lived allocator so stable-operator candidates survive the per-file `defer parsed.deinit()` and are classified instead of misclassified `invalid`. Verified by a failing-before/passing-after sandbox unit test and a real-binary before/after verdict identical across Debug/ReleaseSafe/ReleaseFast/ReleaseSmall (total=3 killed=1 survived=2 invalid=0). next_task advanced to 118."
   },
   "clean_handoff_baseline": null,
   "completion_evidence": [
@@ -5734,6 +5735,54 @@
       "follow_up_tasks": [],
       "artifacts": [
         "artifacts/pipeline/116/verification/report.json"
+      ],
+      "task_control_changes": [
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ]
+    },
+    {
+      "task": "117",
+      "failing_evidence": "failing_command: `zig build test` with the new test in test/sandbox_test.zig written first. failing_output_excerpt: 'sandbox_test.test.F-1: stable-operator Mutant.original survives parse teardown terminated with signal ABRT' at test/sandbox_test.zig:169 -- the post-`parsed.deinit()` `expectEqualStrings(original)` read the freed owned_source (poisoned to 0xAA on the Debug build), so the borrowed `original` no longer matched the live source: 505/506 tests passed, 1 crashed. The real Debug binary reproduced the production symptom over the integration fixture: error_catch_unreachable -> invalid with original=[170] (the 0xAA byte), summary survived=1 invalid=1 (a real survivor hidden as invalid). implementation_started_after_failure: true. passing_command: after duping `original` into the collector allocator in ast_backend.Collector.add, `zig build test` passed (506 tests) and the binary reported error_catch_unreachable -> survived with original='0', identical across Debug/ReleaseSafe/ReleaseFast/ReleaseSmall (total=3 killed=1 survived=2 invalid=0).",
+      "implementation_summary": "Fixed adversarial-audit finding F-1 (Critical false verdict). Six stable operators (error_catch_unreachable, errdefer_remove, optional_orelse_unreachable, integer_literal_boundary, boolean_literal, and the for-range half of loop_boundary) captured Mutant.original as a borrowed slice of the parsed tree's owned_source; run_command.generateCandidates runs `defer parsed.deinit()` per file, freeing owned_source before sandbox.apply reads original, so the dangling slice failed the span/original match and the candidate was misclassified `invalid`, hiding real survivors behind a false '0 survivors'. The defect was mode-dependent (Debug/ReleaseSafe poison freed bytes to 0xAA -> invalid; ReleaseFast/ReleaseSmall read stale-correct bytes -> correct by UB), a nondeterminism defect across optimize modes. Single-point fix: ast_backend.Collector.add now dupes candidate.original into the collector's long-lived allocator (self.allocator) before appending; the dup runs while `parsed` is still alive, so the correct bytes are captured. `original` is the only Mutant field that borrowed the parsed tree (file is the caller's long-lived slice; replacement/operator/backend_version/equivalent_risks are static or already collector-owned), so the per-mutator captures stay as-is. Classification semantics, mutator targeting, and the AST parser are unchanged; `invalid` stays reserved for genuine I-011 contract violations. No forbidden files touched (src/ai/**, src/runner.zig, src/report.zig, build.zig, build.zig.zon).",
+      "files_changed": [
+        "src/ast_backend.zig",
+        "test/sandbox_test.zig",
+        "test/integration_run_test.zig",
+        "test/fixtures/integration/sample/calc.zig",
+        "test/fixtures/integration/sample/zentinel.toml",
+        "artifacts/pipeline/117/verification/report.json",
+        "tasks/QUEUE.md",
+        "tasks/queue.json",
+        "tasks/STATUS.md",
+        "tasks/status.json"
+      ],
+      "tests_added": [
+        "test/sandbox_test.zig: 'F-1: stable-operator Mutant.original survives parse teardown' -- drives the real pipeline (parse -> collect -> finish -> parsed.deinit() -> sandbox.apply) for error_catch_unreachable, boolean_literal, and integer_literal_boundary, parsing with the poisoning std.testing.allocator and a separate long-lived collector arena. Asserts each operator's `original` still equals the real source text after teardown and that sandbox.apply succeeds. Crashes/fails at sandbox_test.zig:169 before the fix (post-deinit read of the freed, 0xAA-poisoned owned_source).",
+        "test/integration_run_test.zig: extended the real-binary test to assert summary total=3 killed=1 survived=2 invalid=0 and that the error_catch_unreachable mutant is classified `survived` with original `0` -- a non-arithmetic operator executed end-to-end and never dropped to invalid.",
+        "test/fixtures/integration/sample/calc.zig + zentinel.toml: added parsePositive (a `catch 0` untested error path) and enabled error_catch_unreachable so the shipped binary mutates a non-arithmetic operator end-to-end."
+      ],
+      "tests_run": [
+        "zig build test (failing, before the fix): sandbox_test.zig:169 F-1 test crashed reading the freed owned_source -- 505/506 passed, 1 crashed",
+        "real-binary repro (failing, before the fix): Debug zentinel over the integration fixture reported error_catch_unreachable -> invalid, original=[170], survived=1 invalid=1",
+        "zig build test (passing, after the fix): 506 tests green",
+        "real-binary matrix (passing, after the fix): Debug/ReleaseSafe/ReleaseFast/ReleaseSmall each report total=3 killed=1 survived=2 invalid=0 with error_catch_unreachable -> survived, original='0'",
+        "zig build (passing)",
+        "zig fmt --check src test build.zig (passing)",
+        "git diff --check (passing)",
+        "python3 scripts/validate_task_system.py (passing) active then complete"
+      ],
+      "validator_result": {
+        "command": "python3 scripts/validate_task_system.py",
+        "status": "passed",
+        "notes": "Validator passed while task 117 was active (changed files within allowed_files -- src/ast_backend.zig, test/sandbox_test.zig, test/integration_run_test.zig, test/fixtures/integration/**, and the artifacts/pipeline/117 verification report -- plus the four task-control files) and again after the complete-state transition with next_task set to 118 (118 depends on 117, now complete, so it is the first dependency-ready queued task). The task-117 verification artifact validates; no coverage-gap registry rows were changed."
+      },
+      "dogfooding_implication": "zentinel can finally mutation-test its own error-handling, optional, boolean, integer-boundary, and loop code: the six stable operators that captured `original` as a borrowed slice no longer drop valid candidates to `invalid` after parse teardown, so enabling them stops silently reporting a false '0 survivors'. The integration fixture now dogfoods a real surviving error-path mutant (error_catch_unreachable on parsePositive's untested error path) end-to-end through the shipped binary, identically across all four optimize modes.",
+      "follow_up_tasks": [],
+      "artifacts": [
+        "artifacts/pipeline/117/verification/report.json"
       ],
       "task_control_changes": [
         "tasks/QUEUE.md",

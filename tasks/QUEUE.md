@@ -138,7 +138,7 @@ When a blocked task needs a missing prerequisite, assign the new task the next u
 | 069 | `tasks/114-scope-experimental-backends.md` | complete | 8 |
 | 070 | `tasks/115-harden-ai-redaction.md` | complete | 8 |
 | 071 | `tasks/116-cli-spec-drift-cleanup.md` | complete | 8 |
-| 072 | `tasks/117-own-mutant-original-across-teardown.md` | queued | 8 |
+| 072 | `tasks/117-own-mutant-original-across-teardown.md` | complete | 8 |
 | 073 | `tasks/118-classify-compile-error-vs-killed.md` | queued | 8 |
 | 074 | `tasks/119-symlink-safe-output-containment.md` | queued | 8 |
 | 075 | `tasks/120-redact-all-ai-context-fields.md` | queued | 8 |

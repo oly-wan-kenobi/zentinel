@@ -2,6 +2,8 @@ const std = @import("std");
 const zentinel = @import("zentinel");
 const sandbox = zentinel.sandbox;
 const mutant = zentinel.mutant;
+const ast_backend = zentinel.ast_backend;
+const mutators = zentinel.mutators;
 
 const expect = std.testing.expect;
 const expectError = std.testing.expectError;
@@ -90,4 +92,85 @@ test "patched content is deterministic" {
     const first = try sandbox.apply(a, source, m);
     const second = try sandbox.apply(a, source, m);
     try expectEqualStrings(first, second);
+}
+
+// Production code (no `test { ... }` body, so the stable collectors target it)
+// containing exactly one untested error path (`catch 0`), one boolean literal
+// (`true`), and one comparison-operand integer literal (`3`). These are the
+// source-slice (`error_catch_unreachable`, `boolean_literal`) and number-literal
+// (`integer_literal_boundary`) operators that capture `Mutant.original` as a
+// borrowed slice of the parsed tree's `owned_source`.
+const teardown_source =
+    \\fn risky(flag: bool) !u8 {
+    \\    if (flag) return error.Boom;
+    \\    return 7;
+    \\}
+    \\
+    \\pub fn classify(n: u8, flag: bool) u8 {
+    \\    const value = risky(flag) catch 0;
+    \\    const enabled = true;
+    \\    if (n == 3) return value;
+    \\    if (enabled) return n;
+    \\    return value;
+    \\}
+;
+
+fn findByOperator(mutants: []const mutant.Mutant, operator: []const u8) ?mutant.Mutant {
+    for (mutants) |m| {
+        if (std.mem.eql(u8, m.operator, operator)) return m;
+    }
+    return null;
+}
+
+// Regression for adversarial audit finding F-1 (task 117): a stable operator's
+// `Mutant.original` must outlive the parsed tree. This drives the real pipeline
+// (parse -> collect -> finish -> `parsed.deinit()` -> `sandbox.apply`), exactly
+// like `run_command.generateCandidates`'s `defer parsed.deinit()`, but with a
+// poisoning allocator for the parse buffer and a separate long-lived collector
+// arena (mirroring the production collector allocator outliving the freed
+// source). Before the fix, `original` borrows the freed `owned_source`; on a
+// Debug build the freed bytes are poisoned to 0xAA, so `apply` returns
+// `PatchMismatch` and the candidate is misclassified `invalid`, hiding a real
+// surviving mutant. After the fix the collector owns `original`, so the verdict
+// is correct and identical across optimize modes.
+test "F-1: stable-operator Mutant.original survives parse teardown" {
+    // Long-lived collector storage that outlives the parsed tree.
+    var collector_arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer collector_arena.deinit();
+    const ca = collector_arena.allocator();
+
+    // Parse with the poisoning testing allocator so `parsed.deinit()` actually
+    // frees (and in safe modes poisons) `owned_source`.
+    var parsed = try ast_backend.parse(std.testing.allocator, "ops.zig", teardown_source);
+    const test_ranges = try ast_backend.testDeclRanges(parsed, ca);
+
+    var collector = ast_backend.Collector.init(ca);
+    try mutators.error_path.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.boolean.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.integer_boundary.collect(&collector, parsed, "ops.zig", test_ranges);
+    const mutants = try collector.finish();
+
+    // Free the parsed tree (and its `owned_source`) before reading `original`,
+    // exactly as `generateCandidates` does via `defer parsed.deinit()`.
+    parsed.deinit();
+
+    const cases = [_]struct { operator: []const u8, original: []const u8 }{
+        .{ .operator = "error_catch_unreachable", .original = "0" },
+        .{ .operator = "boolean_literal", .original = "true" },
+        .{ .operator = "integer_literal_boundary", .original = "3" },
+    };
+    for (cases) |c| {
+        const m = findByOperator(mutants, c.operator) orelse {
+            std.debug.print("F-1: no candidate emitted for operator {s}\n", .{c.operator});
+            return error.MissingCandidate;
+        };
+        // `original` must still equal the real source text at the span; before the
+        // fix it points into freed `owned_source`.
+        try expectEqualStrings(c.original, m.original);
+        // The candidate must apply cleanly against the live source, never dropping
+        // to `invalid`. `teardown_source` is a comptime literal (always valid);
+        // only the parser's `owned_source` copy was freed.
+        const patched = try sandbox.apply(ca, teardown_source, m);
+        try expect(!std.mem.eql(u8, patched, teardown_source));
+    }
 }

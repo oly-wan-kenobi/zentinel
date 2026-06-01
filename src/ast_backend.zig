@@ -120,7 +120,21 @@ pub const Collector = struct {
     }
 
     pub fn add(self: *Collector, candidate: Candidate) std.mem.Allocator.Error!void {
-        try self.items.append(self.allocator, candidate);
+        // Own `original` in the collector's long-lived allocator so it outlives
+        // the parsed tree. The stable operators capture `original` as a borrowed
+        // slice of `parsed.owned_source` (e.g. `tree.source[start..end]` or
+        // `tokenSlice`), but `run_command.generateCandidates` runs
+        // `defer parsed.deinit()` per file, freeing that source before
+        // `sandbox.apply` reads `original`. Duping here -- while `parsed` is still
+        // alive -- captures the correct bytes, so any candidate with a valid
+        // patch is executed and classified rather than silently dropped to
+        // `invalid` (adversarial audit F-1; I-011). `original` is the only field
+        // that borrows the parsed tree: `file` is the caller's long-lived slice,
+        // and `replacement`/`operator`/`backend_version`/`equivalent_risks` are
+        // static or already allocator-owned.
+        var owned = candidate;
+        owned.original = try self.allocator.dupe(u8, candidate.original);
+        try self.items.append(self.allocator, owned);
     }
 
     /// Assign durable ids, sort by canonical candidate order, and remove
