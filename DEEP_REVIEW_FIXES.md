@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 44/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 45/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -62,7 +62,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L25** · commit `6d0e7b1` · documented experimental-backend diagnostics artifact never written; diagnosticsToJson is a dead export — src/zir_backend.zig, src/air_backend.zig — doc-vs-code drift (code correct): the on-disk artifact path is pipeline/governance work a CLI run can't fulfil. Aligned both backends' doc comments + docs/{ZIR,AIR}_BACKEND.md to reality (stderr note[...] at runtime; diagnosticsToJson defined+tested but not yet wired). Serializer stays byte-pinned (load-bearing — schema v2 bump fails it)
 - [x] `done` **L26** · commit `0590598` · CLI experimental-backend diagnostic rendering (runListMutants stderr note) has no direct test — src/list_mutants_command.zig — extracted the inline note[...] format into zir_backend/air_backend.renderDiagnosticNote (byte-identical), cli loops call them; added tests pinning the exact note bytes for both backends. Red: ' at '→' @ ' fails the zir test (previously the inline format was untested)
 - [x] `done` **L27** · commit `f60f741` · mode_matrix non-primary columns bypass Phase B.5 configured-suite re-verification → unsound per-mode `survived` — src/run_command.zig `[rel: H5]` — each non-primary matrix column now re-verifies a narrowed `survived` against the configured suite for that mode (mirroring Phase B.5), so a mutant the configured suite kills can't be recorded `survived`. Red: ReleaseFast column was `.survived` (narrowed) while configured kills; green: all columns `killed`, isModeDependent false
-- [ ] `todo` **L28** · commit `—` · report.normalizeExcerpt leaves machine-absolute paths after `:` / `=` / `>` verbatim → leak + non-determinism — src/report.zig
+- [x] `done` **L28** · commit `9a9381d` · report.normalizeExcerpt leaves machine-absolute paths after `:` / `=` / `>` verbatim → leak + non-determinism — src/report.zig — boundary model now mirrors redaction.normalizeAbsolutePaths (M8): a `/` starts a path after any non-path byte or a `:`, and `scheme://` URIs are caught (the `//` exclusion holds except after `:`). Red: `root=/Users/dev/secret/leak.zig` emitted verbatim; green: `root=<path>`, `note:<path>`, `wrote><path>`, `file:<path>`, cross-machine bytes identical
 - [ ] `todo` **L29** · commit `—` · AI-context test_context.selection_reason bypasses redaction → paths/secrets leak — src/ai/context.zig
 - [ ] `todo` **L30** · commit `—` · each source file AST-parsed twice per run (generateCandidates and selectionForFile) — src/run_command.zig
 - [ ] `todo` **L31** · commit `—` · run/list-mutants `--operator` accepts unknown names → silently 0 mutants, clean exit 0 — src/cli.zig
