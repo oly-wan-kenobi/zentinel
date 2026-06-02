@@ -929,6 +929,58 @@ fn renderText(arena: std.mem.Allocator, response: Response) ![]u8 {
 
 pub const Format = enum { text, json };
 
+/// The AI CLI options shared by `zentinel ai <cmd>`, `zentinel doctest suggest`,
+/// and `zentinel doctest review-survivors`: `--ai-provider`, `--input-report`,
+/// and `--format`. Parsed in one place so the three command loops cannot drift
+/// (L16); each command still owns its positional args and command-specific flags
+/// (e.g. doctest's `--file`).
+pub const SharedOptions = struct {
+    provider_override: ?Mode = null,
+    input_report: ?[]const u8 = null,
+    format: Format = .text,
+};
+
+/// Outcome of trying to consume a shared AI option at `args[i.*]`.
+pub const SharedOptionResult = union(enum) {
+    /// A shared option (and its value) was parsed; `i` advanced past the value.
+    consumed,
+    /// `args[i.*]` is not a shared option; the caller handles it (positional, a
+    /// command-specific flag, or an unknown-option error). `i` is unchanged.
+    not_shared,
+    /// A missing/invalid value; the caller surfaces `detail` as a usage error.
+    err: []const u8,
+};
+
+/// Parse the shared AI option at `args[i.*]` into `out`, advancing `i` past any
+/// consumed value. Returns `.not_shared` (leaving `i` untouched) when the arg is
+/// not one of the three shared options. The error strings are owned here so all
+/// three command loops report them identically (L16).
+pub fn parseSharedOption(args: []const []const u8, i: *usize, out: *SharedOptions) SharedOptionResult {
+    const a = args[i.*];
+    if (std.mem.eql(u8, a, "--ai-provider")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--ai-provider requires a value" };
+        out.provider_override = provider.modeFromName(args[i.*]) orelse
+            return .{ .err = "--ai-provider must be disabled|stub|local|remote" };
+        return .consumed;
+    } else if (std.mem.eql(u8, a, "--input-report")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--input-report requires a value" };
+        out.input_report = args[i.*];
+        return .consumed;
+    } else if (std.mem.eql(u8, a, "--format")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--format requires a value" };
+        if (std.mem.eql(u8, args[i.*], "text")) {
+            out.format = .text;
+        } else if (std.mem.eql(u8, args[i.*], "json")) {
+            out.format = .json;
+        } else return .{ .err = "--format must be 'text' or 'json'" };
+        return .consumed;
+    }
+    return .not_shared;
+}
+
 pub const Outcome = struct {
     exit_code: u8,
     body: []const u8,

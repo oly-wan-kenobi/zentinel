@@ -825,31 +825,16 @@ fn runAiCommand(
     const arena = arena_state.allocator();
 
     var mutant_ref: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var input_report: ?[]const u8 = null;
-    var format: zentinel.ai.command.Format = .text;
-
+    var ai_opts = zentinel.ai.command.SharedOptions{};
     var i: usize = 0;
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown AI command option");
         } else if (flow != .review_tests and mutant_ref == null) {
             mutant_ref = a;
@@ -857,6 +842,9 @@ fn runAiCommand(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const provider_override = ai_opts.provider_override;
+    const input_report = ai_opts.input_report;
+    const format = ai_opts.format;
     if (flow != .review_tests and mutant_ref == null) {
         return aiOptionError(stderr, "missing <mutant-ref>");
     }
@@ -976,35 +964,24 @@ fn runDoctestAi(
 
     var positional: ?[]const u8 = null;
     var file_opt: ?[]const u8 = null;
-    var input_report: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var format: zentinel.ai.command.Format = .text;
+    var ai_opts = zentinel.ai.command.SharedOptions{};
 
     var i: usize = 1; // skip the subcommand token at inv.args[0]
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--file")) {
+        // `--file` is doctest-specific; the rest are the shared AI options (L16).
+        if (std.mem.eql(u8, a, "--file")) {
             i += 1;
             if (i >= inv.args.len) return aiOptionError(stderr, "--file requires a value");
             file_opt = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+            continue;
+        }
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown doctest AI option");
         } else if (positional == null) {
             positional = a;
@@ -1012,6 +989,9 @@ fn runDoctestAi(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const input_report = ai_opts.input_report;
+    const provider_override = ai_opts.provider_override;
+    const format = ai_opts.format;
 
     const flow_is_case = (flow == .explain_doctest_failure or flow == .review_snapshot);
     const doc_path: ?[]const u8 = switch (flow) {
@@ -1096,31 +1076,17 @@ fn runDoctestSurvivorAi(
     const arena = arena_state.allocator();
 
     var survivor_ref: ?[]const u8 = null;
-    var input_report: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var format: zentinel.ai.command.Format = .text;
+    var ai_opts = zentinel.ai.command.SharedOptions{};
 
     var i: usize = 1; // skip the subcommand token at inv.args[0]
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown doctest AI option");
         } else if (survivor_ref == null) {
             survivor_ref = a;
@@ -1128,6 +1094,9 @@ fn runDoctestSurvivorAi(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const input_report = ai_opts.input_report;
+    const provider_override = ai_opts.provider_override;
+    const format = ai_opts.format;
     if (survivor_ref == null) return aiOptionError(stderr, "missing <survivor-ref>");
     // Read-side path containment (F-5): reject an out-of-root --input-report.
     if (zentinel.readPathOutsideRootOption(inv.args)) |opt| {

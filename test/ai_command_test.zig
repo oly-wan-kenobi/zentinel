@@ -619,3 +619,93 @@ test "doctest survivor context redacts absolute paths and secret tokens in every
     try expect(std.mem.indexOf(u8, json, "/Users/") == null);
     try expect(std.mem.indexOf(u8, json, "\"redactions_applied\": []") == null);
 }
+
+fn sharedErr(r: command.SharedOptionResult) ?[]const u8 {
+    return switch (r) {
+        .err => |d| d,
+        else => null,
+    };
+}
+
+fn sharedTag(r: command.SharedOptionResult) std.meta.Tag(command.SharedOptionResult) {
+    return std.meta.activeTag(r);
+}
+
+// The three AI command loops (runAiCommand / runDoctestAi / runDoctestSurvivorAi)
+// now share this one parser, so its behavior IS their shared-option behavior. Pin
+// every consumed/err/not_shared outcome and the exact error strings so a
+// regression here is caught for all three commands at once (L16).
+test "parseSharedOption parses each shared AI option with exact outcomes and error strings (L16)" {
+    const expectEqualStrings = std.testing.expectEqualStrings;
+
+    // --ai-provider <mode>: consumed, sets the mode, advances i onto the value.
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "--ai-provider", "stub" };
+        try expect(sharedTag(command.parseSharedOption(&args, &i, &opts)) == .consumed);
+        try expectEqual(command.Mode.stub, opts.provider_override.?);
+        try expectEqual(@as(usize, 1), i);
+    }
+    // --ai-provider with no value, and with an invalid mode.
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{"--ai-provider"};
+        try expectEqualStrings("--ai-provider requires a value", sharedErr(command.parseSharedOption(&args, &i, &opts)).?);
+    }
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "--ai-provider", "bogus" };
+        try expectEqualStrings("--ai-provider must be disabled|stub|local|remote", sharedErr(command.parseSharedOption(&args, &i, &opts)).?);
+    }
+    // --input-report <path>: consumed, sets the path; missing value errors.
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "--input-report", "out/report.json" };
+        try expect(sharedTag(command.parseSharedOption(&args, &i, &opts)) == .consumed);
+        try expectEqualStrings("out/report.json", opts.input_report.?);
+    }
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{"--input-report"};
+        try expectEqualStrings("--input-report requires a value", sharedErr(command.parseSharedOption(&args, &i, &opts)).?);
+    }
+    // --format text|json: consumed; an invalid value errors.
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "--format", "json" };
+        try expect(sharedTag(command.parseSharedOption(&args, &i, &opts)) == .consumed);
+        try expectEqual(command.Format.json, opts.format);
+    }
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "--format", "yaml" };
+        try expectEqualStrings("--format must be 'text' or 'json'", sharedErr(command.parseSharedOption(&args, &i, &opts)).?);
+    }
+    // A positional and a command-specific flag (--file) are both not_shared, with
+    // i left untouched so the caller owns them.
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{ "m_x", "--format", "json" };
+        try expect(sharedTag(command.parseSharedOption(&args, &i, &opts)) == .not_shared);
+        try expectEqual(@as(usize, 0), i);
+    }
+    {
+        var opts = command.SharedOptions{};
+        var i: usize = 0;
+        const args = [_][]const u8{"--file"};
+        try expect(sharedTag(command.parseSharedOption(&args, &i, &opts)) == .not_shared);
+    }
+    // Defaults when no shared option is parsed.
+    const def = command.SharedOptions{};
+    try expectEqual(@as(?command.Mode, null), def.provider_override);
+    try expectEqual(@as(?[]const u8, null), def.input_report);
+    try expectEqual(command.Format.text, def.format);
+}
