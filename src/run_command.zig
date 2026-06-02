@@ -369,6 +369,9 @@ pub fn run(
     var entries: std.ArrayList(report.Mutant) = .empty;
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
     const project_hash = try projectHash(arena, files);
+    // Hash each unique file's source ONCE; the result-cache key below reuses it per
+    // mutant instead of re-hashing the same bytes O(M) times (S3).
+    const source_hashes = try buildSourceHashIndex(arena, files);
     for (jobs, results, 0..) |job, result, ji| {
         const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
             const rows = try arena.alloc(report.ModeResult, matrix_modes.len);
@@ -389,7 +392,7 @@ pub fn run(
                 .backend = @tagName(job.candidate.backend),
                 .backend_version = job.candidate.backend_version,
                 .operator = job.candidate.operator,
-                .source_hash = try cache.sourceHash(arena, job.source),
+                .source_hash = source_hashes.get(job.candidate.file) orelse return error.SourceFileMissing,
                 .project_hash = project_hash,
                 .config_hash = obs.config_hash,
                 .test_command = try joinCommands(arena, job.commands),
@@ -449,6 +452,27 @@ fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem
     for (files) |f| {
         const gop = try index.getOrPut(f.path);
         if (!gop.found_existing) gop.value_ptr.* = f.source;
+    }
+    return index;
+}
+
+/// Test-only counter: how many times a source file's SHA-256 result-cache hash is
+/// computed. The hash is a pure function of the file bytes, identical for every
+/// mutant from that file, so it is computed ONCE per unique file and reused in the
+/// Phase C per-mutant loop; recomputing per mutant would push this to O(M) (S3).
+pub var source_hash_count: usize = 0;
+
+/// Index each unique file's source-cache hash (path -> hex SHA-256) ONCE, so the
+/// Phase C result-cache key lookup is O(1) per mutant instead of an O(M) re-hash of
+/// the same bytes (S3). First occurrence wins, mirroring buildSourceIndex.
+fn buildSourceHashIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
+    var index = std.StringHashMap([]const u8).init(arena);
+    for (files) |f| {
+        const gop = try index.getOrPut(f.path);
+        if (!gop.found_existing) {
+            source_hash_count += 1;
+            gop.value_ptr.* = try cache.sourceHash(arena, f.source);
+        }
     }
     return index;
 }

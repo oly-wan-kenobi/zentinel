@@ -375,6 +375,24 @@ test "the source index is built once per run, not scanned once per mutant (L18)"
     try expectEqual(@as(usize, 1), rc.source_index_builds);
 }
 
+test "each file's result-cache source hash is computed once per file, not once per mutant (S3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants over one source file: the SHA-256 source hash is a pure function
+    // of the file bytes (identical for both mutants), so Phase C computes it ONCE for
+    // the file and reuses it, rather than re-hashing the whole file per mutant (S3).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.source_hash_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.source_hash_count);
+}
+
 test "each source file's AST is parsed once per run, not re-parsed for same-file selection (L30)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
