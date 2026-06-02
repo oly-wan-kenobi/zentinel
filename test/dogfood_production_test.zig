@@ -89,3 +89,25 @@ test "scripts/ci.sh is the canonical entrypoint running the required determinist
     // A --list mode enumerates the stages without running them.
     try expect(std.mem.indexOf(u8, ci, "--list") != null);
 }
+
+test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors (L33)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const ci = try readFile(a, "scripts/ci.sh");
+
+    // The advisory dogfood suppresses only the dogfood STDOUT; its STDERR passes
+    // through so an infrastructure/deterministic-core failure's real cause is
+    // visible in the CI log. The old `>/dev/null 2>&1` swallowed BOTH streams,
+    // making the actual build/crash/runtime error unrecoverable from the log.
+    try expect(std.mem.indexOf(u8, ci, "scripts/dogfood.sh >/dev/null") != null);
+    try expect(std.mem.indexOf(u8, ci, "2>&1") == null);
+
+    // dogfood.sh does not pass --fail-on-survivors, so survivors exit 0; a non-zero
+    // status is therefore ALWAYS an infrastructure/deterministic-core error, never a
+    // survivor. The advisory message must not misdirect developers to "review
+    // survivors" -- it must name the real (infrastructure) failure mode.
+    try expect(std.mem.indexOf(u8, ci, "review survivors") == null);
+    try expect(std.mem.indexOf(u8, ci, "infrastructure") != null);
+}
