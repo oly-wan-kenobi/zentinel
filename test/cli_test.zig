@@ -205,11 +205,16 @@ test "cleanup warning text is a stable CLI diagnostic" {
 test "CLI cleanup warning emission writes only when cleanup failures occur" {
     var out = std.Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
-    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 0, &out.writer);
+    try zentinel.emitCleanupWarningIfNeeded(0, &out.writer);
     try std.testing.expectEqualStrings("", out.writer.buffer[0..out.writer.end]);
-    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 2, &out.writer);
+    try zentinel.emitCleanupWarningIfNeeded(2, &out.writer);
     try std.testing.expectEqualStrings(
         "warning: failed to remove 2 mutation workspace(s)\n",
         out.writer.buffer[0..out.writer.end],
     );
+    // The emitter renders EXACTLY cleanupWarningText -- one source for the
+    // diagnostic string, so the two functions cannot drift apart (L17).
+    const text = try zentinel.cleanupWarningText(std.testing.allocator, 2);
+    defer std.testing.allocator.free(text);
+    try std.testing.expectEqualStrings(text, out.writer.buffer[0..out.writer.end]);
 }

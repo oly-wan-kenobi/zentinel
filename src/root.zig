@@ -378,17 +378,22 @@ pub fn resolveConfigPathForRoot(arena: std.mem.Allocator, globals: Globals) Conf
     return std.fmt.allocPrint(arena, "{s}/{s}", .{ globals.root, globals.config_path });
 }
 
+/// The single stable cleanup-warning diagnostic format, shared by the allocating
+/// `cleanupWarningText` and the streaming `emitCleanupWarningIfNeeded` so the two
+/// surfaces cannot drift apart (L17).
+const cleanup_warning_fmt = "warning: failed to remove {d} mutation workspace(s)\n";
+
 /// Stable cleanup warning surface shared by the CLI adapter and tests.
 pub fn cleanupWarningText(arena: std.mem.Allocator, count: u32) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(arena, "warning: failed to remove {d} mutation workspace(s)\n", .{count});
+    return std.fmt.allocPrint(arena, cleanup_warning_fmt, .{count});
 }
 
-/// Adapter-visible cleanup warning emission. A zero count is intentionally
-/// silent; non-zero counts use the single stable diagnostic text above.
-pub fn emitCleanupWarningIfNeeded(arena: std.mem.Allocator, count: u32, stderr: *std.Io.Writer) !void {
-    _ = arena;
+/// Adapter-visible cleanup warning emission. A zero count is intentionally silent;
+/// a non-zero count streams `cleanup_warning_fmt` directly. It needs no allocator
+/// -- the prior signature accepted one only to discard it via `_ = arena;` (L17).
+pub fn emitCleanupWarningIfNeeded(count: u32, stderr: *std.Io.Writer) !void {
     if (count == 0) return;
-    try stderr.print("warning: failed to remove {d} mutation workspace(s)\n", .{count});
+    try stderr.print(cleanup_warning_fmt, .{count});
 }
 
 /// Redact user-supplied path values before echoing them in diagnostics that may

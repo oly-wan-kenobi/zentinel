@@ -531,7 +531,7 @@ fn runRun(
         };
     }
 
-    try zentinel.emitCleanupWarningIfNeeded(gpa, rt.cleanup_failures.load(.monotonic), stderr);
+    try zentinel.emitCleanupWarningIfNeeded(rt.cleanup_failures.load(.monotonic), stderr);
 
     // Write the JSON report to the resolved output path (under the project root).
     const json = try zentinel.report.toJson(gpa, outcome.report);
