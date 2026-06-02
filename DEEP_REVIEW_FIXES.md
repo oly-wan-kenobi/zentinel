@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 28/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 29/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -46,7 +46,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L9** · commit `a2b7788` · partial per-mutant workspace orphaned (cleanup_failures undercounted) when setupWorkspace fails — src/cli.zig `[rel: H3]` — extracted worker_pool.createMutantWorkspace with a failure-path errdefer that deleteTrees the partial dir (bumps cleanup_failures only if removal fails); cli.setupWorkspace is now a thin wrapper. Red: orphan dir survived a forced mid-setup failure; green post-fix
 - [x] `done` **L10** · commit `e194ae0` · documented per-worker cache/output isolation unenforced: worker_pool.cacheDirIn/outDirIn are dead — src/worker_pool.zig — runner.minimalEnviron now overrides ZIG_LOCAL_CACHE_DIR=cacheDirIn(".")="./.zig-cache" (cwd-relative), so each worker's own workspace owns its cache regardless of host env; cacheDirIn is now a live production caller. zig-out is inherently cwd-isolated (no override needed). Red: host /tmp/shared-zig-cache forwarded verbatim; green post-fix
 - [x] `done` **L11** · commit `b954a36` · matchGlob silently treats >64-segment paths as non-matching → drops deeply nested source files — src/project_model.zig (glob matcher) — rewrote matchSegments to recurse over the raw '/'-segmented strings (no [64] buffer), preserving exact `*`/`**` semantics with zero allocation and unchanged signatures. Red: 72-segment path returned false; green post-fix
-- [ ] `todo` **L12** · commit `—` · doctest per-case workspace-creation failure aborts the whole run (exit 4) instead of isolating the case — src/doctest/runner.zig
+- [x] `done` **L12** · commit `54e8aea` · doctest per-case workspace-creation failure aborts the whole run (exit 4) instead of isolating the case — src/doctest/runner.zig — runZig now catches WorkspaceCreateFailed → per-case `.invalid` + ZNTL_DOCTEST_WORKSPACE_FAILED diagnostic (symmetric with the mutation path); RunError narrowed to drop it, dead cli exit-4 prong removed. Red: error escaped runCase; green post-fix
 - [ ] `todo` **L13** · commit `—` · entire src/property/ subsystem is production-unreferenced (test-only) — src/property/
 - [ ] `todo` **L14** · commit `—` · dead `future_global_options` array never read — src/root.zig
 - [ ] `todo` **L15** · commit `—` · report.writeJson is a dead public export with no callers — src/report.zig
