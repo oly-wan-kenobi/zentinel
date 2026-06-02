@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 36/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 37/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -54,7 +54,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L17** · commit `26eaad8` · emitCleanupWarningIfNeeded silently ignores its arena allocator parameter — src/root.zig — dropped the unused `arena` param (false dependency) and extracted a shared `cleanup_warning_fmt` constant so emit (streams) and cleanupWarningText (allocs) use one source; updated both call sites. Red: changing the constant fails both pinned-text assertions together. (Delegating instead leaked — caught by the test allocator.)
 - [x] `done` **L18** · commit `be6803c` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig — replaced the per-mutant linear scan with a StringHashMap(path→source) built once before the Phase A loop (buildSourceIndex); per-candidate lookup is now O(1). Deleted dead sourceFor. Red: building the index inside the loop makes source_index_builds == 2 (per-mutant), failing the once-per-run assertion
 - [x] `done` **L19** · commit `e26a729` · findBlockByLine O(B) linear scan called per block ref in the hot doctest cache-key loop — src/doctest/cache.zig — built an AutoHashMap(line_start→Block) once in buildMetadata (buildBlockIndex) and replaced the two per-ref scans with O(1) gets; deleted cache.zig's findBlockByLine. Red: building the index inside the case loop makes block_index_builds == 4, failing the once-per-document assertion
-- [ ] `todo` **L20** · commit `—` · doctest --no-color parsed and stored but never threaded to any renderer — src/doctest_command.zig
+- [x] `done` **L20** · commit `02a79a1` · doctest --no-color parsed and stored but never threaded to any renderer — src/doctest_command.zig — no renderer emits ANSI color anywhere, so threading it would just be an unused param (L17 smell); removed the dead no_color field and accept --no-color as an explicit no-op (matching root.zig's global handling). Flag stays accepted; output unchanged. Red: dropping the accept branch makes parseArgs reject --no-color as UnknownOption
 - [ ] `todo` **L21** · commit `—` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/cli.zig
 - [ ] `todo` **L22** · commit `—` · `--mutate` anywhere in doctest args hijacks dispatch, preempting named AI subcommands — src/doctest_command.zig
 - [ ] `todo` **L23** · commit `—` · boolean_literal mutates enum field declarations named `true`/`false` → guaranteed compile_error — src/mutators/boolean.zig `[rel: H2]`
