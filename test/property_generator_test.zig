@@ -176,6 +176,71 @@ test "report status must agree with property results" {
     try std.testing.expectEqual(prep.Violation.status_mismatch, prep.validate(value));
 }
 
+// A FAILED property with a counterexample but shrink status `not_triggered` -- the
+// only input that reaches report.zig:172. Otherwise fully valid (status agrees with
+// the failed result), so the validate result is attributable solely to the shrink
+// status.
+const failed_not_triggered_shrink =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "failed",
+    \\  "properties": [
+    \\    {
+    \\      "name": "generator_is_deterministic",
+    \\      "invariant": "Determinism",
+    \\      "seeds": [1],
+    \\      "generator": { "summary": "seeded stream", "generated_cases": 8 },
+    \\      "shrinking": { "status": "not_triggered" },
+    \\      "result": "failed",
+    \\      "counterexample": { "seed": 1, "case": 0 }
+    \\    }
+    \\  ]
+    \\}
+;
+
+// The same report with shrink status `unsupported` -- a legitimate failed shrink
+// status (shrinking infeasible for the property), so it must validate clean.
+const failed_unsupported_shrink =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "failed",
+    \\  "properties": [
+    \\    {
+    \\      "name": "generator_is_deterministic",
+    \\      "invariant": "Determinism",
+    \\      "seeds": [1],
+    \\      "generator": { "summary": "seeded stream", "generated_cases": 8 },
+    \\      "shrinking": { "status": "unsupported" },
+    \\      "result": "failed",
+    \\      "counterexample": { "seed": 1, "case": 0 }
+    \\    }
+    \\  ]
+    \\}
+;
+
+test "failed property shrink status: not_triggered is rejected, unsupported is accepted (L38)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // not_triggered on a failed property WITH a counterexample is the only path to
+    // report.zig:172 -- it must be rejected as failed_without_shrink. Previously no
+    // fixture reached this branch, so deleting it passed CI (L38).
+    try std.testing.expectEqual(prep.Violation.failed_without_shrink, prep.validate(try parse(a, failed_not_triggered_shrink)));
+
+    // `unsupported` is a legitimate failed shrink status; dropping it from
+    // failed_shrink_statuses would misreport this clean report as failed_without_shrink.
+    try std.testing.expectEqual(prep.Violation.ok, prep.validate(try parse(a, failed_unsupported_shrink)));
+}
+
 // ---------------------------------------------------------------------------
 // 3. Missing property evidence on a high-risk task is rejected; the valid
 //    not-property-required skip fixture is accepted.
