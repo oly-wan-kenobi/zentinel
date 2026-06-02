@@ -115,28 +115,21 @@ pub fn fromAst(arena: std.mem.Allocator, ast_candidates: []const mutant.Mutant) 
 
 pub const FromTreeError = error{BackendParseError} || std.mem.Allocator.Error;
 
-const CmpOp = enum { eq, neq, lt, lte, gt, gte };
-
-fn astCmpOp(t: std.zig.Ast.Node.Tag) ?CmpOp {
+/// The single AST node tag a recognized ZIR instruction maps back to. `cmp_*`
+/// (comparison operators) and `bool_br_and`/`bool_br_or` (short-circuit `and`/`or`)
+/// all carry a decl-relative `pl_node.src_node`, so the source node is recovered the
+/// same way for every supported operator. (Boolean literals are intentionally absent:
+/// `true`/`false` lower to operand refs, not instructions -- see listFromTrees.)
+fn expectedAstTag(t: std.zig.Zir.Inst.Tag) ?std.zig.Ast.Node.Tag {
     return switch (t) {
-        .equal_equal => .eq,
-        .bang_equal => .neq,
-        .less_than => .lt,
-        .less_or_equal => .lte,
-        .greater_than => .gt,
-        .greater_or_equal => .gte,
-        else => null,
-    };
-}
-
-fn zirCmpOp(t: std.zig.Zir.Inst.Tag) ?CmpOp {
-    return switch (t) {
-        .cmp_eq => .eq,
-        .cmp_neq => .neq,
-        .cmp_lt => .lt,
-        .cmp_lte => .lte,
-        .cmp_gt => .gt,
-        .cmp_gte => .gte,
+        .cmp_eq => .equal_equal,
+        .cmp_neq => .bang_equal,
+        .cmp_lt => .less_than,
+        .cmp_lte => .less_or_equal,
+        .cmp_gt => .greater_than,
+        .cmp_gte => .greater_or_equal,
+        .bool_br_and => .bool_and,
+        .bool_br_or => .bool_or,
         else => null,
     };
 }
@@ -173,17 +166,17 @@ fn isDeclBase(t: std.zig.Ast.Node.Tag) bool {
     };
 }
 
-/// Resolve a `cmp_*` instruction to its AST comparison node, or null if it is an
-/// AstGen-injected comparison with no source operator. The real node `n` (matching
-/// `op`) is the one whose `n - off` is a declaration base; the innermost decl
-/// (largest such base) wins.
-fn resolveCmpNode(tree: std.zig.Ast, is_base: []const bool, op: CmpOp, off: i32, node_count: i64) ?u32 {
+/// Resolve a `pl_node` instruction to its source AST node of tag `want`, or null
+/// when the instruction is AstGen-injected (for-bounds / switch range / etc.) with
+/// no matching source node. The real node `n` is the one whose `n - off` is a
+/// declaration base; the innermost decl (largest such base) wins.
+fn resolveNode(tree: std.zig.Ast, is_base: []const bool, want: std.zig.Ast.Node.Tag, off: i32, node_count: i64) ?u32 {
     const node_tags = tree.nodes.items(.tag);
     var best: ?u32 = null;
     var best_base: i64 = -1;
     var i: u32 = 0;
     while (i < node_count) : (i += 1) {
-        if (astCmpOp(node_tags[i]) != op) continue;
+        if (node_tags[i] != want) continue;
         const base: i64 = @as(i64, i) - off;
         if (base < 0 or base >= node_count) continue;
         if (!is_base[@intCast(base)]) continue;
@@ -195,9 +188,9 @@ fn resolveCmpNode(tree: std.zig.Ast, is_base: []const bool, op: CmpOp, off: i32,
     return best;
 }
 
-// Comparison swap metadata, mirrored from src/mutators/comparison.zig (a file this
-// task may not modify). The parity test guarantees these stay equivalent to the AST
-// recognizer; a drift surfaces as a parity failure, not a silent divergence.
+// Operator metadata mirrored from src/mutators/comparison.zig and logical.zig (files
+// this task may not modify). The parity test guarantees these stay equivalent to the
+// AST recognizers; a drift surfaces as a parity failure, not a silent divergence.
 const equality_risks = [_][]const u8{
     "values known to differ in all tests",
     "dead branches",
@@ -208,9 +201,14 @@ const boundary_risks = [_][]const u8{
     "floating-point NaN behavior",
     "values constrained away from boundary",
 };
-const Swap = struct { operator: []const u8, replacement: []const u8, risks: []const []const u8 };
+const logical_risks = [_][]const u8{
+    "one operand constant",
+    "guards where later code makes branches equivalent",
+    "tests not covering short-circuit side effects",
+};
+const Mutation = struct { operator: []const u8, replacement: []const u8, risks: []const []const u8 };
 
-fn swapFor(tag: std.zig.Ast.Node.Tag) ?Swap {
+fn mutationFor(tag: std.zig.Ast.Node.Tag) ?Mutation {
     return switch (tag) {
         .equal_equal => .{ .operator = "equality_swap", .replacement = "!=", .risks = &equality_risks },
         .bang_equal => .{ .operator = "equality_swap", .replacement = "==", .risks = &equality_risks },
@@ -218,6 +216,8 @@ fn swapFor(tag: std.zig.Ast.Node.Tag) ?Swap {
         .less_or_equal => .{ .operator = "comparison_boundary", .replacement = "<", .risks = &boundary_risks },
         .greater_than => .{ .operator = "comparison_boundary", .replacement = ">=", .risks = &boundary_risks },
         .greater_or_equal => .{ .operator = "comparison_boundary", .replacement = ">", .risks = &boundary_risks },
+        .bool_and => .{ .operator = "logical_and_or", .replacement = "or", .risks = &logical_risks },
+        .bool_or => .{ .operator = "logical_and_or", .replacement = "and", .risks = &logical_risks },
         else => null,
     };
 }
@@ -227,10 +227,11 @@ fn isNullToken(tree: std.zig.Ast, tok: u32) bool {
     return std.mem.eql(u8, tree.tokenSlice(tok), "null");
 }
 
-/// Lower `source` to ZIR and emit the experimental ZIR comparison candidate set
-/// (`equality_swap`, `comparison_boundary`). Candidates are byte-for-byte the AST
-/// recognizer's, re-tagged `backend = .zir`; AstGen-injected comparisons become
-/// out-of-report diagnostics. Phase 1 covers comparison operators only.
+/// Lower `source` to ZIR and emit the experimental ZIR candidate set for the
+/// operators ZIR represents as instructions: comparison (`equality_swap`,
+/// `comparison_boundary`) and short-circuit logical (`logical_and_or`). Candidates
+/// are byte-for-byte the AST recognizers', re-tagged `backend = .zir`; AstGen-injected
+/// comparisons (for-bounds / switch ranges) become out-of-report diagnostics.
 pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) FromTreeError!Result {
     const parsed = ast_backend.parse(arena, file, source) catch return error.BackendParseError;
     if (!parsed.ok()) return error.BackendParseError;
@@ -251,28 +252,28 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
 
     for (inst_tags, 0..) |t, i| {
-        const cop = zirCmpOp(t) orelse continue;
+        const want = expectedAstTag(t) orelse continue;
         const off = @intFromEnum(inst_datas[i].pl_node.src_node);
-        const n = resolveCmpNode(tree, is_base, cop, off, node_count) orelse {
+        const n = resolveNode(tree, is_base, want, off, node_count) orelse {
             // AstGen-injected comparison (for-bounds / switch range): no source
             // operator, so it is an out-of-report diagnostic, never a mutant.
             try diagnostics.append(arena, .{
                 .file = file,
-                .operator = "comparison_injected",
+                .operator = "injected",
                 .span_start = 0,
                 .span_end = 0,
-                .reason = "ZIR comparison with no source operator (compiler-injected bounds/range check)",
+                .reason = "ZIR instruction with no source operator (compiler-injected bounds/range check)",
             });
             continue;
         };
         const node: std.zig.Ast.Node.Index = @enumFromInt(n);
-        const swap = swapFor(node_tags[n]) orelse continue; // resolveCmpNode guarantees a comparison tag
+        const mut = mutationFor(node_tags[n]) orelse continue; // resolveNode guarantees a supported tag
         const op_tok = tree.nodeMainToken(node);
         const op_start = tree.tokenStart(op_tok);
-        // Parity with comparison.zig: skip comparisons inside test bodies, and leave
-        // `x == null` / `null == x` to optional_null_check.
+        // Parity with the AST recognizers: skip operators inside test bodies, and
+        // leave `x == null` / `null == x` to optional_null_check.
         if (ast_backend.inTestBody(test_ranges, op_start)) continue;
-        if (std.mem.eql(u8, swap.operator, "equality_swap")) {
+        if (std.mem.eql(u8, mut.operator, "equality_swap")) {
             const right_null = isNullToken(tree, op_tok + 1);
             const left_null = op_tok > 0 and isNullToken(tree, op_tok - 1);
             if (right_null or left_null) continue;
@@ -286,7 +287,7 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             .backend = .zir,
             .backend_version = backend_version,
             .backend_stability = .experimental,
-            .operator = swap.operator,
+            .operator = mut.operator,
             .operator_stability = .stable,
             .file = file,
             .span = .{
@@ -298,9 +299,9 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
                 .column_end = end_pos.column,
             },
             .original = op_text,
-            .replacement = swap.replacement,
+            .replacement = mut.replacement,
             .expected_compile = .compiles,
-            .equivalent_risks = swap.risks,
+            .equivalent_risks = mut.risks,
         });
     }
 
@@ -338,8 +339,12 @@ pub fn experimentalListing(
 
 pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError } || std.mem.Allocator.Error;
 
-fn isComparisonOperator(op: []const u8) bool {
-    return std.mem.eql(u8, op, "equality_swap") or std.mem.eql(u8, op, "comparison_boundary");
+/// Operators the ZIR backend lowers to real candidates (those ZIR represents as
+/// instructions). Comparison + short-circuit logical today (Phases 1-2).
+fn isZirLoweredOperator(op: []const u8) bool {
+    return std.mem.eql(u8, op, "equality_swap") or
+        std.mem.eql(u8, op, "comparison_boundary") or
+        std.mem.eql(u8, op, "logical_and_or");
 }
 
 /// Build the experimental ZIR listing by REALLY lowering each source file to ZIR
@@ -365,16 +370,22 @@ pub fn listFromTrees(
         try candidates.appendSlice(arena, r.candidates);
         try diagnostics.appendSlice(arena, r.diagnostics);
     }
-    // Operators the ZIR backend does not yet lower (Phase 1 covers comparisons) are
-    // surfaced as out-of-report diagnostics rather than silently omitted.
+    // Operators the ZIR backend does not lower are surfaced as out-of-report
+    // diagnostics rather than silently omitted. `boolean_literal` is a principled
+    // boundary, not a TODO: `true`/`false` lower to operand refs, never ZIR
+    // instructions, so it has no ZIR representation (handled by the AST backend).
     for (ast_candidates) |c| {
-        if (isComparisonOperator(c.operator)) continue;
+        if (isZirLoweredOperator(c.operator)) continue;
+        const reason: []const u8 = if (std.mem.eql(u8, c.operator, "boolean_literal"))
+            "boolean_literal has no ZIR representation: `true`/`false` lower to operand refs (bool_true/bool_false), not instructions -- it is a lexical mutation handled by the AST backend"
+        else
+            "operator is not yet lowered by the ZIR backend (lowered: comparison and logical operators)";
         try diagnostics.append(arena, .{
             .file = c.file,
             .operator = c.operator,
             .span_start = c.span.byte_start,
             .span_end = c.span.byte_end,
-            .reason = "operator is not yet lowered by the ZIR backend (Phase 1 covers comparison operators)",
+            .reason = reason,
         });
     }
     return .{
