@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 25/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 26/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -43,7 +43,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L6** · commit `9c71760` · error-path/optional skip-guards use exact byte-string equality → no-op (equivalent) mutants — src/mutators/error_path.zig:99-101 `[rel: H2]`
 - [x] `done` **L7** · commit `381f857` · per-mutant workspace walker descends into excluded .git/.zig-cache/zig-out dirs — src/cli.zig:228-256 `[rel: H3]` — subsumed by H3: setupWorkspace routes through worker_pool.copyProjectTree (walkSelectively, never enter()s excluded dirs); proven by the "never descends into .zig-cache/zig-out/.git" test (excludeNothing copy filter → only no-descent keeps the excluded subtrees out)
 - [x] `done` **L8** · commit `a9ba73d` · per-run workspace base dir ({run_id}/workspaces) never deleted → stale dir leaked every run — src/cli.zig `[rel: H3]` — runRun now best-effort deleteTrees worker_pool.workspaceRunBase(run_id) after the run (counted in cleanup_failures); workspaceRoot rebuilt as {base}/{m_id}. Red: integration test saw leaked run_19e876a19ad; green post-fix
-- [ ] `todo` **L9** · commit `—` · partial per-mutant workspace orphaned (cleanup_failures undercounted) when setupWorkspace fails — src/cli.zig `[rel: H3]`
+- [x] `done` **L9** · commit `a2b7788` · partial per-mutant workspace orphaned (cleanup_failures undercounted) when setupWorkspace fails — src/cli.zig `[rel: H3]` — extracted worker_pool.createMutantWorkspace with a failure-path errdefer that deleteTrees the partial dir (bumps cleanup_failures only if removal fails); cli.setupWorkspace is now a thin wrapper. Red: orphan dir survived a forced mid-setup failure; green post-fix
 - [ ] `todo` **L10** · commit `—` · documented per-worker cache/output isolation unenforced: worker_pool.cacheDirIn/outDirIn are dead — src/worker_pool.zig
 - [ ] `todo` **L11** · commit `—` · matchGlob silently treats >64-segment paths as non-matching → drops deeply nested source files — src/cli.zig (glob matcher)
 - [ ] `todo` **L12** · commit `—` · doctest per-case workspace-creation failure aborts the whole run (exit 4) instead of isolating the case — src/doctest/runner.zig
