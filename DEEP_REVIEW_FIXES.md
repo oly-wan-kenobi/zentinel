@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 40/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 41/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -58,7 +58,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L21** · commit `bcebc56` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/root.zig — zentinel's TOML reader has no string escapes, so escaping can't round-trip; instead reject unembeddable values (testCommandEmbeddable: rejects `"`/control bytes) in dispatchInit before any config is written. Red: the injecting `zig test", "evil` was accepted (exit 0, write_config); green post-fix (exit 2, cli_invalid_option)
 - [x] `done` **L22** · commit `9a651d8` · `--mutate` anywhere in doctest args hijacks dispatch, preempting named AI subcommands — src/doctest_command.zig — extracted doctest_command.route(args) (pure, testable); named subcommands now checked on args[0] BEFORE the --mutate scan, so `doctest suggest --mutate` routes to suggest. --mutate still wins for subcommand-free args. Red: old order returned .mutate for `suggest ... --mutate`
 - [x] `done` **L23** · commit `d6b0e34` · boolean_literal mutates enum field declarations named `true`/`false` → guaranteed compile_error — src/mutators/boolean.zig `[rel: H2]` — added isContainerFieldName skip-guard: a value-less `enum { true, false }` member parses as a tuple-like container_field whose type_expr is the true/false identifier; skip those (spec-Forbidden field names). Red: collect emitted 3 candidates (2 field names + 1 value); green: 1
-- [ ] `todo` **L24** · commit `—` · doctest mutator-spec validator (validateDoc) falsely flags every stable Phase-2 operator as drift — src/doctest/ `[rel: H2]`
+- [x] `done` **L24** · commit `157a552` · doctest mutator-spec validator (validateDoc) falsely flags every stable Phase-2 operator as drift — src/doctest/ `[rel: H2]` — candidatesOrParseError wired only the 4 Phase-1 collectors; added the 4 Phase-2 ones (optional/error_path/integer_boundary/loop_boundary) to match the real pipeline; fixed "Phase 1" doc comments. Red: an optional_orelse_unreachable before/after pair was flagged ZNTL_DOCTEST_SNAPSHOT_MISMATCH; green: matches. (mutation_experiment.zig dup = separate finding)
 - [ ] `todo` **L25** · commit `—` · documented experimental-backend diagnostics artifact never written; diagnosticsToJson is a dead export — src/zir_backend.zig, src/air_backend.zig
 - [ ] `todo` **L26** · commit `—` · CLI experimental-backend diagnostic rendering (runListMutants stderr note) has no direct test — src/list_mutants_command.zig
 - [ ] `todo` **L27** · commit `—` · mode_matrix non-primary columns bypass Phase B.5 configured-suite re-verification → unsound per-mode `survived` — src/run_command.zig `[rel: H5]`
