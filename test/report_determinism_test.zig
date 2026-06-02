@@ -172,3 +172,18 @@ test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme://
     try expectEqualStrings("n=a/b", try report.normalizeExcerpt(a, "n=a/b"));
     try expectEqualStrings("x=/tmp", try report.normalizeExcerpt(a, "x=/tmp"));
 }
+
+test "report.isoTimestamp formats epoch-ms as second-precision UTC ISO-8601 (L41)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The single formatter now shared by the run observation (run.started_at) and
+    // the doctest run, replacing two byte-identical inline blocks in cli.zig (L41).
+    try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, 0));
+    try expectEqualStrings("2001-09-09T01:46:40Z", try report.isoTimestamp(a, 1_000_000_000_000));
+    // Sub-second milliseconds truncate down to the whole second.
+    try expectEqualStrings("1970-01-01T00:00:01Z", try report.isoTimestamp(a, 1_999));
+    // A negative (pre-epoch / unset clock) input clamps to the epoch, never panics.
+    try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, -1_000));
+}

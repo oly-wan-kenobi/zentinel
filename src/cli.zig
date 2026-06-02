@@ -290,15 +290,7 @@ fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, z
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
     const run_id = try std.fmt.allocPrint(gpa, "run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
 
-    const secs: u64 = @intCast(@max(0, @divTrunc(ts, 1000)));
-    const es = std.time.epoch.EpochSeconds{ .secs = secs };
-    const ed = es.getEpochDay();
-    const yd = ed.calculateYearDay();
-    const md = yd.calculateMonthDay();
-    const day = es.getDaySeconds();
-    const started_at = try std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
-        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
-    });
+    const started_at = try zentinel.report.isoTimestamp(gpa, ts);
 
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(cfg_bytes, &digest, .{});
@@ -794,17 +786,6 @@ fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.
     }
 }
 
-fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) ![]const u8 {
-    const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
-    const es = std.time.epoch.EpochSeconds{ .secs = secs };
-    const yd = es.getEpochDay().calculateYearDay();
-    const md = yd.calculateMonthDay();
-    const day = es.getDaySeconds();
-    return std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
-        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
-    });
-}
-
 /// `zentinel doctest`: read the target doc, execute its normal doctests through
 /// real process/workspace adapters, and emit a deterministic text or JSON
 /// zentinel.doctest.report.v1 report.
@@ -1203,7 +1184,7 @@ fn runDoctest(
 
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
     const run_id = try std.fmt.allocPrint(gpa, "doctest_run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
-    const started_at = try isoTimestamp(gpa, ts);
+    const started_at = try zentinel.report.isoTimestamp(gpa, ts);
     const fmt_label: []const u8 = switch (options.format) {
         .text => "text",
         .json => "json",

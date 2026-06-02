@@ -382,6 +382,24 @@ fn invalidSummaryOk(failure_summary: []const u8) bool {
         std.mem.startsWith(u8, failure_summary, "backend:");
 }
 
+// --- Observation timestamp -------------------------------------------------
+
+/// Format epoch-milliseconds as a UTC ISO-8601 second-precision timestamp
+/// (`YYYY-MM-DDThh:mm:ssZ`), the canonical form of `run.started_at`. Negative
+/// inputs clamp to the epoch and sub-second milliseconds are truncated. Pure and
+/// deterministic: the wall-clock read stays in the CLI, so the run observation and
+/// the doctest run share this one formatter instead of duplicating it (L41).
+pub fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) std.mem.Allocator.Error![]const u8 {
+    const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
+    const es = std.time.epoch.EpochSeconds{ .secs = secs };
+    const yd = es.getEpochDay().calculateYearDay();
+    const md = yd.calculateMonthDay();
+    const day = es.getDaySeconds();
+    return std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
+        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
+    });
+}
+
 // --- Repeated-run normalization --------------------------------------------
 
 /// Normalize the canonical JSON for repeated-run comparison by replacing only
