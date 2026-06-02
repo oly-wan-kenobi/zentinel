@@ -221,3 +221,16 @@ test "unowned global options still fail with ZNTL_CLI_INVALID_OPTION" {
     try expectEqual(@as(u8, 2), out.exit_code);
     try expect(out.error_code == .cli_invalid_option);
 }
+
+test "--quiet is an unowned global option rejected with ZNTL_CLI_INVALID_OPTION (L14)" {
+    // The removed `future_global_options` array listed --quiet as a "known future
+    // option" but nothing read it: dispatch rejects --quiet generically like any
+    // unknown option, and --quiet has no explicit guard. Pin its real behavior so
+    // the deleted array's claim is enforced by a test, not a stale comment (L14).
+    try expect(zentinel.route(&[_][]const u8{ "--quiet", "check" }) == .passthrough);
+    const out = zentinel.dispatch(&[_][]const u8{ "--quiet", "check" }, false);
+    try expectEqual(@as(u8, 2), out.exit_code);
+    try expect(out.error_code == .cli_invalid_option);
+    // The detail names the exact offending option, not a generic message.
+    try std.testing.expectEqualStrings("--quiet", out.detail);
+}

@@ -275,14 +275,6 @@ pub const Outcome = struct {
     init_test_command: ?[]const u8 = null,
 };
 
-/// Known future global options not owned by task 001 (rejected until their owner lands).
-const future_global_options = [_][]const u8{
-    "--config",
-    "--root",
-    "--verbose",
-    "--quiet",
-};
-
 fn eq(a: []const u8, b: []const u8) bool {
     return std.mem.eql(u8, a, b);
 }
@@ -306,7 +298,7 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
             // Accepted globally; non-colored output is unchanged.
             continue;
         }
-        // Known future global options and unknown options are usage errors.
+        // Unknown options (including not-yet-owned global ones) are usage errors.
         return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = opt };
     }
 
