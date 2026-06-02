@@ -3,8 +3,16 @@
 // Structural validator for the property-test report contract
 // `zentinel.pipeline.property_report.v1` (docs/PROPERTY_TEST_POLICY.md, task
 // 062). Task 044 froze the report shape and shipped example artifacts; this
-// module is the executable check that distinguishes passing property evidence
-// from missing or malformed evidence so pipeline verification can gate on it.
+// module is the in-tree executable check that distinguishes passing property
+// evidence from missing or malformed evidence.
+//
+// Consumer scope: this is a pipeline/verification helper with NO `zentinel`
+// runtime consumer -- no CLI verb calls `validate()`, and it never participates
+// in a mutation run. The property_report contract is enforced out of band by the
+// pipeline tooling (scripts/validate_task_system.py / CI) and pinned in-tree by
+// test/property_generator_test.zig, which asserts the EXACT `Violation` tag for
+// every rejection branch so a regression in this validator is caught even though
+// no product path exercises it (L13).
 //
 // The validator is pure and deterministic: it inspects a parsed `std.json.Value`
 // and returns the first contract violation it finds, or `.ok`. It never calls

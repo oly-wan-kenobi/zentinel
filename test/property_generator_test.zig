@@ -289,6 +289,86 @@ test "property report validator rejects each structural malformation with its sp
     try std.testing.expectEqual(prep.Violation.bad_result, prep.validate(try parse(a, bad_result_report)));
 }
 
+// A `properties` item that is not a JSON object.
+const bad_property_item_report =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "passed",
+    \\  "properties": [ 42 ]
+    \\}
+;
+
+// A property whose `name` is empty (present but blank).
+const empty_property_name_report =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "passed",
+    \\  "properties": [
+    \\    {
+    \\      "name": "",
+    \\      "invariant": "Determinism",
+    \\      "seeds": [1, 2, 3],
+    \\      "generator": { "summary": "s", "generated_cases": 256 },
+    \\      "shrinking": { "status": "not_triggered" },
+    \\      "result": "passed"
+    \\    }
+    \\  ]
+    \\}
+;
+
+// A FAILED property that HAS a counterexample but whose shrink status is not a
+// terminal one (`not_triggered` is not `minimized`/`unsupported`).
+const failed_without_shrink_report =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "failed",
+    \\  "properties": [
+    \\    {
+    \\      "name": "p",
+    \\      "invariant": "Determinism",
+    \\      "seeds": [1, 2, 3],
+    \\      "generator": { "summary": "s", "generated_cases": 256 },
+    \\      "shrinking": { "status": "not_triggered" },
+    \\      "result": "failed",
+    \\      "counterexample": { "seed": 2, "case": 7 }
+    \\    }
+    \\  ]
+    \\}
+;
+
+// The validator has no `zentinel` runtime consumer (L13), so this test is the
+// SOLE guard for these rejection branches -- none had a specific-tag assertion
+// before, so a regression that swapped or dropped any of them was invisible.
+test "property report validator pins per-property and non-object rejection tags (L13)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A non-object root (array, scalar, string) is rejected as not_object.
+    try std.testing.expectEqual(prep.Violation.not_object, prep.validate(try parse(a, "[]")));
+    try std.testing.expectEqual(prep.Violation.not_object, prep.validate(try parse(a, "42")));
+    try std.testing.expectEqual(prep.Violation.not_object, prep.validate(try parse(a, "\"x\"")));
+
+    // A non-object `properties` item.
+    try std.testing.expectEqual(prep.Violation.bad_property, prep.validate(try parse(a, bad_property_item_report)));
+    // A present-but-empty property name.
+    try std.testing.expectEqual(prep.Violation.bad_property_name, prep.validate(try parse(a, empty_property_name_report)));
+    // A failed property with a counterexample but a non-terminal shrink status.
+    try std.testing.expectEqual(prep.Violation.failed_without_shrink, prep.validate(try parse(a, failed_without_shrink_report)));
+}
+
 // The full fixture suite shipped by task 044: every valid report must be
 // accepted and every invalid one rejected. This keeps the validator anchored to
 // the frozen contract rather than only the three cases the task spec calls out.
@@ -300,15 +380,19 @@ const valid_fixtures = [_][]const u8{
     "scheduler_and_report_rendering_pass.json",
 };
 
-const invalid_fixtures = [_][]const u8{
-    "bad_invariant_category.json",
-    "failed_without_counterexample.json",
-    "high_risk_missing_property_evidence.json",
-    "missing_generator_summary.json",
-    "missing_invariant.json",
-    "missing_seed.json",
-    "missing_shrinking_status.json",
-    "status_mismatch.json",
+// Each invalid fixture is pinned to the EXACT violation it must trigger, not just
+// `!= .ok`. Before L13 this loop asserted only rejection, so the validator (which
+// has no product consumer) could regress to returning the WRONG tag -- or a
+// fixture could drift to trip a different branch -- with the suite staying green.
+const invalid_fixtures = [_]struct { name: []const u8, want: prep.Violation }{
+    .{ .name = "bad_invariant_category.json", .want = .bad_invariant },
+    .{ .name = "failed_without_counterexample.json", .want = .failed_without_counterexample },
+    .{ .name = "high_risk_missing_property_evidence.json", .want = .empty_property_required },
+    .{ .name = "missing_generator_summary.json", .want = .missing_generator },
+    .{ .name = "missing_invariant.json", .want = .bad_invariant },
+    .{ .name = "missing_seed.json", .want = .missing_seeds },
+    .{ .name = "missing_shrinking_status.json", .want = .bad_shrinking },
+    .{ .name = "status_mismatch.json", .want = .status_mismatch },
 };
 
 // The property evidence task 062 itself emits must satisfy the contract it
@@ -337,11 +421,11 @@ test "every valid property fixture is accepted and every invalid one rejected" {
         try std.testing.expectEqual(prep.Violation.ok, v);
     }
 
-    for (invalid_fixtures) |name| {
-        const path = try std.fmt.allocPrint(a, "test/fixtures/pipeline/property_tests/invalid/{s}", .{name});
+    for (invalid_fixtures) |fx| {
+        const path = try std.fmt.allocPrint(a, "test/fixtures/pipeline/property_tests/invalid/{s}", .{fx.name});
         const value = try parse(a, try readFile(a, path));
         const v = prep.validate(value);
-        if (v == .ok) std.debug.print("expected rejection for {s}\n", .{name});
-        try std.testing.expect(v != .ok);
+        if (v != fx.want) std.debug.print("expected {s} for {s}, got {s}\n", .{ @tagName(fx.want), fx.name, @tagName(v) });
+        try std.testing.expectEqual(fx.want, v);
     }
 }
