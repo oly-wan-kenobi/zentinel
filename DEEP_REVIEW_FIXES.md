@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 35/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 36/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -53,7 +53,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L16** · commit `2596248` · triplicated AI option-parsing loops across runAiCommand/runDoctestAi/runDoctestSurvivorAi — src/ai/ — extracted ai.command.parseSharedOption + SharedOptions (one parser for --ai-provider/--input-report/--format, error strings owned once); all three cli loops call it and keep only their own positional/--file/unknown-option logic. Behavior preserved. Red: dropping quotes from the --format error fails the new unit test (guards all three at once)
 - [x] `done` **L17** · commit `26eaad8` · emitCleanupWarningIfNeeded silently ignores its arena allocator parameter — src/root.zig — dropped the unused `arena` param (false dependency) and extracted a shared `cleanup_warning_fmt` constant so emit (streams) and cleanupWarningText (allocs) use one source; updated both call sites. Red: changing the constant fails both pinned-text assertions together. (Delegating instead leaked — caught by the test allocator.)
 - [x] `done` **L18** · commit `be6803c` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig — replaced the per-mutant linear scan with a StringHashMap(path→source) built once before the Phase A loop (buildSourceIndex); per-candidate lookup is now O(1). Deleted dead sourceFor. Red: building the index inside the loop makes source_index_builds == 2 (per-mutant), failing the once-per-run assertion
-- [ ] `todo` **L19** · commit `—` · findBlockByLine O(B) linear scan called per block ref in the hot doctest cache-key loop — src/doctest/
+- [x] `done` **L19** · commit `e26a729` · findBlockByLine O(B) linear scan called per block ref in the hot doctest cache-key loop — src/doctest/cache.zig — built an AutoHashMap(line_start→Block) once in buildMetadata (buildBlockIndex) and replaced the two per-ref scans with O(1) gets; deleted cache.zig's findBlockByLine. Red: building the index inside the case loop makes block_index_builds == 4, failing the once-per-document assertion
 - [ ] `todo` **L20** · commit `—` · doctest --no-color parsed and stored but never threaded to any renderer — src/doctest_command.zig
 - [ ] `todo` **L21** · commit `—` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/cli.zig
 - [ ] `todo` **L22** · commit `—` · `--mutate` anywhere in doctest args hijacks dispatch, preempting named AI subcommands — src/doctest_command.zig
