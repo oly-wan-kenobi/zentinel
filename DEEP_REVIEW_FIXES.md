@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 8/17 suspected resolved (6 fixed, 2 refuted)  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 9/17 suspected resolved (7 fixed, 2 refuted)  _(update this line as you go)_
 
 ---
 
@@ -95,7 +95,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **S6** · commit `77932a3` · MUTATOR_SPEC documents error_catch_unreachable as 'compiles' but code emits 'may_fail' (doc-vs-code) — docs/MUTATOR_SPEC.md `[rel: M1]`
 - [x] `done` **S7** · commit `59e94c9` · sole e2e kill/survive test binds only fungible aggregate counts; an add↔mul classification swap passes CI — test/ `[rel: H4]`
 - [x] `refuted` **S8** · commit `—` · cli.zig is a 1431-line god-file spanning six distinct concerns — src/cli.zig — REFUTED: not a behavioral bug. Severity Low, finding states "no runtime defect", 2/3 lenses refuted (zig-semantics-safety + reproduction); the suggested remedy is explicitly "a refactor task, not a bug fix… does not change any observable behavior" (extract src/adapters/*.zig), so there is no fail-then-pass regression to assert. Each command's concern is already independently tested per-file (run_command_test, list_mutants_command_test, ai_commands_test, …); a ~1400-line behavior-neutral split is out of substance-over-ceremony scope. No code change. (file now 1385 lines)
-- [ ] `todo` **S9** · commit `—` · cli.zig private config_path duplicates root.zig's exported config_default_path — src/cli.zig
+- [x] `done` **S9** · commit `1e0a3fb` · cli.zig private config_path duplicates root.zig's exported config_default_path — src/cli.zig
 - [ ] `todo` **S10** · commit `—` · enabled() called once per candidate → O(M*E) post-collection operator filter — src/run_command.zig
 - [ ] `todo` **S11** · commit `—` · matchModeFor silently treats 'text output subset' as exact matching — src/doctest/
 - [ ] `todo` **S12** · commit `—` · TOML parser does not process backslash escape sequences in double-quoted strings — src/config_toml.zig
