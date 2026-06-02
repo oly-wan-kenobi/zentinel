@@ -35,6 +35,37 @@ test "buildFlag maps modes to the -O optimize flag" {
     try expectEqualStrings("-OReleaseSmall", safety_modes.buildFlag(.ReleaseSmall));
 }
 
+test "argvForMode appends the command-correct optimize flag, leaving Debug and custom commands untouched (H5)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    // `zig test <file>` takes `-O<mode>` (valid on pinned Zig 0.16).
+    const t = try safety_modes.argvForMode(arena, &.{ "zig", "test", "f.zig" }, .ReleaseFast);
+    try expectEqual(@as(usize, 4), t.len);
+    try expectEqualStrings("zig", t[0]);
+    try expectEqualStrings("test", t[1]);
+    try expectEqualStrings("f.zig", t[2]);
+    try expectEqualStrings("-OReleaseFast", t[3]);
+
+    // `zig build ...` takes `-Doptimize=<mode>` (`zig build` rejects `-O<mode>`).
+    const b = try safety_modes.argvForMode(arena, &.{ "zig", "build", "test" }, .ReleaseSafe);
+    try expectEqual(@as(usize, 4), b.len);
+    try expectEqualStrings("-Doptimize=ReleaseSafe", b[3]);
+
+    // Debug is the compiler default: argv is returned unchanged (no flag), so the
+    // default/no-`--mode` path is byte-for-byte identical to before.
+    const d = try safety_modes.argvForMode(arena, &.{ "zig", "test", "f.zig" }, .Debug);
+    try expectEqual(@as(usize, 3), d.len);
+    try expectEqualStrings("f.zig", d[2]);
+
+    // A non-`zig` command has no known optimize flag and is left untouched.
+    const custom = try safety_modes.argvForMode(arena, &.{ "./run-tests.sh", "--ci" }, .ReleaseFast);
+    try expectEqual(@as(usize, 2), custom.len);
+    try expectEqualStrings("./run-tests.sh", custom[0]);
+    try expectEqualStrings("--ci", custom[1]);
+}
+
 test "primaryMode honors the override, else the first configured mode, else Debug" {
     try expectEqual(report.Mode.ReleaseFast, safety_modes.primaryMode(&.{"Debug"}, .ReleaseFast));
     try expectEqual(report.Mode.ReleaseSafe, safety_modes.primaryMode(&.{ "ReleaseSafe", "Debug" }, null));

@@ -23,7 +23,7 @@ pub fn parse(name: []const u8) ?Mode {
     return null;
 }
 
-/// The `-O<mode>` optimize flag for a build/test command.
+/// The `-O<mode>` optimize flag for a `zig test`/`build-exe` command.
 pub fn buildFlag(mode: Mode) []const u8 {
     return switch (mode) {
         .Debug => "-ODebug",
@@ -31,6 +31,30 @@ pub fn buildFlag(mode: Mode) []const u8 {
         .ReleaseFast => "-OReleaseFast",
         .ReleaseSmall => "-OReleaseSmall",
     };
+}
+
+/// Return `argv` with the optimize flag for `mode` appended, so a mutant is
+/// actually evaluated under that mode -- the mode must reach the spawned process
+/// as a real argv element, not merely a `result.mode` label (H5). The flag form
+/// is command-specific and verified against pinned Zig 0.16:
+///   - `zig test ...`  takes `-O<mode>`            (e.g. `-OReleaseFast`)
+///   - `zig build ...` takes `-Doptimize=<mode>`   (`zig build` REJECTS `-O<mode>`)
+/// `Debug` is the compiler default and any non-`zig` command has no known optimize
+/// flag, so both are returned unchanged -- the default/no-`--mode` path is then
+/// byte-for-byte identical to before, and custom test commands are never broken.
+pub fn argvForMode(arena: std.mem.Allocator, argv: []const []const u8, mode: Mode) std.mem.Allocator.Error![]const []const u8 {
+    if (mode == .Debug) return argv;
+    if (argv.len < 2 or !std.mem.eql(u8, argv[0], "zig")) return argv;
+    const flag: []const u8 = if (std.mem.eql(u8, argv[1], "test"))
+        buildFlag(mode)
+    else if (std.mem.eql(u8, argv[1], "build"))
+        try std.fmt.allocPrint(arena, "-Doptimize={s}", .{@tagName(mode)})
+    else
+        return argv;
+    const out = try arena.alloc([]const u8, argv.len + 1);
+    @memcpy(out[0..argv.len], argv);
+    out[argv.len] = flag;
+    return out;
 }
 
 /// Rank of a mode in canonical order (used for deterministic sorting).
