@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 7/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 8/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -23,7 +23,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 ## Medium
 - [x] `done` **M1** · commit `6b57a69` · error_catch_unreachable emits guaranteed compile_error at every catch-with-capture site (unused capture) — src/mutators/error_path.zig `[rel: H2]`
 - [x] `done` **M2** · commit `89f4ff7` · copyExcluded path-prefix over-match drops sibling-dir source files → writeFile fails → mutant `.invalid` — src/cli.zig:228 `[rel: H3]`
-- [ ] `todo` **M3** · commit `—` · path redaction over-matches Zig `//` and `///` comment markers as `<path>`, corrupting AI context & report excerpts — src/ai/redaction.zig:85
+- [x] `done` **M3** · commit `f26cff8` · path redaction over-matches Zig `//` and `///` comment markers as `<path>`, corrupting AI context & report excerpts — src/ai/redaction.zig:85
 - [ ] `todo` **M4** · commit `—` · doctest lineOfRef unchecked u32 accumulator panics (SIGABRT) on a malformed `--case` ref instead of CaseNotFound — src/doctest_command.zig `[rel: H1]`
 - [ ] `todo` **M5** · commit `—` · cache.enabled / cache.directory / report.formats parsed & validated but never consumed — src/config.zig `[rel: H5]`
 - [ ] `todo` **M6** · commit `—` · matcher.Mode json_unordered / regex / diagnostic unreachable from block parsing — src/doctest/block.zig
