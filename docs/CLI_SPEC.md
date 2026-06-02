@@ -30,6 +30,21 @@ Phase 0 implements the CLI shell incrementally:
 
 Every command listed in `--help` is implemented. The frozen Phase 0 `dispatch` shell owns only `--help`, `version`, and `init`; the project commands (`check`, `run`, `list-mutants`, `doctest`) and the advisory AI commands are handled by the routing layer, so none of them is a "not implemented" roadmap stub anymore. A command that is not recognized fails deterministically with exit code `2` and `ZNTL_CLI_UNKNOWN_COMMAND`. The `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED` code stays defined in the error taxonomy for any future roadmap command added before its handler lands, but no shipped command returns it.
 
+## External Zig binary requirement
+
+zentinel embeds the `std.zig.Ast` parser, so mutant *generation* never shells out to `zig`. The external `zig` binary is only needed to compile and run code. Each command falls into exactly one of three groups; a new command MUST be placed in one of them explicitly (this is the authoritative list — `FAILURE_MODES.md` F-001 references it):
+
+- **Require the external `zig` binary** — the command aborts before project analysis when `zig` is absent or its version is outside the pinned `0.16.0` policy:
+  - `check` — exits `2` with `ZNTL_ZIG_NOT_FOUND` before analysis; reporting the discovered Zig's compatibility is the command's whole job.
+  - `run` — pre-flights the Zig version gate (`zig_version.fatalStatusLine`) before mutating, because it compiles and runs the test suite.
+  - `doctest` and `doctest --mutate` — pre-flight the same gate, because they compile and run extracted documentation code.
+- **Discover `zig` but never fatal on it** — informational status only; the command always proceeds and its exit code is independent of Zig:
+  - `version` — prints the discovered-Zig status as non-fatal environment info on stderr and still exits `0`.
+  - the advisory AI commands `explain`, `suggest`, `review-tests`, and the doctest AI subcommands (`doctest explain` / `suggest` / `review-snapshot` / `suggest-missing` / `explain-survivor`) — use the discovered Zig only as a `supported`/`unknown` label.
+- **Do not use the external `zig` binary at all**:
+  - `list-mutants` — generates candidates with the embedded `std.zig.Ast` parser only; it never invokes `zig`, so it runs even when no `zig` is on `PATH`.
+  - `init` — writes `zentinel.toml`; no Zig is involved.
+
 ## Global Options
 
 ```text

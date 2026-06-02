@@ -12,6 +12,15 @@ fn readFile(a: std.mem.Allocator, path: []const u8) ![]u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));
 }
 
+/// The body of a top-level `fn <sig>` declaration: from the signature to the next
+/// top-level `fn ` boundary (all targeted functions in src/cli.zig are private `fn`).
+fn fnBody(src: []const u8, sig: []const u8) []const u8 {
+    const start = std.mem.indexOf(u8, src, sig) orelse return "";
+    const after = start + sig.len;
+    const end = std.mem.indexOf(u8, src[after..], "\nfn ") orelse (src.len - after);
+    return src[start .. after + end];
+}
+
 // --- Repeated report comparison (F-025) ------------------------------------
 
 test "initial production dogfood report is deterministic across repeated runs" {
@@ -132,6 +141,31 @@ test "validate_task_system requires completion_evidence files_changed to be non-
     // non-empty string array"; the real data does not.
     try expect(std.mem.indexOf(u8, vts, "len(entry.get(\"files_changed\", [])) > 0") != null);
     try expect(std.mem.indexOf(u8, vts, "files_changed must be a non-empty string array") != null);
+}
+
+test "CLI_SPEC enumerates the external-Zig command grouping and it matches cli.zig (S15)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Doc: CLI_SPEC now has the authoritative "External Zig binary requirement"
+    // enumeration that names which commands need the external zig binary (S15).
+    const spec = try readFile(a, "docs/CLI_SPEC.md");
+    try expect(std.mem.indexOf(u8, spec, "External Zig binary requirement") != null);
+    try expect(std.mem.indexOf(u8, spec, "list-mutants") != null);
+    // FAILURE_MODES F-001 no longer uses the vague "commands that require Zig" and
+    // instead points at the CLI_SPEC grouping.
+    const fm = try readFile(a, "docs/FAILURE_MODES.md");
+    try expect(std.mem.indexOf(u8, fm, "External Zig binary requirement") != null);
+
+    // Code ground truth the doc is describing: the external-zig fatal gate
+    // (zig_version.fatalStatusLine) is called by `run` and `doctest` but NOT by
+    // `list-mutants`, which uses only the embedded std.zig.Ast parser. If a future
+    // edit moved the gate, this cross-check fails so the doc cannot silently drift.
+    const cli = try readFile(a, "src/cli.zig");
+    try expect(std.mem.indexOf(u8, fnBody(cli, "fn runRun("), "fatalStatusLine") != null);
+    try expect(std.mem.indexOf(u8, fnBody(cli, "fn runDoctest("), "fatalStatusLine") != null);
+    try expect(std.mem.indexOf(u8, fnBody(cli, "fn runListMutants("), "fatalStatusLine") == null);
 }
 
 test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
