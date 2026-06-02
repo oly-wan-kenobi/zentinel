@@ -200,3 +200,18 @@ test "scripts/ci.sh exercises the final release dogfood gate" {
     const gate = try readFile(arena, "scripts/release_dogfood_gate.py");
     inline for (required_gates) |g| try expect(std.mem.indexOf(u8, gate, g) != null);
 }
+
+test "release_dogfood_gate reports malformed manifest/fixture JSON instead of crashing (S5)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const gate = try readFile(arena, "scripts/release_dogfood_gate.py");
+    // A truncated/corrupt manifest or fixture is a structured gate failure, not an
+    // unhandled JSONDecodeError traceback in CI stage 7: json.loads is guarded
+    // (_load_json_or_none), main() reports a malformed manifest, and self_test()
+    // flags an unparseable fixture (S5).
+    try expect(std.mem.indexOf(u8, gate, "_load_json_or_none") != null);
+    try expect(std.mem.indexOf(u8, gate, "malformed manifest JSON") != null);
+    try expect(std.mem.indexOf(u8, gate, "is not valid JSON") != null);
+}
