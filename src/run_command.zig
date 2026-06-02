@@ -145,7 +145,7 @@ pub const RunError = error{
     SourceFileMissing,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -166,6 +166,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         } else if (std.mem.eql(u8, arg, "--operator")) {
             i += 1;
             if (i >= args.len) return error.MissingValue;
+            // Reject an unknown operator up front; otherwise the filter matches no
+            // candidate and the run reports 0 mutants with a clean exit 0, masking a
+            // mistyped name in CI (L31).
+            if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--mutant")) {
             i += 1;

@@ -665,6 +665,14 @@ test "parseArgs rejects unknown options and missing values instead of ignoring t
     try expectError(error.InvalidReportFormat, rc.parseArgs(&.{ "--report", "yaml" }));
 }
 
+test "parseArgs rejects an unknown --operator name instead of silently matching nothing (L31)" {
+    // A mistyped operator must be a usage error, not a clean run over 0 mutants.
+    try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
+    try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "arithmetic_add" })); // truncated real name
+    // A registered operator (including a Phase-2 one) still round-trips unchanged.
+    try expectEqualStrings("loop_boundary", (try rc.parseArgs(&.{ "--operator", "loop_boundary" })).operator_filter.?);
+}
+
 test "parseArgs accepts jsonl and junit report formats" {
     try expectEqual(rc.ReportFormat.jsonl, (try rc.parseArgs(&.{ "--report", "jsonl" })).report_format);
     try expectEqual(rc.ReportFormat.junit, (try rc.parseArgs(&.{ "--report", "junit" })).report_format);

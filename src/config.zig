@@ -147,6 +147,13 @@ fn findOperator(name: []const u8) ?OperatorInfo {
     return null;
 }
 
+/// True if `name` is a registered mutation operator (the canonical registry that
+/// mirrors docs/MUTATOR_SPEC.md). Exposed so CLI parsers can reject an unknown
+/// `--operator` value up front instead of silently matching no candidate (L31).
+pub fn isKnownOperator(name: []const u8) bool {
+    return findOperator(name) != null;
+}
+
 fn fail(diag: *Diagnostic, code: Code, section: []const u8, key: []const u8, message: []const u8) Error {
     diag.* = .{ .code = code, .section = section, .key = key, .message = message };
     return error.Invalid;
