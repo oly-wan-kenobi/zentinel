@@ -558,7 +558,10 @@ fn runRun(
     // cache write shares the symlink containment guard; an escape is skipped
     // rather than fatal because the cache is best-effort.
     const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
-    const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.report_output_dir});
+    // The cache artifact goes under the configured cache.directory (M5), not the
+    // report output dir; the symlink-containment guard and parent-dir creation
+    // below keep the write safe and best-effort.
+    const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.cache_directory});
     if (!zentinel.config.pathEscapesRoot(io, root_dir, cache_path)) {
         if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
         root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};

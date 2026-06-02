@@ -395,6 +395,62 @@ test "the built binary accepts a valid absolute root for config loading" {
     }
 }
 
+test "cache.directory governs where cache.json is written, not report.output_dir (M5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data =
+        \\[project]
+        \\name = "cachedir"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig test src/calc.zig"]
+        \\
+        \\[cache]
+        \\directory = "zig-out/custom-cache"
+        \\
+    });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/src/calc.zig", .data =
+        \\pub fn add(a: i32, b: i32) i32 {
+        \\    return a + b;
+        \\}
+        \\
+        \\test "add" {
+        \\    try std.testing.expectEqual(@as(i32, 3), add(1, 2));
+        \\}
+        \\
+        \\const std = @import("std");
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "run", "--report", "json" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+
+    // cache.json lands under the configured cache.directory...
+    const in_cache_dir = try tmpPath(a, tmp, "proj/zig-out/custom-cache/cache.json");
+    try std.Io.Dir.cwd().access(io, in_cache_dir, .{});
+    // ...and NOT in the default report output dir (zig-out/zentinel).
+    const in_report_dir = try tmpPath(a, tmp, "proj/zig-out/zentinel/cache.json");
+    try std.testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(io, in_report_dir, .{}));
+}
+
 test "the built binary rejects explicit config symlink escapes through the adapter" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

@@ -57,6 +57,22 @@ test "full default config (task 001 init output) parses with expected fields" {
     try expectEqual(@as(usize, 2), cfg.report_formats.len);
 }
 
+test "report.formats validates each element against the known formats (M5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    // Every known format is accepted...
+    var diag: config.Diagnostic = .{};
+    const ok = try load(arena.allocator(), "[report]\nformats = [\"text\", \"json\", \"jsonl\", \"junit\"]\n", &diag);
+    try expectEqual(@as(usize, 4), ok.report_formats.len);
+
+    // ...but an unknown per-element value is rejected at load, not silently kept.
+    var diag2: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena.allocator(), "[report]\nformats = [\"invalid_format\"]\n", &diag2));
+    var diag3: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena.allocator(), "[report]\nformats = [\"json\", \"bogus\"]\n", &diag3));
+}
+
 test "parser accepts tables, strings, booleans, integers, arrays, and comments" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

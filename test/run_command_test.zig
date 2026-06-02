@@ -601,6 +601,37 @@ test "--no-cache disables the result cache but keeps build-cache isolation and r
     try expectEqualStrings(try report.toJson(a, cached.report), try report.toJson(a, uncached.report));
 }
 
+const cfg_cache_off =
+    \\[project]
+    \\name = "sample"
+    \\
+    \\[mutators]
+    \\enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+    \\
+    \\[test]
+    \\commands = ["zig build test"]
+    \\
+    \\[cache]
+    \\enabled = false
+    \\
+;
+
+test "cache.enabled = false in config disables the result cache like --no-cache (M5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    // No --no-cache flag; the disable comes purely from the config field, which
+    // was previously parsed and then ignored (M5).
+    const outcome = try rc.run(a, loadCfg(a, cfg_cache_off), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(report.CacheMode.disabled, outcome.cache.mode);
+    try expect(!outcome.cache.enabled);
+    try expectEqual(@as(usize, 0), outcome.cache.result_keys.len);
+}
+
 // --- Deterministic JSON snapshots ------------------------------------------
 
 fn checkSnapshot(a: std.mem.Allocator, path: []const u8, actual: []const u8) !void {

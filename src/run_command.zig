@@ -227,6 +227,10 @@ pub fn run(
         if (config.isOutsideRoot(out)) return error.OutputOutsideRoot;
     }
 
+    // `cache.enabled = false` disables the result cache exactly like `--no-cache`,
+    // so the config field is honored rather than parsed-and-ignored (M5).
+    const no_cache = options.no_cache or !cfg.cache_enabled;
+
     // Safety/optimization mode matrix (task 058). `mode` is the primary mode
     // reflected in `result.mode`; `matrix_modes` is the full set run for the
     // additive `result.mode_matrix` (just the override, or the configured modes).
@@ -249,7 +253,7 @@ pub fn run(
                 .summary = .{},
                 .mutants = &.{},
             },
-            .cache = buildCacheMetadata(&.{}, options.no_cache, obs.zig_cache_namespace),
+            .cache = buildCacheMetadata(&.{}, no_cache, obs.zig_cache_namespace),
         };
     }
 
@@ -337,8 +341,8 @@ pub fn run(
         try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, mode_matrix, job.selection));
 
         // Compute the deterministic result-cache key (metadata only; reuse stays
-        // disabled in Phase 1). --no-cache skips result keys entirely.
-        if (!options.no_cache) {
+        // disabled in Phase 1). A disabled cache skips result keys entirely.
+        if (!no_cache) {
             const key = try cache.computeKey(arena, .{
                 .mutant_id = job.candidate.id,
                 .zentinel_version = obs.zentinel_version,
@@ -373,7 +377,7 @@ pub fn run(
             .summary = summary,
             .mutants = mutants,
         },
-        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), options.no_cache, obs.zig_cache_namespace),
+        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), no_cache, obs.zig_cache_namespace),
     };
 }
 
