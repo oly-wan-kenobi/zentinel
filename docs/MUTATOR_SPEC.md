@@ -247,7 +247,7 @@ fn flag() bool {
 | Allowed contexts | Error union catch expressions. |
 | Forbidden contexts | Existing `catch unreachable`; catch handlers whose side effects are the only intended mutation target for another operator. |
 | Equivalent risks | Error path never exercised; handler already terminates. |
-| Compile expectation | `may_fail`. The span covers the `|err|` capture so the replacement never orphans it, but the removed handler may have been the only use of a captured resource, leaving it unused — which Zig rejects — so a `compile_error` result is an expected outcome here, not a tool defect (M1). |
+| Compile expectation | `may_fail`. Removing the catch handler can leave a captured resource (used only by that handler) unused, which Zig rejects, so a `compile_error` result is an expected outcome here, not a tool defect (M1). |
 | Fixture requirements | Include caught error path, success path, and handler side-effect example. |
 
 ### `error_catch_return`
