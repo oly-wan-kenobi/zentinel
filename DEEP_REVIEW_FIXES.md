@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 57/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 58/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -75,7 +75,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L38** · commit `d3ab37f` · property_report failed_without_shrink branch / 'unsupported' shrink status untested — src/property/report.zig — added a focused shrink-status test (not_triggered→failed_without_shrink, unsupported→ok) on an otherwise-valid failed report. failed_without_shrink was already pinned by L13's test; the genuine net-new coverage is `unsupported`. Load-bearing: deleting the branch fails the not_triggered assertion; dropping `unsupported` from failed_shrink_statuses fails ONLY the new unsupported assertion. Test-only; reverted, suite green
 - [x] `done` **L39** · commit `5c3f8bd` · Generator.intRange (and boolean/bytes) untested dead public API; intRange has a latent overflow/panic — src/property/generator.zig — rewrote intRange to compute span+draw in u64 via @bitCast/wrapping ops (no overflow, no panicking i64 @intCast), correct for normal/negative/point/full-width ranges; added tests exercising intRange bounds (incl. full minInt..maxInt), boolean balance, and bytes determinism. Red: full-width intRange aborted `panic: integer overflow` at generator.zig:29; green post-fix
 - [x] `done` **L40** · commit `cc33b08` · mutator killed/survivor fixtures assert only candidate emission, never the kill/survive outcome — test/ — upgraded the error_path killed/survivor fixture tests to drive the emitted candidate through sandbox.apply (assert the `catch unreachable` bytes) + mutant_runner.run with a scripted executor, asserting ResultStatus.survived (passing suite) / .killed (failing suite). Test-only. Load-bearing: a valid-but-wrong replacement (`1`) keeps emission intact but fails the new applied-bytes assertion; reverted, suite green
-- [ ] `todo` **L41** · commit `—` · duplicate ISO-8601 timestamp logic in cli.zig (buildObservation does not reuse isoTimestamp) — src/cli.zig
+- [x] `done` **L41** · commit `d68fd61` · duplicate ISO-8601 timestamp logic in cli.zig (buildObservation does not reuse isoTimestamp) — src/cli.zig — extracted the pure formatter to report.isoTimestamp (deterministic core, testable); buildObservation + runDoctest now both call it and cli's private copy is deleted. Added exact-bytes unit test (0→epoch, 1e12ms→2001-09-09T01:46:40Z, sub-second truncation, negative clamp). Load-bearing: swapping the `T` separator fails the test (guards both timestamp paths); reverted, suite green
 - [ ] `todo` **L42** · commit `—` · isQuotedMeta is a trivially thin wrapper that always equals isMeta — src/command.zig
 - [ ] `todo` **L43** · commit `—` · ai.source_context_lines parsed & validated but never passed to the AI context builder — src/config.zig, src/ai/context.zig `[rel: H5]`
 - [ ] `todo` **L44** · commit `—` · `--verbose` and `--quiet` accepted together on `run`; quiet silently wins — src/cli.zig
