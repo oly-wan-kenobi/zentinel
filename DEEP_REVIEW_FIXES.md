@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 31/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 32/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -49,7 +49,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L12** · commit `54e8aea` · doctest per-case workspace-creation failure aborts the whole run (exit 4) instead of isolating the case — src/doctest/runner.zig — runZig now catches WorkspaceCreateFailed → per-case `.invalid` + ZNTL_DOCTEST_WORKSPACE_FAILED diagnostic (symmetric with the mutation path); RunError narrowed to drop it, dead cli exit-4 prong removed. Red: error escaped runCase; green post-fix
 - [x] `done` **L13** · commit `6e31ceb` · entire src/property/ subsystem is production-unreferenced (test-only) — src/property/ — no-new-surface resolution (option b): corrected the docstring to state it has no runtime consumer (gated out of band) and made the sole test guard load-bearing — pinned every invalid fixture to its exact Violation + added specific-tag tests for the 4 untested branches (not_object/bad_property/bad_property_name/failed_without_shrink). Red: a not_object→ok regression the old suite missed now fails
 - [x] `done` **L14** · commit `878176a` · dead `future_global_options` array never read — src/root.zig — deleted the unreferenced array + the comment that cited it; behavior-preserving (build+tests green). Pinned the one untested entry: `--quiet` → route passthrough + dispatch cli_invalid_option (detail "--quiet"). Red: making dispatch accept --quiet failed the new guard
-- [ ] `todo` **L15** · commit `—` · report.writeJson is a dead public export with no callers — src/report.zig
+- [x] `done` **L15** · commit `5cdfbcb` · report.writeJson is a dead public export with no callers — src/report.zig — deleted the unused writer-streaming serializer (CLI writes a buffer via writeFile, no streaming sink); toJson is now the sole serializer. Its exact canonical format stays guarded by existing byte-level golden snapshots (report_schema_test minimal_snapshot + run_command_test/*.json) — verified load-bearing: an indent_4 regression fails all four goldens
 - [ ] `todo` **L16** · commit `—` · triplicated AI option-parsing loops across runAiCommand/runDoctestAi/runDoctestSurvivorAi — src/ai/
 - [ ] `todo` **L17** · commit `—` · emitCleanupWarningIfNeeded silently ignores its arena allocator parameter — src/cli.zig
 - [ ] `todo` **L18** · commit `—` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig
