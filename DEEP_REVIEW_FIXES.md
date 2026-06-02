@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 5/17 suspected resolved (4 fixed, 1 refuted)  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 6/17 suspected resolved (5 fixed, 1 refuted)  _(update this line as you go)_
 
 ---
 
@@ -92,7 +92,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **S3** (real bug) · commit `1649649` · SHA-256 of each source file recomputed once per mutant in the Phase C hot loop — src/run_command.zig — added buildSourceHashIndex (path→hex SHA-256, once per file, mirroring L18's source index); Phase C looks it up by job.candidate.file instead of re-hashing per mutant. Cache keys byte-identical. Red: source_hash_count == 2 for a 1-file/2-mutant run; green: == 1
 - [x] `done` **S4** (real bug) · commit `a9ec7f4` · build.zig silent zero-test build when test/ is inaccessible (catch return swallows openDir error) — build.zig — replaced `catch return` with @panic and added `if (count == 0) @panic` so a missing/unreadable/empty test/ fails the build instead of a green zero-test `zig build test`. Behaviorally verified (test/ renamed → exit 1 with the panic; restored). Red: pre-fix build.zig lacked both guards and the suite still ran green
 - [x] `done` **S5** (real bug) · commit `be618c9` · release_dogfood_gate.py self_test()/main() crash with unhandled JSONDecodeError on a malformed manifest — scripts/release_dogfood_gate.py — added _load_json_or_none guard (mirroring _reports_normalized_equal) at all 3 json.loads sites: main() prints "malformed manifest JSON" + fails; each self_test loop appends "is not valid JSON". Behaviorally verified (malformed fixture flagged, malformed manifest → structured line + exit 1, no traceback). Red: pre-fix bare json.loads lacked the guard/messages
-- [ ] `todo` **S6** · commit `—` · MUTATOR_SPEC documents error_catch_unreachable as 'compiles' but code emits 'may_fail' (doc-vs-code) — docs/MUTATOR_SPEC.md `[rel: M1]`
+- [x] `done` **S6** · commit `77932a3` · MUTATOR_SPEC documents error_catch_unreachable as 'compiles' but code emits 'may_fail' (doc-vs-code) — docs/MUTATOR_SPEC.md `[rel: M1]`
 - [ ] `todo` **S7** · commit `—` · sole e2e kill/survive test binds only fungible aggregate counts; an add↔mul classification swap passes CI — test/ `[rel: H4]`
 - [ ] `todo` **S8** · commit `—` · cli.zig is a 1431-line god-file spanning six distinct concerns — src/cli.zig
 - [ ] `todo` **S9** · commit `—` · cli.zig private config_path duplicates root.zig's exported config_default_path — src/cli.zig
