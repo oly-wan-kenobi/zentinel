@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 13/17 suspected resolved (11 fixed, 2 refuted)  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 14/17 suspected resolved (12 fixed, 2 refuted)  _(update this line as you go)_
 
 ---
 
@@ -100,7 +100,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **S11** · commit `9358271` · matchModeFor silently treats 'text output subset' as exact matching — src/doctest/
 - [x] `done` **S12** · commit `12727ad` · TOML parser does not process backslash escape sequences in double-quoted strings — src/config_toml.zig
 - [x] `done` **S13** · commit `8285da6` · validate_task_system: empty allowed_files=[] / forbidden_files=[] pass via Python all() vacuous truth — scripts/validate_task_system.py
-- [ ] `todo` **S14** · commit `—` · completion_evidence files_changed/tests_added/tests_run/follow_up_tasks accept empty lists via vacuous all() — scripts/validate_task_system.py
+- [x] `done` **S14** · commit `9ace7cf` · completion_evidence files_changed/tests_added/tests_run/follow_up_tasks accept empty lists via vacuous all() — scripts/validate_task_system.py
 - [ ] `todo` **S15** · commit `—` · no doc states which commands require the external `zig` binary — docs/
 - [ ] `todo` **S16** · commit `—` · MUTATION_GATE_POLICY.md retry table omits the 'Architecture' task class (diverges from FAILURE_RECOVERY.md) — docs/MUTATION_GATE_POLICY.md
 - [ ] `todo` **S17** · commit `—` · third verbatim copy of the unchecked-u32 lineOfRef accumulator overflow — src/doctest/mutator_doctest.zig `[rel: M4]`
