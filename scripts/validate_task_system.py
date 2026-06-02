@@ -1776,6 +1776,10 @@ def validate_failure_recovery(errors: list[str]) -> None:
             rel = str(fx.relative_to(ROOT))
             data = _load_json_or_none(fx)
             if not isinstance(data, dict):
+                # A non-dict invalid fixture is a fixture-authoring error, not a
+                # silently-skipped no-op -- the validator only rejects JSON objects,
+                # so flag it like the valid loop does rather than hiding it (L49).
+                fail(errors, f"{rel}: invalid failure-recovery fixture must be a JSON object")
                 continue
             violations = validate_failure_recovery_record(data, rel)
             require(bool(violations), errors, f"invalid failure-recovery fixture {fx.name} must be rejected by the recovery validator")

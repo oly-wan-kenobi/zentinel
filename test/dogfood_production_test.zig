@@ -103,6 +103,19 @@ test "validate_task_system resolve_zig_import resolves .zig imports relative to 
     try expect(std.mem.indexOf(u8, vts, "importer.parent / imported") != null);
 }
 
+test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const vts = try readFile(a, "scripts/validate_task_system.py");
+    // The invalid-fixture self-test loop now fail()s on a non-dict file (a
+    // fixture-authoring error), mirroring the valid loop, instead of a silent
+    // `continue` that hid the bad fixture (L49). This message exists only for the
+    // invalid loop; the valid loop's says "valid ...".
+    try expect(std.mem.indexOf(u8, vts, "invalid failure-recovery fixture must be a JSON object") != null);
+}
+
 test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors (L33)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
