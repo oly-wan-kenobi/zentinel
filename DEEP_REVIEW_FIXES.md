@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 53/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 54/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -71,7 +71,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L34** · commit `de0c137` · release_acceptance.py check_criteria uses execute_checks=False → false-OK when a verified_by script fails — scripts/release_acceptance.py — check_criteria now passes execute_checks=True so the final_dogfood_gate criterion reflects verified_by script EXECUTION (matching the rdg.main path), not just on-disk existence. Red: execute_checks absent from the file; green: present. Behaviorally confirmed load-bearing (False→[] vs True→real failure surfaced)
 - [x] `done` **L35** · commit `7bd73c7` · MUTATOR_SPEC Operator Overlap policy (restrict contexts) contradicts code's emit-from-both/dedup (doc-vs-code) — docs/MUTATOR_SPEC.md — doc-vs-code drift (code correct): replaced the misleading "lower-precedence operator must restrict contexts" rule with the two real mechanisms (context ownership + physical-edit dedup backstop) and documented the alphabetical operator-name tiebreak. Load-bearing proof: temp-reversing mutant.zig.lessThan's operator tiebreak fails ast_candidate_ordering_test.zig:82/108 (retains loop_boundary, not comparison_boundary); reverted, suite green
 - [x] `done` **L36** · commit `64215c8` · MUTATOR_SPEC Operator Overlap omits the loop_boundary/comparison_boundary while-condition precedence rule (doc) — docs/MUTATOR_SPEC.md — doc-vs-code drift (code correct): added the documented while-condition same-edit overlap (both operators emit the identical edit; dedup retains comparison_boundary, so it owns the while-condition boundary swap). Load-bearing proof: temp-disabling samePhysicalEdit makes ast_candidate_ordering_test.zig:105 see 2 candidates (expected 1); reverted, suite green
-- [ ] `todo` **L37** · commit `—` · in-tree TOML parser silently accepts duplicate keys (first value wins) — src/config_toml.zig
+- [x] `done` **L37** · commit `9e71b4c` · in-tree TOML parser silently accepts duplicate keys (first value wins) — src/config_toml.zig — parse now rejects a repeated (section, key) with a parse error at the redefinition line (ZNTL_CONFIG_PARSE_ERROR), scoped so the same key name under different tables (cache.enabled vs ai.enabled) stays valid. Red: `[test]` with `commands` twice loaded first-wins; green: error.Invalid/parse_error at line 3
 - [ ] `todo` **L38** · commit `—` · property_report failed_without_shrink branch / 'unsupported' shrink status untested — src/property/report.zig
 - [ ] `todo` **L39** · commit `—` · Generator.intRange (and boolean/bytes) untested dead public API; intRange has a latent overflow/panic — src/property/generator.zig
 - [ ] `todo` **L40** · commit `—` · mutator killed/survivor fixtures assert only candidate emission, never the kill/survive outcome — test/
