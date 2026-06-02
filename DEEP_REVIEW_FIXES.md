@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 55/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 56/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -73,7 +73,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L36** · commit `64215c8` · MUTATOR_SPEC Operator Overlap omits the loop_boundary/comparison_boundary while-condition precedence rule (doc) — docs/MUTATOR_SPEC.md — doc-vs-code drift (code correct): added the documented while-condition same-edit overlap (both operators emit the identical edit; dedup retains comparison_boundary, so it owns the while-condition boundary swap). Load-bearing proof: temp-disabling samePhysicalEdit makes ast_candidate_ordering_test.zig:105 see 2 candidates (expected 1); reverted, suite green
 - [x] `done` **L37** · commit `9e71b4c` · in-tree TOML parser silently accepts duplicate keys (first value wins) — src/config_toml.zig — parse now rejects a repeated (section, key) with a parse error at the redefinition line (ZNTL_CONFIG_PARSE_ERROR), scoped so the same key name under different tables (cache.enabled vs ai.enabled) stays valid. Red: `[test]` with `commands` twice loaded first-wins; green: error.Invalid/parse_error at line 3
 - [x] `done` **L38** · commit `d3ab37f` · property_report failed_without_shrink branch / 'unsupported' shrink status untested — src/property/report.zig — added a focused shrink-status test (not_triggered→failed_without_shrink, unsupported→ok) on an otherwise-valid failed report. failed_without_shrink was already pinned by L13's test; the genuine net-new coverage is `unsupported`. Load-bearing: deleting the branch fails the not_triggered assertion; dropping `unsupported` from failed_shrink_statuses fails ONLY the new unsupported assertion. Test-only; reverted, suite green
-- [ ] `todo` **L39** · commit `—` · Generator.intRange (and boolean/bytes) untested dead public API; intRange has a latent overflow/panic — src/property/generator.zig
+- [x] `done` **L39** · commit `5c3f8bd` · Generator.intRange (and boolean/bytes) untested dead public API; intRange has a latent overflow/panic — src/property/generator.zig — rewrote intRange to compute span+draw in u64 via @bitCast/wrapping ops (no overflow, no panicking i64 @intCast), correct for normal/negative/point/full-width ranges; added tests exercising intRange bounds (incl. full minInt..maxInt), boolean balance, and bytes determinism. Red: full-width intRange aborted `panic: integer overflow` at generator.zig:29; green post-fix
 - [ ] `todo` **L40** · commit `—` · mutator killed/survivor fixtures assert only candidate emission, never the kill/survive outcome — test/
 - [ ] `todo` **L41** · commit `—` · duplicate ISO-8601 timestamp logic in cli.zig (buildObservation does not reuse isoTimestamp) — src/cli.zig
 - [ ] `todo` **L42** · commit `—` · isQuotedMeta is a trivially thin wrapper that always equals isMeta — src/command.zig
