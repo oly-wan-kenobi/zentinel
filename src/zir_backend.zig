@@ -21,6 +21,7 @@ const mutant = @import("mutant.zig");
 const config = @import("config.zig");
 const ast_backend = @import("ast_backend.zig");
 const source_map = @import("source_map.zig");
+const run_command = @import("run_command.zig");
 
 /// Internal deterministic backend contract string for the experimental ZIR
 /// prototype under Zig 0.16.0. It participates in durable identity (so a ZIR
@@ -333,6 +334,53 @@ pub fn experimentalListing(
     if (!std.mem.eql(u8, backend, "zir")) return error.BackendNotImplemented;
     if (!backendOptedIn(cfg, "zir")) return error.ExperimentalBackendNotEnabled;
     return fromAst(arena, ast_candidates);
+}
+
+pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError } || std.mem.Allocator.Error;
+
+fn isComparisonOperator(op: []const u8) bool {
+    return std.mem.eql(u8, op, "equality_swap") or std.mem.eql(u8, op, "comparison_boundary");
+}
+
+/// Build the experimental ZIR listing by REALLY lowering each source file to ZIR
+/// (`fromTree`), not relabeling the AST candidate set. Comparison operators become
+/// genuine ZIR candidates; every other AST operator (not yet ZIR-lowered in Phase 1)
+/// and every AstGen-injected comparison becomes an out-of-report diagnostic, so a
+/// previously-listed operator is never silently dropped. Requires `backend.experimental`
+/// to contain `zir`. This is the path `list-mutants --backend zir` uses.
+pub fn listFromTrees(
+    arena: std.mem.Allocator,
+    cfg: config.Config,
+    files: []const run_command.FileSource,
+    ast_candidates: []const mutant.Mutant,
+    backend: []const u8,
+) ListError!Result {
+    if (!std.mem.eql(u8, backend, "zir")) return error.BackendNotImplemented;
+    if (!backendOptedIn(cfg, "zir")) return error.ExperimentalBackendNotEnabled;
+
+    var candidates: std.ArrayList(mutant.Mutant) = .empty;
+    var diagnostics: std.ArrayList(Diagnostic) = .empty;
+    for (files) |f| {
+        const r = try fromTree(arena, f.path, f.source);
+        try candidates.appendSlice(arena, r.candidates);
+        try diagnostics.appendSlice(arena, r.diagnostics);
+    }
+    // Operators the ZIR backend does not yet lower (Phase 1 covers comparisons) are
+    // surfaced as out-of-report diagnostics rather than silently omitted.
+    for (ast_candidates) |c| {
+        if (isComparisonOperator(c.operator)) continue;
+        try diagnostics.append(arena, .{
+            .file = c.file,
+            .operator = c.operator,
+            .span_start = c.span.byte_start,
+            .span_end = c.span.byte_end,
+            .reason = "operator is not yet lowered by the ZIR backend (Phase 1 covers comparison operators)",
+        });
+    }
+    return .{
+        .candidates = try mutant.sortAndDedupe(arena, candidates.items),
+        .diagnostics = try diagnostics.toOwnedSlice(arena),
+    };
 }
 
 /// The out-of-report diagnostics artifact (a separate schema, never report v1).

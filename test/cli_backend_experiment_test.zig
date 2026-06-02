@@ -6,6 +6,7 @@ const zir = zentinel.zir_backend;
 const air = zentinel.air_backend;
 const ast_backend = zentinel.ast_backend;
 const comparison = zentinel.mutators.comparison;
+const arithmetic = zentinel.mutators.arithmetic;
 const mutant = zentinel.mutant;
 
 const expect = std.testing.expect;
@@ -70,6 +71,52 @@ test "list-mutants --backend zir is rejected without opt-in and accepted with it
     try expectEqual(@as(usize, 0), listing.diagnostics.len);
     try expectEqual(mutant.Backend.zir, listing.candidates[0].backend);
     try expectEqual(mutant.BackendStability.experimental, listing.candidates[0].backend_stability);
+}
+
+fn allCandidates(arena: std.mem.Allocator, file: []const u8, src: []const u8) ![]mutant.Mutant {
+    const parsed = try ast_backend.parse(arena, file, src);
+    const ranges = try ast_backend.testDeclRanges(parsed, arena);
+    var collector = ast_backend.Collector.init(arena);
+    try comparison.collect(&collector, parsed, file, ranges);
+    try arithmetic.collect(&collector, parsed, file, ranges);
+    return collector.finish();
+}
+
+test "list-mutants --backend zir really lowers sources to ZIR comparison candidates; other operators become diagnostics" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    // One comparison site (`a < b`) and two arithmetic sites (`a + b`, `a - b`).
+    const src = "pub fn f(a: i32, b: i32) i32 {\n    if (a < b) return a + b;\n    return a - b;\n}\n";
+    const files = [_]zentinel.run_command.FileSource{.{ .path = "p.zig", .source = src }};
+    const ast_all = try allCandidates(arena, "p.zig", src);
+
+    // Without opt-in the real ZIR path is gated shut.
+    var d_no: config.Diagnostic = .{};
+    const cfg_no = try load(arena, "", &d_no);
+    try expectError(error.ExperimentalBackendNotEnabled, zir.listFromTrees(arena, cfg_no, &files, ast_all, "zir"));
+
+    // With opt-in: the comparison site is a REAL ZIR-lowered candidate; the
+    // arithmetic operators (not yet ZIR-lowered) are out-of-report diagnostics,
+    // never silently dropped.
+    var d_yes: config.Diagnostic = .{};
+    const cfg_yes = try load(arena, "[backend]\nexperimental = [\"zir\"]\n", &d_yes);
+    const listing = try zir.listFromTrees(arena, cfg_yes, &files, ast_all, "zir");
+
+    try expectEqual(@as(usize, 1), listing.candidates.len);
+    try expectEqualStrings("comparison_boundary", listing.candidates[0].operator);
+    try expectEqual(mutant.Backend.zir, listing.candidates[0].backend);
+    try expectEqual(mutant.BackendStability.experimental, listing.candidates[0].backend_stability);
+
+    // Both arithmetic sites surfaced as diagnostics, none as mutants.
+    var arith_diags: usize = 0;
+    for (listing.diagnostics) |dg| {
+        if (std.mem.eql(u8, dg.operator, "arithmetic_add_sub")) arith_diags += 1;
+        // No comparison operator should ever appear as a diagnostic here.
+        try expect(!std.mem.eql(u8, dg.operator, "comparison_boundary"));
+    }
+    try expectEqual(@as(usize, 2), arith_diags);
 }
 
 test "air backend is not implemented by task 056 (owned by 057)" {

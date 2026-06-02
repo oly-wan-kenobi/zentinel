@@ -185,7 +185,7 @@ Experimental backends require explicit opt-in.
 
 `list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`. Before those tasks land, `list-mutants --backend <zir|air>` must fail deterministically as a known experimental option that is not yet implemented, while `--backend ast` remains the stable path owned by the initial `list-mutants` work.
 
-`--backend` is **`list-mutants`-only**. The experimental ZIR and AIR backends are relabel prototypes that re-tag the stable AST candidate set with `backend = zir|air`; they do no IR-level analysis or lowering (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). They affect only the `list-mutants` listing's backend labels and never change which mutants are generated or run.
+`--backend` is **`list-mutants`-only**. `--backend zir` does **real ZIR lowering for comparison operators** (task 056, Phase 1): it lowers each source file to ZIR via `std.zig.AstGen` and recognizes `equality_swap`/`comparison_boundary` sites from the `cmp_*` instructions, in exact differential parity with the AST recognizer; every other operator and every AstGen-injected comparison is an out-of-report diagnostic, never a mutant. `--backend air` is still a relabel prototype that re-tags the stable AST candidate set with `backend = air` and does no IR lowering (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). Both are `experimental`, opt-in, and affect only the `list-mutants` listing — never `run`.
 
 ## `run`
 
@@ -205,7 +205,7 @@ Useful options:
 --no-cache
 ```
 
-`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR relabel backends never participate in a run.
+`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR backends never participate in a run.
 
 ## Run Option Ownership
 

@@ -682,7 +682,11 @@ fn runListMutants(
     // unchanged; experimental backends are gated by config and emit out-of-report
     // diagnostics for operators with no exact source mapping.
     if (std.mem.eql(u8, backend, "zir")) {
-        const listing = zentinel.zir_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
+        // Real ZIR lowering (task 056): each source file is lowered to ZIR and its
+        // comparison mutation sites recognized from the cmp_* instructions; other
+        // operators become out-of-report diagnostics. The stable AST default and the
+        // `run` path are unaffected.
+        const listing = zentinel.zir_backend.listFromTrees(gpa, cfg, files.items, candidates, backend) catch |err| switch (err) {
             error.OutOfMemory => return err,
             error.ExperimentalBackendNotEnabled => {
                 try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
@@ -690,6 +694,10 @@ fn runListMutants(
             },
             error.BackendNotImplemented => {
                 try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet\n", .{backend});
+                return 2;
+            },
+            error.BackendParseError => {
+                try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
                 return 2;
             },
         };
