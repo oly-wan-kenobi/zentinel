@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 51/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 52/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -69,7 +69,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L32** · commit `5570479` · doctest AI subcommands accept a missing required positional arg → opaque AI error instead of usage error — src/ai/doctest_command.zig, src/cli.zig — added pure ai.doctest_command.missingPositional(flow, positional); runDoctestAi now returns ZNTL_CLI_INVALID_OPTION ("missing <doc-path>"/"missing <case-ref>") after config validation instead of forwarding null to the engine. Red: forcing the no-guard state (null) panics the unwrap; green: exact per-flow detail bytes, suggest-missing needs no positional
 - [x] `done` **L33** · commit `ee7e10d` · ci.sh advisory_dogfood suppresses all diagnostic output and always blames survivors despite infra-only failures — scripts/ci.sh — dropped the stderr redirection (suppress only stdout) so an infra failure's cause stays in the CI log, and rewrote the advisory to name the real failure mode (infrastructure/deterministic-core; survivors exit 0 without --fail-on-survivors). Red: ci.sh still carried `2>&1` + "review survivors"; green: neither present, "infrastructure" named
 - [x] `done` **L34** · commit `de0c137` · release_acceptance.py check_criteria uses execute_checks=False → false-OK when a verified_by script fails — scripts/release_acceptance.py — check_criteria now passes execute_checks=True so the final_dogfood_gate criterion reflects verified_by script EXECUTION (matching the rdg.main path), not just on-disk existence. Red: execute_checks absent from the file; green: present. Behaviorally confirmed load-bearing (False→[] vs True→real failure surfaced)
-- [ ] `todo` **L35** · commit `—` · MUTATOR_SPEC Operator Overlap policy (restrict contexts) contradicts code's emit-from-both/dedup (doc-vs-code) — docs/MUTATOR_SPEC.md
+- [x] `done` **L35** · commit `7bd73c7` · MUTATOR_SPEC Operator Overlap policy (restrict contexts) contradicts code's emit-from-both/dedup (doc-vs-code) — docs/MUTATOR_SPEC.md — doc-vs-code drift (code correct): replaced the misleading "lower-precedence operator must restrict contexts" rule with the two real mechanisms (context ownership + physical-edit dedup backstop) and documented the alphabetical operator-name tiebreak. Load-bearing proof: temp-reversing mutant.zig.lessThan's operator tiebreak fails ast_candidate_ordering_test.zig:82/108 (retains loop_boundary, not comparison_boundary); reverted, suite green
 - [ ] `todo` **L36** · commit `—` · MUTATOR_SPEC Operator Overlap omits the loop_boundary/comparison_boundary while-condition precedence rule (doc) — docs/MUTATOR_SPEC.md
 - [ ] `todo` **L37** · commit `—` · in-tree TOML parser silently accepts duplicate keys (first value wins) — src/config_toml.zig
 - [ ] `todo` **L38** · commit `—` · property_report failed_without_shrink branch / 'unsupported' shrink status untested — src/property/report.zig
