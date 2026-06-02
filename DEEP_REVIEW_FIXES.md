@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 37/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 38/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -55,7 +55,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L18** · commit `be6803c` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig — replaced the per-mutant linear scan with a StringHashMap(path→source) built once before the Phase A loop (buildSourceIndex); per-candidate lookup is now O(1). Deleted dead sourceFor. Red: building the index inside the loop makes source_index_builds == 2 (per-mutant), failing the once-per-run assertion
 - [x] `done` **L19** · commit `e26a729` · findBlockByLine O(B) linear scan called per block ref in the hot doctest cache-key loop — src/doctest/cache.zig — built an AutoHashMap(line_start→Block) once in buildMetadata (buildBlockIndex) and replaced the two per-ref scans with O(1) gets; deleted cache.zig's findBlockByLine. Red: building the index inside the case loop makes block_index_builds == 4, failing the once-per-document assertion
 - [x] `done` **L20** · commit `02a79a1` · doctest --no-color parsed and stored but never threaded to any renderer — src/doctest_command.zig — no renderer emits ANSI color anywhere, so threading it would just be an unused param (L17 smell); removed the dead no_color field and accept --no-color as an explicit no-op (matching root.zig's global handling). Flag stays accepted; output unchanged. Red: dropping the accept branch makes parseArgs reject --no-color as UnknownOption
-- [ ] `todo` **L21** · commit `—` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/cli.zig
+- [x] `done` **L21** · commit `bcebc56` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/root.zig — zentinel's TOML reader has no string escapes, so escaping can't round-trip; instead reject unembeddable values (testCommandEmbeddable: rejects `"`/control bytes) in dispatchInit before any config is written. Red: the injecting `zig test", "evil` was accepted (exit 0, write_config); green post-fix (exit 2, cli_invalid_option)
 - [ ] `todo` **L22** · commit `—` · `--mutate` anywhere in doctest args hijacks dispatch, preempting named AI subcommands — src/doctest_command.zig
 - [ ] `todo` **L23** · commit `—` · boolean_literal mutates enum field declarations named `true`/`false` → guaranteed compile_error — src/mutators/boolean.zig `[rel: H2]`
 - [ ] `todo` **L24** · commit `—` · doctest mutator-spec validator (validateDoc) falsely flags every stable Phase-2 operator as drift — src/doctest/ `[rel: H2]`
