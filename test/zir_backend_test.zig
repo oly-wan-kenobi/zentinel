@@ -192,3 +192,48 @@ test "fromTree also lowers short-circuit and/or in parity with the AST logical r
         }
     }
 }
+
+fn astLoweredOf(arena: std.mem.Allocator, file: []const u8, source: []const u8) ![]mutant.Mutant {
+    const parsed = try ast_backend.parse(arena, file, source);
+    const ranges = try ast_backend.testDeclRanges(parsed, arena);
+    var collector = ast_backend.Collector.init(arena);
+    try comparison.collect(&collector, parsed, file, ranges);
+    try logical.collect(&collector, parsed, file, ranges);
+    try arithmetic.collect(&collector, parsed, file, ranges);
+    return collector.finish();
+}
+
+test "fromTree also lowers arithmetic (+,-,*,/) in parity with the AST recognizer, incl. expected_compile=may_fail (Phase 3)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const fixtures = [_][]const u8{
+        // plain arithmetic (note arithmetic_*'s expected_compile is may_fail, not compiles)
+        "pub fn f(a: i32, b: i32) i32 {\n    return a + b * 2 - a;\n}\n",
+        // mixed arithmetic + comparison + logical in one expression
+        "pub fn m(a: i32, b: i32) bool {\n    return a + b < a * b and a - b > 0;\n}\n",
+        // nested fn + array index expression (a real source `+`, not injected)
+        "fn g(xs: []const i32, i: usize) i32 {\n    return xs[i + 1] * 2;\n}\npub fn use(a: i32) i32 {\n    return g(&[_]i32{a}, 0) - a;\n}\n",
+        // arithmetic inside a test body is excluded by BOTH backends; the one outside is kept
+        "pub fn h(a: i32, b: i32) i32 {\n    return a * b;\n}\ntest \"t\" {\n    _ = (1 + 2);\n}\n",
+    };
+
+    inline for (fixtures) |src| {
+        const file = "p.zig";
+        const ast = try astLoweredOf(arena, file, src);
+        const result = try zir.fromTree(arena, file, src);
+
+        try expectEqual(ast.len, result.candidates.len);
+        for (ast, result.candidates) |a, z| {
+            try expectEqual(mutant.Backend.zir, z.backend);
+            try expectEqualStrings(a.operator, z.operator);
+            try expectEqual(a.span.byte_start, z.span.byte_start);
+            try expectEqual(a.span.byte_end, z.span.byte_end);
+            try expectEqualStrings(a.original, z.original);
+            try expectEqualStrings(a.replacement, z.replacement);
+            // arithmetic candidates carry expected_compile = .may_fail, comparison/logical .compiles
+            try expectEqual(a.expected_compile, z.expected_compile);
+        }
+    }
+}

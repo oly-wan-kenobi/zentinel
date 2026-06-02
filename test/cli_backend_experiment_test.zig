@@ -7,6 +7,7 @@ const air = zentinel.air_backend;
 const ast_backend = zentinel.ast_backend;
 const comparison = zentinel.mutators.comparison;
 const arithmetic = zentinel.mutators.arithmetic;
+const boolean = zentinel.mutators.boolean;
 const mutant = zentinel.mutant;
 
 const expect = std.testing.expect;
@@ -79,16 +80,18 @@ fn allCandidates(arena: std.mem.Allocator, file: []const u8, src: []const u8) ![
     var collector = ast_backend.Collector.init(arena);
     try comparison.collect(&collector, parsed, file, ranges);
     try arithmetic.collect(&collector, parsed, file, ranges);
+    try boolean.collect(&collector, parsed, file, ranges); // a lexical operator for the diagnostic path
     return collector.finish();
 }
 
-test "list-mutants --backend zir really lowers sources to ZIR comparison candidates; other operators become diagnostics" {
+test "list-mutants --backend zir lowers comparison/arithmetic to real ZIR candidates; lexical operators (boolean_literal) become diagnostics" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
-    // One comparison site (`a < b`) and two arithmetic sites (`a + b`, `a - b`).
-    const src = "pub fn f(a: i32, b: i32) i32 {\n    if (a < b) return a + b;\n    return a - b;\n}\n";
+    // Comparison (`a < b`), two arithmetic sites (`a + b`, `a - b`) -- all real ZIR
+    // candidates -- and a boolean literal (`true`), which has no ZIR instruction.
+    const src = "pub fn f(a: i32, b: i32) i32 {\n    const t = true;\n    if (a < b) return a + b;\n    _ = t;\n    return a - b;\n}\n";
     const files = [_]zentinel.run_command.FileSource{.{ .path = "p.zig", .source = src }};
     const ast_all = try allCandidates(arena, "p.zig", src);
 
@@ -97,26 +100,36 @@ test "list-mutants --backend zir really lowers sources to ZIR comparison candida
     const cfg_no = try load(arena, "", &d_no);
     try expectError(error.ExperimentalBackendNotEnabled, zir.listFromTrees(arena, cfg_no, &files, ast_all, "zir"));
 
-    // With opt-in: the comparison site is a REAL ZIR-lowered candidate; the
-    // arithmetic operators (not yet ZIR-lowered) are out-of-report diagnostics,
-    // never silently dropped.
+    // With opt-in: comparison + arithmetic are REAL ZIR-lowered candidates; the
+    // boolean literal (lexical, no instruction) is an out-of-report diagnostic.
     var d_yes: config.Diagnostic = .{};
     const cfg_yes = try load(arena, "[backend]\nexperimental = [\"zir\"]\n", &d_yes);
     const listing = try zir.listFromTrees(arena, cfg_yes, &files, ast_all, "zir");
 
-    try expectEqual(@as(usize, 1), listing.candidates.len);
-    try expectEqualStrings("comparison_boundary", listing.candidates[0].operator);
-    try expectEqual(mutant.Backend.zir, listing.candidates[0].backend);
-    try expectEqual(mutant.BackendStability.experimental, listing.candidates[0].backend_stability);
-
-    // Both arithmetic sites surfaced as diagnostics, none as mutants.
-    var arith_diags: usize = 0;
-    for (listing.diagnostics) |dg| {
-        if (std.mem.eql(u8, dg.operator, "arithmetic_add_sub")) arith_diags += 1;
-        // No comparison operator should ever appear as a diagnostic here.
-        try expect(!std.mem.eql(u8, dg.operator, "comparison_boundary"));
+    try expectEqual(@as(usize, 3), listing.candidates.len);
+    var cmp_n: usize = 0;
+    var arith_n: usize = 0;
+    for (listing.candidates) |c| {
+        try expectEqual(mutant.Backend.zir, c.backend);
+        try expectEqual(mutant.BackendStability.experimental, c.backend_stability);
+        if (std.mem.eql(u8, c.operator, "comparison_boundary")) {
+            cmp_n += 1;
+        } else if (std.mem.eql(u8, c.operator, "arithmetic_add_sub")) {
+            arith_n += 1;
+        } else {
+            try expect(false); // no other operator should be a ZIR candidate here
+        }
     }
-    try expectEqual(@as(usize, 2), arith_diags);
+    try expectEqual(@as(usize, 1), cmp_n);
+    try expectEqual(@as(usize, 2), arith_n);
+
+    // boolean_literal is a lexical mutation with no ZIR representation -> diagnostic.
+    var bool_diags: usize = 0;
+    for (listing.diagnostics) |dg| {
+        if (std.mem.eql(u8, dg.operator, "boolean_literal")) bool_diags += 1;
+        try expect(!std.mem.eql(u8, dg.operator, "arithmetic_add_sub")); // arithmetic is a candidate now
+    }
+    try expectEqual(@as(usize, 1), bool_diags);
 }
 
 test "air backend is not implemented by task 056 (owned by 057)" {

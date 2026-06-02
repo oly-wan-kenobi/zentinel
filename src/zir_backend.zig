@@ -130,6 +130,10 @@ fn expectedAstTag(t: std.zig.Zir.Inst.Tag) ?std.zig.Ast.Node.Tag {
         .cmp_gte => .greater_or_equal,
         .bool_br_and => .bool_and,
         .bool_br_or => .bool_or,
+        .add => .add,
+        .sub => .sub,
+        .mul => .mul,
+        .div => .div,
         else => null,
     };
 }
@@ -206,18 +210,31 @@ const logical_risks = [_][]const u8{
     "guards where later code makes branches equivalent",
     "tests not covering short-circuit side effects",
 };
-const Mutation = struct { operator: []const u8, replacement: []const u8, risks: []const []const u8 };
+// Arithmetic carries no equivalent_risks and `expected_compile = .may_fail` (an
+// unsigned/comptime swap can fail to compile without type info) -- mirrored from
+// src/mutators/arithmetic.zig, unlike comparison/logical which `.compiles`.
+const no_risks = [_][]const u8{};
+const Mutation = struct {
+    operator: []const u8,
+    replacement: []const u8,
+    risks: []const []const u8,
+    expected_compile: mutant.ExpectedCompile,
+};
 
 fn mutationFor(tag: std.zig.Ast.Node.Tag) ?Mutation {
     return switch (tag) {
-        .equal_equal => .{ .operator = "equality_swap", .replacement = "!=", .risks = &equality_risks },
-        .bang_equal => .{ .operator = "equality_swap", .replacement = "==", .risks = &equality_risks },
-        .less_than => .{ .operator = "comparison_boundary", .replacement = "<=", .risks = &boundary_risks },
-        .less_or_equal => .{ .operator = "comparison_boundary", .replacement = "<", .risks = &boundary_risks },
-        .greater_than => .{ .operator = "comparison_boundary", .replacement = ">=", .risks = &boundary_risks },
-        .greater_or_equal => .{ .operator = "comparison_boundary", .replacement = ">", .risks = &boundary_risks },
-        .bool_and => .{ .operator = "logical_and_or", .replacement = "or", .risks = &logical_risks },
-        .bool_or => .{ .operator = "logical_and_or", .replacement = "and", .risks = &logical_risks },
+        .equal_equal => .{ .operator = "equality_swap", .replacement = "!=", .risks = &equality_risks, .expected_compile = .compiles },
+        .bang_equal => .{ .operator = "equality_swap", .replacement = "==", .risks = &equality_risks, .expected_compile = .compiles },
+        .less_than => .{ .operator = "comparison_boundary", .replacement = "<=", .risks = &boundary_risks, .expected_compile = .compiles },
+        .less_or_equal => .{ .operator = "comparison_boundary", .replacement = "<", .risks = &boundary_risks, .expected_compile = .compiles },
+        .greater_than => .{ .operator = "comparison_boundary", .replacement = ">=", .risks = &boundary_risks, .expected_compile = .compiles },
+        .greater_or_equal => .{ .operator = "comparison_boundary", .replacement = ">", .risks = &boundary_risks, .expected_compile = .compiles },
+        .bool_and => .{ .operator = "logical_and_or", .replacement = "or", .risks = &logical_risks, .expected_compile = .compiles },
+        .bool_or => .{ .operator = "logical_and_or", .replacement = "and", .risks = &logical_risks, .expected_compile = .compiles },
+        .add => .{ .operator = "arithmetic_add_sub", .replacement = "-", .risks = &no_risks, .expected_compile = .may_fail },
+        .sub => .{ .operator = "arithmetic_add_sub", .replacement = "+", .risks = &no_risks, .expected_compile = .may_fail },
+        .mul => .{ .operator = "arithmetic_mul_div", .replacement = "/", .risks = &no_risks, .expected_compile = .may_fail },
+        .div => .{ .operator = "arithmetic_mul_div", .replacement = "*", .risks = &no_risks, .expected_compile = .may_fail },
         else => null,
     };
 }
@@ -228,10 +245,12 @@ fn isNullToken(tree: std.zig.Ast, tok: u32) bool {
 }
 
 /// Lower `source` to ZIR and emit the experimental ZIR candidate set for the
-/// operators ZIR represents as instructions: comparison (`equality_swap`,
-/// `comparison_boundary`) and short-circuit logical (`logical_and_or`). Candidates
-/// are byte-for-byte the AST recognizers', re-tagged `backend = .zir`; AstGen-injected
-/// comparisons (for-bounds / switch ranges) become out-of-report diagnostics.
+/// binary-operator mutations ZIR represents as a single instruction: comparison
+/// (`equality_swap`, `comparison_boundary`), short-circuit logical (`logical_and_or`),
+/// and arithmetic (`arithmetic_add_sub`, `arithmetic_mul_div`). Candidates are
+/// byte-for-byte the AST recognizers', re-tagged `backend = .zir`; AstGen-injected
+/// arithmetic/comparisons (for-bounds, array indexing, switch ranges) become
+/// out-of-report diagnostics, never mutants.
 pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) FromTreeError!Result {
     const parsed = ast_backend.parse(arena, file, source) catch return error.BackendParseError;
     if (!parsed.ok()) return error.BackendParseError;
@@ -300,7 +319,7 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             },
             .original = op_text,
             .replacement = mut.replacement,
-            .expected_compile = .compiles,
+            .expected_compile = mut.expected_compile,
             .equivalent_risks = mut.risks,
         });
     }
@@ -339,12 +358,16 @@ pub fn experimentalListing(
 
 pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError } || std.mem.Allocator.Error;
 
-/// Operators the ZIR backend lowers to real candidates (those ZIR represents as
-/// instructions). Comparison + short-circuit logical today (Phases 1-2).
+/// Operators the ZIR backend lowers to real candidates (those ZIR represents as a
+/// single instruction): the binary-operator mutations -- comparison, short-circuit
+/// logical, and arithmetic (Phases 1-3). Literal and control-flow operators are
+/// AST-only by principle (see listFromTrees / docs/ZIR_BACKEND.md).
 fn isZirLoweredOperator(op: []const u8) bool {
     return std.mem.eql(u8, op, "equality_swap") or
         std.mem.eql(u8, op, "comparison_boundary") or
-        std.mem.eql(u8, op, "logical_and_or");
+        std.mem.eql(u8, op, "logical_and_or") or
+        std.mem.eql(u8, op, "arithmetic_add_sub") or
+        std.mem.eql(u8, op, "arithmetic_mul_div");
 }
 
 /// Build the experimental ZIR listing by REALLY lowering each source file to ZIR
@@ -379,7 +402,7 @@ pub fn listFromTrees(
         const reason: []const u8 = if (std.mem.eql(u8, c.operator, "boolean_literal"))
             "boolean_literal has no ZIR representation: `true`/`false` lower to operand refs (bool_true/bool_false), not instructions -- it is a lexical mutation handled by the AST backend"
         else
-            "operator is not yet lowered by the ZIR backend (lowered: comparison and logical operators)";
+            "operator is not yet lowered by the ZIR backend (lowered: comparison, logical, and arithmetic operators)";
         try diagnostics.append(arena, .{
             .file = c.file,
             .operator = c.operator,
