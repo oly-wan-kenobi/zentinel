@@ -186,6 +186,43 @@ test "--case selects by durable id and by anchor-line source ref; expectation li
     try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = exp_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
 }
 
+test "the `unordered` json block tag wires through to the json_unordered matcher mode (M6)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const block = zentinel.doctest.block;
+    const parser = zentinel.doctest.parser;
+    const matcher = zentinel.doctest.matcher;
+
+    // 1. The tag is recognized (it returned null before, so the parser rejected
+    //    `unordered` as an unsupported tag).
+    try expectEqual(@as(?block.MatchMode, .unordered), block.matchModeFromToken("unordered"));
+
+    // 2. End-to-end through the parser: a json expectation block tagged
+    //    `unordered` is a VALID doctest block carrying match_mode = .unordered.
+    const src =
+        \\# doc
+        \\
+        \\```json expected unordered
+        \\[1, 2, 3]
+        \\```
+        \\
+    ;
+    const parsed = try parser.parse(a, "d.md", src);
+    var json_block: ?block.Block = null;
+    for (parsed.blocks) |b| {
+        if (b.language == .json and b.kind == .expected) json_block = b;
+    }
+    try expect(json_block != null);
+    try expectEqual(block.MatchMode.unordered, json_block.?.match_mode);
+    try expect(json_block.?.is_doctest);
+
+    // 3. matchModeFor maps it to the json_unordered matcher mode -- not the
+    //    exact-order .json that the `else` branch produced before -- so the
+    //    already-implemented order-insensitive array match is finally reachable.
+    try expectEqual(matcher.Mode.json_unordered, dc.matchModeFor(json_block.?));
+}
+
 test "--case with an out-of-range numeric ref yields CaseNotFound, not an overflow panic (M4)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

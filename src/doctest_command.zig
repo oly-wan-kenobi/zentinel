@@ -234,11 +234,12 @@ fn failureSummary(status: doc_report.Status) []const u8 {
 }
 
 /// Derive a matcher mode from an expectation block's tags. text output defaults
-/// to exact; json expected defaults to json; subset/contains refine it.
-fn matchModeFor(b: block.Block) matcher.Mode {
+/// to exact; json expected defaults to json; subset/contains/unordered refine it.
+pub fn matchModeFor(b: block.Block) matcher.Mode {
     if (b.language == .json) {
         return switch (b.match_mode) {
             .subset => .json_subset,
+            .unordered => .json_unordered,
             else => .json,
         };
     }
