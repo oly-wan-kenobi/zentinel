@@ -3,11 +3,13 @@
 // Error-path AST mutators (docs/MUTATOR_SPEC.md, Phase 2):
 //   `error_catch_unreachable`: `expr catch handler` -> `expr catch unreachable`
 //   `errdefer_remove`:         `errdefer statement` -> `errdefer {}`
-// The catch candidate span is the exact handler expression (the `catch`
-// right-hand side); for a `catch |err| handler` form only the handler is
-// replaced, never the `|err|` capture. The errdefer candidate span is the whole
-// `errdefer <body>` statement, replaced wholesale with `errdefer {}` (an empty,
-// no-op error-cleanup). Pure: emits candidates through the shared collector; no
+// The catch candidate span is the handler expression; for a `catch |err| handler`
+// form the span also covers the `|err|` capture, so the replacement `unreachable`
+// produces the valid `catch unreachable` instead of orphaning the capture into
+// `catch |err| unreachable` (an `unused capture` compile error). The errdefer
+// candidate span is the whole `errdefer <body>` statement (including its
+// terminating `;`), replaced wholesale with `errdefer {}` (an empty, no-op
+// error-cleanup). Pure: emits candidates through the shared collector; no
 // patching or execution.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
@@ -54,7 +56,16 @@ fn collectCatch(
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const handler = tree.nodeData(node).node_and_node[1]; // catch right-hand side
-    const first = tree.firstToken(handler);
+    const token_tags = tree.tokens.items(.tag);
+    const catch_tok = tree.nodeMainToken(node); // the `catch` keyword
+    // A `catch |err| handler` binds the error into `|err|`, whose scope is ONLY
+    // the handler. Replacing just the handler with `unreachable` orphans the
+    // capture -> `catch |err| unreachable` -> `error: unused capture`, a
+    // guaranteed compile_error that can never be killed. When a capture is present
+    // (the token after `catch` is `|`), start the span at that `|` so the whole
+    // `|err| handler` is replaced, producing the valid `catch unreachable` (M1).
+    const has_capture = catch_tok + 1 < token_tags.len and token_tags[catch_tok + 1] == .pipe;
+    const first = if (has_capture) catch_tok + 1 else tree.firstToken(handler);
     const last = tree.lastToken(handler);
     const start = tree.tokenStart(first);
     const end = tree.tokenStart(last) + @as(u32, @intCast(tree.tokenSlice(last).len));

@@ -62,7 +62,7 @@ test "an existing catch unreachable is not mutated" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "a catch with an |err| payload replaces only the handler expression" {
+test "a catch with an |err| payload replaces the capture and handler together" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -79,8 +79,10 @@ test "a catch with an |err| payload replaces only the handler expression" {
     const c = try collectErrorPath(a, parsed);
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("error_catch_unreachable", c[0].operator);
-    // The span is the handler expression only, not the `|err|` capture.
-    try expectEqualStrings("handle(err)", c[0].original);
+    // The span covers the `|err|` capture AND the handler, so the replacement
+    // `unreachable` yields the valid `catch unreachable` rather than orphaning the
+    // capture into `catch |err| unreachable` (an `unused capture` error) (M1).
+    try expectEqualStrings("|err| handle(err)", c[0].original);
     try expectEqualStrings("unreachable", c[0].replacement);
 }
 
@@ -109,4 +111,55 @@ test "killed fixture: production catch candidate emitted, test body excluded" {
     const c = try collectErrorPath(a, parsed);
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("0", c[0].original);
+}
+
+/// Parse + AstGen `source` in-process (exactly `zig ast-check`) and report
+/// whether the compiler front-end accepts it. Unlike `Ast.parse` alone, this
+/// catches semantic errors such as `unused capture` -- the failure mode of a
+/// catch-with-capture mutant whose handler (but not the `|err|` capture) is
+/// replaced by `unreachable`.
+fn frontendAccepts(gpa: std.mem.Allocator, mutated: []const u8) !bool {
+    const z = try gpa.dupeZ(u8, mutated);
+    defer gpa.free(z);
+    var tree = try std.zig.Ast.parse(gpa, z, .zig);
+    defer tree.deinit(gpa);
+    if (tree.errors.len != 0) return false; // parse-level errors
+    var zir = try std.zig.AstGen.generate(gpa, tree);
+    defer zir.deinit(gpa);
+    return !zir.hasCompileErrors();
+}
+
+test "the applied error_catch_unreachable mutant compiles at a catch-with-capture site (M1)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `catch |err| handler`: the `|err|` capture's scope is only the handler, so
+    // replacing just the handler with `unreachable` orphans the capture ->
+    // `catch |err| unreachable` -> `error: unused capture`, a guaranteed
+    // compile_error that can never be killed. The span must cover the capture too,
+    // producing the valid `catch unreachable` (M1).
+    const src =
+        \\pub fn f(e: anyerror!i32) i32 {
+        \\    return e catch |err| handle(err);
+        \\}
+        \\fn handle(_: anyerror) i32 {
+        \\    return -1;
+        \\}
+    ;
+    var parsed = try ast_backend.parse(std.testing.allocator, "p.zig", src);
+    defer parsed.deinit();
+    const c = try collectErrorPath(a, parsed);
+    try expectEqual(@as(usize, 1), c.len);
+    // The span swallows the `|err|` capture, so the whole `|err| handle(err)` is
+    // the original and the replacement `unreachable` yields `catch unreachable`.
+    try expectEqualStrings("|err| handle(err)", c[0].original);
+    try expectEqualStrings("unreachable", c[0].replacement);
+
+    const mutated = try zentinel.sandbox.apply(a, src, c[0]);
+    try expect(std.mem.indexOf(u8, mutated, "catch unreachable") != null);
+    try expect(std.mem.indexOf(u8, mutated, "catch |err| unreachable") == null);
+    // The produced mutant must actually pass the compiler front-end (no unused
+    // capture); the prior test only inspected candidate fields, never compiled it.
+    try expect(try frontendAccepts(a, mutated));
 }
