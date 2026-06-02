@@ -343,6 +343,32 @@ test "minimalEnviron restricts the command environment to the documented allowli
     // A non-allowlisted parent variable is dropped -- the inherited developer
     // environment does NOT pass through, so `environment_policy = minimal` is true.
     try expect(minimal.get("ZNTL_SECRET") == null);
-    // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale keys.
-    try expectEqual(@as(usize, 4), minimal.keys().len);
+    // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale
+    // keys plus the forced per-workspace local cache (ZIG_LOCAL_CACHE_DIR, L10).
+    try expectEqual(@as(usize, 5), minimal.keys().len);
+    try expectEqualStrings("./.zig-cache", minimal.get("ZIG_LOCAL_CACHE_DIR").?);
+}
+
+test "minimalEnviron forces a cwd-relative ZIG_LOCAL_CACHE_DIR, overriding a host absolute value (L10)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var parent = std.process.Environ.Map.init(a);
+    defer parent.deinit();
+    try parent.put("PATH", "/usr/bin");
+    // A host ZIG_LOCAL_CACHE_DIR pointing at one shared absolute dir would, if
+    // forwarded, route EVERY parallel worker's local Zig cache into that single
+    // directory -- violating the documented per-worker isolation contract
+    // (docs/SANDBOX_SECURITY.md, docs/PERFORMANCE_STRATEGY.md). The minimal env must
+    // OVERRIDE it with the cwd-relative workspace cache so each command's own
+    // working directory (= its per-mutant workspace) owns its `.zig-cache` (L10).
+    try parent.put("ZIG_LOCAL_CACHE_DIR", "/tmp/shared-zig-cache");
+
+    var minimal = try runner.minimalEnviron(a, &parent);
+    defer minimal.deinit();
+
+    // Overridden to the cwd-relative cache, NOT the forwarded host absolute value.
+    try expectEqualStrings("./.zig-cache", minimal.get("ZIG_LOCAL_CACHE_DIR").?);
+    try expect(!std.mem.eql(u8, minimal.get("ZIG_LOCAL_CACHE_DIR").?, "/tmp/shared-zig-cache"));
 }

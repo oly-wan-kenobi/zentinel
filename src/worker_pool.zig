@@ -105,12 +105,20 @@ pub fn workspaceRoot(arena: std.mem.Allocator, run_id: []const u8, mutant_id: []
 
 /// The local Zig build cache for a workspace root, nested inside the root so a
 /// worker's `zig build` / `zig test` cache cannot collide with another worker's.
+/// Wired into the runner: `runner.minimalEnviron` sets `ZIG_LOCAL_CACHE_DIR =
+/// cacheDirIn(".")` (cwd-relative), so each spawned command's cwd (= its per-mutant
+/// workspace) owns its `.zig-cache` independent of host env -- this is what makes
+/// the per-worker local-cache isolation contract true rather than aspirational (L10).
 pub fn cacheDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/.zig-cache", .{root});
 }
 
-/// The local Zig output directory for a workspace root, nested inside the root
-/// so a worker's `zig-out` cannot collide with another worker's.
+/// The local Zig output directory for a workspace root, nested inside the root so a
+/// worker's `zig-out` cannot collide with another worker's. Unlike the local cache,
+/// `zig-out` needs no env override: Zig defaults the install prefix to
+/// build-root/`zig-out` (cwd-relative), and each command's cwd is its own workspace,
+/// so output isolation is inherent. This builder is the canonical path used by tests
+/// and tools asserting that invariant.
 pub fn outDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/zig-out", .{root});
 }
