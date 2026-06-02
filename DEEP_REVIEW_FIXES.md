@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 15/17 suspected resolved (13 fixed, 2 refuted)  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 16/17 suspected resolved (14 fixed, 2 refuted)  _(update this line as you go)_
 
 ---
 
@@ -102,5 +102,5 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **S13** · commit `8285da6` · validate_task_system: empty allowed_files=[] / forbidden_files=[] pass via Python all() vacuous truth — scripts/validate_task_system.py
 - [x] `done` **S14** · commit `9ace7cf` · completion_evidence files_changed/tests_added/tests_run/follow_up_tasks accept empty lists via vacuous all() — scripts/validate_task_system.py
 - [x] `done` **S15** · commit `0197167` · no doc states which commands require the external `zig` binary — docs/
-- [ ] `todo` **S16** · commit `—` · MUTATION_GATE_POLICY.md retry table omits the 'Architecture' task class (diverges from FAILURE_RECOVERY.md) — docs/MUTATION_GATE_POLICY.md
+- [x] `done` **S16** · commit `dee8843` · MUTATION_GATE_POLICY.md retry table omits the 'Architecture' task class (diverges from FAILURE_RECOVERY.md) — docs/MUTATION_GATE_POLICY.md
 - [ ] `todo` **S17** · commit `—` · third verbatim copy of the unchecked-u32 lineOfRef accumulator overflow — src/doctest/mutator_doctest.zig `[rel: M4]`
