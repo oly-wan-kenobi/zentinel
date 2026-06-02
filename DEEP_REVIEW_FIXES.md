@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 48/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 49/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -66,7 +66,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L29** · commit `a7f0b44` · AI-context test_context.selection_reason bypasses redaction → paths/secrets leak — src/ai/command.zig — selection_reason now routed through context.redactField like every sibling field (precomputed before the struct literal so it lands in redactions_applied). Red: raw `/Users/victim/.aws/credentials sk-ant-api03-…` emitted verbatim; green: exactly `<path> [REDACTED]`, both scrubs logged
 - [x] `done` **L30** · commit `2e5a1d0` · each source file AST-parsed twice per run (generateCandidates and selectionForFile) — src/run_command.zig — generateCandidates now records each file's same-file tests from its single parse into a per-file StringHashMap; selectionForFile reads the table (O(1)) instead of re-parsing. Red: `ast_parse_count == 2` for a 1-file/2-mutant same-file run; green: `== 1`. Selection output byte-identical (full suite green)
 - [x] `done` **L31** · commit `752990e` · run/list-mutants `--operator` accepts unknown names → silently 0 mutants, clean exit 0 — src/run_command.zig, src/list_mutants_command.zig, src/cli.zig — both parseArgs now consult config.isKnownOperator (new public wrapper over the registry) and return ParseError.UnknownOperator (rendered as ZNTL_CLI_INVALID_OPTION, exit 2). Red: bogus `not_a_real_operator_name` accepted into Options on both parsers; green: rejected, while `loop_boundary` still round-trips
-- [ ] `todo` **L32** · commit `—` · doctest AI subcommands accept a missing required positional arg → opaque AI error instead of usage error — src/ai/doctest_command.zig
+- [x] `done` **L32** · commit `5570479` · doctest AI subcommands accept a missing required positional arg → opaque AI error instead of usage error — src/ai/doctest_command.zig, src/cli.zig — added pure ai.doctest_command.missingPositional(flow, positional); runDoctestAi now returns ZNTL_CLI_INVALID_OPTION ("missing <doc-path>"/"missing <case-ref>") after config validation instead of forwarding null to the engine. Red: forcing the no-guard state (null) panics the unwrap; green: exact per-flow detail bytes, suggest-missing needs no positional
 - [ ] `todo` **L33** · commit `—` · ci.sh advisory_dogfood suppresses all diagnostic output and always blames survivors despite infra-only failures — scripts/ci.sh
 - [ ] `todo` **L34** · commit `—` · release_acceptance.py check_criteria uses execute_checks=False → false-OK when a verified_by script fails — scripts/release_acceptance.py
 - [ ] `todo` **L35** · commit `—` · MUTATOR_SPEC Operator Overlap policy (restrict contexts) contradicts code's emit-from-both/dedup (doc-vs-code) — docs/MUTATOR_SPEC.md
