@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 64/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 65/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -82,7 +82,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L45** · commit `714890f` · zig.modes = [] accepted by config validation but silently overrides user intent — src/config.zig `[rel: H5]` — added `if (zig_modes.len == 0) return fail(.invalid_value, "zig", "modes", …)` after the per-element loop, matching empty test.commands; omitting modes still defaults to Debug. Red: `modes = []` loaded with zig_modes = {}; green: rejected (invalid_value, zig/modes)
 - [x] `done` **L46** · commit `74e9de0` · benchmark.sh emits a committed static fixture, not live benchmark measurements — scripts/benchmark.sh — the deterministic snapshot is intentional (the perf benchmark validates equivalence, not wall-clock; pinned by performance_benchmark_test), so corrected the script's header to drop the false "trend comparison" claim and describe the logic/smoke check it actually is. Red: benchmark.sh carried "trend comparison"; green: removed, still names the deterministic `zig build test` suite
 - [x] `done` **L47** · commit `b28a44b` · release_acceptance.py reads release_evidence.json without an is_file() guard → uncaught FileNotFoundError — scripts/release_acceptance.py — check_criteria now reads the evidence behind an evidence_path.is_file() guard: present → validate as before; absent → gate_clean=False, detail "release_evidence.json missing" (no traceback, gate still fails). Behaviorally verified (returns the structured detail, no FileNotFoundError). Red: pre-fix unguarded read lacked the guard/detail
-- [ ] `todo` **L48** · commit `—` · resolve_zig_import 'src/' prefix branch is unreachable dead code — src/zig_version.zig
+- [x] `done` **L48** · commit `db4635d` · resolve_zig_import 'src/' prefix branch is unreachable dead code — scripts/validate_task_system.py (ledger's "src/zig_version.zig" was a slip) — removed the dead `if imported.startswith("src/")` branch; always resolves `importer.parent / imported` (Zig .zig imports are file-relative; no @import("src/...") exists). Behaviorally verified (cli.zig→config.zig still resolves). Red: pre-fix dead branch present
 - [ ] `todo` **L49** · commit `—` · validate_failure_recovery self-test silently skips non-dict invalid fixtures — scripts/validate_task_system.py
 - [ ] `info` **L50** · commit `—` · closed-findings audit: prior CODEX/FU behavioral bugs confirmed FIXED in code — INFORMATIONAL, nothing to fix (close immediately)
 
