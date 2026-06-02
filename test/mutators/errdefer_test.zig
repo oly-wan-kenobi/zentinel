@@ -61,6 +61,27 @@ test "an existing errdefer {} is not mutated" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
+test "a non-canonically-spaced empty errdefer is not mutated (L6)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `errdefer  {}` (two spaces) and `errdefer{}` (no space) are ALREADY the
+    // post-mutation `errdefer {}`; emitting a mutant only rewrites whitespace, a
+    // pure no-op that Zig cannot distinguish -- a guaranteed-equivalent survivor.
+    // The exact-string guard let these through; the whitespace-insensitive one
+    // skips them (L6).
+    inline for (.{
+        "pub fn f(alloc: std.mem.Allocator) !*i32 {\n    const p = try alloc.create(i32);\n    errdefer  {}\n    p.* = 1;\n    return p;\n}\nconst std = @import(\"std\");",
+        "pub fn f(alloc: std.mem.Allocator) !*i32 {\n    const p = try alloc.create(i32);\n    errdefer{}\n    p.* = 1;\n    return p;\n}\nconst std = @import(\"std\");",
+    }) |src| {
+        var parsed = try ast_backend.parse(std.testing.allocator, "e.zig", src);
+        defer parsed.deinit();
+        const c = try collect(a, parsed);
+        try expectEqual(@as(usize, 0), c.len);
+    }
+}
+
 test "a block-body errdefer is replaced wholesale with errdefer {}" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

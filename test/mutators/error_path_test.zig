@@ -62,6 +62,24 @@ test "an existing catch unreachable is not mutated" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
+test "a parenthesized catch unreachable is not re-mutated (L6)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `catch (unreachable)` is already semantically `catch unreachable`; mutating
+    // it only strips the redundant parens -- a pure no-op equivalent survivor that
+    // the exact-string guard missed (L6).
+    var parsed = try ast_backend.parse(std.testing.allocator, "c.zig",
+        \\pub fn f(e: anyerror!i32) i32 {
+        \\    return e catch (unreachable);
+        \\}
+    );
+    defer parsed.deinit();
+    const c = try collectErrorPath(a, parsed);
+    try expectEqual(@as(usize, 0), c.len);
+}
+
 test "a catch with an |err| payload replaces the capture and handler together" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

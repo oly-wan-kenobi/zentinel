@@ -71,7 +71,7 @@ fn collectCatch(
     const end = tree.tokenStart(last) + @as(u32, @intCast(tree.tokenSlice(last).len));
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const original = tree.source[start..end];
-    if (std.mem.eql(u8, original, "unreachable")) return; // existing catch unreachable
+    if (mutant.equivalentToCanonical(original, "unreachable")) return; // already catch unreachable (any spelling)
     const start_pos = source_map.locate(tree.source, start) orelse return;
     const end_pos = source_map.locate(tree.source, end) orelse return;
     try collector.add(.{
@@ -119,7 +119,7 @@ fn collectErrdefer(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const original = tree.source[start..end];
     const replacement = "errdefer {}";
-    if (std.mem.eql(u8, original, replacement)) return; // already an empty errdefer
+    if (mutant.equivalentToCanonical(original, replacement)) return; // already an empty errdefer (any spelling)
     const start_pos = source_map.locate(tree.source, start) orelse return;
     const end_pos = source_map.locate(tree.source, end) orelse return;
     try collector.add(.{
