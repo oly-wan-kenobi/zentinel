@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 11/17 suspected resolved (9 fixed, 2 refuted)  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 12/17 suspected resolved (10 fixed, 2 refuted)  _(update this line as you go)_
 
 ---
 
@@ -98,7 +98,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **S9** · commit `1e0a3fb` · cli.zig private config_path duplicates root.zig's exported config_default_path — src/cli.zig
 - [x] `done` **S10** · commit `3219d55` · enabled() called once per candidate → O(M*E) post-collection operator filter — src/run_command.zig
 - [x] `done` **S11** · commit `9358271` · matchModeFor silently treats 'text output subset' as exact matching — src/doctest/
-- [ ] `todo` **S12** · commit `—` · TOML parser does not process backslash escape sequences in double-quoted strings — src/config_toml.zig
+- [x] `done` **S12** · commit `12727ad` · TOML parser does not process backslash escape sequences in double-quoted strings — src/config_toml.zig
 - [ ] `todo` **S13** · commit `—` · validate_task_system: empty allowed_files=[] / forbidden_files=[] pass via Python all() vacuous truth — scripts/validate_task_system.py
 - [ ] `todo` **S14** · commit `—` · completion_evidence files_changed/tests_added/tests_run/follow_up_tasks accept empty lists via vacuous all() — scripts/validate_task_system.py
 - [ ] `todo` **S15** · commit `—` · no doc states which commands require the external `zig` binary — docs/
