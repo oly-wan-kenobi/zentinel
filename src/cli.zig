@@ -1015,6 +1015,15 @@ fn runDoctestAi(
 
     const ai_cfg = (try aiSettings(arena, gpa, io, dir, inv.globals, stderr)) orelse return 2;
 
+    // A required positional missing (doc-path for suggest, case-ref for explain /
+    // review-snapshot) is a CLI usage error, surfaced like the top-level AI commands'
+    // `missing <mutant-ref>`/`missing <survivor-ref>` guards instead of being
+    // forwarded as a null ref the engine reports as an opaque DOC/CASE_NOT_FOUND
+    // (L32). Checked after config/--config validation so a bad --config still wins.
+    if (zentinel.ai.doctest_command.missingPositional(flow, positional)) |detail| {
+        return aiOptionError(stderr, detail);
+    }
+
     var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, ai_cfg.project_root, stderr)) orelse return 2;
     defer roots.close(io);
     const root_dir = roots.dir();

@@ -50,6 +50,21 @@ pub fn flowName(flow: Flow) []const u8 {
     };
 }
 
+/// The CLI usage-error detail for a doctest-AI subcommand invoked WITHOUT its
+/// required positional, or null when the requirement is satisfied. `suggest` needs
+/// `<doc-path>`; `explain` and `review-snapshot` need `<case-ref>`;
+/// `suggest-missing` takes its target via `--file`, so it requires no positional.
+/// Surfacing this as a usage error keeps a missing argument from being forwarded as
+/// a null doc/case ref that the engine reports as an opaque DOC/CASE_NOT_FOUND (L32).
+pub fn missingPositional(flow: Flow, positional: ?[]const u8) ?[]const u8 {
+    if (positional != null) return null;
+    return switch (flow) {
+        .suggest_doctest => "missing <doc-path>",
+        .explain_doctest_failure, .review_snapshot => "missing <case-ref>",
+        .suggest_missing_doctests => null,
+    };
+}
+
 pub fn responseSchemaName(flow: Flow) []const u8 {
     return switch (flow) {
         .explain_doctest_failure => "zentinel.ai.explain.response.v1",
