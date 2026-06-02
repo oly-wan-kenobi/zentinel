@@ -12,7 +12,10 @@
 // the documented `source_mapping` enum (none/approximate/exact, only `exact`
 // enters the mutant list) and the active safety-mode metadata. report v1 stays
 // closed (only `backend`/`backend_stability`); all backend-specific evidence is
-// out-of-report, written to artifacts/pipeline/<task-id>/experimental-backend-diagnostics/.
+// out-of-report. At CLI runtime it is surfaced as stderr `note[...]` lines
+// (src/cli.zig); the schema-versioned on-disk artifact (`diagnosticsToJson`,
+// intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
+// is defined and tested but its pipeline write is not yet implemented (L25).
 // Targets pinned Zig 0.16.0; version coupling is handled by opt-in diagnostics.
 const std = @import("std");
 const mutant = @import("mutant.zig");
@@ -139,6 +142,10 @@ const DiagnosticsArtifact = struct {
     unsupported: []const Diagnostic,
 };
 
+/// Serialize the unsupported-operator diagnostics to deterministic JSON. Ready
+/// and byte-pinned by tests, but NOT yet wired to an on-disk write: at CLI
+/// runtime these diagnostics are surfaced as stderr `note[...]` lines, not this
+/// artifact (L25).
 pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnostic, safety_mode: []const u8) std.mem.Allocator.Error![]u8 {
     const artifact = DiagnosticsArtifact{ .safety_mode = safety_mode, .unsupported = diagnostics };
     return std.json.Stringify.valueAlloc(arena, artifact, .{ .whitespace = .indent_2 });

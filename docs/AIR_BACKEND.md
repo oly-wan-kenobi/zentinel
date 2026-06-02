@@ -64,7 +64,7 @@ exact
 
 Only `exact` can enter the normal mutant list.
 
-Non-executable AIR inventories, unsupported mapping notes, and compiler-internal evidence are out-of-report AIR diagnostics. The report v1 schema is closed: it accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields. Task-scoped AIR diagnostics are written under `artifacts/pipeline/<task-id>/experimental-backend-diagnostics/`.
+Non-executable AIR inventories, unsupported mapping notes, and compiler-internal evidence are out-of-report AIR diagnostics. The report v1 schema is closed: it accepts `backend` and `backend_stability`, but report v1 does not define backend-specific diagnostic fields. At CLI runtime these diagnostics are surfaced as stderr `note[...]` lines. The schema-versioned on-disk artifact (`air_backend.diagnosticsToJson` → `zentinel.experimental_backend_diagnostics.v1`, intended under `artifacts/pipeline/<task-id>/experimental-backend-diagnostics/`) is defined and tested but its write is not yet implemented (future pipeline work).
 
 ## Mutation Generation Strategy
 

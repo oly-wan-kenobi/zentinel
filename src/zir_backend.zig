@@ -10,8 +10,11 @@
 // rewrites) are NOT emitted as mutants; they become out-of-report backend
 // diagnostics so they never affect mutation score, survivor counts, or report v1
 // fields. Live compiler-internal ZIR introspection is intentionally out of scope
-// here: report v1 stays closed, and unsupported evidence is written to a
-// task-scoped artifact under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/.
+// here: report v1 stays closed. At CLI runtime the unsupported evidence is
+// surfaced as stderr `note[...]` lines (src/cli.zig); the schema-versioned
+// on-disk artifact (`diagnosticsToJson` -> zentinel.experimental_backend_diagnostics.v1,
+// intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
+// is defined and tested but its pipeline write is not yet implemented (L25).
 // Targets pinned Zig 0.16.0; version coupling is handled by opt-in diagnostics.
 const std = @import("std");
 const mutant = @import("mutant.zig");
@@ -121,7 +124,9 @@ pub fn experimentalListing(
 }
 
 /// The out-of-report diagnostics artifact (a separate schema, never report v1).
-/// Written under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/.
+/// Intended for a task-scoped on-disk file under
+/// artifacts/pipeline/<task-id>/experimental-backend-diagnostics/, but that write
+/// is not yet implemented -- the serializer below is ready and tested for it (L25).
 const DiagnosticsArtifact = struct {
     schema_version: []const u8 = "zentinel.experimental_backend_diagnostics.v1",
     backend: []const u8 = "zir",
@@ -131,7 +136,9 @@ const DiagnosticsArtifact = struct {
 };
 
 /// Serialize the unsupported-operator diagnostics to deterministic JSON for the
-/// out-of-report task-scoped artifact.
+/// out-of-report task-scoped artifact. Ready and byte-pinned by tests, but NOT
+/// yet wired to an on-disk write: at CLI runtime these diagnostics are surfaced
+/// as stderr `note[...]` lines, not this artifact (L25).
 pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnostic) std.mem.Allocator.Error![]u8 {
     const artifact = DiagnosticsArtifact{ .unsupported = diagnostics };
     return std.json.Stringify.valueAlloc(arena, artifact, .{ .whitespace = .indent_2 });
