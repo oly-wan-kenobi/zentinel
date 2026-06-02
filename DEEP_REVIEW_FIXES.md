@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 61/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 62/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -79,7 +79,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L42** · commit `bab6e63` · isQuotedMeta is a trivially thin wrapper that always equals isMeta — src/command.zig — inlined isMeta(q) at the one quoted-field call site and deleted the wrapper (one rule, one source of truth; isMeta docstring already says metacharacters are rejected in every field). Added a quoted-pipe assertion; behavior-preserving, load-bearing verified by temp-returning a wrong reason from the inlined check (fails the quoted-meta assertions); reverted, suite green
 - [x] `done` **L43** · commit `b61b4c3` · ai.source_context_lines parsed & validated but never passed to the AI context builder — src/config.zig, src/ai/context.zig `[rel: H5]` — added Settings.source_context_lines (from cfg, clamped to u32) and used it for source_context.before_lines/after_lines (the documented "lines before/after mutant"), replacing the hardcoded 0. Policy stays "none"/empty snippet (privacy preserved). Red: configured window 20 produced before_lines 0; green: 20
 - [x] `done` **L44** · commit `117e763` · `--verbose` and `--quiet` accepted together on `run`; quiet silently wins — src/cli.zig — run_command.parseArgs now returns ParseError.ConflictingOptions when both are set (rendered ZNTL_CLI_INVALID_OPTION, exit 2); each flag alone unchanged. Red: both accepted into Options (verbose=true, quiet=true); green: rejected in either order
-- [ ] `todo` **L45** · commit `—` · zig.modes = [] accepted by config validation but silently overrides user intent — src/config.zig `[rel: H5]`
+- [x] `done` **L45** · commit `714890f` · zig.modes = [] accepted by config validation but silently overrides user intent — src/config.zig `[rel: H5]` — added `if (zig_modes.len == 0) return fail(.invalid_value, "zig", "modes", …)` after the per-element loop, matching empty test.commands; omitting modes still defaults to Debug. Red: `modes = []` loaded with zig_modes = {}; green: rejected (invalid_value, zig/modes)
 - [ ] `todo` **L46** · commit `—` · benchmark.sh emits a committed static fixture, not live benchmark measurements — scripts/benchmark.sh
 - [ ] `todo` **L47** · commit `—` · release_acceptance.py reads release_evidence.json without an is_file() guard → uncaught FileNotFoundError — scripts/release_acceptance.py
 - [ ] `todo` **L48** · commit `—` · resolve_zig_import 'src/' prefix branch is unreachable dead code — src/zig_version.zig
