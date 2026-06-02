@@ -144,3 +144,49 @@ test "AIR and ZIR experiments are independent: opting into one does not enable t
     // air_backend only owns the air backend.
     try expectError(error.BackendNotImplemented, air.experimentalListing(arena, cfg, &.{}, "zir"));
 }
+
+// --- CLI experimental-backend diagnostic note rendering (L26) ---------------
+//
+// The `list-mutants --backend zir|air` CLI surfaces unsupported-operator
+// diagnostics as stderr `note[...]` lines (the documented behavior, L25). That
+// format was previously formatted inline in cli.zig with no test; it now lives in
+// the backend modules so these tests pin its exact bytes -- a wiring/format
+// regression (e.g. dropping a field or changing the layout) fails here (L26).
+
+test "zir backend renders the exact stderr note line for an unsupported diagnostic (L26)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const a = arena_state.allocator();
+    const d = zir.Diagnostic{
+        .code = "ZNTL_ZIR_UNSUPPORTED",
+        .file = "src/calc.zig",
+        .operator = "arithmetic_add_sub",
+        .span_start = 122,
+        .span_end = 123,
+        .reason = "no exact ZIR source mapping",
+    };
+    try expectEqualStrings(
+        "note[ZNTL_ZIR_UNSUPPORTED]: arithmetic_add_sub at src/calc.zig:122..123 (no exact ZIR source mapping)\n",
+        try zir.renderDiagnosticNote(a, d),
+    );
+}
+
+test "air backend renders the exact stderr note line with source_mapping and mode (L26)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const a = arena_state.allocator();
+    const d = air.Diagnostic{
+        .code = "ZNTL_AIR_UNSUPPORTED",
+        .file = "src/calc.zig",
+        .operator = "integer_literal_boundary",
+        .span_start = 50,
+        .span_end = 51,
+        .source_mapping = "approximate",
+        .safety_mode = "Debug",
+        .reason = "approximate AIR mapping",
+    };
+    try expectEqualStrings(
+        "note[ZNTL_AIR_UNSUPPORTED]: integer_literal_boundary at src/calc.zig:50..51 source_mapping=approximate mode=Debug (approximate AIR mapping)\n",
+        try air.renderDiagnosticNote(a, d),
+    );
+}

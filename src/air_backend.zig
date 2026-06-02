@@ -150,3 +150,11 @@ pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnost
     const artifact = DiagnosticsArtifact{ .safety_mode = safety_mode, .unsupported = diagnostics };
     return std.json.Stringify.valueAlloc(arena, artifact, .{ .whitespace = .indent_2 });
 }
+
+/// The human-facing stderr `note[...]` line for one out-of-report AIR diagnostic
+/// (carries `source_mapping` and the active safety mode) -- the CLI surface for
+/// unsupported operators. Kept here (not inline in cli.zig) so the note format is
+/// directly testable rather than only reachable end-to-end through the binary (L26).
+pub fn renderDiagnosticNote(arena: std.mem.Allocator, d: Diagnostic) std.mem.Allocator.Error![]u8 {
+    return std.fmt.allocPrint(arena, "note[{s}]: {s} at {s}:{d}..{d} source_mapping={s} mode={s} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.source_mapping, d.safety_mode, d.reason });
+}

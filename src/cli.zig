@@ -702,7 +702,7 @@ fn runListMutants(
         if (options.format == .json) try stdout.writeAll("\n");
         // Out-of-report backend diagnostics: stderr only, never report fields.
         for (listing.diagnostics) |d| {
-            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.reason });
+            try stderr.writeAll(try zentinel.zir_backend.renderDiagnosticNote(gpa, d));
         }
         return 0;
     } else if (std.mem.eql(u8, backend, "air")) {
@@ -726,7 +726,7 @@ fn runListMutants(
         // Out-of-report AIR diagnostics (with source_mapping + safety mode):
         // stderr only, never report fields.
         for (listing.diagnostics) |d| {
-            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} source_mapping={s} mode={s} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.source_mapping, d.safety_mode, d.reason });
+            try stderr.writeAll(try zentinel.air_backend.renderDiagnosticNote(gpa, d));
         }
         return 0;
     }
