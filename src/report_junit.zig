@@ -136,6 +136,14 @@ fn escape(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]con
         '>' => try buf.appendSlice(arena, "&gt;"),
         '"' => try buf.appendSlice(arena, "&quot;"),
         '\'' => try buf.appendSlice(arena, "&apos;"),
+        // Tab, LF, and CR are the only control characters XML 1.0 permits.
+        '\t', '\n', '\r' => try buf.append(arena, c),
+        // Every other C0 control byte (ANSI ESC \x1b, BEL \x07, ...) and DEL are
+        // illegal in XML 1.0; captured Zig output is routinely ANSI-colored, so
+        // emitting them verbatim would make a strict CI parser reject the whole
+        // testsuite. Replace each with `?` so the JUnit XML is always well-formed
+        // (M11).
+        0x00...0x08, 0x0b, 0x0c, 0x0e...0x1f, 0x7f => try buf.append(arena, '?'),
         else => try buf.append(arena, c),
     };
     return buf.toOwnedSlice(arena);

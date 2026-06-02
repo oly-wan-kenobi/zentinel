@@ -196,6 +196,28 @@ test "junit status mapping per result status" {
     try expect(contains(bf, "name=\"baseline\""));
 }
 
+test "junit renderer replaces XML-illegal control chars from captured evidence (M11)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Captured stderr with ANSI-colored compiler output (ESC \x1b) and a BEL
+    // (\x07): both are forbidden by XML 1.0, so emitting them verbatim makes a
+    // strict CI parser reject the whole testsuite. The renderer must sanitize them
+    // while keeping the surrounding text (M11).
+    var m = mutant(1, .survived, "src/x.zig", false);
+    m.result.evidence = .{ .stdout_excerpt = "", .stderr_excerpt = "error: \x1b[31mboom\x1b[0m\ttab\x07", .failure_summary = "" };
+    const ms = [_]report.Mutant{m};
+    const xml = try report_junit.render(a, completedReport(&ms), false);
+
+    // No XML-1.0-illegal control byte survives into the output...
+    try expect(std.mem.indexOfScalar(u8, xml, 0x1b) == null);
+    try expect(std.mem.indexOfScalar(u8, xml, 0x07) == null);
+    // ...each illegal byte is replaced by `?`, legal whitespace (tab) is kept, and
+    // the legible text is preserved verbatim.
+    try expect(contains(xml, "<system-err>error: ?[31mboom?[0m\ttab?</system-err>"));
+}
+
 test "junit strict survivor-failing mode emits a failure only for survivors" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
