@@ -32,7 +32,9 @@ test "errdefer statement -> errdefer {} candidate, classified may_fail" {
     // withCleanup yields one candidate; alreadyEmpty (`errdefer {}`) is skipped.
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("errdefer_remove", c[0].operator);
-    try expectEqualStrings("errdefer alloc.destroy(p)", c[0].original);
+    // The span includes the statement-terminating `;`, so applying `errdefer {}`
+    // replaces the whole statement and cannot orphan a `;` into `errdefer {};` (H2).
+    try expectEqualStrings("errdefer alloc.destroy(p);", c[0].original);
     try expectEqualStrings("errdefer {}", c[0].replacement);
     // Removing the cleanup can leave a variable used only there unused -> may_fail.
     try expectEqual(mutant.ExpectedCompile.may_fail, c[0].expected_compile);
@@ -124,5 +126,43 @@ test "survivor fixture: success-only errdefer yields a candidate" {
     const c = try collect(a, parsed);
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("errdefer_remove", c[0].operator);
-    try expectEqualStrings("errdefer alloc.destroy(p)", c[0].original);
+    try expectEqualStrings("errdefer alloc.destroy(p);", c[0].original);
+}
+
+test "the applied errdefer_remove mutant is syntactically valid -- no dangling semicolon (H2)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The dominant idiom: an expression/assignment-bodied errdefer terminated by
+    // `;`. The mutator spans the errdefer node, whose last token is the body
+    // expression -- NOT the statement-terminating `;`. Replacing only that span
+    // with `errdefer {}` left the `;` orphaned -> `errdefer {};`, which fails to
+    // parse ("expected statement, found ';'"), so every such mutant was a
+    // guaranteed compile_error that can never be killed (H2).
+    const src =
+        \\pub fn f(alloc: std.mem.Allocator) !*i32 {
+        \\    const p = try alloc.create(i32);
+        \\    errdefer alloc.destroy(p);
+        \\    p.* = 1;
+        \\    return p;
+        \\}
+        \\const std = @import("std");
+    ;
+    var parsed = try ast_backend.parse(std.testing.allocator, "f.zig", src);
+    defer parsed.deinit();
+    const c = try collect(a, parsed);
+    try expectEqual(@as(usize, 1), c.len);
+    // The span swallows the terminating `;`, so the original IS the whole statement.
+    try expectEqualStrings("errdefer alloc.destroy(p);", c[0].original);
+    try expectEqualStrings("errdefer {}", c[0].replacement);
+
+    // Apply the candidate and re-parse: the mutated statement must be exactly
+    // `errdefer {}` (a complete statement), never `errdefer {};`.
+    const mutated = try zentinel.sandbox.apply(a, src, c[0]);
+    try expect(std.mem.indexOf(u8, mutated, "errdefer {};") == null);
+    try expect(std.mem.indexOf(u8, mutated, "errdefer {}\n") != null);
+    var reparsed = try ast_backend.parse(std.testing.allocator, "f.zig", mutated);
+    defer reparsed.deinit();
+    try expect(reparsed.ok()); // no parse errors -> the applied mutant is valid Zig
 }

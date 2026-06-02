@@ -92,7 +92,17 @@ fn collectErrdefer(
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const kw = tree.nodeMainToken(node); // the `errdefer` keyword
-    const last = tree.lastToken(node); // end of the cleanup body
+    var last = tree.lastToken(node); // end of the cleanup BODY
+    // The `.@"errdefer"` node's last token is the body expression, NOT the
+    // statement-terminating `;` (for an expression/assignment body like
+    // `errdefer alloc.destroy(p);`). Swallow that `;` into the span so replacing
+    // the whole statement with `errdefer {}` does not orphan it into `errdefer {};`
+    // -- a syntactically invalid statement ("expected statement, found ';'") and
+    // thus a guaranteed compile_error mutant that can never be killed (H2). A
+    // block body (`errdefer { ... }`) ends at `}` with no trailing `;`, so it is
+    // left untouched.
+    const token_tags = tree.tokens.items(.tag);
+    if (last + 1 < token_tags.len and token_tags[last + 1] == .semicolon) last += 1;
     const start = tree.tokenStart(kw);
     const end = tree.tokenStart(last) + @as(u32, @intCast(tree.tokenSlice(last).len));
     if (ast_backend.inTestBody(test_ranges, start)) return;
