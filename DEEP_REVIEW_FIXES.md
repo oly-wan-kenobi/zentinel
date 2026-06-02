@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 13/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 14/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -29,7 +29,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **M6** · commit `1e10ca3` · matcher.Mode json_unordered / regex / diagnostic unreachable from block parsing — src/doctest/block.zig
 - [x] `done` **M7** · commit `9dae1c6` · doctest --mutate under-reports: candidatesOrParseError has the 4-of-8 collector restriction → 0 mutants for Phase-2-only snippets — src/doctest/mutation_experiment.zig `[rel: H2]`
 - [x] `done` **M8** · commit `5d37c67` · AI-context normalizeAbsolutePaths misses scheme/colon-prefixed paths (file:// URIs) → path leak — src/ai/redaction.zig
-- [ ] `todo` **M9** · commit `—` · AI-context mutant.id & operator fields bypass redaction → untrusted-report paths/secrets leak verbatim — src/ai/command.zig
+- [x] `done` **M9** · commit `f26d1e8` · AI-context mutant.id & operator fields bypass redaction → untrusted-report paths/secrets leak verbatim — src/ai/command.zig
 - [ ] `todo` **M10** · commit `—` · report.summarize per-status arithmetic unpinned; validate() blind to a score-inflating regression — src/report.zig:223-235 `[rel: H4]`
 - [ ] `todo` **M11** · commit `—` · JUnit XML renderer emits XML-illegal control chars (e.g. ANSI ESC) → invalid XML — src/report_junit.zig
 - [ ] `todo` **M12** · commit `—` · validate_pipeline_artifact_tree silently skips all committed verification/report.json artifacts — scripts/validate_task_system.py `[rel: H4]`
