@@ -272,8 +272,11 @@ pub fn run(
     // every mutant from the same source (L5).
     var spec_cache: std.ArrayList(FileSpec) = .empty;
     var job_list: std.ArrayList(Job) = .empty;
+    // Index sources by path ONCE so the per-mutant lookup below is O(1), not a
+    // linear scan of `files` per candidate (O(M*F)) (L18).
+    var source_index = try buildSourceIndex(arena, files);
     for (candidates) |candidate| {
-        const source = sourceFor(files, candidate.file) orelse return error.SourceFileMissing;
+        const source = source_index.get(candidate.file) orelse return error.SourceFileMissing;
         const fs = blk: {
             for (spec_cache.items) |c| {
                 if (std.mem.eql(u8, c.file, candidate.file)) break :blk c;
@@ -411,11 +414,23 @@ fn baseRun(obs: Observation, status: report.RunStatus) report.Run {
     };
 }
 
-fn sourceFor(files: []const FileSource, path: []const u8) ?[]const u8 {
+/// Test-only counter: how many times the per-run source index (path -> bytes) is
+/// built. Every file is indexed ONCE so the Phase A per-mutant source lookup is
+/// O(1) (`index.get`), not a linear scan of `files` per candidate (O(M*F)); a
+/// regression that rebuilt or scanned per mutant would push this above 1 (L18).
+pub var source_index_builds: usize = 0;
+
+/// Index source bytes by project-relative path. First occurrence wins, matching
+/// the prior `sourceFor` linear scan's first-match semantics (`files` is already
+/// de-duplicated by `discover`, so this only matters defensively).
+fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
+    source_index_builds += 1;
+    var index = std.StringHashMap([]const u8).init(arena);
     for (files) |f| {
-        if (std.mem.eql(u8, f.path, path)) return f.source;
+        const gop = try index.getOrPut(f.path);
+        if (!gop.found_existing) gop.value_ptr.* = f.source;
     }
-    return null;
+    return index;
 }
 
 /// Return the first project-relative source file that fails AST parsing.

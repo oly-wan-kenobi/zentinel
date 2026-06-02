@@ -311,6 +311,24 @@ test "selection specs are built once per file, not once per mutant (L5)" {
     try expectEqual(@as(usize, 1), rc.selection_specs_build_count);
 }
 
+test "the source index is built once per run, not scanned once per mutant (L18)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants over one source file: the path->source index is built ONCE for
+    // the whole run, so each mutant's source lookup is an O(1) map get rather than
+    // a fresh linear scan of `files` per candidate (the old O(M*F) behavior) (L18).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.source_index_builds = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.source_index_builds);
+}
+
 test "--fail-on-survivors exits 1 when a mutant survives" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
