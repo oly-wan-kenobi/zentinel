@@ -405,6 +405,53 @@ test "explain rejects partial command result evidence instead of defaulting fiel
     try expectError(error.AiReportNotFound, command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings()));
 }
 
+test "explain on an invalid (empty-commands) mutant builds context instead of reporting report-not-found (L1)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // An `invalid` mutant legitimately ran no command, so a real report serializes
+    // `"commands": []`. The report was found and the ref resolved, so explain must
+    // build a context describing why it did not run -- not fail with the
+    // misleading AiReportNotFound (L1).
+    const invalid_mutant_report =
+        \\{
+        \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+        \\  "baseline": { "status": "passed" },
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_invalid",
+        \\      "display_id": 1,
+        \\      "operator": "comparison_boundary",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/x.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "a",
+        \\      "replacement": "b",
+        \\      "diff": [],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "invalid",
+        \\        "mode": "Debug",
+        \\        "commands": [],
+        \\        "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "sandbox: patch out of range" },
+        \\        "skip_reason": null
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, invalid_mutant_report, .{});
+    const mutant = parsed.object.get("mutants").?.array.items[0];
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings());
+    const json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+    // The context carries the empty command set and the mutant's invalid status.
+    try expect(std.mem.indexOf(u8, json, "\"commands\": []") != null);
+    try expect(std.mem.indexOf(u8, json, "\"status\": \"invalid\"") != null);
+}
+
 test "explain context redacts project metadata before it reaches the prompt" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

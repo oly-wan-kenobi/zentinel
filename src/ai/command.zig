@@ -361,6 +361,14 @@ fn commandsFromResult(
             return out;
         }
     }
+    // A non-running mutant (invalid/skipped) legitimately executed no command, so
+    // a real report serializes `"commands": []`. Return an empty command set so
+    // explain/suggest can still describe why the mutant did not run, instead of
+    // misreporting a present, resolved report as AiReportNotFound (L1). A RUNNING
+    // status (survived/killed/...) with no structured command evidence remains a
+    // malformed report and is still rejected.
+    const result_status = s(get(result, "status"));
+    if (eqStr(result_status, "invalid") or eqStr(result_status, "skipped")) return &.{};
     return error.AiReportNotFound;
 }
 
