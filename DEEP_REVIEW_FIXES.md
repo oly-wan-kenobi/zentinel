@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 67/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 67/67 confirmed fixed · 1/17 suspected resolved (1 fixed, 0 refuted)  _(update this line as you go)_
 
 ---
 
@@ -87,7 +87,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L50** · commit `—` · closed-findings audit: prior CODEX/FU behavioral bugs confirmed FIXED in code — INFORMATIONAL, nothing to fix; closed (audit-only, no code/test change)
 
 ## Suspected — triage (fix the real ones; `refuted` + one-line reason for the rest)
-- [ ] `todo` **S1** · commit `—` · doctest survivor AI context leaks operator/survivor_ref/case_id/mutant_id unredacted — src/ai/doctest_command.zig
+- [x] `done` **S1** (real bug) · commit `155175f` · doctest survivor AI context leaks operator/survivor_ref/case_id/mutant_id unredacted — src/ai/doctest_command.zig — routed survivor_ref/doctest_case_id/case_id/mutant_id/operator through context.redactField (mirroring .file/.source_ref) + redacted meta.id in redactedMeta (case.id→doctest.id sibling). Red: a ghp_ token in mutant_id/survivor_ref leaked into the serialized context; green: redacted, redactions_applied records absolute_path+secret_value, context still validates
 - [ ] `todo` **S2** · commit `—` · property_report rejection loop asserts only `v != .ok`, never the intended violation tag — src/property/report.zig
 - [ ] `todo` **S3** · commit `—` · SHA-256 of each source file recomputed once per mutant in the Phase C hot loop — src/run_command.zig
 - [ ] `todo` **S4** · commit `—` · build.zig silent zero-test build when test/ is inaccessible (catch return swallows openDir error) — build.zig
