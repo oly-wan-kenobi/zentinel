@@ -267,13 +267,25 @@ pub fn run(
     // executor -- and assemble one deterministic job per mutant. Selection state
     // and the baseline executor are only touched here, never on a worker thread.
     var file_cache: std.ArrayList(FileSelection) = .empty;
+    // The resolution + selection specs are a pure function of the file (and the
+    // run-constant config), so memoize them per file instead of recomputing for
+    // every mutant from the same source (L5).
+    var spec_cache: std.ArrayList(FileSpec) = .empty;
     var job_list: std.ArrayList(Job) = .empty;
     for (candidates) |candidate| {
         const source = sourceFor(files, candidate.file) orelse return error.SourceFileMissing;
-        const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
-        const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
-        const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
-        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .command_specs = specs, .selection = resolution.selection });
+        const fs = blk: {
+            for (spec_cache.items) |c| {
+                if (std.mem.eql(u8, c.file, candidate.file)) break :blk c;
+            }
+            const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
+            const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
+            const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
+            const computed = FileSpec{ .file = candidate.file, .resolution = resolution, .specs = specs };
+            try spec_cache.append(arena, computed);
+            break :blk computed;
+        };
+        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = fs.resolution.commands, .command_specs = fs.specs, .selection = fs.resolution.selection });
     }
     const jobs = try job_list.toOwnedSlice(arena);
 
@@ -481,6 +493,14 @@ const FileSelection = struct {
     generated_in_baseline: bool,
 };
 
+/// Per-file memo of the resolved selection and its parsed command specs, shared
+/// by every mutant from that file (L5). All fields are arena-owned, read-only.
+const FileSpec = struct {
+    file: []const u8,
+    resolution: test_selection.Resolution,
+    specs: []const command.Spec,
+};
+
 /// Test-only counter: how many times the configured commands were parsed into
 /// specs. They are constant across the Phase B.5 survivor reverification loop, so
 /// this must be 1 per run, not 1 per surviving mutant (L4).
@@ -502,7 +522,13 @@ fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const
     return specs;
 }
 
+/// Test-only counter: how many times the per-file selection specs were built.
+/// The selection commands are identical for every mutant from the same source
+/// file, so this must be 1 per unique file, not 1 per mutant (L5).
+pub var selection_specs_build_count: usize = 0;
+
 fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const u8, file: []const u8) std.mem.Allocator.Error![]const command.Spec {
+    selection_specs_build_count += 1;
     const generated = try test_selection.generatedCommand(arena, file);
     const generated_argv = try test_selection.generatedCommandArgv(arena, file);
     const specs = try arena.alloc(command.Spec, commands.len);

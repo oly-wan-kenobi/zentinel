@@ -293,6 +293,24 @@ test "configured reverification specs are parsed once per run, not once per surv
     try expectEqual(@as(usize, 1), rc.configured_specs_parse_count);
 }
 
+test "selection specs are built once per file, not once per mutant (L5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants share one source file; the selection commands are identical for
+    // both, so the per-file selection specs must be built once.
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.selection_specs_build_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    // Memoized per file: built once, not once per mutant.
+    try expectEqual(@as(usize, 1), rc.selection_specs_build_count);
+}
+
 test "--fail-on-survivors exits 1 when a mutant survives" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
