@@ -1576,6 +1576,22 @@ def validate_pipeline_artifact_tree(root) -> list[str]:
                 schema = _load_pipeline_schema("zentinel.pipeline.context.v1")
                 if schema is not None:
                     violations += subset_validate(data, schema, str(cj.relative_to(root)))
+        # Every completed task commits a verification/report.json under the
+        # zentinel.pipeline.verification.v1 schema; without this block those
+        # artifacts were never schema-validated or task-scoped, so a malformed one
+        # passed CI undetected (M12).
+        verification_dir = task_dir / "verification"
+        if verification_dir.is_dir():
+            for vj in sorted(verification_dir.glob("*.json")):
+                data = _load_json_or_none(vj)
+                if not isinstance(data, dict):
+                    violations.append(f"{vj.relative_to(root)}: not a JSON object")
+                    continue
+                schema = _load_pipeline_schema("zentinel.pipeline.verification.v1")
+                if schema is not None:
+                    violations += subset_validate(data, schema, str(vj.relative_to(root)))
+                if data.get("task_id") != task_id:
+                    violations.append(f"{vj.relative_to(root)}: task_id {data.get('task_id')!r} does not match artifact directory task {task_id}")
     return violations
 
 
