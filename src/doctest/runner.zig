@@ -22,6 +22,13 @@ const config = @import("../config.zig");
 /// owned by the runner that enforces it.
 pub const command_rejected_code = "ZNTL_DOCTEST_COMMAND_REJECTED";
 
+/// Public diagnostic for a per-case workspace-creation failure (transient or
+/// environmental: disk full, restrictive permissions, a pre-existing non-dir at
+/// the content-addressed workspace path). The failure isolates to the one case as
+/// `.invalid` rather than aborting the whole run -- symmetric with the mutation
+/// path, which folds a workspace `create_failed` into an `invalid` mutant (L12).
+pub const workspace_failed_code = "ZNTL_DOCTEST_WORKSPACE_FAILED";
+
 /// Ordinary doctest statuses (docs/DOCTEST_SPEC.md). `expected_compile_error` is
 /// a pass status for `zig compile_fail` only.
 pub const Status = enum {
@@ -69,7 +76,9 @@ pub const Context = struct {
     provider: workspace.Provider,
 };
 
-pub const RunError = workspace.MaterializeError;
+/// runCase never propagates a workspace-creation failure: runZig isolates it as
+/// an `.invalid` case (L12), so the only run-wide error a case can raise is OOM.
+pub const RunError = std.mem.Allocator.Error;
 
 /// 1 if any case has a status other than passed/skipped/expected_compile_error,
 /// else 0 (docs/DOCTEST_SPEC.md exit semantics). Invalid CLI/selector usage
@@ -143,7 +152,18 @@ const ZigMode = enum { compile_pass, zig_test, compile_fail };
 
 fn runZig(ctx: Context, c: case.Case, content: []const u8, mode: ZigMode) RunError!CaseResult {
     const plan = try workspace.zigPlan(ctx.arena, c.id, content, ctx.zig_version);
-    try ctx.provider.materialize(plan);
+    // A per-case workspace-creation failure isolates to THIS case as `.invalid`
+    // (symmetric with the mutation path, where mutant_runner folds a workspace
+    // create_failed into an `invalid` mutant), never aborting the whole run --
+    // which would discard every other case's verdict and emit no report (L12).
+    // OutOfMemory is a genuine run-wide error and still propagates.
+    ctx.provider.materialize(plan) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        error.WorkspaceCreateFailed => {
+            const diags = try ctx.arena.dupe(Diagnostic, &.{.{ .code = workspace_failed_code, .message = "could not create the doctest workspace for this case" }});
+            return base(c, .invalid, null, null, null, false, "", "", null, diags);
+        },
+    };
 
     const src = plan.files[0].rel_path;
     const argv = try ctx.arena.dupe([]const u8, &.{ "zig", "test", src });

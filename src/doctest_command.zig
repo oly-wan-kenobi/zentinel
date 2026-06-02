@@ -85,7 +85,10 @@ pub const Output = struct {
     exit_code: u8,
 };
 
-pub const RunError = error{CaseNotFound} || workspace.MaterializeError;
+// A per-case workspace-creation failure is isolated as an `.invalid` case by the
+// runner (L12), so it never reaches here; the only errors that abort the whole
+// run are an unresolved `--case` selector and OOM.
+pub const RunError = error{CaseNotFound} || std.mem.Allocator.Error;
 
 /// Execute normal doctests over `doc_source` and assemble the report.
 pub fn run(

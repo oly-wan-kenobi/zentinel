@@ -1263,10 +1263,9 @@ fn runDoctest(
             try stderr.print("error[ZNTL_DOCTEST_CASE_NOT_FOUND]: --case did not resolve to exactly one case\n", .{});
             return 2;
         },
-        error.WorkspaceCreateFailed => {
-            try stderr.writeAll("error: could not create doctest workspace\n");
-            return 4;
-        },
+        // A per-case workspace-creation failure no longer reaches here: the runner
+        // isolates it as an `.invalid` case so the run still produces a report
+        // (L12). Only OOM remains as a run-wide internal error.
         error.OutOfMemory => return err,
     };
 

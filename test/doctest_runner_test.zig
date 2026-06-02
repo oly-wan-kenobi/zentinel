@@ -41,11 +41,15 @@ const MockProvider = struct {
     last_dir: []const u8 = "",
     confined: bool = true,
     calls: usize = 0,
+    /// When true, materialize reports a workspace-creation failure (models a
+    /// transient/environmental createDirPath/writeFile error for one case).
+    fail: bool = false,
     fn materialize(ctx: *anyopaque, plan: workspace.Plan) workspace.MaterializeError!void {
         const self: *MockProvider = @ptrCast(@alignCast(ctx));
+        self.calls += 1;
+        if (self.fail) return error.WorkspaceCreateFailed;
         self.last_dir = plan.dir;
         self.confined = workspace.isConfined(plan);
-        self.calls += 1;
     }
     fn provider(self: *MockProvider) workspace.Provider {
         return .{ .ctx = self, .materializeFn = materialize };
@@ -195,6 +199,29 @@ test "unsupported CLI command is rejected with ZNTL_DOCTEST_COMMAND_REJECTED" {
     const r2 = try runner.runCase(ctxWith(arena.allocator(), &exec, &prov), mkCase(.cli, "dt_h"), "zentinel run | cat");
     try expectEqual(runner.Status.invalid, r2.status);
     try expectEqualStrings(runner.command_rejected_code, r2.diagnostics[0].code);
+}
+
+test "a per-case workspace-creation failure isolates that case as invalid, not a run-wide abort (L12)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A transient/environmental workspace-create failure for ONE Zig case must
+    // isolate to that case (status .invalid + a workspace diagnostic), symmetric
+    // with the mutation path (mutant_runner folds create_failed into an `invalid`
+    // mutant). Before L12, runZig propagated WorkspaceCreateFailed with `try`, so
+    // the first failing case aborted the whole doctest run (exit 4, no report),
+    // discarding every other case's verdict.
+    var exec = MockExec{ .out = outcome(0, false, false) };
+    var prov = MockProvider{ .fail = true };
+    const r = try runner.runCase(ctxWith(a, &exec, &prov), mkCase(.zig_test, "dt_ws"), "test {}\n");
+    try expectEqual(runner.Status.invalid, r.status);
+    try expectEqual(@as(usize, 1), r.diagnostics.len);
+    try expectEqualStrings(runner.workspace_failed_code, r.diagnostics[0].code);
+    try expect(prov.calls == 1); // materialize was attempted before the failure
+    // The case-level fields are inert for an isolated workspace failure.
+    try expectEqual(@as(?i64, null), r.exit_code);
+    try expect(!r.timed_out);
 }
 
 test "ordinary failure statuses exit 1; expected_compile_error is a successful compile-fail status" {
