@@ -385,11 +385,13 @@ Parallel execution must not change this order.
 
 ## Operator Overlap and Precedence
 
-When more than one operator could match the same source span, exactly one candidate is emitted, chosen by a deterministic precedence rule so candidate counts and durable IDs are reproducible:
+When more than one operator could match the same source span, exactly one candidate survives, so candidate counts and durable IDs stay reproducible. Two mechanisms enforce this:
 
-- `null` equality comparisons (`x == null`, `x != null`, and the reversed `null == x` / `null != x` operand orders) are owned by `optional_null_check`; `equality_swap` does not emit candidates for them.
+- **Context ownership.** An operator may decline a context another operator owns, so the duplicate is never collected. Documented ownership rules:
+  - `null` equality comparisons (`x == null`, `x != null`, and the reversed `null == x` / `null != x` operand orders) are owned by `optional_null_check`; `equality_swap` does not emit candidates for them.
+- **Physical-edit deduplication (`sortAndDedupe`, src/mutant.zig).** When two operators nonetheless collect candidates for the same physical edit — an identical `(file, span, original, replacement)` tuple — exactly one is retained: the first in canonical Candidate Ordering. Because that order's operator key (sort key 4) is alphabetical, the alphabetically earlier operator name wins (e.g. `comparison_boundary` is kept over `loop_boundary`). This makes same-edit overlaps deterministic with no explicit rule, so adding an operator can never inflate counts with a duplicate edit.
 
-A documented precedence rule must exist before two operators are allowed to match the same span. Absent such a rule, the lower-precedence operator must restrict its allowed contexts to avoid the overlap rather than emit a duplicate candidate.
+Physical-edit deduplication is the authoritative backstop; an operator MAY additionally restrict its contexts to avoid a redundant collection, but is not required to. The two mechanisms are distinct: context ownership decides which candidate is *collected*, while deduplication decides which of several already-collected same-edit candidates is *retained* (the alphabetically earlier operator name).
 
 ## Compile-Error Classification
 
