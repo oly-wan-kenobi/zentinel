@@ -200,6 +200,95 @@ test "a not-property-required skip report is accepted" {
     try std.testing.expectEqual(prep.Violation.ok, prep.validate(value));
 }
 
+// ---------------------------------------------------------------------------
+// 4. Top-of-funnel structural guards each return their SPECIFIC violation. All
+//    committed invalid fixtures carry a valid schema_version/scope/task_class/
+//    status, so these first-line checks had no negative test and could be deleted
+//    or weakened with CI staying green (L3).
+// ---------------------------------------------------------------------------
+const bad_result_report =
+    \\{
+    \\  "schema_version": "zentinel.pipeline.property_report.v1",
+    \\  "task_id": "062",
+    \\  "scope": "property_required",
+    \\  "task_class": "high_risk",
+    \\  "deterministic": true,
+    \\  "status": "passed",
+    \\  "properties": [
+    \\    {
+    \\      "name": "p",
+    \\      "invariant": "Determinism",
+    \\      "seeds": [1, 2, 3],
+    \\      "generator": { "summary": "s", "generated_cases": 256 },
+    \\      "shrinking": { "status": "not_triggered" },
+    \\      "result": "maybe"
+    \\    }
+    \\  ]
+    \\}
+;
+
+test "property report validator rejects each structural malformation with its specific violation (L3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The unmutated baseline validates clean, so each rejection below is
+    // attributable to the single mutation applied.
+    try std.testing.expectEqual(prep.Violation.ok, prep.validate(try parse(a, failed_report)));
+
+    {
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "schema_version", .{ .string = "zentinel.pipeline.property_report.v2" });
+        try std.testing.expectEqual(prep.Violation.bad_schema_version, prep.validate(v));
+    }
+    {
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "scope", .{ .string = "bogus_scope" });
+        try std.testing.expectEqual(prep.Violation.bad_scope, prep.validate(v));
+    }
+    {
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "task_class", .{ .string = "bogus_class" });
+        try std.testing.expectEqual(prep.Violation.bad_task_class, prep.validate(v));
+    }
+    {
+        var v = try parse(a, failed_report);
+        _ = v.object.orderedRemove("task_id");
+        try std.testing.expectEqual(prep.Violation.missing_field, prep.validate(v));
+    }
+    {
+        // A non-bool `deterministic` is structurally invalid (must be a JSON bool).
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "deterministic", .{ .integer = 1 });
+        try std.testing.expectEqual(prep.Violation.missing_field, prep.validate(v));
+    }
+    {
+        var v = try parse(a, failed_report);
+        _ = v.object.orderedRemove("properties");
+        try std.testing.expectEqual(prep.Violation.missing_field, prep.validate(v));
+    }
+    {
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "status", .{ .string = "bogus_status" });
+        try std.testing.expectEqual(prep.Violation.bad_status, prep.validate(v));
+    }
+    {
+        // not_property_required scope with NO skip_reason (failed_report has none).
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "scope", .{ .string = "not_property_required" });
+        try std.testing.expectEqual(prep.Violation.missing_skip_reason, prep.validate(v));
+    }
+    {
+        // not_property_required scope with an EMPTY skip_reason.
+        var v = try parse(a, failed_report);
+        try v.object.put(a, "scope", .{ .string = "not_property_required" });
+        try v.object.put(a, "skip_reason", .{ .string = "" });
+        try std.testing.expectEqual(prep.Violation.missing_skip_reason, prep.validate(v));
+    }
+    // A bad per-property `result` string (the nested first-line result guard).
+    try std.testing.expectEqual(prep.Violation.bad_result, prep.validate(try parse(a, bad_result_report)));
+}
+
 // The full fixture suite shipped by task 044: every valid report must be
 // accepted and every invalid one rejected. This keeps the validator anchored to
 // the frozen contract rather than only the three cases the task spec calls out.
