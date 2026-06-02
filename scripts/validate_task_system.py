@@ -335,7 +335,11 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
 
         for key in ("allowed_files", "forbidden_files"):
             value = task.get(key)
-            require(isinstance(value, list) and all(isinstance(item, str) and item for item in value), errors, f"task {task_id} {key} must be a non-empty string array")
+            # `all()` is vacuously True on an empty list, so the "non-empty" guard
+            # silently accepted `[]` -- which then grants the task an unconstrained
+            # scope in validate_completion_scope_evidence (those checks only fire when
+            # the lists are non-empty). Require a positive length explicitly (S13).
+            require(isinstance(value, list) and len(value) > 0 and all(isinstance(item, str) and item for item in value), errors, f"task {task_id} {key} must be a non-empty string array")
 
         normalized.append(task)
 

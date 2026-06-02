@@ -103,6 +103,21 @@ test "validate_task_system resolve_zig_import resolves .zig imports relative to 
     try expect(std.mem.indexOf(u8, vts, "importer.parent / imported") != null);
 }
 
+test "validate_task_system requires allowed_files/forbidden_files to be non-empty, not vacuously-true (S13)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const vts = try readFile(a, "scripts/validate_task_system.py");
+    // `all()` is vacuously True on [], so the "non-empty string array" guard for
+    // allowed_files/forbidden_files silently accepted `[]` -- granting the task an
+    // unconstrained scope (the scope checks only fire when the lists are non-empty).
+    // The guard now requires a positive length before the all() check (S13). Verified
+    // out-of-band: the predicate returns False for [] (was True) and is unchanged for
+    // ["x"], [""], ["a","b"].
+    try expect(std.mem.indexOf(u8, vts, "len(value) > 0 and all(isinstance(item, str)") != null);
+}
+
 test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
