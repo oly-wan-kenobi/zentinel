@@ -100,13 +100,26 @@ fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.
 }
 
 /// Markers that distinguish a Zig compile failure from a post-compile test
-/// failure in pinned Zig 0.16 `zig test`/`zig build` output (docs/REPORT_FORMAT.md,
-/// I-010). A compile failure emits compiler diagnostics of the form
-/// `<path>:<line>:<col>: error: ...` and never runs the test binary, so the test
-/// runner's completion summary (`N passed; M skipped; K failed.`) is absent; a
-/// runtime assertion failure always prints that summary.
+/// failure in pinned Zig 0.16 `zig test`/`zig build test` output
+/// (docs/REPORT_FORMAT.md, I-010). A compile failure emits compiler diagnostics of
+/// the form `<path>:<line>:<col>: error: ...` and never runs the test binary, so
+/// neither test-runner completion summary below is present.
+///
+/// The summary takes one of two forms, and the classifier must recognize BOTH
+/// (H4) -- the default configured command is `zig build test`, not direct
+/// `zig test`:
+///   - direct `zig test <file>`: the per-binary runner prints
+///     `N passed; M skipped; K failed.` -> substring `passed;`.
+///   - `zig build test` (uses the `--listen=-` build protocol): the per-binary
+///     `passed;` line is NOT forwarded; instead the aggregated Build Summary
+///     carries `N/M tests passed (K failed|crashed)` -> substring `tests passed`,
+///     for both assertion failures and runtime panics/crashes. A compile
+///     failure's Build Summary (`0/N steps succeeded ...`) has no `tests passed`
+///     clause, so either summary marker is decisive positive evidence that
+///     compilation succeeded and the test binary ran.
 const compile_diagnostic_marker = ": error: ";
 const test_runner_summary_marker = "passed;";
+const build_test_summary_marker = "tests passed";
 
 /// True if `marker` appears in either captured stream.
 fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bool {
@@ -116,13 +129,20 @@ fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bo
 /// Deterministically decide whether a non-zero (non-timeout, non-crash) command
 /// outcome is a Zig compile failure rather than a post-compile test failure. The
 /// signal is taken only from captured command output -- AI never influences
-/// `failure_kind` or `status` (I-001). It is a compile failure exactly when the
-/// output carries a Zig compile diagnostic and shows no evidence that the test
-/// runner ran (its completion summary is absent). When neither signal is present
-/// (for example a custom non-Zig command), the result conservatively stays a test
-/// failure, preserving the prior classification.
+/// `failure_kind` or `status` (I-001).
+///
+/// Positive evidence that the test binary actually ran (either runner-summary
+/// form) is DECISIVE and overrides the compile-diagnostic marker: a failing test
+/// may legitimately print a `path:line:col: error:` line in its asserted output
+/// (parser/lint/diagnostic tests), and under `zig build test` -- the default
+/// command -- that is exactly the genuine KILL that was previously mis-bucketed as
+/// compile_error, deflating the score (H4). Absent any runner summary, a Zig
+/// compile diagnostic means compile_error; absent both (for example a custom
+/// non-Zig command) the result conservatively stays a test failure, preserving the
+/// prior classification.
 fn isCompileFailure(stdout: []const u8, stderr: []const u8) bool {
     if (outputContains(stdout, stderr, test_runner_summary_marker)) return false;
+    if (outputContains(stdout, stderr, build_test_summary_marker)) return false;
     return outputContains(stdout, stderr, compile_diagnostic_marker);
 }
 
