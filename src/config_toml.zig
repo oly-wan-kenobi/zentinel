@@ -1,7 +1,8 @@
 // Layer: deterministic_core
 //
 // Deterministic in-tree TOML subset parser for zentinel.toml.
-// Supports exactly: `[section]` tables, bare keys, double-quoted strings,
+// Supports exactly: `[section]` tables, bare keys, double-quoted strings (with
+// the TOML basic escapes `\\ \" \n \t \r`; any other escape is a parse error),
 // `true`/`false` booleans, base-10 integers, arrays of strings (single- or
 // multi-line), and `#` comments. Anything outside this subset is a parse error.
 // No external TOML dependency (docs/DEPENDENCY_POLICY.md).
@@ -92,6 +93,11 @@ const Parser = struct {
         // Assumes current char is the opening quote.
         self.advance();
         const start = self.i;
+        // Fast path: a basic string with no escape sequences is returned as a
+        // zero-copy slice of the source. As soon as a backslash appears, switch to a
+        // decoded arena copy so the TOML basic escapes (\\ \" \n \t \r) are honored
+        // rather than passed through verbatim -- the prior loop kept "a\\b" as two
+        // backslashes and terminated early on \" (S12).
         while (!self.atEnd()) {
             const c = self.peek();
             if (c == '"') {
@@ -99,7 +105,43 @@ const Parser = struct {
                 self.advance();
                 return text;
             }
+            if (c == '\\') return try self.readStringEscaped(start);
             if (c == '\n') return self.fail("unterminated string");
+            self.advance();
+        }
+        return self.fail("unterminated string");
+    }
+
+    /// Decode a basic string containing at least one escape. `start` is the first
+    /// content byte; `self.i` points at the first backslash. Only the TOML 1.0 basic
+    /// escapes are recognized; an unknown escape is a parse error, never silently
+    /// kept (S12).
+    fn readStringEscaped(self: *Parser, start: usize) ParseError![]const u8 {
+        var buf: std.ArrayList(u8) = .empty;
+        try buf.appendSlice(self.arena, self.src[start..self.i]); // bytes before the first escape
+        while (!self.atEnd()) {
+            const c = self.peek();
+            if (c == '"') {
+                self.advance();
+                return try buf.toOwnedSlice(self.arena);
+            }
+            if (c == '\n') return self.fail("unterminated string");
+            if (c == '\\') {
+                self.advance();
+                if (self.atEnd()) return self.fail("unterminated string");
+                const decoded: u8 = switch (self.peek()) {
+                    '\\' => '\\',
+                    '"' => '"',
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    else => return self.fail("invalid escape sequence in string"),
+                };
+                try buf.append(self.arena, decoded);
+                self.advance();
+                continue;
+            }
+            try buf.append(self.arena, c);
             self.advance();
         }
         return self.fail("unterminated string");

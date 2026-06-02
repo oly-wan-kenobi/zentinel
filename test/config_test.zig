@@ -154,6 +154,48 @@ test "duplicate keys in the same section are rejected, not silently first-wins (
     try expectEqual(@as(usize, 2), doc.entries.len);
 }
 
+test "double-quoted strings decode TOML basic escape sequences (S12)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Raw TOML source. This is a Zig multiline literal, so the backslashes and
+    // quotes below are LITERAL source bytes handed to the parser (no Zig-level
+    // escape processing) -- i.e. the parser sees `back = "p\\q"` with two backslashes.
+    const src =
+        \\[s]
+        \\back = "p\\q"
+        \\quote = "say \"hi\""
+        \\nl = "a\nb"
+        \\tab = "a\tb"
+        \\plain = "nochange"
+        \\
+    ;
+    var diag: zentinel.config_toml.Diagnostic = .{};
+    const doc = try zentinel.config_toml.parse(a, src, &diag);
+    try expectEqual(@as(usize, 5), doc.entries.len);
+    // `\\` decodes to a single backslash (was kept as two literal backslashes before S12).
+    try expectEqualStrings("p\\q", doc.entries[0].value.string);
+    // `\"` embeds a quote (the prior loop terminated the string early at the first \").
+    try expectEqualStrings("say \"hi\"", doc.entries[1].value.string);
+    // `\n` / `\t` decode to the actual control byte, not a literal backslash-letter.
+    try expectEqualStrings("a\nb", doc.entries[2].value.string);
+    try expectEqualStrings("a\tb", doc.entries[3].value.string);
+    // No backslash: the zero-copy fast path returns the bytes unchanged.
+    try expectEqualStrings("nochange", doc.entries[4].value.string);
+}
+
+test "an unknown string escape is a parse error, not silently kept (S12)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `\z` is not a TOML basic escape; it must fail rather than pass through verbatim.
+    var diag: zentinel.config_toml.Diagnostic = .{};
+    try expectError(error.ParseError, zentinel.config_toml.parse(a, "[s]\nx = \"a\\zb\"\n", &diag));
+    try expect(std.mem.indexOf(u8, diag.message, "escape") != null);
+}
+
 test "unknown key is rejected" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -287,7 +329,10 @@ test "path normalization converts backslashes to forward slashes" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
-    const cfg = try load(arena.allocator(), "[cache]\ndirectory = \"build\\cache\"\n", &diag);
+    // A literal backslash in a TOML basic string is written `\\` (S12); the parser
+    // decodes that to one backslash, which normalizePath then converts to `/`.
+    // (The Zig `\\\\` literal below is two source backslashes = the TOML `\\` escape.)
+    const cfg = try load(arena.allocator(), "[cache]\ndirectory = \"build\\\\cache\"\n", &diag);
     try expectEqualStrings("build/cache", cfg.cache_directory);
 }
 
