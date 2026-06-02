@@ -189,6 +189,33 @@ test "explain context redacts absolute paths and secret tokens in every field (F
     try expect(std.mem.indexOf(u8, json, "secret_value") != null);
 }
 
+test "ai.source_context_lines flows into the context window before_lines/after_lines (L43)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const report = try std.json.parseFromSliceLeaky(std.json.Value, a, leaky_report, .{});
+    const mutant = report.object.get("mutants").?.array.items[0];
+
+    // The configured source-context window (docs/CONFIG_SPEC: "Lines before/after
+    // mutant for prompts") now reaches the built AI context instead of being a
+    // hardcoded 0; the privacy policy stays "none" so no source snippet is sent.
+    var settings = stubSettings();
+    settings.source_context_lines = 20;
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, report, settings);
+    const sc = prompt.object.get("context").?.object.get("source_context").?.object;
+    try expectEqual(@as(i64, 20), sc.get("before_lines").?.integer);
+    try expectEqual(@as(i64, 20), sc.get("after_lines").?.integer);
+    try std.testing.expectEqualStrings("none", sc.get("policy").?.string); // privacy unchanged: snippet omitted
+    try expectEqual(@as(usize, 0), sc.get("snippet").?.array.items.len);
+
+    // The default window (4) flows through too, rather than the old hardcoded 0.
+    const dflt = try command.buildPromptValue(a, .explain, .stub, mutant, report, stubSettings());
+    const sc2 = dflt.object.get("context").?.object.get("source_context").?.object;
+    try expectEqual(@as(i64, 4), sc2.get("before_lines").?.integer);
+    try expectEqual(@as(i64, 4), sc2.get("after_lines").?.integer);
+}
+
 // A report whose ONLY poisoned fields are the mutant id (an absolute path) and
 // operator (an Anthropic-key-shaped token); every other field is clean, so any
 // surviving secret in the output came specifically through id/operator (M9).

@@ -101,6 +101,9 @@ pub const Settings = struct {
     project_name: []const u8 = "zentinel",
     zig_version: []const u8 = "0.16.0",
     zentinel_version: []const u8 = "0.0.0",
+    /// Configured source-context window (`ai.source_context_lines`): lines before/
+    /// after the mutation declared in the AI context. Default matches config (L43).
+    source_context_lines: u32 = 4,
 };
 
 /// Resolve the effective provider mode from normalized config plus an optional
@@ -507,10 +510,13 @@ fn buildContext(
             .skip_reason = if (eqStr(rstatus, "skipped")) try context.redactField(arena, sOr(get(result, "skip_reason"), "result skipped"), patterns, &log) else null,
         },
         .source_context = .{
+            // The configured window (ai.source_context_lines) is declared so the
+            // provider knows the requested before/after budget; the policy stays
+            // "none" so the source snippet itself is still withheld (L43).
             .policy = "none",
             .language = "zig",
-            .before_lines = 0,
-            .after_lines = 0,
+            .before_lines = settings.source_context_lines,
+            .after_lines = settings.source_context_lines,
             .snippet = &.{},
             .symbols = &.{},
         },

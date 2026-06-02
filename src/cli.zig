@@ -924,6 +924,9 @@ fn aiSettings(
     settings.remote_allowed = cfg.ai_remote_allowed;
     settings.redact_patterns = cfg.ai_redact_patterns;
     settings.project_name = cfg.project_name;
+    // ai.source_context_lines is validated >= 0; clamp to u32 for the context
+    // window so a huge configured value cannot overflow the cast (L43).
+    settings.source_context_lines = @intCast(@min(cfg.ai_source_context_lines, @as(i64, std.math.maxInt(u32))));
     return .{ .settings = settings, .project_root = cfg.project_root };
 }
 
