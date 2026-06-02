@@ -95,9 +95,15 @@ def check_criteria() -> dict[str, tuple[bool, str]]:
             "artifacts/pipeline/085/dogfood/survivor_review.md",
         ]
     )
+    # execute_checks=True actually RUNS each verified_by script (matching the
+    # rdg.main() path below) rather than checking only on-disk existence. Without
+    # it a verified_by script that exists but exits non-zero left this criterion
+    # reported "final_dogfood_gate: OK" before rdg.main() printed the real failure,
+    # making the per-criterion acceptance table contradict the gate outcome (L34).
     gate_clean = not rdg.validate_manifest(
         json.loads((ROOT / "test/fixtures/release/valid/release_evidence.json").read_text(encoding="utf-8")),
         check_archives=True,
+        execute_checks=True,
     )
     results["final_dogfood_gate"] = (
         archives and gate_clean,
