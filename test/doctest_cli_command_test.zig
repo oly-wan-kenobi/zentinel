@@ -186,6 +186,20 @@ test "--case selects by durable id and by anchor-line source ref; expectation li
     try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = exp_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
 }
 
+test "--case with an out-of-range numeric ref yields CaseNotFound, not an overflow panic (M4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const src = try readFixture(a, "test/fixtures/doctest/cli/select.md");
+    // A line number past maxInt(u32): the hand-rolled `n = n*10 + d` accumulator
+    // overflowed, aborting the whole process with `panic: integer overflow`
+    // (Debug/ReleaseSafe) or wrapping to a wrong line (ReleaseFast). A malformed
+    // or typo'd `--case` ref must deterministically resolve to nothing (M4).
+    const overflow_ref = "test/fixtures/doctest/cli/select.md:99999999999";
+    try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = overflow_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
+}
+
 test "property: --file selection preserves case ordering by anchor line" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
