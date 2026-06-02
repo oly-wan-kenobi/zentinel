@@ -336,7 +336,18 @@ pub fn run(
             if (m == mode) {
                 for (results, 0..) |r, ji| col[ji] = r.status;
             } else {
-                for (jobs, 0..) |job, ji| col[ji] = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m).status;
+                for (jobs, 0..) |job, ji| {
+                    const narrowed = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m);
+                    // Re-verify a narrowed `survived` against the configured suite
+                    // for THIS mode, mirroring Phase B.5. Without it a non-primary
+                    // column can record `survived` for a mutant the configured suite
+                    // kills in that mode -- understating kills and manufacturing a
+                    // spurious mode-dependent signal vs the reverified primary (L27).
+                    col[ji] = if (narrowed.status == .survived and test_selection.needsConfiguredReverification(job.commands, cfg.test_commands))
+                        mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, m).status
+                    else
+                        narrowed.status;
+                }
             }
             grid[mi] = col;
         }

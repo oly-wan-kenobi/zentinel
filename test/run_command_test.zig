@@ -181,6 +181,52 @@ test "mode matrix records per-mode status, preserves result.mode, and flags mode
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
+/// A command-aware executor: the narrowed `zig test <file>` selection misses the
+/// mutant (passes -> survived), but the configured `zig build test` suite catches
+/// it (fails -> killed). Distinguishes the two by the presence of `build` in argv.
+fn configuredKillsCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = ctx;
+    for (argv) |tok| if (std.mem.eql(u8, tok, "build")) return failure();
+    return pass();
+}
+fn configuredKillsRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *Env = @ptrCast(@alignCast(ctx));
+    spinLock(&env.lock);
+    defer spinUnlock(&env.lock);
+    const ex = runner.Executor{ .ctx = env, .runFn = configuredKillsCmd };
+    return mutant_runner.run(env.arena, m, source, .created, commands, env.cwd, ex, mode) catch @panic("mutant run failed");
+}
+
+test "non-primary mode-matrix columns re-verify narrowed survivors against the configured suite (L27)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // reverify_src has a same-file test, so selection narrows to `zig test <file>`.
+    // The narrowed run misses the mutant (survives) but the configured `zig build
+    // test` suite kills it. Before L27 only the PRIMARY (Debug) column re-verified,
+    // so the non-primary (ReleaseFast) column recorded the narrowed `survived` and
+    // isModeDependent flipped true purely from the selection asymmetry. Now every
+    // column re-verifies, so both record `killed` and there is no mode effect (L27).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+    const mr = rc.MutantRunner{ .ctx = &env, .runFn = configuredKillsRunFn };
+
+    const outcome = try rc.run(a, loadCfg(a, mode_matrix_cfg), &files, .{}, baselineExecutor(&env), mr, observation());
+
+    try expect(outcome.report.mutants.len > 0);
+    for (outcome.report.mutants) |mut| {
+        // Primary status is reverified against the configured suite -> killed.
+        try expectEqual(report.ResultStatus.killed, mut.result.status);
+        const mm = mut.result.mode_matrix orelse return error.TestUnexpectedResult;
+        try expectEqual(@as(usize, 2), mm.len);
+        // BOTH columns are killed (the configured suite kills in every mode), so no
+        // spurious mode-dependent signal from the narrowed-selection asymmetry.
+        for (mm) |row| try expectEqual(report.ResultStatus.killed, row.status);
+        try expect(!zentinel.safety_modes.isModeDependent(mm));
+    }
+}
+
 test "single-mode runs do not populate result.mode_matrix" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
