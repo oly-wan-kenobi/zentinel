@@ -97,10 +97,13 @@ test "command parser rejects shell metacharacters, expansion, and chaining" {
     try expectEqual(command.Reason.metacharacter, (try parse(a, "zig $HOME")).invalid); // variable expansion
     try expectEqual(command.Reason.metacharacter, (try parse(a, "zig build && rm")).invalid); // chaining
     try expectEqual(command.Reason.metacharacter, (try parse(a, "echo *.zig")).invalid); // glob
-    // Metacharacters are rejected even inside quotes.
+    // Metacharacters are rejected even inside quotes -- the quoted and unquoted
+    // branches share one isMeta rule (no separate isQuotedMeta wrapper, L42), so a
+    // quoted pipe is rejected exactly like a bare pipe.
     try expectEqual(command.Reason.metacharacter, (try parse(a, "zig \"$HOME\"")).invalid);
     try expectInvalid(a, "zig \"*.zig\"", .metacharacter);
     try expectInvalid(a, "zig \"test[0]\"", .metacharacter);
+    try expectInvalid(a, "zig \"a|b\"", .metacharacter);
 }
 
 test "command parser rejects environment-assignment prefixes" {

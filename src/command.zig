@@ -44,10 +44,6 @@ fn isMeta(c: u8) bool {
     };
 }
 
-fn isQuotedMeta(c: u8) bool {
-    return isMeta(c);
-}
-
 pub fn parse(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!Result {
     var fields: std.ArrayList([]const u8) = .empty;
     var i: usize = 0;
@@ -81,7 +77,9 @@ pub fn parse(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Err
                         }
                         continue;
                     }
-                    if (isQuotedMeta(q)) return .{ .invalid = .metacharacter };
+                    // Metacharacters are rejected uniformly, quoted or not (the
+                    // isMeta docstring): a quoted field gets no second interpretation.
+                    if (isMeta(q)) return .{ .invalid = .metacharacter };
                     try buf.append(arena, q);
                     i += 1;
                 }
