@@ -157,6 +157,50 @@ test "copyProjectTree copies real files but never descends into .zig-cache/zig-o
     try expect(!fileExists(io, dst, ".git/config"));
 }
 
+test "copyProjectTree copies a sibling dir that only prefix-collides with an excluded dir (M2)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    // `zig-outputs/` only PREFIX-collides with the excluded `zig-out`; its first
+    // path segment differs, so discovery yields its sources and they must be
+    // copied. The raw-prefix copyExcluded wrongly dropped such files, then the
+    // patched write of a mutant in that dir failed (missing parent) and the mutant
+    // was misclassified `invalid` (M2). The genuinely-excluded `zig-out/` is still
+    // skipped.
+    try tmp.dir.createDirPath(io, "proj/zig-outputs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-outputs/foo.zig", .data = "pub const x = 1;\n" });
+    try tmp.dir.createDirPath(io, "proj/zig-out/bin");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-out/bin/real.zig", .data = "pub const y = 2;\n" });
+
+    var src = try tmp.dir.openDir(io, "proj", .{ .iterate = true });
+    defer src.close(io);
+    try tmp.dir.createDirPath(io, "out");
+    var dst = try tmp.dir.openDir(io, "out", .{});
+    defer dst.close(io);
+
+    try wp.copyProjectTree(io, a, src, dst, wp.excludedCopyPath);
+
+    try expect(fileExists(io, dst, "zig-outputs/foo.zig")); // prefix-collision sibling IS copied
+    try expect(!fileExists(io, dst, "zig-out/bin/real.zig")); // the real excluded dir is NOT
+}
+
+test "excludedCopyPath matches the whole first path segment, not a raw prefix (M2)" {
+    // Genuinely excluded: the first path segment equals an excluded dir name.
+    try expect(wp.excludedCopyPath("zig-out/bin/app"));
+    try expect(wp.excludedCopyPath(".zig-cache/o/x.zig"));
+    try expect(wp.excludedCopyPath(".git/config"));
+    // Prefix-colliding siblings are NOT excluded.
+    try expect(!wp.excludedCopyPath("zig-outputs/foo.zig"));
+    try expect(!wp.excludedCopyPath(".github/workflows/ci.zig"));
+    try expect(!wp.excludedCopyPath(".gitlab/ci/gen.zig"));
+    try expect(!wp.excludedCopyPath("src/zig-out-helper.zig"));
+}
+
 // --- Every item runs even when some fail (visible per-index propagation) ----
 
 const FailCtx = struct { status: []u8, fail_at: usize };

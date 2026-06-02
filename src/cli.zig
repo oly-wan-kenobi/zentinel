@@ -225,12 +225,6 @@ fn workspaceRunFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.Raw
     return execProcess(w.rt, argv, .{ .dir = w.dir });
 }
 
-fn copyExcluded(path: []const u8) bool {
-    return std.mem.startsWith(u8, path, ".zig-cache") or
-        std.mem.startsWith(u8, path, "zig-out") or
-        std.mem.startsWith(u8, path, ".git");
-}
-
 const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
 
 /// Build an isolated per-mutant workspace under the zentinel-controlled cache
@@ -246,8 +240,12 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     var dir = try rt.root_dir.openDir(rt.io, rel, .{});
     errdefer dir.close(rt.io);
 
-    try zentinel.worker_pool.copyProjectTree(rt.io, rt.gpa, rt.root_dir, dir, copyExcluded);
+    try zentinel.worker_pool.copyProjectTree(rt.io, rt.gpa, rt.root_dir, dir, zentinel.worker_pool.excludedCopyPath);
     if (zentinel.config.pathEscapesRoot(rt.io, dir, m.file)) return error.WorkspaceCreateFailed;
+    // Ensure the mutated file's parent dir exists before the patched write:
+    // `writeFile` does not create parents, so a missing parent would otherwise
+    // fail the write and misclassify a real mutant as `invalid` (M2).
+    if (std.fs.path.dirname(m.file)) |parent| try dir.createDirPath(rt.io, parent);
     try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
     return .{ .rel = rel, .dir = dir };
 }

@@ -114,6 +114,17 @@ fn isExcludedDescentDir(basename: []const u8) bool {
     return false;
 }
 
+/// Whether a project-relative `path` is excluded from the workspace copy because
+/// its FIRST path segment is a cache / build-output / VCS dir. Segment-based (not
+/// a raw byte prefix), so a sibling like `zig-outputs/foo.zig` (first segment
+/// `zig-outputs`, not `zig-out`) or `.github/workflows/x.zig` is NOT excluded --
+/// the prior `startsWith` check wrongly dropped such discovered sources, which
+/// then failed the patched write and misclassified the mutant `invalid` (M2).
+pub fn excludedCopyPath(path: []const u8) bool {
+    const first = path[0 .. std.mem.indexOfScalar(u8, path, '/') orelse path.len];
+    return isExcludedDescentDir(first);
+}
+
 /// Copy the project tree from `src` into `dst`, descending into every directory
 /// EXCEPT `excluded_descent_dirs`. The walker never enters those dirs, which is
 /// what keeps a parallel run's per-mutant workspace builders from racing sibling
