@@ -90,9 +90,11 @@ Retry limit:
 
 - low-risk: 1 cycle
 - normal: 2 cycles
-- high-risk or compiler-internal: 3 cycles then escalate
+- high-risk: 3 cycles
+- compiler-internal: 3 cycles plus architecture review
+- architecture: 1 cycle plus contract review
 
-These retry limits are the same ones recorded in `docs/FAILURE_RECOVERY.md`; the two documents must not diverge.
+These retry limits are the same ones recorded in `docs/FAILURE_RECOVERY.md` (and enforced by `FAILURE_RECOVERY_RETRY_LIMITS` in `scripts/validate_task_system.py`); the two documents must not diverge.
 
 ## Escalation
 

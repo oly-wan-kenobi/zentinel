@@ -168,6 +168,29 @@ test "CLI_SPEC enumerates the external-Zig command grouping and it matches cli.z
     try expect(std.mem.indexOf(u8, fnBody(cli, "fn runListMutants("), "fatalStatusLine") == null);
 }
 
+test "MUTATION_GATE_POLICY retry table covers all FAILURE_RECOVERY task classes incl. Architecture (S16)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // MUTATION_GATE_POLICY.md claims parity with FAILURE_RECOVERY.md but combined
+    // high-risk/compiler-internal into one row and omitted the Architecture class
+    // entirely (S16). It now lists every class with the documented limit.
+    const gate = try readFile(a, "docs/MUTATION_GATE_POLICY.md");
+    try expect(std.mem.indexOf(u8, gate, "high-risk: 3 cycles") != null);
+    try expect(std.mem.indexOf(u8, gate, "compiler-internal: 3 cycles") != null);
+    try expect(std.mem.indexOf(u8, gate, "architecture: 1 cycle") != null);
+    // The stale combined row that hid the divergence is gone.
+    try expect(std.mem.indexOf(u8, gate, "high-risk or compiler-internal") == null);
+
+    // Cross-link to ground truth: the validator's authoritative architecture limit (1)
+    // and FAILURE_RECOVERY.md's Architecture row -- so the three cannot silently drift.
+    const vts = try readFile(a, "scripts/validate_task_system.py");
+    try expect(std.mem.indexOf(u8, vts, "\"architecture\": 1") != null);
+    const fr = try readFile(a, "docs/FAILURE_RECOVERY.md");
+    try expect(std.mem.indexOf(u8, fr, "Architecture") != null);
+}
+
 test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
