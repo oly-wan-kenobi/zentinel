@@ -9,14 +9,14 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 2/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 3/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
 ## High — fix first (priority order)
 - [x] `done` **H4** · commit `4cb4c30` · isCompileFailure "passed;" marker heuristic unreliable under `zig build test` → kill/compile-error misclassification — src/runner.zig
 - [x] `done` **H1** · commit `a6a8d16` · integer_literal_boundary / loop_boundary i128 overflow panic on a max-value decimal literal → whole-tool denial — src/mutators/integer_boundary.zig, src/mutators/loop_boundary.zig
-- [ ] `todo` **H5** · commit `—` · safety_modes.buildFlag is dead code; every `--mode` runs identical Debug — src/run_command.zig, src/safety_modes.zig
+- [x] `done` **H5** · commit `f82b17e` · safety_modes.buildFlag is dead code; every `--mode` runs identical Debug — src/run_command.zig, src/safety_modes.zig
 - [ ] `todo` **H3** · commit `—` · parallel setupWorkspace walks the live project root, races sibling workers → spurious `invalid` mutants (hides survivors) — src/cli.zig:240-260
 - [ ] `todo` **H2** · commit `—` · errdefer_remove emits a dangling-semicolon (invalid) mutant → guaranteed compile_error — src/mutators/error_path.zig:86-118
 
