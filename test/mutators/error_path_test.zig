@@ -3,6 +3,10 @@ const zentinel = @import("zentinel");
 const error_path = zentinel.mutators.error_path;
 const ast_backend = zentinel.ast_backend;
 const mutant = zentinel.mutant;
+const sandbox = zentinel.sandbox;
+const mutant_runner = zentinel.mutant_runner;
+const runner = zentinel.runner;
+const report = zentinel.report;
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -11,6 +15,26 @@ const expectEqualStrings = std.testing.expectEqualStrings;
 fn readFixture(a: std.mem.Allocator, path: []const u8) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));
 }
+
+// A scripted executor: returns the given subprocess outcome for each command so a
+// mutator candidate can be applied and classified end-to-end without spawning zig.
+fn outcome(exit: ?i64) runner.RawOutcome {
+    return .{ .exit_code = exit, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
+}
+const Mock = struct {
+    outcomes: []const runner.RawOutcome,
+    next: usize = 0,
+    fn run(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+        _ = argv;
+        const self: *Mock = @ptrCast(@alignCast(ctx));
+        const o = self.outcomes[self.next];
+        self.next += 1;
+        return o;
+    }
+    fn exec(self: *Mock) runner.Executor {
+        return .{ .ctx = self, .runFn = Mock.run };
+    }
+};
 
 fn collectErrorPath(a: std.mem.Allocator, parsed: ast_backend.Parsed) ![]mutant.Mutant {
     const test_ranges = try ast_backend.testDeclRanges(parsed, a);
@@ -104,7 +128,7 @@ test "a catch with an |err| payload replaces the capture and handler together" {
     try expectEqualStrings("unreachable", c[0].replacement);
 }
 
-test "survivor fixture: never-exercised error path yields a catch candidate" {
+test "survivor fixture: the catch mutant applies and SURVIVES a passing suite (L40)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -116,9 +140,22 @@ test "survivor fixture: never-exercised error path yields a catch candidate" {
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("error_catch_unreachable", c[0].operator);
     try expectEqualStrings("0", c[0].original);
+
+    // Applying the candidate produces the intended `catch unreachable` mutation: a
+    // wrong span or replacement would change these bytes (the gap L40 names).
+    const mutated = try sandbox.apply(a, src, c[0]);
+    try expect(std.mem.indexOf(u8, mutated, "catch unreachable") != null);
+    try expect(std.mem.indexOf(u8, mutated, "catch 0") == null);
+
+    // The fixture's error path is never exercised, so a passing suite leaves the
+    // applied mutant SURVIVED -- the outcome the fixture name promises (not just
+    // candidate emission). `survived` (vs `invalid`) also confirms the patch applied.
+    var mock = Mock{ .outcomes = &.{outcome(0)} };
+    const res = try mutant_runner.run(a, c[0], src, .created, &.{"zig build test"}, "<project>", mock.exec(), .Debug);
+    try expectEqual(report.ResultStatus.survived, res.status);
 }
 
-test "killed fixture: production catch candidate emitted, test body excluded" {
+test "killed fixture: the catch mutant applies and is KILLED by a failing suite (L40)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -128,7 +165,18 @@ test "killed fixture: production catch candidate emitted, test body excluded" {
     defer parsed.deinit();
     const c = try collectErrorPath(a, parsed);
     try expectEqual(@as(usize, 1), c.len);
+    try expectEqualStrings("error_catch_unreachable", c[0].operator);
     try expectEqualStrings("0", c[0].original);
+
+    const mutated = try sandbox.apply(a, src, c[0]);
+    try expect(std.mem.indexOf(u8, mutated, "catch unreachable") != null);
+    try expect(std.mem.indexOf(u8, mutated, "catch 0") == null);
+
+    // The fixture's same-file test exercises the error path, so the applied mutant
+    // fails the suite and is KILLED.
+    var mock = Mock{ .outcomes = &.{outcome(1)} };
+    const res = try mutant_runner.run(a, c[0], src, .created, &.{"zig build test"}, "<project>", mock.exec(), .Debug);
+    try expectEqual(report.ResultStatus.killed, res.status);
 }
 
 /// Parse + AstGen `source` in-process (exactly `zig ast-check`) and report
