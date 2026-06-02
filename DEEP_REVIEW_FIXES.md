@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 18/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 19/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -36,7 +36,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 
 ## Low
 - [x] `done` **L1** · commit `87de09c` · AI explain/suggest returns wrong error code (REPORT_NOT_FOUND) for an existing report with an invalid empty-commands mutant — src/ai/command.zig
-- [ ] `todo` **L2** · commit `—` · integration dangling-original regression guard is inert (ArenaAllocator never frees/poisons source) — test/integration_run_test.zig:41-115
+- [x] `done` **L2** · commit `a1856fe` · integration dangling-original regression guard is inert (ArenaAllocator never frees/poisons source) — test/integration_run_test.zig:41-115
 - [ ] `todo` **L3** · commit `—` · property_report top-of-funnel structural guards have no negative fixture/unit test — src/property/report.zig
 - [ ] `todo` **L4** · commit `—` · commandSpecsForConfigured re-parses configured commands once per surviving mutant — src/run_command.zig
 - [ ] `todo` **L5** · commit `—` · commandSpecsForSelection called O(M) times per file instead of O(1) — src/run_command.zig
