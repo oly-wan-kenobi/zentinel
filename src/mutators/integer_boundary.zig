@@ -80,8 +80,17 @@ fn emitForOperand(
         .line_end = end_pos.line,
         .column_end = end_pos.column,
     };
-    try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{value + 1}));
-    try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{value - 1}));
+    // Guard the boundary arithmetic against i128 overflow: a +/-1 boundary that is
+    // unrepresentable in i128 (the literal sitting at i128's own max/min) is not a
+    // meaningful mutant, so skip just that boundary. Computing it unchecked would
+    // be a checked illegal behavior -> `panic: integer overflow` that a `catch`
+    // cannot intercept, aborting the whole in-process candidate pass (H1).
+    if (std.math.add(i128, value, 1)) |plus| {
+        try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
+    } else |_| {}
+    if (std.math.sub(i128, value, 1)) |minus| {
+        try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{minus}));
+    } else |_| {}
 }
 
 fn emit(
