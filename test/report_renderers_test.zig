@@ -254,6 +254,32 @@ test "summary counts are derived from mutants, not trusted" {
     try expectEqual(report.Violation.summary_count_mismatch, report.validate(bad));
 }
 
+test "summarize pins every per-status count so a non-kill arm cannot be miscounted as killed (M10)" {
+    // One mutant per ResultStatus: each status must increment exactly its own
+    // bucket. The five non-kill terminal statuses (compile_error/compiler_crash/
+    // timeout/skipped/invalid) must stay OUT of killed/survived (I-010), so a
+    // regression like `.compile_error => s.killed += 1` -- which validate() cannot
+    // catch, being recomputed from the same summarize -- fails here (M10).
+    const m = [_]report.Mutant{
+        mutant(1, .killed, "src/a.zig", false),
+        mutant(2, .survived, "src/b.zig", false),
+        mutant(3, .compile_error, "src/c.zig", false),
+        mutant(4, .compiler_crash, "src/d.zig", false),
+        mutant(5, .timeout, "src/e.zig", false),
+        mutant(6, .skipped, "src/f.zig", false),
+        mutant(7, .invalid, "src/g.zig", false),
+    };
+    const s = report.summarize(&m);
+    try expectEqual(@as(u64, 7), s.total);
+    try expectEqual(@as(u64, 1), s.killed);
+    try expectEqual(@as(u64, 1), s.survived);
+    try expectEqual(@as(u64, 1), s.compile_error);
+    try expectEqual(@as(u64, 1), s.compiler_crash);
+    try expectEqual(@as(u64, 1), s.timeout);
+    try expectEqual(@as(u64, 1), s.skipped);
+    try expectEqual(@as(u64, 1), s.invalid);
+}
+
 test "snapshot normalization normalizes durations and ids (I-015)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
