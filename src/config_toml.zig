@@ -185,6 +185,14 @@ pub fn parse(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Pa
         const key = p.readBare();
         p.skipInline();
         if (p.atEnd() or p.peek() != '=') return p.fail("expected '=' after key");
+        // TOML forbids defining a key twice in the same table, and resolution is
+        // first-wins, so a duplicate would silently drop the later value the author
+        // wrote. Reject it with a parse error at the redefinition line (L37).
+        for (entries.items) |e| {
+            if (std.mem.eql(u8, e.section, section) and std.mem.eql(u8, e.key, key)) {
+                return p.fail("duplicate key");
+            }
+        }
         p.advance();
         p.skipInline();
         if (p.atEnd()) return p.fail("missing value");

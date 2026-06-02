@@ -103,6 +103,33 @@ test "unsupported TOML syntax fails with parse_error" {
     try expect(diag.code == .parse_error);
 }
 
+test "duplicate keys in the same section are rejected, not silently first-wins (L37)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // config.load surface: the same key twice in one section is a usage error
+    // (parse_error at the redefinition line), not a silent first-wins drop of the
+    // later value the author actually wrote.
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(a, "[test]\ncommands = [\"zig build test\"]\ncommands = [\"true\"]\n", &diag));
+    try expect(diag.code == .parse_error);
+    try expectEqual(@as(usize, 3), diag.line); // line of the second (duplicate) commands
+
+    // Parser surface: a duplicate (section, key) fails with a duplicate-key message
+    // at the redefinition line.
+    var pdiag: zentinel.config_toml.Diagnostic = .{};
+    try expectError(error.ParseError, zentinel.config_toml.parse(a, "[a]\nx = 1\nx = 2\n", &pdiag));
+    try expect(std.mem.indexOf(u8, pdiag.message, "duplicate") != null);
+    try expectEqual(@as(usize, 3), pdiag.line);
+
+    // Not over-broad: the SAME key name under a DIFFERENT section is a distinct
+    // (section, key) and parses cleanly (two entries retained).
+    var ok_diag: zentinel.config_toml.Diagnostic = .{};
+    const doc = try zentinel.config_toml.parse(a, "[a]\nx = 1\n[b]\nx = 2\n", &ok_diag);
+    try expectEqual(@as(usize, 2), doc.entries.len);
+}
+
 test "unknown key is rejected" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
