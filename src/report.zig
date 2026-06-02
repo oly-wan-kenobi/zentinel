@@ -487,7 +487,11 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
         // entries are replaced even when quoted paths contain spaces. This keeps
         // repeated-run comparison stable across developer machines.
         const at_boundary = i == 0 or isExcerptBoundary(text[i - 1]);
-        if (text[i] == '/' and at_boundary) {
+        // A `//`-led run is a Zig comment marker, not an absolute path (a real
+        // absolute path has a non-empty first segment, `/a/...`). Excluding it
+        // keeps source-line comments in committed excerpts intact instead of
+        // collapsing them to `<path>` (M3).
+        if (text[i] == '/' and at_boundary and (i + 1 >= text.len or text[i + 1] != '/')) {
             var end = i + 1;
             var inner_slashes: usize = 0;
             const quote: ?u8 = if (i > 0 and isExcerptQuote(text[i - 1])) text[i - 1] else null;

@@ -125,3 +125,21 @@ test "normalizeExcerpt replaces hex addresses and absolute paths but keeps other
     const windows = try report.normalizeExcerpt(a, "panic at C:\\Users\\oli\\My Project\\src\\x.zig:7:3");
     try expectEqualStrings("panic at <path>", windows);
 }
+
+test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerpts (M3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A `//`-led run is a Zig comment marker, not an absolute path. Committed
+    // report excerpts that quote source lines must keep the comment intact rather
+    // than collapsing it to `<path>` (M3).
+    try expectEqualStrings("// boundary off-by-one", try report.normalizeExcerpt(a, "// boundary off-by-one"));
+    try expectEqualStrings("/// doc comment", try report.normalizeExcerpt(a, "/// doc comment"));
+
+    // A real absolute path on the same line is still redacted; the comment stays.
+    try expectEqualStrings(
+        "keep // and <path>",
+        try report.normalizeExcerpt(a, "keep // and /home/ci/build/key"),
+    );
+}

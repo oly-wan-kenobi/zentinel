@@ -88,7 +88,12 @@ pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.me
     var i: usize = 0;
     while (i < text.len) {
         const at_boundary = i == 0 or !isPathByte(text[i - 1]);
-        if (text[i] == '/' and at_boundary) {
+        // A `//`-led run is a Zig comment marker (`//`, `///`, `//!`), not an
+        // absolute path: a real absolute path has a non-empty first segment
+        // (`/a/...`). Excluding it keeps comments in the mutated code intact
+        // instead of collapsing them to `<path>` and spuriously flipping
+        // `changed` (which would inject a bogus `absolute_path` redaction) (M3).
+        if (text[i] == '/' and at_boundary and (i + 1 >= text.len or text[i + 1] != '/')) {
             var end = i + 1;
             var inner_slashes: usize = 0;
             const quote: ?u8 = if (i > 0 and isQuote(text[i - 1])) text[i - 1] else null;
