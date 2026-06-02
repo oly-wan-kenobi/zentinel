@@ -13,6 +13,7 @@ fn readOps(a: std.mem.Allocator) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, "test/fixtures/mutators/logical_boolean/ops.zig", a, std.Io.Limit.limited(1 << 20));
 }
 
+
 test "logical operators emit and<->or swaps in canonical order with exact spans" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -59,6 +60,41 @@ test "boolean literals emit true<->false swaps" {
     try expectEqualStrings("false", c[1].original);
     try expectEqualStrings("true", c[1].replacement);
     try expectEqual(mutant.ExpectedCompile.compiles, c[0].expected_compile);
+}
+
+test "boolean_literal skips enum field declarations named true/false (L23)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `enum { true, false }` declares its members as tuple-like container fields
+    // whose type_expr is a `true`/`false` identifier. Mutating a field NAME would
+    // emit `enum { false, false }` -- a guaranteed `duplicate enum member name`
+    // compile_error and a spec-Forbidden (field names) context. Only the genuine
+    // boolean VALUE `return true` in b() may be mutated, so exactly ONE candidate
+    // is emitted, not three (L23).
+    var parsed = try ast_backend.parse(std.testing.allocator, "e.zig",
+        \\const E = enum { true, false };
+        \\pub fn use() E {
+        \\    return E.true;
+        \\}
+        \\pub fn b() bool {
+        \\    return true;
+        \\}
+    );
+    defer parsed.deinit();
+    const ranges = try ast_backend.testDeclRanges(parsed, a);
+    var collector = ast_backend.Collector.init(a);
+    try boolean.collect(&collector, parsed, "e.zig", ranges);
+    const c = try collector.finish();
+
+    try expectEqual(@as(usize, 1), c.len);
+    try expectEqualStrings("boolean_literal", c[0].operator);
+    try expectEqualStrings("true", c[0].original);
+    try expectEqualStrings("false", c[0].replacement);
+    // The sole candidate is the value in b()'s body (line 6), never an enum field
+    // name (line 1).
+    try expectEqual(@as(u32, 6), c[0].span.line_start);
 }
 
 test "candidate order is stable with mixed logical and boolean candidates" {
