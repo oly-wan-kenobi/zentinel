@@ -185,3 +185,19 @@ test "release acceptance gate criterion executes verified_by checks, not just ex
     // It is still the archive-checked validate_manifest call that computes gate_clean.
     try expect(contains(acc, "check_archives=True"));
 }
+
+// 8. check_criteria reads the release evidence manifest behind an is_file() guard,
+//    so running the acceptance gate before the evidence is prepared reports a failed
+//    gate with a clear detail instead of crashing with an uncaught FileNotFoundError
+//    (matching rdg.main()'s guard) (L47).
+test "release acceptance gate guards the evidence read against a missing manifest (L47)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const acc = try readFile(arena, "scripts/release_acceptance.py");
+    // The evidence path is read through an is_file() guard, and the absent case has
+    // a structured failure detail rather than an unhandled read_text() crash.
+    try expect(contains(acc, "evidence_path.is_file()"));
+    try expect(contains(acc, "release_evidence.json missing"));
+}
