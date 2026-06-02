@@ -459,6 +459,13 @@ fn buildContext(
     const selection = get(mutant, "test_selection");
     const project_zig = try context.redactField(arena, sOr(getO(run_info, "zig_version"), settings.zig_version), patterns, &log);
     const project_zentinel = try context.redactField(arena, sOr(getO(run_info, "zentinel_version"), settings.zentinel_version), patterns, &log);
+    // The selection strategy is a free-form string on the read side of an untrusted
+    // `--input-report` (parsed as a raw JSON string, not the typed Strategy enum),
+    // so it passes through the same logged redaction as every other field rather
+    // than reaching the provider verbatim (L29). A legitimate strategy carries no
+    // path or secret, so it is unchanged. Computed here (not inline in the literal)
+    // so its redactions land in `log` before privacy.redactions_applied reads it.
+    const selection_reason = try context.redactField(arena, sOr(getO(selection, "strategy"), "same_file_then_package"), patterns, &log);
 
     return context.Context{
         .schema_version = "zentinel.ai.context.v1",
@@ -508,7 +515,7 @@ fn buildContext(
             .symbols = &.{},
         },
         .test_context = .{
-            .selection_reason = sOr(getO(selection, "strategy"), "same_file_then_package"),
+            .selection_reason = selection_reason,
             .selected_tests = &.{},
             .baseline_status = baselineStatusFor(report),
             .same_file_tests_excluded_from_mutation = true,

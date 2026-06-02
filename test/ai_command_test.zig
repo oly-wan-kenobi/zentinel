@@ -255,6 +255,72 @@ test "explain redacts secrets in the report mutant id and operator (M9)" {
     try expect(std.mem.indexOf(u8, outcome.body, "sk-ant-api03-LEAKEDSECRET01234567") == null);
 }
 
+// A report whose ONLY poisoned field is test_selection.strategy — an absolute
+// path glued to an Anthropic-key-shaped secret. On the read side of an untrusted
+// `--input-report`, strategy is parsed as a raw JSON string (not the typed
+// Strategy enum), so any surviving secret in the context.test_context.selection_reason
+// came specifically through that field (L29).
+const selection_leak_report =
+    \\{
+    \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+    \\  "mutants": [
+    \\    {
+    \\      "id": "m_sel",
+    \\      "display_id": 1,
+    \\      "operator": "arithmetic_add_sub",
+    \\      "backend": "ast",
+    \\      "backend_stability": "stable",
+    \\      "operator_stability": "stable",
+    \\      "file": "src/calc.zig",
+    \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+    \\      "original": "a",
+    \\      "replacement": "b",
+    \\      "diff": [],
+    \\      "expected_compile": "compiles",
+    \\      "test_selection": { "strategy": "/Users/victim/.aws/credentials sk-ant-api03-LEAKEDSECRET01234567" },
+    \\      "result": {
+    \\        "status": "survived",
+    \\        "mode": "Debug",
+    \\        "commands": [
+    \\          {
+    \\            "command": { "original": "zig build test", "argv": ["zig", "build", "test"], "cwd": ".", "environment_policy": "minimal", "shell": false },
+    \\            "phase": "mutant", "status": "passed", "exit_code": 0, "timed_out": false, "failure_kind": "none", "duration_ms": 0,
+    \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }, "skip_reason": null
+    \\          }
+    \\        ],
+    \\        "evidence": {}
+    \\      }
+    \\    }
+    \\  ]
+    \\}
+;
+
+test "explain context redacts secrets in test_selection.strategy (selection_reason) (L29)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const report = try std.json.parseFromSliceLeaky(std.json.Value, a, selection_leak_report, .{});
+    const mutant = report.object.get("mutants").?.array.items[0];
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, report, stubSettings());
+
+    // The selection_reason field carries the redacted, not the raw, strategy:
+    // the absolute path collapses to <path> and the secret to [REDACTED].
+    const ctx = prompt.object.get("context").?;
+    const selection_reason = ctx.object.get("test_context").?.object.get("selection_reason").?.string;
+    try std.testing.expectEqualStrings("<path> [REDACTED]", selection_reason);
+
+    // Neither the raw path nor the raw secret survives anywhere in the context,
+    // and redactions_applied records both scrubs (the privacy contract must not
+    // claim the leak did not happen).
+    const ctx_json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+    try expect(std.mem.indexOf(u8, ctx_json, "/Users/victim") == null);
+    try expect(std.mem.indexOf(u8, ctx_json, "sk-ant-api03-LEAKEDSECRET01234567") == null);
+    try expect(std.mem.indexOf(u8, ctx_json, "\"redactions_applied\": []") == null);
+    try expect(std.mem.indexOf(u8, ctx_json, "absolute_path") != null);
+    try expect(std.mem.indexOf(u8, ctx_json, "secret_value") != null);
+}
+
 test "explain context preserves report command arrays instead of fabricating zig build test" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
