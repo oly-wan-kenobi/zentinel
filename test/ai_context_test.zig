@@ -460,6 +460,29 @@ test "normalizeAbsolutePaths preserves Zig // and /// comment markers (M3)" {
     try expectEqualStrings("const x = 1; // see <path>", mixed.text);
 }
 
+test "normalizeAbsolutePaths redacts colon/scheme-prefixed absolute paths (M8)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A `file://` URI -- which Zig/LLVM and build tooling emit in diagnostics --
+    // must have its absolute path redacted, not left verbatim, so a developer/home
+    // path never reaches a provider (the `:`-precedes-`/` rule used to suppress it).
+    const uri = try redaction.normalizeAbsolutePaths(a, "see file:///Users/dev/secret/leak.zig");
+    try expect(uri.changed);
+    try expectEqualStrings("see file:<path>", uri.text);
+
+    // A `label:/abs/path` form (path glued to a preceding `:`).
+    const labeled = try redaction.normalizeAbsolutePaths(a, "note:/Users/dev/secret/leak.zig more");
+    try expect(labeled.changed);
+    try expectEqualStrings("note:<path> more", labeled.text);
+
+    // An identifier glued to the path via a colon.
+    const glued = try redaction.normalizeAbsolutePaths(a, "@import:/Users/dev/secret/leak.zig");
+    try expect(glued.changed);
+    try expectEqualStrings("@import:<path>", glued.text);
+}
+
 test "redactField normalizes paths, scrubs secret values, and logs both kinds" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
