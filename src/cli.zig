@@ -1141,21 +1141,17 @@ fn runDoctest(
     stderr: *std.Io.Writer,
     parent_env: *const std.process.Environ.Map,
 ) !u8 {
-    // Experimental opt-in: `zentinel doctest --mutate` runs the mutation-aware
-    // doctest prototype over fixture docs only (task 039).
-    for (inv.args) |arg| {
-        if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env);
-    }
-
-    // Advisory doctest-AI subcommands: explain/suggest/review-snapshot/
-    // suggest-missing (task 055) and explain-survivor (task 067).
-    if (inv.args.len > 0 and !std.mem.startsWith(u8, inv.args[0], "-")) {
-        const sub = inv.args[0];
-        if (std.mem.eql(u8, sub, "explain")) return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr);
-        if (std.mem.eql(u8, sub, "suggest")) return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr);
-        if (std.mem.eql(u8, sub, "review-snapshot")) return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr);
-        if (std.mem.eql(u8, sub, "suggest-missing")) return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr);
-        if (std.mem.eql(u8, sub, "explain-survivor")) return runDoctestSurvivorAi(gpa, io, dir, inv, stdout, stderr);
+    // A recognized named AI subcommand in the first slot dispatches BEFORE the
+    // experimental `--mutate` flag scan, so `doctest suggest --mutate` runs the
+    // suggest flow instead of being hijacked by `--mutate` (task 039/055/067, L22).
+    switch (zentinel.doctest_command.route(inv.args)) {
+        .mutate => return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env),
+        .explain => return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr),
+        .suggest => return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr),
+        .review_snapshot => return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr),
+        .suggest_missing => return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr),
+        .explain_survivor => return runDoctestSurvivorAi(gpa, io, dir, inv, stdout, stderr),
+        .parse => {},
     }
 
     const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {

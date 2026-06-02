@@ -286,3 +286,24 @@ test "doctest parseArgs rejects unsupported subcommands and unknown options" {
     try expectEqual(dc.Format.json, ok.format);
     try expectEqualStrings("docs/CLI_SPEC.md", ok.file.?);
 }
+
+test "doctest route: a named AI subcommand wins over a later --mutate flag (L22)" {
+    // A recognized subcommand in the first slot routes to its AI flow even when
+    // `--mutate` appears later -- otherwise the flag scan hijacks dispatch and
+    // rejects e.g. `suggest` as a bogus mutate option instead of running it (L22).
+    try expectEqual(dc.Route.suggest, dc.route(&.{ "suggest", "docs/CLI_SPEC.md", "--mutate" }));
+    try expectEqual(dc.Route.explain, dc.route(&.{ "explain", "doc.md:1", "--mutate" }));
+    try expectEqual(dc.Route.review_snapshot, dc.route(&.{ "review-snapshot", "doc.md:1", "--mutate" }));
+    try expectEqual(dc.Route.suggest_missing, dc.route(&.{ "suggest-missing", "--mutate" }));
+    try expectEqual(dc.Route.explain_survivor, dc.route(&.{ "explain-survivor", "m_x", "--mutate" }));
+
+    // The experimental flag mode still wins when no named subcommand is first:
+    // `--mutate` selects mutate whether first or later in the (subcommand-free) args.
+    try expectEqual(dc.Route.mutate, dc.route(&.{"--mutate"}));
+    try expectEqual(dc.Route.mutate, dc.route(&.{ "--mutate", "--file", "docs/X.md" }));
+    try expectEqual(dc.Route.mutate, dc.route(&.{ "--file", "docs/X.md", "--mutate" }));
+
+    // No subcommand and no --mutate -> ordinary doctest run (parseArgs path).
+    try expectEqual(dc.Route.parse, dc.route(&.{ "--file", "docs/X.md", "--format", "json" }));
+    try expectEqual(dc.Route.parse, dc.route(&.{}));
+}

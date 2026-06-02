@@ -68,6 +68,33 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
     return opts;
 }
 
+/// How a `zentinel doctest <args>` invocation dispatches. `mutate` is the
+/// experimental flag mode; the named variants are the advisory-AI subcommands;
+/// `parse` is the ordinary doctest run (handled by `parseArgs`).
+pub const Route = enum { mutate, explain, suggest, review_snapshot, suggest_missing, explain_survivor, parse };
+
+/// Decide the doctest dispatch for `args`. A recognized named subcommand in the
+/// FIRST positional slot wins BEFORE the `--mutate` flag scan, so e.g.
+/// `doctest suggest --mutate` runs the suggest flow rather than being hijacked by
+/// `--mutate` appearing later and rejected as a bogus mutate option (L22).
+pub fn route(args: []const []const u8) Route {
+    if (args.len > 0 and !std.mem.startsWith(u8, args[0], "-")) {
+        const sub = args[0];
+        if (std.mem.eql(u8, sub, "explain")) return .explain;
+        if (std.mem.eql(u8, sub, "suggest")) return .suggest;
+        if (std.mem.eql(u8, sub, "review-snapshot")) return .review_snapshot;
+        if (std.mem.eql(u8, sub, "suggest-missing")) return .suggest_missing;
+        if (std.mem.eql(u8, sub, "explain-survivor")) return .explain_survivor;
+    }
+    // Experimental opt-in: `--mutate` anywhere (e.g. `doctest --mutate --file X`)
+    // selects the mutation-aware doctest prototype -- but only when args[0] is not
+    // a named subcommand (handled above).
+    for (args) |arg| {
+        if (std.mem.eql(u8, arg, "--mutate")) return .mutate;
+    }
+    return .parse;
+}
+
 pub const Observation = struct {
     run_id: []const u8,
     started_at: []const u8,
