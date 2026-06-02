@@ -193,10 +193,15 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
     return null;
 }
 
-fn lineOfRef(ref: []const u8) u32 {
+pub fn lineOfRef(ref: []const u8) u32 {
+    // ref is "file:line[:label]"; take the digit run after the first ':'.
     const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var i = first + 1;
-    var n: u32 = 0;
-    while (i < ref.len and ref[i] >= '0' and ref[i] <= '9') : (i += 1) n = n * 10 + (ref[i] - '0');
-    return n;
+    var end = first + 1;
+    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
+    // Parse with a checked routine, not a hand-rolled `n = n*10 + d` accumulator:
+    // an out-of-range or overlong numeric ref resolves to line 0 (which matches no
+    // real 1-based anchor) rather than a `panic: integer overflow` (Debug/ReleaseSafe)
+    // or a wrapped, wrong line (ReleaseFast). This third copy is brought to parity with
+    // the already-hardened lineOfRef in src/doctest_command.zig (M4 / S17).
+    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
 }

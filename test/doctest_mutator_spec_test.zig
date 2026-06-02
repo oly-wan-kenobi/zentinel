@@ -163,6 +163,21 @@ test "validatePair matches a real transformation and rejects an unproduced one" 
     try expect(!unmatched.matched);
 }
 
+test "lineOfRef parses a normal ref and resolves an overlong ref to 0 instead of overflowing (S17)" {
+    // A normal "file:line[:label]" anchor parses to its 1-based line.
+    try expectEqual(@as(u32, 42), md.lineOfRef("docs/x.md:42"));
+    try expectEqual(@as(u32, 7), md.lineOfRef("a:7:label"));
+    // No colon / no digit run -> line 0 (matches no real anchor).
+    try expectEqual(@as(u32, 0), md.lineOfRef("nodigits"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:"));
+    // u32 max parses; the very next value (and any longer run) exceeds u32. The prior
+    // hand-rolled `n = n*10 + d` accumulator panicked with `integer overflow`
+    // (Debug/ReleaseSafe) on such a ref; the checked parse resolves it to 0 (S17).
+    try expectEqual(@as(u32, 4294967295), md.lineOfRef("x:4294967295"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:4294967296"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:999999999999"));
+}
+
 test "property: before/after pair ids are stable across repeated validation" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
