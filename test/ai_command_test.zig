@@ -189,6 +189,72 @@ test "explain context redacts absolute paths and secret tokens in every field (F
     try expect(std.mem.indexOf(u8, json, "secret_value") != null);
 }
 
+// A report whose ONLY poisoned fields are the mutant id (an absolute path) and
+// operator (an Anthropic-key-shaped token); every other field is clean, so any
+// surviving secret in the output came specifically through id/operator (M9).
+const id_operator_leak_report =
+    \\{
+    \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
+    \\  "mutants": [
+    \\    {
+    \\      "id": "/Users/victim/.aws/credentials",
+    \\      "display_id": 1,
+    \\      "operator": "sk-ant-api03-LEAKEDSECRET01234567",
+    \\      "backend": "ast",
+    \\      "backend_stability": "stable",
+    \\      "operator_stability": "stable",
+    \\      "file": "src/calc.zig",
+    \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+    \\      "original": "a",
+    \\      "replacement": "b",
+    \\      "diff": [],
+    \\      "expected_compile": "compiles",
+    \\      "result": {
+    \\        "status": "survived",
+    \\        "mode": "Debug",
+    \\        "commands": [
+    \\          {
+    \\            "command": { "original": "zig build test", "argv": ["zig", "build", "test"], "cwd": ".", "environment_policy": "minimal", "shell": false },
+    \\            "phase": "mutant", "status": "passed", "exit_code": 0, "timed_out": false, "failure_kind": "none", "duration_ms": 0,
+    \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" }, "skip_reason": null
+    \\          }
+    \\        ],
+    \\        "evidence": {}
+    \\      }
+    \\    }
+    \\  ]
+    \\}
+;
+
+test "explain redacts secrets in the report mutant id and operator (M9)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const report = try std.json.parseFromSliceLeaky(std.json.Value, a, id_operator_leak_report, .{});
+    const mutant = report.object.get("mutants").?.array.items[0];
+
+    // (1) The prompt context serialized to the provider must not carry the raw
+    //     absolute path (from id) or the secret token (from operator).
+    const prompt = try command.buildPromptValue(a, .explain, .stub, mutant, report, stubSettings());
+    const ctx_json = try std.json.Stringify.valueAlloc(a, prompt, .{ .whitespace = .indent_2 });
+    try expect(std.mem.indexOf(u8, ctx_json, "/Users/victim") == null);
+    try expect(std.mem.indexOf(u8, ctx_json, "sk-ant-api03-LEAKEDSECRET01234567") == null);
+
+    // (2) The deterministic stub advisory rendered to stdout must not leak them
+    //     either (it echoes id/operator into its summary).
+    const input = command.Input{
+        .flow = .explain,
+        .mutant_ref = "1",
+        .provider_override = null,
+        .report_json = id_operator_leak_report,
+        .settings = stubSettings(),
+    };
+    const outcome = try command.run(a, input, .json);
+    try expect(std.mem.indexOf(u8, outcome.body, "/Users/victim") == null);
+    try expect(std.mem.indexOf(u8, outcome.body, "sk-ant-api03-LEAKEDSECRET01234567") == null);
+}
+
 test "explain context preserves report command arrays instead of fabricating zig build test" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

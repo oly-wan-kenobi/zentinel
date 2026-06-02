@@ -427,6 +427,12 @@ fn buildContext(
     const m_file = try context.redactField(arena, s(get(mutant, "file")), patterns, &log);
     const m_original = try context.redactField(arena, s(get(mutant, "original")), patterns, &log);
     const m_replacement = try context.redactField(arena, s(get(mutant, "replacement")), patterns, &log);
+    // The mutant id and operator are free-form report strings under full control
+    // of an untrusted `--input-report`, so they pass through the same redaction as
+    // every other field rather than reaching the provider verbatim (M9). A
+    // legitimate id/operator carries no path or secret, so it is unchanged.
+    const m_id = try context.redactField(arena, s(get(mutant, "id")), patterns, &log);
+    const m_operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &log);
     const m_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutant, "diff")), patterns, &log);
     const project_name = try context.redactField(arena, settings.project_name, patterns, &log);
 
@@ -463,11 +469,11 @@ fn buildContext(
             .zentinel_version = project_zentinel,
         },
         .mutant = .{
-            .id = s(get(mutant, "id")),
+            .id = m_id,
             .display_id = try reportU32(get(mutant, "display_id")),
             .backend = sOr(get(mutant, "backend"), "ast"),
             .backend_stability = sOr(get(mutant, "backend_stability"), "stable"),
-            .operator = s(get(mutant, "operator")),
+            .operator = m_operator,
             .operator_stability = sOr(get(mutant, "operator_stability"), "stable"),
             .file = m_file,
             .span = try readSpan(get(mutant, "span")),
@@ -500,8 +506,8 @@ fn buildContext(
             .same_file_tests_excluded_from_mutation = true,
         },
         .operator = .{
-            .name = s(get(mutant, "operator")),
-            .category = categoryForOperator(s(get(mutant, "operator"))),
+            .name = m_operator,
+            .category = categoryForOperator(m_operator),
             .equivalent_risks = &.{},
             .suggested_test_focus = &.{},
         },
@@ -643,14 +649,17 @@ fn categoryWord(classification: []const u8) []const u8 {
 }
 
 fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
-    const operator = s(get(mutant, "operator"));
+    // Redact every report field the stub echoes into its advisory text -- file,
+    // operator, and id -- so the rendered output (stdout) never leaks an absolute
+    // path or secret-looking token from an untrusted report (F-4, M9). A
+    // legitimate operator carries no path/secret, so classification is unchanged.
+    var sink = context.RedactionLog.init(arena);
+    const operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &sink);
+    const id = try context.redactField(arena, s(get(mutant, "id")), patterns, &sink);
+    const file = try context.redactField(arena, s(get(mutant, "file")), patterns, &sink);
     const status = s(getO(get(mutant, "result"), "status"));
     const classification = mapClassification(operator, status);
     const word = categoryWord(classification);
-    // Redact the file path the stub echoes into its advisory text so the rendered
-    // output (stdout) never leaks an absolute path or secret-looking token (F-4).
-    var sink = context.RedactionLog.init(arena);
-    const file = try context.redactField(arena, s(get(mutant, "file")), patterns, &sink);
     switch (flow) {
         .explain => {
             const confidence: []const u8 = if (eqStr(classification, "unclear")) "unclear" else "medium";
@@ -659,7 +668,7 @@ fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Val
             return .{ .explain = .{
                 .classification = classification,
                 .confidence = confidence,
-                .summary = try std.fmt.allocPrint(arena, "Mutant {s} in {s} ({s}) is {s}; the stub flags a {s} gap.", .{ s(get(mutant, "id")), file, operator, status, word }),
+                .summary = try std.fmt.allocPrint(arena, "Mutant {s} in {s} ({s}) is {s}; the stub flags a {s} gap.", .{ id, file, operator, status, word }),
                 .evidence_refs = refs,
                 .next_action = try std.fmt.allocPrint(arena, "Add a test that exercises the {s} case in {s}.", .{ word, file }),
             } };
