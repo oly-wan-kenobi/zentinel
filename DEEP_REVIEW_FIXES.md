@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 4/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 5/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -18,7 +18,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **H1** · commit `a6a8d16` · integer_literal_boundary / loop_boundary i128 overflow panic on a max-value decimal literal → whole-tool denial — src/mutators/integer_boundary.zig, src/mutators/loop_boundary.zig
 - [x] `done` **H5** · commit `f82b17e` · safety_modes.buildFlag is dead code; every `--mode` runs identical Debug — src/run_command.zig, src/safety_modes.zig
 - [x] `done` **H3** · commit `381f857` · parallel setupWorkspace walks the live project root, races sibling workers → spurious `invalid` mutants (hides survivors) — src/cli.zig:240-260
-- [ ] `todo` **H2** · commit `—` · errdefer_remove emits a dangling-semicolon (invalid) mutant → guaranteed compile_error — src/mutators/error_path.zig:86-118
+- [x] `done` **H2** · commit `2c16ef4` · errdefer_remove emits a dangling-semicolon (invalid) mutant → guaranteed compile_error — src/mutators/error_path.zig:86-118
 
 ## Medium
 - [ ] `todo` **M1** · commit `—` · error_catch_unreachable emits guaranteed compile_error at every catch-with-capture site (unused capture) — src/mutators/error_path.zig `[rel: H2]`
