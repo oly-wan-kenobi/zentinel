@@ -207,14 +207,12 @@ pub const Report = struct {
 
 // --- Serialization ---------------------------------------------------------
 
-/// Serialize a report as deterministic, pretty-printed canonical JSON.
+/// Serialize a report as deterministic, pretty-printed canonical JSON. This is
+/// the single report serializer: the CLI writes the returned buffer with
+/// `writeFile` (atomic, symlink-safe), so there is no streaming variant to drift
+/// out of sync with it (L15).
 pub fn toJson(arena: std.mem.Allocator, report: Report) std.mem.Allocator.Error![]u8 {
     return std.json.Stringify.valueAlloc(arena, report, .{ .whitespace = .indent_2 });
-}
-
-/// Stream a report as canonical JSON to a writer.
-pub fn writeJson(report: Report, writer: *std.Io.Writer) std.json.Stringify.Error!void {
-    return std.json.Stringify.value(report, .{ .whitespace = .indent_2 }, writer);
 }
 
 // --- Summary + ordering ----------------------------------------------------
