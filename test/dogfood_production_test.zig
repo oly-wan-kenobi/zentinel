@@ -116,6 +116,19 @@ test "validate_failure_recovery flags a non-dict invalid fixture instead of skip
     try expect(std.mem.indexOf(u8, vts, "invalid failure-recovery fixture must be a JSON object") != null);
 }
 
+test "build.zig fails loudly instead of silently skipping unit tests when test/ is inaccessible (S4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const bz = try readFile(a, "build.zig");
+    // A missing/unreadable test/ now panics (the silent `catch return` is gone) and
+    // discovering zero test/**/*_test.zig files is a hard error, so `zig build test`
+    // can no longer exit 0 having run none of the discovered unit tests (S4).
+    try expect(std.mem.indexOf(u8, bz, "zig build test cannot discover unit tests") != null);
+    try expect(std.mem.indexOf(u8, bz, "no test/**/*_test.zig files discovered") != null);
+}
+
 test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors (L33)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

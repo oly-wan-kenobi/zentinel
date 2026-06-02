@@ -109,7 +109,12 @@ fn addDiscoveredTests(
     optimize: std.builtin.OptimizeMode,
 ) void {
     const io = b.graph.io;
-    var test_dir = b.build_root.handle.openDir(io, "test", .{ .iterate = true }) catch return;
+    // A missing/unreadable test/ must fail the build, not silently skip every unit
+    // test -- `catch return` turned a wrong build root or partial checkout into a
+    // green `zig build test` that ran zero discovered tests (S4). Consistent with the
+    // walk-failure panics below.
+    var test_dir = b.build_root.handle.openDir(io, "test", .{ .iterate = true }) catch
+        @panic("test/ directory not found or unreadable -- zig build test cannot discover unit tests");
     defer test_dir.close(io);
 
     var paths_buf: [512][]const u8 = undefined;
@@ -126,6 +131,10 @@ fn addDiscoveredTests(
         paths_buf[count] = b.dupe(entry.path);
         count += 1;
     }
+    // Discovering zero unit tests means a wrong build root or a partial checkout, not
+    // a passing suite; fail loudly rather than letting `zig build test` exit 0 having
+    // run none of them (S4).
+    if (count == 0) @panic("no test/**/*_test.zig files discovered -- check the build root / working directory");
 
     std.mem.sort([]const u8, paths_buf[0..count], {}, struct {
         fn lessThan(_: void, a: []const u8, c: []const u8) bool {
