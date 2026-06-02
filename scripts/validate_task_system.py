@@ -577,6 +577,14 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             require(isinstance(entry.get(field), str) and bool(entry.get(field)), errors, f"completion_evidence entry {index} field {field} must be a non-empty string")
         for field in ["files_changed", "tests_added", "tests_run", "follow_up_tasks"]:
             require(isinstance(entry.get(field), list) and all(isinstance(item, str) and item for item in entry.get(field, [])), errors, f"completion_evidence entry {index} field {field} must be a string array")
+        # files_changed is the scope-critical field: validate_completion_scope_evidence
+        # iterates it to check every changed file against the task's allowed/forbidden
+        # scope, so an empty list silently bypasses that audit. all() is vacuously True
+        # on [], so the generic check above accepts []; require it non-empty (S14).
+        # (tests_run is separately required to include the validator command above; an
+        # empty tests_added is allowed but must carry a failing_evidence explanation;
+        # follow_up_tasks is legitimately empty.)
+        require(isinstance(entry.get("files_changed"), list) and len(entry.get("files_changed", [])) > 0, errors, f"completion_evidence entry {index} files_changed must be a non-empty string array")
         if "artifacts" in entry:
             require(isinstance(entry.get("artifacts"), list) and all(isinstance(item, str) and item for item in entry.get("artifacts", [])), errors, f"completion_evidence entry {index} field artifacts must be a string array")
         gap_rows = entry.get("gap_registry_rows_changed")

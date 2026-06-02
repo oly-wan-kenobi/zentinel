@@ -118,6 +118,22 @@ test "validate_task_system requires allowed_files/forbidden_files to be non-empt
     try expect(std.mem.indexOf(u8, vts, "len(value) > 0 and all(isinstance(item, str)") != null);
 }
 
+test "validate_task_system requires completion_evidence files_changed to be non-empty (S14)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const vts = try readFile(a, "scripts/validate_task_system.py");
+    // files_changed is the scope-critical completion-evidence field:
+    // validate_completion_scope_evidence iterates it, so an empty list -- accepted by
+    // the vacuous all() check -- silently bypasses the scope audit. A dedicated
+    // non-empty guard now closes that hole (S14). Verified out-of-band: perturbing a
+    // real status.json entry to files_changed=[] raises "files_changed must be a
+    // non-empty string array"; the real data does not.
+    try expect(std.mem.indexOf(u8, vts, "len(entry.get(\"files_changed\", [])) > 0") != null);
+    try expect(std.mem.indexOf(u8, vts, "files_changed must be a non-empty string array") != null);
+}
+
 test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
