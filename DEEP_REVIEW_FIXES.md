@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 34/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 35/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -52,7 +52,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L15** · commit `5cdfbcb` · report.writeJson is a dead public export with no callers — src/report.zig — deleted the unused writer-streaming serializer (CLI writes a buffer via writeFile, no streaming sink); toJson is now the sole serializer. Its exact canonical format stays guarded by existing byte-level golden snapshots (report_schema_test minimal_snapshot + run_command_test/*.json) — verified load-bearing: an indent_4 regression fails all four goldens
 - [x] `done` **L16** · commit `2596248` · triplicated AI option-parsing loops across runAiCommand/runDoctestAi/runDoctestSurvivorAi — src/ai/ — extracted ai.command.parseSharedOption + SharedOptions (one parser for --ai-provider/--input-report/--format, error strings owned once); all three cli loops call it and keep only their own positional/--file/unknown-option logic. Behavior preserved. Red: dropping quotes from the --format error fails the new unit test (guards all three at once)
 - [x] `done` **L17** · commit `26eaad8` · emitCleanupWarningIfNeeded silently ignores its arena allocator parameter — src/root.zig — dropped the unused `arena` param (false dependency) and extracted a shared `cleanup_warning_fmt` constant so emit (streams) and cleanupWarningText (allocs) use one source; updated both call sites. Red: changing the constant fails both pinned-text assertions together. (Delegating instead leaked — caught by the test allocator.)
-- [ ] `todo` **L18** · commit `—` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig
+- [x] `done` **L18** · commit `be6803c` · sourceFor performs an O(M*F) linear scan, once per mutant candidate — src/run_command.zig — replaced the per-mutant linear scan with a StringHashMap(path→source) built once before the Phase A loop (buildSourceIndex); per-candidate lookup is now O(1). Deleted dead sourceFor. Red: building the index inside the loop makes source_index_builds == 2 (per-mutant), failing the once-per-run assertion
 - [ ] `todo` **L19** · commit `—` · findBlockByLine O(B) linear scan called per block ref in the hot doctest cache-key loop — src/doctest/
 - [ ] `todo` **L20** · commit `—` · doctest --no-color parsed and stored but never threaded to any renderer — src/doctest_command.zig
 - [ ] `todo` **L21** · commit `—` · `zentinel init --test-command` writes raw user input into TOML without escaping quotes (structure injection) — src/cli.zig
