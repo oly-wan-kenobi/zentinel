@@ -88,11 +88,14 @@ test "the built binary mutates a real fixture project and reports one killed and
     // The real run produced the fixture's two arithmetic mutants plus the
     // error-path mutant: add's is killed by the same-file test; mul's and
     // parsePositive's error_catch_unreachable mutant survive (no test exercises
-    // them). `invalid` must be zero -- before task 117 the error_catch_unreachable
-    // mutant's `original` borrowed the parsed tree's source, dangled past the
-    // per-file `defer parsed.deinit()`, and the real binary misclassified this
-    // valid candidate as `invalid` on a Debug build (the freed bytes poisoned to
-    // 0xAA), hiding a real survivor behind a false "0 survivors" for that operator.
+    // them). `invalid` must be zero: before task 117 the error_catch_unreachable
+    // mutant's `original` borrowed the parsed tree's source and dangled past the
+    // per-file `defer parsed.deinit()`. This is an END-TO-END smoke check that the
+    // Collector.add() dup is wired through the real binary -- NOT the byte-level
+    // teardown guard: the binary uses an ArenaAllocator whose `free` is a no-op
+    // rewind that neither frees nor poisons `owned_source` (so no "0xAA" here).
+    // The actual revert-catching guard is the GPA-backed teardown test in
+    // test/sandbox_test.zig (F-1 plus the all-stable-operator case) (L2).
     try expectEqual(@as(i64, 3), summary.get("total").?.integer);
     try expectEqual(@as(i64, 1), summary.get("killed").?.integer);
     try expectEqual(@as(i64, 2), summary.get("survived").?.integer);

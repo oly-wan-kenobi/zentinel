@@ -174,3 +174,91 @@ test "F-1: stable-operator Mutant.original survives parse teardown" {
         try expect(!std.mem.eql(u8, patched, teardown_source));
     }
 }
+
+// A source exercising EVERY stable source-slice operator, so the teardown guard
+// below covers them all -- not just the 3 in F-1. The real-binary integration
+// test cannot guard this (its arena's `free` is a no-op rewind that neither frees
+// nor poisons), so this GPA-backed test is the actual regression guard for a
+// revert of the Collector.add() dup across all operators (L2).
+const teardown_all_source =
+    \\fn risky(flag: bool) !u8 {
+    \\    if (flag) return error.Boom;
+    \\    return 7;
+    \\}
+    \\
+    \\fn make(alloc: anytype) !*u8 {
+    \\    const p = try alloc.create(u8);
+    \\    errdefer alloc.destroy(p);
+    \\    p.* = 1;
+    \\    return p;
+    \\}
+    \\
+    \\pub fn classify(a: u8, b: u8, flag: bool, opt: ?u8) u8 {
+    \\    const sum = a + b;
+    \\    const prod = a * b;
+    \\    const r = risky(flag) catch 0;
+    \\    const enabled = true;
+    \\    const fallback = opt orelse 9;
+    \\    if (a == 5 and enabled) return sum;
+    \\    if (sum < 20) return prod;
+    \\    var i: u8 = 0;
+    \\    while (i < b) : (i += 1) {}
+    \\    for (0..4) |k| {
+    \\        _ = k;
+    \\    }
+    \\    return r + fallback;
+    \\}
+;
+
+test "L2: every stable source-slice operator's Mutant.original survives parse teardown" {
+    var collector_arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer collector_arena.deinit();
+    const ca = collector_arena.allocator();
+
+    // Parse with the poisoning testing allocator so `parsed.deinit()` actually
+    // frees (and in safe modes poisons) `owned_source`; the collector arena is
+    // separate and long-lived, mirroring run_command.generateCandidates.
+    var parsed = try ast_backend.parse(std.testing.allocator, "ops.zig", teardown_all_source);
+    const test_ranges = try ast_backend.testDeclRanges(parsed, ca);
+
+    var collector = ast_backend.Collector.init(ca);
+    try mutators.arithmetic.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.comparison.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.logical.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.boolean.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.optional.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.error_path.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.integer_boundary.collect(&collector, parsed, "ops.zig", test_ranges);
+    try mutators.loop_boundary.collect(&collector, parsed, "ops.zig", test_ranges);
+    const mutants = try collector.finish();
+
+    // Free the parsed tree (and its `owned_source`) before reading `original`,
+    // exactly as `generateCandidates` does via `defer parsed.deinit()`.
+    parsed.deinit();
+
+    // Every previously-unguarded stable operator must emit a candidate.
+    const required_ops = [_][]const u8{
+        "arithmetic_add_sub",          "arithmetic_mul_div",
+        "equality_swap",               "comparison_boundary",
+        "logical_and_or",              "boolean_literal",
+        "optional_orelse_unreachable", "error_catch_unreachable",
+        "errdefer_remove",             "integer_literal_boundary",
+        "loop_boundary",
+    };
+    for (required_ops) |op| {
+        if (findByOperator(mutants, op) == null) {
+            std.debug.print("L2: no candidate emitted for operator {s}\n", .{op});
+            return error.MissingCandidate;
+        }
+    }
+    try expect(mutants.len >= required_ops.len);
+
+    // EVERY candidate's `original` must still be the live source text -- a
+    // substring of the comptime literal, never freed/poisoned bytes -- and must
+    // apply cleanly. A revert of the Collector.add() dup fails here for every
+    // operator (poisoned `original` is not a substring and breaks sandbox.apply).
+    for (mutants) |m| {
+        try expect(std.mem.indexOf(u8, teardown_all_source, m.original) != null);
+        _ = try sandbox.apply(ca, teardown_all_source, m);
+    }
+}
