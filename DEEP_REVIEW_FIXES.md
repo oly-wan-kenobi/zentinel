@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 43/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 44/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -61,7 +61,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L24** · commit `157a552` · doctest mutator-spec validator (validateDoc) falsely flags every stable Phase-2 operator as drift — src/doctest/ `[rel: H2]` — candidatesOrParseError wired only the 4 Phase-1 collectors; added the 4 Phase-2 ones (optional/error_path/integer_boundary/loop_boundary) to match the real pipeline; fixed "Phase 1" doc comments. Red: an optional_orelse_unreachable before/after pair was flagged ZNTL_DOCTEST_SNAPSHOT_MISMATCH; green: matches. (mutation_experiment.zig dup = separate finding)
 - [x] `done` **L25** · commit `6d0e7b1` · documented experimental-backend diagnostics artifact never written; diagnosticsToJson is a dead export — src/zir_backend.zig, src/air_backend.zig — doc-vs-code drift (code correct): the on-disk artifact path is pipeline/governance work a CLI run can't fulfil. Aligned both backends' doc comments + docs/{ZIR,AIR}_BACKEND.md to reality (stderr note[...] at runtime; diagnosticsToJson defined+tested but not yet wired). Serializer stays byte-pinned (load-bearing — schema v2 bump fails it)
 - [x] `done` **L26** · commit `0590598` · CLI experimental-backend diagnostic rendering (runListMutants stderr note) has no direct test — src/list_mutants_command.zig — extracted the inline note[...] format into zir_backend/air_backend.renderDiagnosticNote (byte-identical), cli loops call them; added tests pinning the exact note bytes for both backends. Red: ' at '→' @ ' fails the zir test (previously the inline format was untested)
-- [ ] `todo` **L27** · commit `—` · mode_matrix non-primary columns bypass Phase B.5 configured-suite re-verification → unsound per-mode `survived` — src/run_command.zig `[rel: H5]`
+- [x] `done` **L27** · commit `f60f741` · mode_matrix non-primary columns bypass Phase B.5 configured-suite re-verification → unsound per-mode `survived` — src/run_command.zig `[rel: H5]` — each non-primary matrix column now re-verifies a narrowed `survived` against the configured suite for that mode (mirroring Phase B.5), so a mutant the configured suite kills can't be recorded `survived`. Red: ReleaseFast column was `.survived` (narrowed) while configured kills; green: all columns `killed`, isModeDependent false
 - [ ] `todo` **L28** · commit `—` · report.normalizeExcerpt leaves machine-absolute paths after `:` / `=` / `>` verbatim → leak + non-determinism — src/report.zig
 - [ ] `todo` **L29** · commit `—` · AI-context test_context.selection_reason bypasses redaction → paths/secrets leak — src/ai/context.zig
 - [ ] `todo` **L30** · commit `—` · each source file AST-parsed twice per run (generateCandidates and selectionForFile) — src/run_command.zig
