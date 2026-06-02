@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 10/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 11/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -26,7 +26,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **M3** · commit `f26cff8` · path redaction over-matches Zig `//` and `///` comment markers as `<path>`, corrupting AI context & report excerpts — src/ai/redaction.zig:85
 - [x] `done` **M4** · commit `4051f44` · doctest lineOfRef unchecked u32 accumulator panics (SIGABRT) on a malformed `--case` ref instead of CaseNotFound — src/doctest_command.zig `[rel: H1]`
 - [x] `done` **M5** · commit `38ebc92` · cache.enabled / cache.directory / report.formats parsed & validated but never consumed — src/config.zig `[rel: H5]`
-- [ ] `todo` **M6** · commit `—` · matcher.Mode json_unordered / regex / diagnostic unreachable from block parsing — src/doctest/block.zig
+- [x] `done` **M6** · commit `1e10ca3` · matcher.Mode json_unordered / regex / diagnostic unreachable from block parsing — src/doctest/block.zig
 - [ ] `todo` **M7** · commit `—` · doctest --mutate under-reports: candidatesOrParseError has the 4-of-8 collector restriction → 0 mutants for Phase-2-only snippets — src/doctest/mutation_experiment.zig `[rel: H2]`
 - [ ] `todo` **M8** · commit `—` · AI-context normalizeAbsolutePaths misses scheme/colon-prefixed paths (file:// URIs) → path leak — src/ai/redaction.zig
 - [ ] `todo` **M9** · commit `—` · AI-context mutant.id & operator fields bypass redaction → untrusted-report paths/secrets leak verbatim — src/ai/command.zig
