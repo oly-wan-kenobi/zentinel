@@ -9,38 +9,49 @@ const std = @import("std");
 
 /// Match a project-relative `path` against a glob `pattern`. `*` matches any run
 /// of characters within a single path segment; `**` matches zero or more whole
-/// path segments.
+/// path segments. Matches segment-by-segment over the raw strings without
+/// materializing segments into a fixed buffer, so a legitimately-includable file
+/// nested arbitrarily deep is never silently dropped from discovery (L11).
 pub fn matchGlob(pattern: []const u8, path: []const u8) bool {
-    var pat_buf: [64][]const u8 = undefined;
-    var path_buf: [64][]const u8 = undefined;
-    const pat_segs = splitSegments(pattern, &pat_buf) orelse return false;
-    const path_segs = splitSegments(path, &path_buf) orelse return false;
-    return matchSegments(pat_segs, path_segs);
+    return matchSegments(pattern, path);
 }
 
-fn splitSegments(s: []const u8, buf: *[64][]const u8) ?[][]const u8 {
-    var n: usize = 0;
-    var it = std.mem.splitScalar(u8, s, '/');
-    while (it.next()) |seg| {
-        if (n >= buf.len) return null;
-        buf[n] = seg;
-        n += 1;
-    }
-    return buf[0..n];
+/// First `/`-delimited segment of `s` (the whole string when there is no `/`).
+fn firstSegment(s: []const u8) []const u8 {
+    const i = std.mem.indexOfScalar(u8, s, '/') orelse return s;
+    return s[0..i];
 }
 
-fn matchSegments(pat: []const []const u8, path: []const []const u8) bool {
-    if (pat.len == 0) return path.len == 0;
-    if (std.mem.eql(u8, pat[0], "**")) {
-        var i: usize = 0;
-        while (i <= path.len) : (i += 1) {
-            if (matchSegments(pat[1..], path[i..])) return true;
+/// The remaining segments after the first, or `null` when none remain. This
+/// mirrors `std.mem.splitScalar`: `""` is a single empty segment, `"a/"` is
+/// `["a", ""]`, and `restSegments` of a slash-free string is `null` (exhausted).
+fn restSegments(s: []const u8) ?[]const u8 {
+    const i = std.mem.indexOfScalar(u8, s, '/') orelse return null;
+    return s[i + 1 ..];
+}
+
+/// Match the `/`-segmented pattern `pat` against the `/`-segmented `path`, where
+/// `null` means "no segments remain". Equivalent to the prior segment-array
+/// recursion (`pat[1..]` / `path[i..]`) but with the path encoded as the remaining
+/// substring, so there is no 64-segment ceiling (L11).
+fn matchSegments(pat: ?[]const u8, path: ?[]const u8) bool {
+    const p = pat orelse return path == null; // no pattern left -> match iff no path left
+    const head = firstSegment(p);
+    const rest = restSegments(p);
+    if (std.mem.eql(u8, head, "**")) {
+        // `**` matches zero or more whole segments: try `rest` against every
+        // suffix of `path`, including the empty (null) one.
+        var cur: ?[]const u8 = path;
+        while (true) {
+            if (matchSegments(rest, cur)) return true;
+            const c = cur orelse break; // also tried the zero-segments case
+            cur = restSegments(c);
         }
         return false;
     }
-    if (path.len == 0) return false;
-    if (!matchSegment(pat[0], path[0])) return false;
-    return matchSegments(pat[1..], path[1..]);
+    const ph = path orelse return false; // pattern needs a segment, path has none
+    if (!matchSegment(head, firstSegment(ph))) return false;
+    return matchSegments(rest, restSegments(ph));
 }
 
 fn matchSegment(pat: []const u8, str: []const u8) bool {
