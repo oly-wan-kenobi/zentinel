@@ -145,7 +145,7 @@ pub const RunError = error{
     SourceFileMissing,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun, ConflictingOptions };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -213,6 +213,9 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             return error.UnknownOption;
         }
     }
+    // --verbose and --quiet select opposite verbosities; accepting both would let
+    // quiet silently win and discard the requested verbose output (L44).
+    if (opts.verbose and opts.quiet) return error.ConflictingOptions;
     return opts;
 }
 

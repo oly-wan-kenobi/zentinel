@@ -405,6 +405,7 @@ fn runRun(
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
             error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
+            error.ConflictingOptions => "--verbose and --quiet are mutually exclusive",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",

@@ -703,6 +703,11 @@ test "--verbose and --quiet parse as run options without affecting report data" 
     try expect(quiet.quiet);
     try expect(!quiet.verbose);
 
+    // Passing both is a usage error, not a silent quiet-wins (L44); order does not
+    // matter.
+    try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--verbose", "--quiet" }));
+    try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--quiet", "--verbose" }));
+
     // Verbosity is not an input to the deterministic run: identical reports.
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
