@@ -11,6 +11,7 @@
 // local .zig-cache, or zig-out directory. Pure scheduling: process execution and
 // filesystem I/O are performed by the injected task, not by this module.
 const std = @import("std");
+const config = @import("config.zig");
 
 /// Hard upper bound on concurrent workers, independent of any configured value,
 /// so an over-large `--jobs` / `run.jobs` can never spawn unbounded threads.
@@ -99,4 +100,52 @@ pub fn cacheDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.
 /// so a worker's `zig-out` cannot collide with another worker's.
 pub fn outDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/zig-out", .{root});
+}
+
+/// Directories whose entire subtree is excluded from a per-mutant workspace copy:
+/// the zentinel-controlled build cache, the build-output dir, and the VCS dir.
+/// Matched by exact path SEGMENT (a sibling like `zig-outputs/` is NOT excluded).
+const excluded_descent_dirs = [_][]const u8{ ".zig-cache", "zig-out", ".git" };
+
+fn isExcludedDescentDir(basename: []const u8) bool {
+    for (excluded_descent_dirs) |name| {
+        if (std.mem.eql(u8, basename, name)) return true;
+    }
+    return false;
+}
+
+/// Copy the project tree from `src` into `dst`, descending into every directory
+/// EXCEPT `excluded_descent_dirs`. The walker never enters those dirs, which is
+/// what keeps a parallel run's per-mutant workspace builders from racing sibling
+/// workers tearing down their workspaces under `.zig-cache/zentinel/workspaces`
+/// (a transient openDir/copyFile failure there was collapsed into a spurious
+/// `invalid` mutant, hiding survivors) and avoids the O(N^2) re-walk of every
+/// other worker's copied tree (H3, L7).
+///
+/// A file whose path matches `copyExcluded` (a raw-prefix legacy filter owned by
+/// the caller) is still skipped, so the copied set is byte-identical to the prior
+/// full-walk behavior; an entry that escapes `src` by symlink is rejected. `src`
+/// must be opened with `iterate = true`.
+pub fn copyProjectTree(
+    io: std.Io,
+    gpa: std.mem.Allocator,
+    src: std.Io.Dir,
+    dst: std.Io.Dir,
+    copyExcluded: *const fn (path: []const u8) bool,
+) !void {
+    var walker = try src.walkSelectively(gpa);
+    defer walker.deinit();
+    while (try walker.next(io)) |entry| {
+        if (entry.kind == .directory) {
+            // Descend only into non-excluded dirs: never enter the cache / build
+            // output / VCS trees. This removes the sibling-teardown race and the
+            // O(N^2) re-walk that the prior full `walk()` suffered (H3, L7).
+            if (!isExcludedDescentDir(entry.basename)) try walker.enter(io, entry);
+            continue;
+        }
+        if (entry.kind != .file) continue;
+        if (copyExcluded(entry.path)) continue;
+        if (config.pathEscapesRoot(io, src, entry.path)) return error.WorkspaceCreateFailed;
+        try src.copyFile(entry.path, dst, entry.path, io, .{ .make_path = true });
+    }
 }

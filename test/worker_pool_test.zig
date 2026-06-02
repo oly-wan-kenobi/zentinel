@@ -100,6 +100,63 @@ test "each mutant gets a dedicated workspace with nested local cache and output"
     try expect(!std.mem.eql(u8, c1, c2));
 }
 
+// --- Tree copy skips DESCENT into excluded dirs (H3, L7) -------------------
+
+fn excludeNothing(path: []const u8) bool {
+    _ = path;
+    return false;
+}
+
+fn fileExists(io: std.Io, dir: std.Io.Dir, sub_path: []const u8) bool {
+    dir.access(io, sub_path, .{}) catch return false;
+    return true;
+}
+
+test "copyProjectTree copies real files but never descends into .zig-cache/zig-out/.git (H3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    // A project (`proj`) with real source at the root and nested, plus the three
+    // excluded trees. A parallel run continually creates/deletes per-mutant
+    // workspaces under `.zig-cache/zentinel/workspaces`, so a walker that descends
+    // there races sibling teardown (spurious `invalid`) and re-walks every other
+    // worker's copy (O(N^2)). The destination (`out`) is a sibling, never inside
+    // the walked tree.
+    try tmp.dir.createDirPath(io, "proj/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/keep.zig", .data = "pub const x = 1;\n" });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/src/nested.zig", .data = "pub const y = 2;\n" });
+    try tmp.dir.createDirPath(io, "proj/.zig-cache/zentinel/workspaces/run/m_other");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/.zig-cache/zentinel/workspaces/run/m_other/sibling.zig", .data = "pub const z = 3;\n" });
+    try tmp.dir.createDirPath(io, "proj/zig-out/bin");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-out/bin/artifact.zig", .data = "pub const w = 4;\n" });
+    try tmp.dir.createDirPath(io, "proj/.git");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/.git/config", .data = "[core]\n" });
+
+    var src = try tmp.dir.openDir(io, "proj", .{ .iterate = true });
+    defer src.close(io);
+    try tmp.dir.createDirPath(io, "out");
+    var dst = try tmp.dir.openDir(io, "out", .{});
+    defer dst.close(io);
+
+    // The file-copy filter excludes NOTHING here, so the ONLY thing that can keep
+    // an excluded-dir file out of the copy is the walker refusing to descend.
+    try wp.copyProjectTree(io, a, src, dst, excludeNothing);
+
+    // Real project files are copied -- descent into non-excluded dirs still works.
+    try expect(fileExists(io, dst, "keep.zig"));
+    try expect(fileExists(io, dst, "src/nested.zig"));
+    // The excluded subtrees are never entered, so their files are absent even
+    // though `excludeNothing` would have permitted copying them.
+    try expect(!fileExists(io, dst, ".zig-cache/zentinel/workspaces/run/m_other/sibling.zig"));
+    try expect(!fileExists(io, dst, "zig-out/bin/artifact.zig"));
+    try expect(!fileExists(io, dst, ".git/config"));
+}
+
 // --- Every item runs even when some fail (visible per-index propagation) ----
 
 const FailCtx = struct { status: []u8, fail_at: usize };

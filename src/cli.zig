@@ -246,14 +246,7 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     var dir = try rt.root_dir.openDir(rt.io, rel, .{});
     errdefer dir.close(rt.io);
 
-    var walker = try rt.root_dir.walk(rt.gpa);
-    defer walker.deinit();
-    while (try walker.next(rt.io)) |entry| {
-        if (entry.kind != .file) continue;
-        if (copyExcluded(entry.path)) continue;
-        if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, entry.path)) return error.WorkspaceCreateFailed;
-        try rt.root_dir.copyFile(entry.path, dir, entry.path, rt.io, .{ .make_path = true });
-    }
+    try zentinel.worker_pool.copyProjectTree(rt.io, rt.gpa, rt.root_dir, dir, copyExcluded);
     if (zentinel.config.pathEscapesRoot(rt.io, dir, m.file)) return error.WorkspaceCreateFailed;
     try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
     return .{ .rel = rel, .dir = dir };
