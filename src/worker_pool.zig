@@ -83,11 +83,24 @@ pub fn run(jobs: usize, count: usize, ctx: *anyopaque, task: Task) void {
     while (j < spawned) : (j += 1) threads[j].join();
 }
 
+/// The per-run workspace container holding every per-mutant workspace for one
+/// run: `.zig-cache/zentinel/workspaces/{run_id}`. setupWorkspace materializes it
+/// (via createDirPath of a nested `workspaceRoot`), but the per-mutant cleanup
+/// only removes the content-addressed leaf, so the caller must deleteTree this
+/// base after the run or it leaks one stale `run_<x>` dir per invocation (L8).
+/// Every `workspaceRoot` for the run is nested under it, so a single deleteTree
+/// reclaims all leaves.
+pub fn workspaceRunBase(arena: std.mem.Allocator, run_id: []const u8) std.mem.Allocator.Error![]const u8 {
+    return std.fmt.allocPrint(arena, ".zig-cache/zentinel/workspaces/{s}", .{run_id});
+}
+
 /// Dedicated, content-addressed writable workspace root for one mutant run,
 /// isolated by run id and mutant id so two concurrent workers never share a
-/// directory. The developer working tree is never mutated in place.
+/// directory. The developer working tree is never mutated in place. Built as
+/// `{workspaceRunBase}/{mutant_id}` so the run-base deleteTree (L8) reclaims it.
 pub fn workspaceRoot(arena: std.mem.Allocator, run_id: []const u8, mutant_id: []const u8) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(arena, ".zig-cache/zentinel/workspaces/{s}/{s}", .{ run_id, mutant_id });
+    const base = try workspaceRunBase(arena, run_id);
+    return std.fmt.allocPrint(arena, "{s}/{s}", .{ base, mutant_id });
 }
 
 /// The local Zig build cache for a workspace root, nested inside the root so a

@@ -531,6 +531,19 @@ fn runRun(
         error.OutOfMemory => return err,
     };
 
+    // Remove the per-run workspace container that setupWorkspace materialized via
+    // createDirPath (.zig-cache/zentinel/workspaces/{run_id}). mutantRunSpecsFn
+    // deletes each content-addressed per-mutant leaf, but nothing removed the
+    // {run_id} parent, so every invocation leaked one stale `run_<x>` dir under
+    // the controlled cache namespace. Best-effort and counted like the per-mutant
+    // cleanup so a failure surfaces in the warning below (L8).
+    {
+        const run_base = try zentinel.worker_pool.workspaceRunBase(gpa, rt.run_id);
+        rt.root_dir.deleteTree(rt.io, run_base) catch {
+            _ = rt.cleanup_failures.fetchAdd(1, .monotonic);
+        };
+    }
+
     try zentinel.emitCleanupWarningIfNeeded(gpa, rt.cleanup_failures.load(.monotonic), stderr);
 
     // Write the JSON report to the resolved output path (under the project root).

@@ -100,6 +100,29 @@ test "each mutant gets a dedicated workspace with nested local cache and output"
     try expect(!std.mem.eql(u8, c1, c2));
 }
 
+test "every per-mutant workspaceRoot nests under the run's workspaceRunBase, scoped per run (L8)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The cli removes one run's whole container with a single
+    // deleteTree(workspaceRunBase(run_id)); that only reclaims the leaked
+    // per-mutant leaves if EVERY workspaceRoot for the run is nested under it.
+    const base = try wp.workspaceRunBase(a, "run_xxxxxxxxxxxxxxxxxxx0");
+    try expectEqualStrings(".zig-cache/zentinel/workspaces/run_xxxxxxxxxxxxxxxxxxx0", base);
+
+    const prefix = try std.fmt.allocPrint(a, "{s}/", .{base});
+    const r1 = try wp.workspaceRoot(a, "run_xxxxxxxxxxxxxxxxxxx0", "m_aaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const r2 = try wp.workspaceRoot(a, "run_xxxxxxxxxxxxxxxxxxx0", "m_bbbbbbbbbbbbbbbbbbbbbbbbbb");
+    try expect(std.mem.startsWith(u8, r1, prefix));
+    try expect(std.mem.startsWith(u8, r2, prefix));
+
+    // The base is per-run: deleting one run's container cannot touch another's.
+    const other = try wp.workspaceRunBase(a, "run_yyyyyyyyyyyyyyyyyyy1");
+    try expect(!std.mem.eql(u8, base, other));
+    try expect(!std.mem.startsWith(u8, r1, other));
+}
+
 // --- Tree copy skips DESCENT into excluded dirs (H3, L7) -------------------
 
 fn excludeNothing(path: []const u8) bool {

@@ -117,6 +117,56 @@ test "the built binary mutates a real fixture project and reports one killed and
     try expect(saw_error_catch);
 }
 
+test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel/workspaces (L8)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try copyFixtureFile(io, tmp.dir, "calc.zig", a);
+    try copyFixtureFile(io, tmp.dir, "zentinel.toml", a);
+
+    const exe_path = try exePath(a);
+    const result = std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--config", "zentinel.toml", "run", "--report", "json" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    }) catch |err| {
+        std.debug.print("integration(L8): spawning {s} failed: {s}\n", .{ exe_path, @errorName(err) });
+        return err;
+    };
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => {
+            std.debug.print("integration(L8): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            return error.BinaryCrashed;
+        },
+    }
+
+    // setupWorkspace materialized .zig-cache/zentinel/workspaces/{run_id}/{m_id}
+    // (via createDirPath) for each of the fixture's 3 mutants. mutantRunSpecsFn's
+    // defer deleted each per-mutant leaf, but before L8 nothing removed the
+    // {run_id} container, so every invocation leaked exactly one stale `run_<hex>`
+    // dir under the controlled cache namespace. After a successful run the
+    // workspaces dir must therefore contain NO `run_*` child.
+    var ws = tmp.dir.openDir(io, ".zig-cache/zentinel/workspaces", .{ .iterate = true }) catch |err| switch (err) {
+        // No workspaces dir at all also means nothing leaked.
+        error.FileNotFound => return,
+        else => return err,
+    };
+    defer ws.close(io);
+    var it = ws.iterate();
+    while (try it.next(io)) |entry| {
+        if (std.mem.startsWith(u8, entry.name, "run_")) {
+            std.debug.print("integration(L8): leaked per-run workspace dir: {s}\n", .{entry.name});
+            try expect(false);
+        }
+    }
+}
+
 test "project.root moves discovery and command execution into the configured root" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
