@@ -224,6 +224,36 @@ test "excludedCopyPath matches the whole first path segment, not a raw prefix (M
     try expect(!wp.excludedCopyPath("src/zig-out-helper.zig"));
 }
 
+test "createMutantWorkspace unwinds the partial workspace dir when setup fails mid-way (L9)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    // A minimal project so copyProjectTree (which runs before the failure) succeeds.
+    try tmp.dir.writeFile(io, .{ .sub_path = "main.zig", .data = "pub const x = 1;\n" });
+
+    var cleanup_failures = std.atomic.Value(u32).init(0);
+    const run_id = "run_l9000000000000000000";
+    const mutant_id = "m_l9aaaaaaaaaaaaaaaaaaaaaa";
+
+    // mutant_file `../escape.zig` escapes the workspace dir, so createMutantWorkspace
+    // fails at the post-copy containment check -- AFTER createDirPath + copyProjectTree
+    // already materialized .zig-cache/zentinel/workspaces/{run_id}/{mutant_id}. The
+    // failure-path errdefer must remove that partial dir; before L9 only the fd was
+    // closed, orphaning it (and the caller's success-only cleanup defer never fired).
+    const result = wp.createMutantWorkspace(io, a, tmp.dir, run_id, mutant_id, "../escape.zig", "x", &cleanup_failures);
+    try std.testing.expectError(error.WorkspaceCreateFailed, result);
+
+    // The partial per-mutant workspace leaf must NOT survive the failed setup.
+    const rel = try wp.workspaceRoot(a, run_id, mutant_id);
+    try expect(!fileExists(io, tmp.dir, rel));
+    // The unwind deleteTree succeeded, so no cleanup failure was counted.
+    try expectEqual(@as(u32, 0), cleanup_failures.load(.monotonic));
+}
+
 // --- Every item runs even when some fail (visible per-index propagation) ----
 
 const FailCtx = struct { status: []u8, fail_at: usize };

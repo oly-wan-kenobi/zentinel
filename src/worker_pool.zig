@@ -173,3 +173,55 @@ pub fn copyProjectTree(
         try src.copyFile(entry.path, dst, entry.path, io, .{ .make_path = true });
     }
 }
+
+/// An isolated per-mutant workspace: the project-relative `rel` path and an open
+/// handle `dir` to it. On success the caller owns both (close `dir`, deleteTree
+/// `rel`).
+pub const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
+
+/// Build an isolated per-mutant workspace under the run base: create the
+/// content-addressed `{run_id}/{mutant_id}` dir, copy the project tree (minus
+/// caches/VCS), and overwrite `mutant_file` with `patched`. Isolated by run +
+/// content-addressed mutant id, so the developer working tree is never modified.
+///
+/// On ANY failure after the directory is created, the partial workspace is
+/// unwound -- the fd is closed and the on-disk tree removed -- so no orphaned
+/// `{mutant_id}` dir is left behind; if that removal itself fails, `cleanup_failures`
+/// is bumped so the end-of-run warning stays truthful. Without this unwind the
+/// caller's success-only cleanup defer never fired on the failure path, silently
+/// leaking a partial dir and undercounting cleanup failures (L9).
+pub fn createMutantWorkspace(
+    io: std.Io,
+    arena: std.mem.Allocator,
+    root_dir: std.Io.Dir,
+    run_id: []const u8,
+    mutant_id: []const u8,
+    mutant_file: []const u8,
+    patched: []const u8,
+    cleanup_failures: *std.atomic.Value(u32),
+) !Workspace {
+    const rel = try workspaceRoot(arena, run_id, mutant_id);
+    if (config.pathEscapesRoot(io, root_dir, rel)) return error.WorkspaceCreateFailed;
+    try root_dir.createDirPath(io, rel);
+    // Unwind the on-disk workspace on ANY failure below. createDirPath just
+    // materialized {rel}; the caller's deleteTree/cleanup defer is armed only
+    // after this returns successfully, so without this a copyProjectTree /
+    // containment / writeFile / openDir error would orphan a partial {mutant_id}
+    // dir and leave it uncounted (L9). A failed removal still bumps
+    // cleanup_failures so the end-of-run warning stays truthful. errdefers unwind
+    // in reverse, so the fd (closed just below) is released before this deleteTree.
+    errdefer root_dir.deleteTree(io, rel) catch {
+        _ = cleanup_failures.fetchAdd(1, .monotonic);
+    };
+    var dir = try root_dir.openDir(io, rel, .{});
+    errdefer dir.close(io);
+
+    try copyProjectTree(io, arena, root_dir, dir, excludedCopyPath);
+    if (config.pathEscapesRoot(io, dir, mutant_file)) return error.WorkspaceCreateFailed;
+    // Ensure the mutated file's parent dir exists before the patched write:
+    // `writeFile` does not create parents, so a missing parent would otherwise
+    // fail the write and misclassify a real mutant as `invalid` (M2).
+    if (std.fs.path.dirname(mutant_file)) |parent| try dir.createDirPath(io, parent);
+    try dir.writeFile(io, .{ .sub_path = mutant_file, .data = patched });
+    return .{ .rel = rel, .dir = dir };
+}

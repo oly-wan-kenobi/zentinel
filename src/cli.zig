@@ -225,29 +225,16 @@ fn workspaceRunFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.Raw
     return execProcess(w.rt, argv, .{ .dir = w.dir });
 }
 
-const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
+const Workspace = zentinel.worker_pool.Workspace;
 
 /// Build an isolated per-mutant workspace under the zentinel-controlled cache
 /// location: copy the project tree (minus caches/VCS), then overwrite the
 /// mutated file with the patched bytes. Isolated by run + content-addressed
-/// mutant id, so the developer working tree is never modified.
+/// mutant id, so the developer working tree is never modified. The workspace
+/// lifecycle (creation + failure-path unwind, L9) lives in worker_pool beside
+/// the workspace path helpers; on success the caller owns `ws.dir`/`ws.rel`.
 fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
-    // Content-addressed, per-mutant root so concurrent workers never share a
-    // writable workspace, local .zig-cache, or zig-out (tasks/050).
-    const rel = try zentinel.worker_pool.workspaceRoot(rt.gpa, rt.run_id, m.id);
-    if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, rel)) return error.WorkspaceCreateFailed;
-    try rt.root_dir.createDirPath(rt.io, rel);
-    var dir = try rt.root_dir.openDir(rt.io, rel, .{});
-    errdefer dir.close(rt.io);
-
-    try zentinel.worker_pool.copyProjectTree(rt.io, rt.gpa, rt.root_dir, dir, zentinel.worker_pool.excludedCopyPath);
-    if (zentinel.config.pathEscapesRoot(rt.io, dir, m.file)) return error.WorkspaceCreateFailed;
-    // Ensure the mutated file's parent dir exists before the patched write:
-    // `writeFile` does not create parents, so a missing parent would otherwise
-    // fail the write and misclassify a real mutant as `invalid` (M2).
-    if (std.fs.path.dirname(m.file)) |parent| try dir.createDirPath(rt.io, parent);
-    try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
-    return .{ .rel = rel, .dir = dir };
+    return zentinel.worker_pool.createMutantWorkspace(rt.io, rt.gpa, rt.root_dir, rt.run_id, m.id, m.file, patched, &rt.cleanup_failures);
 }
 
 fn mutantRunFn(
