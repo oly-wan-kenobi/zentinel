@@ -142,8 +142,25 @@ pub const report_text = @import("report_text.zig");
 pub const report_jsonl = @import("report_jsonl.zig");
 pub const report_junit = @import("report_junit.zig");
 
+/// Whether a `--test-command` value can be safely embedded as a TOML basic-string
+/// array element in zentinel.toml. zentinel's TOML reader (src/config_toml.zig)
+/// has NO string escapes, so a value containing `"` would close the string early
+/// and inject extra array elements (e.g. `zig test", "evil` -> two commands), and
+/// a control byte (newline/tab/...) would malform the file. Such a value is
+/// unrepresentable; `dispatchInit` rejects it rather than write an injected or
+/// broken config (L21). Backslash is read literally by the reader, so it is safe.
+pub fn testCommandEmbeddable(value: []const u8) bool {
+    for (value) |c| {
+        if (c == '"' or c < 0x20 or c == 0x7f) return false;
+    }
+    return true;
+}
+
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
-/// baseline test command for config-aware `init --test-command`.
+/// baseline test command for config-aware `init --test-command`. Precondition:
+/// `dispatchInit` has rejected any value that is not `testCommandEmbeddable`, so
+/// the raw substitution stays a single quoted array element and is injection-safe
+/// (L21).
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
     const cmd = test_command orelse return default_config;
     const needle = "commands = [\"zig build test\"]";
@@ -334,6 +351,10 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
         } else if (eq(arg, "--test-command")) {
             i += 1;
             if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
+            // Reject values that cannot be embedded in zentinel's escape-free TOML:
+            // a `"` would inject extra commands, a control byte would malform the
+            // file (L21). Caught here so no "created zentinel.toml" is printed.
+            if (!testCommandEmbeddable(rest[i])) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
             test_command = rest[i];
         } else if (eq(arg, "--backend")) {
             i += 1;

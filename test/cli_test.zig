@@ -111,6 +111,29 @@ test "config-aware init accepts --test-command (owned by task 002)" {
     try std.testing.expectEqualStrings("zig build test", out.init_test_command.?);
 }
 
+test "config-aware init rejects a --test-command that would inject TOML structure (L21)" {
+    // zentinel's TOML reader has no string escapes, so a `"` in --test-command
+    // would close the string and inject a SECOND array element (silently adding a
+    // command). The value is rejected with exit 2 and NO config is written (L21).
+    const out = dispatch(&[_][]const u8{ "init", "--force", "--test-command", "zig test\", \"evil" }, false);
+    try std.testing.expectEqual(@as(u8, 2), out.exit_code);
+    try std.testing.expect(out.error_code == .cli_invalid_option);
+    try std.testing.expect(!out.write_config);
+    try std.testing.expect(out.init_test_command == null);
+    // A control byte (e.g. a newline) would also malform the file -> rejected.
+    const nl = dispatch(&[_][]const u8{ "init", "--force", "--test-command", "zig test\nevil" }, false);
+    try std.testing.expectEqual(@as(u8, 2), nl.exit_code);
+    try std.testing.expect(!nl.write_config);
+
+    // The embeddability predicate: ordinary commands (including backslashes, which
+    // the escape-free reader treats literally) are accepted; quotes and control
+    // bytes are rejected.
+    try std.testing.expect(zentinel.testCommandEmbeddable("zig build test -Dfoo=bar"));
+    try std.testing.expect(zentinel.testCommandEmbeddable("C:\\zig\\zig.exe test"));
+    try std.testing.expect(!zentinel.testCommandEmbeddable("a\" b"));
+    try std.testing.expect(!zentinel.testCommandEmbeddable("a\tb"));
+}
+
 test "config-aware init accepts --backend ast" {
     const out = dispatch(&[_][]const u8{ "init", "--backend", "ast" }, false);
     try std.testing.expectEqual(@as(u8, 0), out.exit_code);
