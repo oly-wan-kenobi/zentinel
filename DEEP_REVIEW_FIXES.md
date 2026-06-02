@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 16/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 17/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -32,7 +32,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **M9** · commit `f26d1e8` · AI-context mutant.id & operator fields bypass redaction → untrusted-report paths/secrets leak verbatim — src/ai/command.zig
 - [x] `done` **M10** · commit `81e2aea` · report.summarize per-status arithmetic unpinned; validate() blind to a score-inflating regression — src/report.zig:223-235 `[rel: H4]`
 - [x] `done` **M11** · commit `abf52ca` · JUnit XML renderer emits XML-illegal control chars (e.g. ANSI ESC) → invalid XML — src/report_junit.zig
-- [ ] `todo` **M12** · commit `—` · validate_pipeline_artifact_tree silently skips all committed verification/report.json artifacts — scripts/validate_task_system.py `[rel: H4]`
+- [x] `done` **M12** · commit `c26d716` · validate_pipeline_artifact_tree silently skips all committed verification/report.json artifacts — scripts/validate_task_system.py `[rel: H4]`
 
 ## Low
 - [ ] `todo` **L1** · commit `—` · AI explain/suggest returns wrong error code (REPORT_NOT_FOUND) for an existing report with an invalid empty-commands mutant — src/ai/command.zig
