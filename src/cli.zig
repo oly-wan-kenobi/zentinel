@@ -2,7 +2,11 @@
 const std = @import("std");
 const zentinel = @import("zentinel");
 
-const config_path = "zentinel.toml";
+// Derive the adapter's config path from the core's single source of truth
+// (`zentinel.config_default_path`) rather than a private duplicate literal, so
+// `init`'s write path and the config-existence probe can never silently diverge
+// from the path the rest of the system resolves config from (S9).
+const config_path = zentinel.config_default_path;
 const read_limit = std.Io.Limit.limited(1 << 20);
 
 /// Thin presentation adapter. Pure decision logic lives in the zentinel core:

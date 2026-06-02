@@ -145,6 +145,41 @@ test "the built binary mutates a real fixture project and reports one killed and
     try expect(saw_error_catch);
 }
 
+test "zentinel init writes its config at zentinel.config_default_path, not a private duplicate (S9)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    const exe_path = try exePath(a);
+    // `init` in an empty project writes the starter config into the cwd root.
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "init" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => {
+            std.debug.print("integration(S9): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            return error.BinaryCrashed;
+        },
+    }
+
+    // The adapter must write the config to the SAME path the core resolves it
+    // from by default -- the single source of truth `zentinel.config_default_path`
+    // (root.zig) -- not a private duplicate literal in cli.zig (S9). Locating the
+    // written file through the exported constant is what binds `init`'s write path
+    // to that source of truth: if cli.zig carried an unlinked copy and the core
+    // constant were renamed, `init` would write somewhere the rest of the system
+    // never looks, and this access would fail with FileNotFound.
+    try tmp.dir.access(io, zentinel.config_default_path, .{});
+}
+
 test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel/workspaces (L8)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
