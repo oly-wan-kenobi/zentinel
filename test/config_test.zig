@@ -103,6 +103,30 @@ test "unsupported TOML syntax fails with parse_error" {
     try expect(diag.code == .parse_error);
 }
 
+test "explicit empty zig.modes is rejected, like empty test.commands (L45)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // An explicit `modes = []` is meaningless intent the matrix would silently run
+    // as Debug-only; it is a usage error, not a silently-accepted no-op.
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(a, "[zig]\nmodes = []\n", &diag));
+    try expect(diag.code == .invalid_value);
+    try expectEqualStrings("zig", diag.section);
+    try expectEqualStrings("modes", diag.key);
+
+    // Omitting `modes` keeps the Debug default; an explicit non-empty list loads.
+    var d2: config.Diagnostic = .{};
+    const dflt = try load(a, "", &d2);
+    try expectEqual(@as(usize, 1), dflt.zig_modes.len);
+    try expectEqualStrings("Debug", dflt.zig_modes[0]);
+
+    var d3: config.Diagnostic = .{};
+    const multi = try load(a, "[zig]\nmodes = [\"Debug\", \"ReleaseFast\"]\n", &d3);
+    try expectEqual(@as(usize, 2), multi.zig_modes.len);
+}
+
 test "duplicate keys in the same section are rejected, not silently first-wins (L37)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

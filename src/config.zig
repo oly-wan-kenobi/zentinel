@@ -346,6 +346,10 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     for (zig_modes) |m| {
         if (!inList(&known_modes, m)) return fail(diag, .invalid_value, "zig", "modes", "unknown Zig mode");
     }
+    // An explicit `modes = []` is meaningless intent that the matrix would silently
+    // redirect to Debug; reject it (omitting `modes` keeps the Debug default),
+    // matching how empty `test.commands` is handled below (L45).
+    if (zig_modes.len == 0) return fail(diag, .invalid_value, "zig", "modes", "modes must not be empty");
 
     // [backend]
     const backend_default = try look.getString("backend", "default", "ast", diag);
