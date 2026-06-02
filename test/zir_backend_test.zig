@@ -89,3 +89,60 @@ test "isSupported partitions condition operators from literal/arithmetic operato
     try expect(!zir.isSupported("arithmetic_add_sub"));
     try expect(!zir.isSupported("integer_literal_boundary"));
 }
+
+// --- Real ZIR lowering: differential parity with the AST recognizer ----------
+
+fn astComparisonOf(arena: std.mem.Allocator, file: []const u8, source: []const u8) ![]mutant.Mutant {
+    const parsed = try ast_backend.parse(arena, file, source);
+    const ranges = try ast_backend.testDeclRanges(parsed, arena);
+    var collector = ast_backend.Collector.init(arena);
+    try comparison.collect(&collector, parsed, file, ranges);
+    return collector.finish();
+}
+
+test "fromTree lowers source to ZIR and matches the AST comparison set exactly (differential parity)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const fixtures = [_][]const u8{
+        // plain comparisons
+        "pub fn f(a: i32, b: i32) bool {\n    if (a == b) return true;\n    if (a < b) return false;\n    return a != b;\n}\n",
+        // all six operators
+        "pub fn g(a: i32, b: i32) i32 {\n    if (a == b) return 0;\n    if (a != b) return 1;\n    if (a < b) return 2;\n    if (a <= b) return 3;\n    if (a > b) return 4;\n    if (a >= b) return 5;\n    return 6;\n}\n",
+        // nested fns + generic struct (multi-decl source mapping)
+        "fn outer(a: i32, b: i32) bool {\n    return a < b;\n}\nfn Gen(comptime T: type) type {\n    return struct {\n        fn cmp(x: T, y: T) bool {\n            return x == y;\n        }\n    };\n}\npub fn use() bool {\n    return outer(1, 2) and Gen(u8).cmp(3, 4);\n}\n",
+        // `== null` is excluded by BOTH backends (left to optional_null_check)
+        "pub fn n(x: ?u8) bool {\n    return x == null;\n}\n",
+        // comparison inside a test body is excluded by BOTH; the one outside is kept
+        "pub fn h(a: i32, b: i32) bool {\n    return a > b;\n}\ntest \"t\" {\n    _ = (1 == 2);\n}\n",
+        // for-loop + switch inject ZIR comparisons with no source operator: the
+        // injected cmps must be DROPPED, leaving only the real `acc > 100`.
+        "pub fn s(xs: []const u8) u32 {\n    var acc: u32 = 0;\n    for (xs) |x| {\n        switch (x) {\n            0...9 => acc += 1,\n            else => acc += 2,\n        }\n        if (acc > 100) break;\n    }\n    return acc;\n}\n",
+    };
+
+    inline for (fixtures, 0..) |src, fi| {
+        const file = "p.zig";
+        const ast = try astComparisonOf(arena, file, src);
+        const result = try zir.fromTree(arena, file, src);
+
+        // Exact differential parity: the ZIR backend independently recognized and
+        // mapped the SAME comparison sites the AST recognizer found -- same count,
+        // operator, span, original text, and replacement -- just re-tagged .zir.
+        try expectEqual(ast.len, result.candidates.len);
+        for (ast, result.candidates) |a, z| {
+            try expectEqual(mutant.Backend.zir, z.backend);
+            try expectEqual(mutant.BackendStability.experimental, z.backend_stability);
+            try expectEqualStrings(zir.backend_version, z.backend_version);
+            try expectEqualStrings(a.operator, z.operator);
+            try expectEqual(a.span.byte_start, z.span.byte_start);
+            try expectEqual(a.span.byte_end, z.span.byte_end);
+            try expectEqualStrings(a.original, z.original);
+            try expectEqualStrings(a.replacement, z.replacement);
+        }
+        // fixture index 5 (for/switch) must have produced injected-comparison
+        // diagnostics that were dropped from the mutant set, proving ZIR did real
+        // lowering rather than just echoing the AST candidates.
+        if (fi == 5) try expect(result.diagnostics.len > 0);
+    }
+}
