@@ -23,11 +23,18 @@ pub const Generator = struct {
         return z ^ (z >> 31);
     }
 
-    /// A value in `[lo, hi]` (inclusive). `lo <= hi` is required.
+    /// A value in `[lo, hi]` (inclusive). `lo <= hi` is required. The inclusive span
+    /// and the mapped draw are computed in u64 (via `@bitCast`) so a range spanning
+    /// more than half the i64 domain -- up to the full `minInt(i64)..maxInt(i64)` --
+    /// can neither overflow the `hi - lo + 1` intermediate nor panic an i64 `@intCast`
+    /// on the modulo result (L39). A wrapped span of 0 means the full u64 domain.
     pub fn intRange(self: *Generator, lo: i64, hi: i64) i64 {
         std.debug.assert(lo <= hi);
-        const span: u64 = @intCast(hi - lo + 1);
-        return lo + @as(i64, @intCast(self.next() % span));
+        const lo_u: u64 = @bitCast(lo);
+        const hi_u: u64 = @bitCast(hi);
+        const span: u64 = (hi_u -% lo_u) +% 1;
+        const offset: u64 = if (span == 0) self.next() else self.next() % span;
+        return @bitCast(lo_u +% offset);
     }
 
     pub fn boolean(self: *Generator) bool {

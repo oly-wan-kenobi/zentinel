@@ -37,6 +37,64 @@ test "same seed emits the same generated case sequence" {
     try std.testing.expect(diverged);
 }
 
+// The Generator's draw helpers (intRange/boolean/bytes) are public API but had no
+// caller or test; intRange also carried a latent overflow -- `hi - lo + 1` and the
+// i64 @intCast of the modulo panic for a range spanning more than half the i64
+// domain. These pin the bounds (including the full i64 width) and determinism (L39).
+test "Generator.intRange stays in bounds for normal, point, and full-width ranges (L39)" {
+    // Normal range: every draw is within [lo, hi], including negative lo.
+    var g = gen.Generator.init(0x123456789ABCDEF);
+    var i: usize = 0;
+    while (i < 1000) : (i += 1) {
+        const v = g.intRange(-5, 5);
+        try std.testing.expect(v >= -5 and v <= 5);
+    }
+
+    // A point range lo == hi returns exactly that value.
+    var gp = gen.Generator.init(7);
+    try std.testing.expectEqual(@as(i64, 42), gp.intRange(42, 42));
+
+    // The full i64 width must neither overflow `hi - lo + 1` nor panic an i64
+    // @intCast on the modulo result -- the latent bug. Pre-fix this panics; post-fix
+    // every draw is a valid i64 in range.
+    var gf = gen.Generator.init(0xDEADBEEF);
+    var j: usize = 0;
+    while (j < 200) : (j += 1) {
+        const v = gf.intRange(std.math.minInt(i64), std.math.maxInt(i64));
+        try std.testing.expect(v >= std.math.minInt(i64) and v <= std.math.maxInt(i64));
+    }
+}
+
+test "Generator.boolean and bytes are deterministic and exercise their range (L39)" {
+    // boolean(): both values occur over many draws (not a stuck stream).
+    var g = gen.Generator.init(0xABCDEF);
+    var seen_true = false;
+    var seen_false = false;
+    var i: usize = 0;
+    while (i < 200) : (i += 1) {
+        if (g.boolean()) {
+            seen_true = true;
+        } else {
+            seen_false = true;
+        }
+    }
+    try std.testing.expect(seen_true and seen_false);
+
+    // bytes(): a fixed seed fills the whole buffer identically; a different seed
+    // produces a different fill (the stream is actually consumed, not left zeroed).
+    var a_buf: [37]u8 = undefined;
+    var b_buf: [37]u8 = undefined;
+    var c_buf: [37]u8 = undefined;
+    var ga = gen.Generator.init(0x2024);
+    var gb = gen.Generator.init(0x2024);
+    var gc = gen.Generator.init(0x2025);
+    ga.bytes(&a_buf);
+    gb.bytes(&b_buf);
+    gc.bytes(&c_buf);
+    try std.testing.expectEqualSlices(u8, &a_buf, &b_buf);
+    try std.testing.expect(!std.mem.eql(u8, &a_buf, &c_buf));
+}
+
 // The support helper runs a property over a seeded stream and records the seed,
 // the generated case count, and a counterexample on failure — deterministically.
 test "property support helper records seed and generated case count deterministically" {
