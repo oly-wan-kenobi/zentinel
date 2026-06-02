@@ -414,6 +414,26 @@ test "each source file's AST is parsed once per run, not re-parsed for same-file
     try expectEqual(@as(usize, 1), rc.ast_parse_count);
 }
 
+test "the enabled-operator set is scanned once per run, not once per raw candidate (S10)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // reverify_src yields two raw arithmetic candidates (f's `a + b`, g's `a * b`),
+    // both enabled in cfg_toml. The prior code called enabled() once per raw
+    // candidate, re-scanning cfg.mutators_enabled each time (O(M*E)). The membership
+    // structure is now built once per run and reused for an O(1) check, so the scan
+    // count must be 1 regardless of candidate count -- not 2 (one per candidate) (S10).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.enabled_operator_scan_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.enabled_operator_scan_count);
+}
+
 test "--fail-on-survivors exits 1 when a mutant survives" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

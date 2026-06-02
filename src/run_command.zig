@@ -671,11 +671,21 @@ fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: [
     return try runner.classifyCommand(arena, .selection_preflight, original, argv, cwd, raw);
 }
 
-fn enabled(cfg: config.Config, operator: []const u8) bool {
-    for (cfg.mutators_enabled) |op| {
-        if (std.mem.eql(u8, op, operator)) return true;
-    }
-    return false;
+/// Test-only counter: how many times the enabled-operator membership set is
+/// built (a single linear pass over cfg.mutators_enabled) during candidate
+/// generation. The enabled set is constant for a run, so this must be 1 per run,
+/// not 1 per raw candidate -- the prior `enabled()` helper re-scanned the list
+/// for every candidate, an O(M*E) filter (S10).
+pub var enabled_operator_scan_count: usize = 0;
+
+/// Build the enabled-operator membership set with one linear pass over
+/// cfg.mutators_enabled, so the per-candidate enable check is an O(1) hash lookup
+/// rather than an O(E) scan repeated for every raw candidate (O(M*E)) (S10).
+fn enabledOperatorSet(arena: std.mem.Allocator, cfg: config.Config) std.mem.Allocator.Error!std.StringHashMap(void) {
+    enabled_operator_scan_count += 1;
+    var set = std.StringHashMap(void).init(arena);
+    for (cfg.mutators_enabled) |op| try set.put(op, {});
+    return set;
 }
 
 /// The mutant candidates plus the same-file tests discovered during the single
@@ -716,9 +726,12 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
     if (collector.invalidCount() > 0) return error.InvalidCandidate;
     const all = try collector.finishRaw();
 
+    // Build the enabled-operator set once per run; each candidate's enable check
+    // is then an O(1) lookup instead of an O(E) linear scan per candidate (S10).
+    const enabled_ops = try enabledOperatorSet(arena, cfg);
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {
-        if (!enabled(cfg, c.operator)) continue;
+        if (!enabled_ops.contains(c.operator)) continue;
         if (options.operator_filter) |op| {
             if (!std.mem.eql(u8, c.operator, op)) continue;
         }
