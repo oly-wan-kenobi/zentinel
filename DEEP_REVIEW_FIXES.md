@@ -9,7 +9,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - Read the finding's full Evidence / Tool confirmation / Why / Repro / Suggested-fix in DEEP_REVIEW.md before touching code. Absolute paths there map to repo-relative.
 - `[rel: Hx]` = closely related to that High finding; fix together when cheap.
 
-**Progress:** 23/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
+**Progress:** 24/67 confirmed fixed · 0/17 suspected resolved  _(update this line as you go)_
 
 ---
 
@@ -41,7 +41,7 @@ Remediation tracker for the findings in [DEEP_REVIEW.md](DEEP_REVIEW.md): **67 c
 - [x] `done` **L4** · commit `ebd7fbb` · commandSpecsForConfigured re-parses configured commands once per surviving mutant — src/run_command.zig
 - [x] `done` **L5** · commit `7751f57` · commandSpecsForSelection called O(M) times per file instead of O(1) — src/run_command.zig
 - [x] `done` **L6** · commit `9c71760` · error-path/optional skip-guards use exact byte-string equality → no-op (equivalent) mutants — src/mutators/error_path.zig:99-101 `[rel: H2]`
-- [ ] `todo` **L7** · commit `—` · per-mutant workspace walker descends into excluded .git/.zig-cache/zig-out dirs — src/cli.zig:228-256 `[rel: H3]`
+- [x] `done` **L7** · commit `381f857` · per-mutant workspace walker descends into excluded .git/.zig-cache/zig-out dirs — src/cli.zig:228-256 `[rel: H3]` — subsumed by H3: setupWorkspace routes through worker_pool.copyProjectTree (walkSelectively, never enter()s excluded dirs); proven by the "never descends into .zig-cache/zig-out/.git" test (excludeNothing copy filter → only no-descent keeps the excluded subtrees out)
 - [ ] `todo` **L8** · commit `—` · per-run workspace base dir ({run_id}/workspaces) never deleted → stale dir leaked every run — src/cli.zig `[rel: H3]`
 - [ ] `todo` **L9** · commit `—` · partial per-mutant workspace orphaned (cleanup_failures undercounted) when setupWorkspace fails — src/cli.zig `[rel: H3]`
 - [ ] `todo` **L10** · commit `—` · documented per-worker cache/output isolation unenforced: worker_pool.cacheDirIn/outDirIn are dead — src/worker_pool.zig
