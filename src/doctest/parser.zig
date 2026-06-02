@@ -151,7 +151,16 @@ fn classify(
         if (block.kindFromToken(tok)) |k| {
             b.kind = k;
         } else if (block.matchModeFromToken(tok)) |m| {
-            b.match_mode = m;
+            // `subset` and `unordered` are JSON-only match modes (matchModeFor maps
+            // them to json_subset/json_unordered). On a non-JSON block they have no
+            // meaning and were silently downgraded to exact matching with no
+            // diagnostic (S11); treat them as unsupported so the author gets a clear
+            // doctest_unsupported_tag diagnostic instead of a confusing false mismatch.
+            if ((m == .subset or m == .unordered) and b.language != .json) {
+                unsupported = true;
+            } else {
+                b.match_mode = m;
+            }
         } else if (std.mem.startsWith(u8, tok, "case:")) {
             b.case_label = tok["case:".len..];
         } else if (std.mem.indexOfScalar(u8, tok, ':') != null) {

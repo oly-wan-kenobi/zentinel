@@ -160,6 +160,35 @@ test "info-string variants classify language, kind, and match mode" {
     try expectEqual(block.Kind.after, p.blocks[5].kind);
 }
 
+test "JSON-only match modes (subset/unordered) on a non-JSON block are unsupported tags, not silent exact (S11)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `subset` and `unordered` are JSON-only match modes. Before S11 the parser
+    // accepted them on a text block silently (match_mode = .subset/.unordered) and
+    // matchModeFor then downgraded them to exact matching with no diagnostic. The
+    // parser must instead emit doctest_unsupported_tag and refuse each block as a
+    // doctest, so the author gets a clear error rather than a confusing false
+    // mismatch. A JSON block with the same tag stays valid (see the info-string and
+    // M6 tests).
+    const src =
+        "```text output subset\nhi\n```\n" ++ // opens at line 1
+        "```text output unordered\nhi\n```\n"; // opens at line 4
+    const p = try parse(a, src);
+
+    try expectEqual(@as(usize, 0), doctestCount(p));
+    try expectEqual(@as(usize, 2), p.diagnostics.len);
+    try expectEqualStrings(error_codes.doctest_unsupported_tag, p.diagnostics[0].code);
+    try expectEqual(@as(u32, 1), p.diagnostics[0].line);
+    try expectEqualStrings(error_codes.doctest_unsupported_tag, p.diagnostics[1].code);
+    try expectEqual(@as(u32, 4), p.diagnostics[1].line);
+    // Both blocks are still classified (language recognized) but rejected as doctests.
+    try expectEqual(block.Language.text, p.blocks[0].language);
+    try expect(!p.blocks[0].is_doctest);
+    try expect(!p.blocks[1].is_doctest);
+}
+
 test "parses a fixture markdown file into the expected doctest blocks" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
