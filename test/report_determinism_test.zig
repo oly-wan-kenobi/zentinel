@@ -143,3 +143,32 @@ test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerp
         try report.normalizeExcerpt(a, "keep // and /home/ci/build/key"),
     );
 }
+
+test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme:// URIs (L28)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The boundary that introduces a `/`-rooted path is not only whitespace/quote/
+    // bracket: build & test output routinely glues a path to a preceding `=`, `:`
+    // or `>` (`key=/abs`, `note:/abs`, redirection `2>/abs`) or embeds it in a
+    // `scheme://` URI. Each of these must collapse to `<path>` so the absolute
+    // developer path never lands in the committed report and the excerpt bytes are
+    // identical across machines (L28).
+    try expectEqualStrings("root=<path>", try report.normalizeExcerpt(a, "root=/Users/dev/secret/leak.zig"));
+    try expectEqualStrings("note:<path>", try report.normalizeExcerpt(a, "note:/home/ci/build/x.zig"));
+    try expectEqualStrings("wrote><path>", try report.normalizeExcerpt(a, "wrote>/Users/dev/out/leak.zig"));
+    try expectEqualStrings("see file:<path> now", try report.normalizeExcerpt(a, "see file:///Users/dev/secret/leak.zig now"));
+
+    // Determinism: the same line from two different machines normalizes to one
+    // byte sequence (the whole point of normalizeExcerpt).
+    const alice = try report.normalizeExcerpt(a, "cache_dir=/Users/alice/proj/.zig-cache failed");
+    const bob = try report.normalizeExcerpt(a, "cache_dir=/Users/bob/work/.zig-cache failed");
+    try expectEqualStrings("cache_dir=<path> failed", alice);
+    try expectEqualStrings(alice, bob);
+
+    // A lone division operator and a relative segment after `=` are NOT paths
+    // (single segment / no leading slash): they survive unchanged.
+    try expectEqualStrings("n=a/b", try report.normalizeExcerpt(a, "n=a/b"));
+    try expectEqualStrings("x=/tmp", try report.normalizeExcerpt(a, "x=/tmp"));
+}

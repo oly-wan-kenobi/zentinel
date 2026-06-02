@@ -468,7 +468,9 @@ fn replaceKeyStringValue(arena: std.mem.Allocator, text: []const u8, key: []cons
 /// addresses (`0x<hex>`, which differ on every run) and absolute machine paths
 /// (which differ across machines); both are replaced with the stable placeholders
 /// `0x<addr>` and `<path>` so a killed mutant's stderr can no longer make the
-/// report non-deterministic. Surrounding prose is preserved (excerpts are
+/// report non-deterministic. An absolute path is recognized whether it starts the
+/// line, follows whitespace/quote/bracket, or is glued to a `=`/`:`/`>`/`,` or a
+/// `scheme://` prefix (L28). Surrounding prose is preserved (excerpts are
 /// normalized, never dropped). Returns an arena-owned copy; the input is unchanged.
 pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
     var out: std.ArrayList(u8) = .empty;
@@ -484,12 +486,23 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
         // Absolute path token: Unix `/abs/path` entries and Windows `C:\path`
         // entries are replaced even when quoted paths contain spaces. This keeps
         // repeated-run comparison stable across developer machines.
-        const at_boundary = i == 0 or isExcerptBoundary(text[i - 1]);
-        // A `//`-led run is a Zig comment marker, not an absolute path (a real
-        // absolute path has a non-empty first segment, `/a/...`). Excluding it
-        // keeps source-line comments in committed excerpts intact instead of
-        // collapsing them to `<path>` (M3).
-        if (text[i] == '/' and at_boundary and (i + 1 >= text.len or text[i + 1] != '/')) {
+        // A `/` begins an absolute path at a token boundary: start of text, after
+        // a non-path byte, OR after a `:`. Build/test output routinely glues a path
+        // to a preceding `=`, `:`, `>` or `,` (`key=/abs`, `note:/abs`, redirection
+        // `2>/abs`) or embeds it in a `scheme://` URI; the old positive-set boundary
+        // (whitespace/quote/bracket only) left those verbatim, leaking the absolute
+        // developer path into the committed report and breaking cross-machine
+        // determinism (L28). This mirrors redaction.normalizeAbsolutePaths (M8) so
+        // the two normalizers stay consistent.
+        const prev_is_colon = i > 0 and text[i - 1] == ':';
+        const at_boundary = i == 0 or !isExcerptPathByte(text[i - 1]) or prev_is_colon;
+        // A `//`-led run is a Zig comment marker (`//`, `///`, `//!`), not an
+        // absolute path; excluding it keeps source-line comments in committed
+        // excerpts intact instead of collapsing them to `<path>` (M3) -- EXCEPT when
+        // the `//` is glued to a preceding `:` as a `scheme://` separator, where it
+        // introduces a URI path to redact (L28).
+        const comment_marker = i + 1 < text.len and text[i + 1] == '/' and !prev_is_colon;
+        if (text[i] == '/' and at_boundary and !comment_marker) {
             var end = i + 1;
             var inner_slashes: usize = 0;
             const quote: ?u8 = if (i > 0 and isExcerptQuote(text[i - 1])) text[i - 1] else null;
@@ -548,8 +561,12 @@ fn excerptSpaceContinuesPath(text: []const u8, space_index: usize) bool {
     }
     return false;
 }
-fn isExcerptBoundary(c: u8) bool {
-    return isExcerptSpace(c) or isExcerptQuote(c) or c == '(' or c == '[' or c == '{';
+/// True for a byte that can appear inside an absolute-path token. A `/` is treated
+/// as starting a path only when the preceding byte is NOT one of these (or is a
+/// `:`), mirroring redaction.isPathByte (M8) so excerpt and AI-context path
+/// normalization agree on token boundaries.
+fn isExcerptPathByte(c: u8) bool {
+    return std.ascii.isAlphanumeric(c) or c == '/' or c == '\\' or c == ':' or c == '.' or c == '_' or c == '-';
 }
 fn isWindowsExcerptPathAt(text: []const u8, i: usize) bool {
     return i + 2 < text.len and
