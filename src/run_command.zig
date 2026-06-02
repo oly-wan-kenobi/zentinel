@@ -298,10 +298,13 @@ pub fn run(
     // `survived`/`killed` verdict always reflects the configured suite (I-012:
     // nothing is hidden). The primary mode is re-verified here before the mode
     // matrix reads it.
+    // `cfg.test_commands` is constant for the whole run, so parse it into specs
+    // ONCE and share the read-only slice across every surviving mutant rather than
+    // re-parsing per survivor (L4).
+    const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
     for (jobs, 0..) |job, ji| {
         if (results[ji].status != .survived) continue;
         if (!test_selection.needsConfiguredReverification(job.commands, cfg.test_commands)) continue;
-        const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
         const reverify = mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, mode);
         results[ji] = try mergeReverification(arena, results[ji], reverify);
     }
@@ -478,7 +481,13 @@ const FileSelection = struct {
     generated_in_baseline: bool,
 };
 
+/// Test-only counter: how many times the configured commands were parsed into
+/// specs. They are constant across the Phase B.5 survivor reverification loop, so
+/// this must be 1 per run, not 1 per surviving mutant (L4).
+pub var configured_specs_parse_count: usize = 0;
+
 fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const command.Spec {
+    configured_specs_parse_count += 1;
     const specs = try arena.alloc(command.Spec, commands.len);
     for (commands, 0..) |original, i| {
         const argv = switch (try command.parse(arena, original)) {

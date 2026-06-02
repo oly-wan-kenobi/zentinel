@@ -259,6 +259,40 @@ test "a passing test leaves the mutant surviving" {
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
+// A source with a same-file test (so selection narrows to `zig test <file>`,
+// triggering configured reverification) and two mutable production sites.
+const reverify_src =
+    \\pub fn f(a: i32, b: i32) i32 {
+    \\    return a + b;
+    \\}
+    \\pub fn g(a: i32, b: i32) i32 {
+    \\    return a * b;
+    \\}
+    \\test "t" {
+    \\    _ = f(1, 2);
+    \\    _ = g(1, 2);
+    \\}
+;
+
+test "configured reverification specs are parsed once per run, not once per surviving mutant (L4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Both mutants survive (mock passes) and both need configured reverification
+    // (the same-file selection narrowed away from `zig build test`), so Phase B.5
+    // reverifies twice -- but the configured specs are constant across the loop.
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.configured_specs_parse_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.survived);
+    // Hoisted: parsed once for the whole run, not once per surviving mutant.
+    try expectEqual(@as(usize, 1), rc.configured_specs_parse_count);
+}
+
 test "--fail-on-survivors exits 1 when a mutant survives" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
