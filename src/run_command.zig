@@ -257,8 +257,10 @@ pub fn run(
         };
     }
 
-    // Generate candidates over the discovered files, then filter.
-    const candidates = try generateCandidates(arena, cfg, files, options);
+    // Generate candidates over the discovered files, then filter. The single parse
+    // per file also yields each file's same-file tests, reused by selection (L30).
+    const generated = try generateCandidates(arena, cfg, files, options);
+    const candidates = generated.mutants;
 
     const strategy = strategyFromConfig(cfg.test_selection);
 
@@ -281,7 +283,7 @@ pub fn run(
             for (spec_cache.items) |c| {
                 if (std.mem.eql(u8, c.file, candidate.file)) break :blk c;
             }
-            const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
+            const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, &generated.same_file_tests, cfg.test_commands, baseline_executor, obs.project_root);
             const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
             const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
             const computed = FileSpec{ .file = candidate.file, .resolution = resolution, .specs = specs };
@@ -572,6 +574,12 @@ fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const 
     return specs;
 }
 
+/// Test-only counter: how many times a source file's AST is parsed during a run.
+/// Each file is parsed once in `generateCandidates`; the same-file selection then
+/// reuses that parse via the per-file table rather than parsing a second time, so
+/// this must be 1 per unique file, not 2 (L30).
+pub var ast_parse_count: usize = 0;
+
 /// Compute (and cache) the selection inputs for `file`. When the strategy uses
 /// same-file tests and the generated `zig test <file>` command is not already a
 /// baseline command, this runs the generated command against the UNMUTATED
@@ -583,7 +591,7 @@ fn selectionForFile(
     sel_cache: *std.ArrayList(FileSelection),
     strategy: test_selection.Strategy,
     file: []const u8,
-    source: []const u8,
+    same_file_tests_by_file: *const std.StringHashMap([]const report.SelectedTest),
     configured: []const []const u8,
     baseline_executor: runner.Executor,
     cwd: []const u8,
@@ -595,9 +603,9 @@ fn selectionForFile(
     var same_file_tests: []const report.SelectedTest = &.{};
     const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
     if (same_file_enabled) {
-        var parsed = try ast_backend.parse(arena, file, source);
-        defer parsed.deinit();
-        if (parsed.ok()) same_file_tests = try test_selection.sameFileTests(arena, parsed, file);
+        // Reuse the parse from generateCandidates: this file's same-file tests were
+        // computed there and memoized, so selection never re-parses the file (L30).
+        same_file_tests = same_file_tests_by_file.get(file) orelse &.{};
     }
 
     const generated = try test_selection.generatedCommand(arena, file);
@@ -639,15 +647,29 @@ fn enabled(cfg: config.Config, operator: []const u8) bool {
     return false;
 }
 
-/// Recognize Phase 1 AST candidates over every file, then keep only those whose
-/// operator is enabled in config and that match the optional CLI filters.
-fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []const FileSource, options: Options) RunError![]mutant.Mutant {
+/// The mutant candidates plus the same-file tests discovered during the single
+/// per-file parse, so the same-file selection never re-parses a file (L30).
+const GeneratedCandidates = struct {
+    mutants: []mutant.Mutant,
+    same_file_tests: std.StringHashMap([]const report.SelectedTest),
+};
+
+/// Recognize Phase 1+2 AST candidates over every file (keeping only those whose
+/// operator is enabled in config and that match the optional CLI filters) and, from
+/// the same parse, record each file's same-file tests so selection need not
+/// re-parse the file (L30).
+fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []const FileSource, options: Options) RunError!GeneratedCandidates {
     var collector = ast_backend.Collector.init(arena);
+    var same_file_tests = std.StringHashMap([]const report.SelectedTest).init(arena);
     for (files) |f| {
+        ast_parse_count += 1;
         var parsed = try ast_backend.parse(arena, f.path, f.source);
         defer parsed.deinit();
         if (!parsed.ok()) return error.BackendParseError;
         const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
+        // Discover same-file tests from THIS parse so selectionForFile reuses them
+        // instead of parsing the file a second time (L30).
+        try same_file_tests.put(f.path, try test_selection.sameFileTests(arena, parsed, f.path));
         try arithmetic.collect(&collector, parsed, f.path, test_ranges);
         try comparison.collect(&collector, parsed, f.path, test_ranges);
         try logical.collect(&collector, parsed, f.path, test_ranges);
@@ -674,7 +696,8 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         }
         try kept.append(arena, c);
     }
-    return mutant.sortAndDedupe(arena, kept.items);
+    const mutants = try mutant.sortAndDedupe(arena, kept.items);
+    return .{ .mutants = mutants, .same_file_tests = same_file_tests };
 }
 
 /// Merge a narrowed-selection survivor with its configured-suite re-verification.

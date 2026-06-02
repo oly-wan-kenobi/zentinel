@@ -375,6 +375,27 @@ test "the source index is built once per run, not scanned once per mutant (L18)"
     try expectEqual(@as(usize, 1), rc.source_index_builds);
 }
 
+test "each source file's AST is parsed once per run, not re-parsed for same-file selection (L30)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // One source file, two mutants, default same_file_then_package selection (the
+    // file has a same-file test, so selection narrows). generateCandidates parses
+    // the file to find candidates; the same-file selection must reuse that parse
+    // via the per-file table instead of parsing the file a second time (L30).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.ast_parse_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    // Parsed exactly once for the single file, not once in generateCandidates and
+    // again in selectionForFile.
+    try expectEqual(@as(usize, 1), rc.ast_parse_count);
+}
+
 test "--fail-on-survivors exits 1 when a mutant survives" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
