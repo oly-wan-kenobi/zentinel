@@ -262,22 +262,27 @@ test "property: repeated runs are equivalent except normalized observation metad
     try expectEqualStrings(j1, j2);
 }
 
-test "property: --no-color does not change doctest output" {
+test "property: --no-color is accepted as a pure no-op and never changes doctest output (L20)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
-    const colored = try runFile(a, "test/fixtures/doctest/cli/fail.md", .{ .file = "x", .no_color = false });
-    const plain = try runFile(a, "test/fixtures/doctest/cli/fail.md", .{ .file = "x", .no_color = true });
-    const t1 = try dc.renderText(a, colored.report);
-    const t2 = try dc.renderText(a, plain.report);
-    try expectEqualStrings(t1, t2);
+    // --no-color must parse WITHOUT error (it is accepted for CLI uniformity), and
+    // since doctest renderers emit no ANSI color it stores nothing -- so the run
+    // with the flag yields byte-identical output to the run without it (L20).
+    const with = try dc.parseArgs(&.{ "--file", "x", "--no-color" });
+    const without = try dc.parseArgs(&.{ "--file", "x" });
+    const colored = try runFile(a, "test/fixtures/doctest/cli/fail.md", with);
+    const plain = try runFile(a, "test/fixtures/doctest/cli/fail.md", without);
+    try expectEqualStrings(try dc.renderText(a, colored.report), try dc.renderText(a, plain.report));
 }
 
 test "doctest parseArgs rejects unsupported subcommands and unknown options" {
     try std.testing.expectError(error.UnsupportedSubcommand, dc.parseArgs(&.{"explain"}));
     try std.testing.expectError(error.UnknownOption, dc.parseArgs(&.{"--mutate"}));
     try std.testing.expectError(error.InvalidFormat, dc.parseArgs(&.{ "--format", "yaml" }));
+    // --no-color is accepted (no error), parsed alongside the real options, and
+    // stores nothing -- it is a pure no-op (L20).
     const ok = try dc.parseArgs(&.{ "--file", "docs/CLI_SPEC.md", "--format", "json", "--no-color" });
     try expectEqual(dc.Format.json, ok.format);
-    try expect(ok.no_color);
+    try expectEqualStrings("docs/CLI_SPEC.md", ok.file.?);
 }

@@ -25,7 +25,6 @@ pub const Options = struct {
     file: ?[]const u8 = null,
     format: Format = .text,
     case_ref: ?[]const u8 = null,
-    no_color: bool = false,
 };
 
 pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat, UnsupportedSubcommand };
@@ -55,7 +54,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             if (i >= args.len) return error.MissingValue;
             opts.case_ref = args[i];
         } else if (std.mem.eql(u8, a, "--no-color")) {
-            opts.no_color = true;
+            // Accepted for CLI uniformity (root.zig accepts `--no-color` globally
+            // too), but a pure no-op: doctest renderers never emit ANSI color, so
+            // there is nothing to suppress and nothing to store (L20). Threading a
+            // dead flag into renderText would only re-create an unused parameter.
         } else if (std.mem.startsWith(u8, a, "--")) {
             return error.UnknownOption;
         } else {
