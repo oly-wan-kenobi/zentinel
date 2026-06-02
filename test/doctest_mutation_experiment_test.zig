@@ -59,10 +59,52 @@ test "a weak doctest lets the boundary mutant survive" {
     defer arena.deinit();
     const a = arena.allocator();
     const r = try runFile(a, base ++ "survived.md");
-    try expectEqual(@as(usize, 1), r.cases[0].mutants.len);
-    try expectEqual(report.ResultStatus.survived, r.cases[0].mutants[0].status);
-    try expect(r.cases[0].mutants[0].survivor_ref != null);
-    try expectEqual(@as(u64, 1), r.summary.survived);
+    // `return a >= 0;` yields a comparison_boundary mutant plus two
+    // integer_literal_boundary mutants (0 -> 1, 0 -> -1) now that the Phase-2
+    // collectors run in the doctest --mutate path (M7); the weak test kills none.
+    try expectEqual(@as(usize, 3), r.cases[0].mutants.len);
+    for (r.cases[0].mutants) |m| {
+        try expectEqual(report.ResultStatus.survived, m.status);
+        try expect(m.survivor_ref != null);
+    }
+    try expectEqual(@as(u64, 3), r.summary.survived);
+}
+
+test "doctest --mutate generates Phase-2 mutants for an orelse-only snippet (M7)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The only mutable PRODUCTION construct is a Phase-2 `orelse` fallback (the
+    // `==` lives in the test body and is excluded by test-range filtering). Before
+    // the fix candidatesOrParseError ran only the 4 Phase-1 collectors, so this
+    // emitted ZERO mutants and a genuinely weak doc example looked fully covered
+    // -- the exact silent under-reporting the feature exists to prevent (M7).
+    const src =
+        \\# doc
+        \\
+        \\```zig test
+        \\fn pick(x: ?u32) u32 {
+        \\    return x orelse 7;
+        \\}
+        \\
+        \\test "pick falls back" {
+        \\    try @import("std").testing.expect(pick(null) == 7);
+        \\}
+        \\```
+        \\
+    ;
+    const r = try me.run(a, "phase2.md", src, runner());
+    try expectEqual(@as(usize, 1), r.cases.len);
+    try expect(!r.cases[0].skipped);
+    try expect(r.cases[0].mutants.len >= 1);
+
+    // The Phase-2 optional operator is now reachable from the doctest --mutate path.
+    var saw_orelse = false;
+    for (r.cases[0].mutants) |m| {
+        if (std.mem.eql(u8, m.operator, "optional_orelse_unreachable")) saw_orelse = true;
+    }
+    try expect(saw_orelse);
 }
 
 test "a doctest with no behavioral assertion is skipped before mutation" {
