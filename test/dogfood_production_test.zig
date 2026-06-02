@@ -90,6 +90,19 @@ test "scripts/ci.sh is the canonical entrypoint running the required determinist
     try expect(std.mem.indexOf(u8, ci, "--list") != null);
 }
 
+test "validate_task_system resolve_zig_import resolves .zig imports relative to the importer (L48)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const vts = try readFile(a, "scripts/validate_task_system.py");
+    // A Zig @import for a .zig file is always relative to the importing file's
+    // directory; no src/**/*.zig uses @import("src/..."), so the project-root-relative
+    // `src/` special case was dead. It is removed, leaving one resolution path (L48).
+    try expect(std.mem.indexOf(u8, vts, "imported.startswith(\"src/\")") == null);
+    try expect(std.mem.indexOf(u8, vts, "importer.parent / imported") != null);
+}
+
 test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors (L33)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

@@ -4531,10 +4531,10 @@ def validate_zig_architecture_layers(errors: list[str]) -> None:
 def resolve_zig_import(importer: Path, imported: str) -> Path | None:
     if not imported.endswith(".zig"):
         return None
-    if imported.startswith("src/"):
-        candidate = ROOT / imported
-    else:
-        candidate = importer.parent / imported
+    # A Zig @import string for a .zig file is always relative to the importing file's
+    # directory; no valid import takes a project-root-relative `src/`-prefixed form
+    # (no src/**/*.zig uses @import("src/...")), so resolve against the importer (L48).
+    candidate = importer.parent / imported
     try:
         resolved = candidate.resolve()
     except OSError:
