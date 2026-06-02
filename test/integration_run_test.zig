@@ -101,19 +101,47 @@ test "the built binary mutates a real fixture project and reports one killed and
     try expectEqual(@as(i64, 2), summary.get("survived").?.integer);
     try expectEqual(@as(i64, 0), summary.get("invalid").?.integer);
 
-    // A non-arithmetic operator (error_catch_unreachable) is executed end-to-end
-    // and classified `survived`, never dropped to `invalid`; its `original` is the
-    // real handler text (`0`), not freed memory (task 117 acceptance criterion 4).
+    // Bind the EXACT per-mutant kill/survive mapping, not just the fungible
+    // aggregate counts (S7): killed==1/survived==2 is invariant under an
+    // add<->mul classification swap (add's mutant wrongly surviving while mul's is
+    // wrongly killed leaves both totals unchanged), so only the per-mutant
+    // (operator, span line, status) assertions below actually pin kill-detection
+    // end-to-end. add's arithmetic_add_sub at calc.zig:13 (original `+`) is KILLED
+    // by the same-file `add` test; mul's arithmetic_mul_div at calc.zig:17
+    // (original `*`) SURVIVES (no test exercises it); parsePositive's
+    // error_catch_unreachable at calc.zig:21 SURVIVES and its `original` is the
+    // real handler text (`0`), not freed memory, never dropped to `invalid`
+    // (task 117 acceptance criterion 4).
     const mutants = parsed.object.get("mutants").?.array;
+    var saw_add_sub = false;
+    var saw_mul_div = false;
     var saw_error_catch = false;
     for (mutants.items) |entry| {
         const obj = entry.object;
-        if (std.mem.eql(u8, obj.get("operator").?.string, "error_catch_unreachable")) {
+        const operator = obj.get("operator").?.string;
+        const status = obj.get("result").?.object.get("status").?.string;
+        const line_start = obj.get("span").?.object.get("line_start").?.integer;
+        if (std.mem.eql(u8, operator, "arithmetic_add_sub")) {
+            saw_add_sub = true;
+            try expectEqualStrings("calc.zig", obj.get("file").?.string);
+            try expectEqual(@as(i64, 13), line_start);
+            try expectEqualStrings("+", obj.get("original").?.string);
+            try expectEqualStrings("killed", status);
+        } else if (std.mem.eql(u8, operator, "arithmetic_mul_div")) {
+            saw_mul_div = true;
+            try expectEqualStrings("calc.zig", obj.get("file").?.string);
+            try expectEqual(@as(i64, 17), line_start);
+            try expectEqualStrings("*", obj.get("original").?.string);
+            try expectEqualStrings("survived", status);
+        } else if (std.mem.eql(u8, operator, "error_catch_unreachable")) {
             saw_error_catch = true;
-            try expectEqualStrings("survived", obj.get("result").?.object.get("status").?.string);
+            try expectEqual(@as(i64, 21), line_start);
+            try expectEqualStrings("survived", status);
             try expectEqualStrings("0", obj.get("original").?.string);
         }
     }
+    try expect(saw_add_sub);
+    try expect(saw_mul_div);
     try expect(saw_error_catch);
 }
 
