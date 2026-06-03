@@ -336,3 +336,48 @@ test "fromTree resolves a same-operator collision to BOTH sites (claim-aware), w
         try expect(!std.mem.eql(u8, d.code, anomaly_code));
     }
 }
+
+// --- ZIR-6: differential-oracle CI sweep over the real source tree -----------
+
+test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator site the AST backend misses (ZIR-6)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const io = std.testing.io;
+
+    // Sweep the real production tree the CLI would mutate (cwd is the project root
+    // during `zig build test`, as in run_command_test.zig).
+    var src_dir = try std.Io.Dir.cwd().openDir(io, "src", .{ .iterate = true });
+    defer src_dir.close(io);
+    var walker = try src_dir.walk(arena);
+    defer walker.deinit();
+
+    var files: usize = 0;
+    var zir_only: usize = 0;
+    var ast_only: usize = 0;
+    while (try walker.next(io)) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.path, ".zig")) continue;
+        const source = try src_dir.readFileAlloc(io, entry.path, arena, std.Io.Limit.limited(1 << 20));
+        const ast = try astLoweredOf(arena, entry.path, source);
+        const divergences = try zir.differentialOracle(arena, entry.path, source, ast);
+        files += 1;
+        for (divergences) |d| switch (d.side) {
+            .zir_only => zir_only += 1,
+            .ast_only => ast_only += 1,
+        };
+    }
+
+    try expect(files > 20); // the sweep actually visited the tree
+
+    // Core invariant (the oracle's purpose): the independent ZIR lowering must never
+    // recognize a binary-operator mutation site the AST backend does not -- a zir_only
+    // divergence would be an AST-mutator bug or Zig-version drift. Always holds.
+    try expectEqual(@as(usize, 0), zir_only);
+
+    // Residual ratchet: ast_only divergences are the ZIR resolver's known completeness
+    // gap (sites dropped to offset collisions; surfaced by the 3c audit, ZIR-5). Guard
+    // it from silently growing. Tighten this baseline whenever the resolver improves.
+    const ast_only_baseline: usize = 144;
+    try expect(ast_only <= ast_only_baseline);
+}
