@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 4/4 done
+**Progress:** 4/5 done · 1 todo (ZIR-5, reopened from 3b on measured evidence)
 
 ---
 
@@ -36,15 +36,16 @@
     one side is perturbed. Red→green.
   - **Files:** `src/zir_backend.zig` (+ optional CLI surface), `test/zir_backend_test.zig`
 
-- [x] `done` **ZIR-3** · commit `4e443a6` · Harden the resolver (3a version-guard ✓ · 3b descoped · 3c audit ✓)
+- [x] `done` **ZIR-3** · commit `4e443a6` · Harden the resolver (3a version-guard ✓ · 3b reopened → ZIR-5 · 3c audit ✓)
   - **3a — version guard `done`:** `listFromTrees` takes the discovered toolchain and declines
     (`error.UnsupportedZigVersion`) on anything but pinned `0.16.0` via `toolchainSupported`
     (reusing `zig_version.classify`); the CLI prints a clear `--backend zir requires Zig 0.16.0`
     diagnostic. *Proof:* non-`0.16.0` / nightly / not-found all decline; `0.16.0` is accepted.
-  - **3b — exact decl-base tracking `descoped`:** `getDeclaration`/`getFnInfo`/`getStructDecl` are
-    unstable compiler internals (the same version-coupling fragility 3a guards), and 3c now makes
-    the heuristic's only real failure mode — a collision — observable as an anomaly diagnostic, so
-    the parity tests + the 3c audit net it without taking on fragile internals. No code change.
+  - **3b — exact decl-base tracking `reopened` → ZIR-5:** the descope was REFUTED by measurement.
+    Running the 3c audit over `src/` shows the innermost-base collision drops **315/1455 (~22%)** of
+    binary-operator sites (436 anomalies), so "the parity tests net the heuristic" is false — the
+    parity fixtures are collision-free and never exercised it. Detection (3c) is not a fix. Carried
+    to ZIR-5, which tries a cheaper claim-aware resolution before the fragile structural descent.
   - **3c — resolution audit `done`:** `fromTree` asserts cmp/bool/arith instructions resolve to a
     bijection over distinct AST nodes; a second instruction on an already-claimed node is flagged
     `ZNTL_ZIR_RESOLUTION_ANOMALY` and skipped. *Proof:* clean file → no anomaly; a forced
@@ -59,6 +60,29 @@
   - **Proof:** the removal compiles and the full `zig_test` suite stays green; a grep confirms the
     dead path is gone.
   - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
+
+- [ ] `todo` **ZIR-5** · commit `—` · Fix the resolver collision (reopened from ZIR-3b)
+  - **Goal:** make the ZIR resolver recognize the full binary-operator set on real code by
+    eliminating the innermost-base collision (two same-operator sites at equal decl-relative offsets
+    resolve to one node, dropping the other). Try a **claim-aware** resolution first — each
+    instruction takes the highest-base *unclaimed* node, using only the existing offset machinery —
+    and fall back to the structural decl-base descent (`getDeclaration`/`getFnInfo`/`getStructDecl`)
+    only if claim-aware cannot guarantee the bijection.
+  - **Why (measured — refutes the 3b descope):** over `src/` the ZIR backend emits 1140 candidates
+    vs the AST backend's 1455 for the same five operators — **315 lost sites (~22%)**, with **436**
+    ZIR-3c `ZNTL_ZIR_RESOLUTION_ANOMALY` diagnostics (worst: `report.zig` 106, `ai/redaction.zig` 73,
+    `doctest/matcher.zig` 43). ZIR-only (experimental, opt-in); the default AST backend is unaffected,
+    but the ZIR backend is not trustworthy for completeness until this is fixed.
+  - **Acceptance:** the 3c anomaly count over `src/` drops to 0 and the AST−ZIR candidate gap for the
+    lowered operators is 0 (full real-tree parity); the existing small-fixture parity tests stay green.
+  - **Proof:** a regression test with a multi-function fixture (≥2 same-operator sites at equal
+    decl-relative offsets) asserting BOTH spans are recognized and zero anomalies — red before (one
+    span lost + one anomaly, exactly the ZIR-3c collision case), green after. Corroborate with the
+    real-tree AST-vs-ZIR gap (1455 vs 1140 → expect 0).
+  - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`
+  - **Escape hatch:** if claim-aware cannot guarantee a bijection (e.g. injected instructions
+    contending for real nodes) and the structural descent is too fragile to pin to 0.16.0, keep the
+    3c audit as the guard and document the residual loss with the measured number.
 
 ---
 
