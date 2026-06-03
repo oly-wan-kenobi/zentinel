@@ -475,8 +475,15 @@ fn runRun(
     var obs = try buildObservation(gpa, io, cfg_bytes, zig_label, "<project>");
     obs.environment_hash = try zentinel.cache.environmentHash(gpa, &minimal_env);
 
+    // The parallel mutant phase (worker_pool.run with --jobs > 1) has worker
+    // threads allocate concurrently through rt.gpa (sandbox.apply, std.process.run
+    // output capture, mutant_runner). `gpa` here is the process arena, which is
+    // NOT thread-safe, so route rt.gpa through a mutex-guarded wrapper. Serial
+    // phases (baseline, reverification, report building) keep using the wrapped
+    // allocator too -- the lock is uncontended off the parallel phase.
+    var locked_gpa = zentinel.worker_pool.LockedAllocator{ .child = gpa };
     var rt = RunCtx{
-        .gpa = gpa,
+        .gpa = locked_gpa.allocator(),
         .io = io,
         .root_dir = root_dir,
         .root_label = "<project>",

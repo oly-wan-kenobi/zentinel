@@ -305,3 +305,43 @@ test "a failing unit is visible at its index and never drops other units" {
         }
     }
 }
+
+// --- LockedAllocator: concurrent allocation from a shared arena (BLOCKER) ----
+
+const AllocCtx = struct {
+    gpa: std.mem.Allocator,
+    bufs: [][]u8,
+};
+
+// Each unit allocates a distinct-sized buffer through the shared allocator and
+// fills every byte with a per-index marker. Run across many workers, this drives
+// concurrent allocation through one underlying arena -- which is undefined
+// behavior on a raw (non-thread-safe) arena, but sound once routed through
+// LockedAllocator. Torn/overlapping allocations would corrupt a neighbor's
+// bytes and fail the post-run integrity check below.
+fn allocAndFill(ctx: *anyopaque, index: usize, slot: usize) void {
+    _ = slot;
+    const c: *AllocCtx = @ptrCast(@alignCast(ctx));
+    const len = (index % 64) + 16;
+    const buf = c.gpa.alloc(u8, len) catch @panic("alloc failed");
+    @memset(buf, @as(u8, @truncate(index)));
+    c.bufs[index] = buf;
+}
+
+test "LockedAllocator serializes concurrent allocation from a non-thread-safe arena" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    // The bufs slice itself is allocated up front (single-threaded) so workers
+    // only ever touch their own disjoint slot.
+    const count: usize = 500;
+    const bufs = try arena.allocator().alloc([]u8, count);
+
+    var locked = wp.LockedAllocator{ .child = arena.allocator() };
+    var ctx = AllocCtx{ .gpa = locked.allocator(), .bufs = bufs };
+    wp.run(8, count, &ctx, allocAndFill);
+
+    for (bufs, 0..) |buf, i| {
+        try expectEqual((i % 64) + 16, buf.len);
+        for (buf) |byte| try expectEqual(@as(u8, @truncate(i)), byte);
+    }
+}

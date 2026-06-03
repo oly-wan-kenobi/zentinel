@@ -17,6 +17,65 @@ const config = @import("config.zig");
 /// so an over-large `--jobs` / `run.jobs` can never spawn unbounded threads.
 pub const max_jobs: usize = 64;
 
+/// A lock-guarded allocator wrapper. The parallel mutant phase (`run` with
+/// `--jobs > 1`) has multiple worker threads allocate through one underlying
+/// allocator -- in production that is the process arena (`std.heap.ArenaAllocator`),
+/// which is NOT thread-safe. Serializing every allocator call makes concurrent
+/// allocation sound. Subprocess execution (zig build/test) dominates wall time,
+/// so the guard is not a contention bottleneck.
+///
+/// The guard is an atomic test-and-set spinlock rather than a mutex: Zig 0.16
+/// removed `std.heap.ThreadSafeAllocator`, and `std.Io.Mutex.lock` needs an `Io`
+/// handle the allocator vtable cannot reach. Critical sections are a single arena
+/// bump, so spinning is appropriate.
+pub const LockedAllocator = struct {
+    child: std.mem.Allocator,
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+
+    pub fn allocator(self: *LockedAllocator) std.mem.Allocator {
+        return .{ .ptr = self, .vtable = &vtable };
+    }
+
+    fn lock(self: *LockedAllocator) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    fn unlock(self: *LockedAllocator) void {
+        self.locked.store(false, .release);
+    }
+
+    const vtable = std.mem.Allocator.VTable{
+        .alloc = alloc,
+        .resize = resize,
+        .remap = remap,
+        .free = free,
+    };
+
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+        const self: *LockedAllocator = @ptrCast(@alignCast(ctx));
+        self.lock();
+        defer self.unlock();
+        return self.child.rawAlloc(len, alignment, ret_addr);
+    }
+    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+        const self: *LockedAllocator = @ptrCast(@alignCast(ctx));
+        self.lock();
+        defer self.unlock();
+        return self.child.rawResize(memory, alignment, new_len, ret_addr);
+    }
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *LockedAllocator = @ptrCast(@alignCast(ctx));
+        self.lock();
+        defer self.unlock();
+        return self.child.rawRemap(memory, alignment, new_len, ret_addr);
+    }
+    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+        const self: *LockedAllocator = @ptrCast(@alignCast(ctx));
+        self.lock();
+        defer self.unlock();
+        self.child.rawFree(memory, alignment, ret_addr);
+    }
+};
+
 /// A unit of work: process item `index`, optionally using worker lane `slot`
 /// (in [0, jobs)) for per-worker scratch. The task writes its own result through
 /// the shared `ctx`; the pool never interprets the result.

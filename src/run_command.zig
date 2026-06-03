@@ -305,9 +305,10 @@ pub fn run(
     // Phase B (parallel): run each mutant through the injected runner across at
     // most `--jobs` (overriding `run.jobs`) workers. Results are collected by
     // index, so the worker count changes only concurrency -- never which result
-    // belongs to which mutant. jobs == 1 runs inline (conservative default). No
-    // `arena` allocation happens here; the injected runner uses its own
-    // (threadsafe) allocator, and each worker writes a disjoint results slot.
+    // belongs to which mutant. jobs == 1 runs inline (conservative default). The
+    // injected runner's allocator must be thread-safe under --jobs > 1: the
+    // adapter wraps the process arena in worker_pool.LockedAllocator (the arena
+    // is not thread-safe). Each worker writes a disjoint results slot.
     const results = try arena.alloc(mutant_runner.MutationResult, jobs.len);
     const requested_jobs: usize = if (options.jobs) |j| j else jobsFromConfig(cfg.run_jobs);
     var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode };
