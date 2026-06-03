@@ -17,6 +17,13 @@
 // intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
 // is defined and tested but its pipeline write is not yet implemented (L25).
 // Targets pinned Zig 0.16.0; version coupling is handled by opt-in diagnostics.
+//
+// Direction note (docs/AIR_BACKEND.md): this prototype is a FROZEN opt-in
+// experiment. The post-Sema "type/compile oracle" ambition was delivered instead
+// by the compiler-oracle semantic filter (SEM-1 in ZIR_IMPROVEMENTS.md): SEM-1c
+// (src/semantic_filter.zig) makes `expected_compile` the compiler's actual verdict
+// without IR introspection; the TCE/equivalence half (SEM-1b) was descoped at 0
+// measured payoff. This module is not the path to post-Sema semantics — SEM-1 is.
 const std = @import("std");
 const mutant = @import("mutant.zig");
 const config = @import("config.zig");
