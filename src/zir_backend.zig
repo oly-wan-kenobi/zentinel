@@ -2,15 +2,16 @@
 //
 // Experimental ZIR backend prototype (docs/ZIR_BACKEND.md). The ZIR backend is
 // disabled by default and reachable only through explicit config or CLI opt-in.
-// This prototype is a deterministic adapter: it derives ZIR candidates from the
-// stable AST candidate set so source mapping is exact by construction, re-tagging
-// supported condition operators with `backend = .zir` and
-// `backend_stability = .experimental`. Operators whose source mapping needs
-// type-level ZIR context the prototype cannot map exactly (arithmetic and literal
-// rewrites) are NOT emitted as mutants; they become out-of-report backend
-// diagnostics so they never affect mutation score, survivor counts, or report v1
-// fields. Live compiler-internal ZIR introspection is intentionally out of scope
-// here: report v1 stays closed. At CLI runtime the unsupported evidence is
+// The ZIR backend really lowers each source file to ZIR via `std.zig.AstGen`
+// (`fromTree`/`listFromTrees`) and recognizes binary-operator mutation sites --
+// comparison, short-circuit logical, and arithmetic -- from the instructions ZIR
+// emits, mapping each back to its exact AST node and tagging it `backend = .zir`,
+// `backend_stability = .experimental`. There is one code path: the legacy relabel
+// adapter has been retired (ZIR-4). Operators ZIR does not represent as a single
+// instruction (literal and control-flow rewrites) are NOT emitted as mutants; they
+// become out-of-report backend diagnostics so they never affect mutation score,
+// survivor counts, or report v1 fields. Post-Sema (AIR) semantic analysis is out of
+// scope here: report v1 stays closed. At CLI runtime the unsupported evidence is
 // surfaced as stderr `note[...]` lines (src/cli.zig); the schema-versioned
 // on-disk artifact (`diagnosticsToJson` -> zentinel.experimental_backend_diagnostics.v1,
 // intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
@@ -66,73 +67,19 @@ pub const Divergence = struct {
     side: DivergenceSide,
 };
 
-/// Operators whose source mapping is exact at the ZIR prototype level: boolean,
-/// comparison, and logical condition operators map 1:1 to a ZIR condition with
-/// the same source span. Arithmetic and integer/loop literal rewrites need
-/// type-level ZIR context the prototype cannot map exactly, so they are recorded
-/// as diagnostics rather than executed.
-const supported_operators = [_][]const u8{
-    "comparison_boundary",
-    "equality_swap",
-    "logical_and_or",
-    "boolean_literal",
-};
-
-pub fn isSupported(operator: []const u8) bool {
-    for (supported_operators) |op| {
-        if (std.mem.eql(u8, op, operator)) return true;
-    }
-    return false;
-}
-
-fn reTag(arena: std.mem.Allocator, ast: mutant.Mutant) std.mem.Allocator.Error!mutant.Mutant {
-    var c = ast;
-    c.backend = .zir;
-    c.backend_version = backend_version;
-    c.backend_stability = .experimental;
-    const id = mutant.computeId(c.identity());
-    c.id = try arena.dupe(u8, &id);
-    return c;
-}
-
-/// Build the experimental ZIR candidate set from the deterministic AST candidate
-/// set. Supported operators are re-tagged with exact source mapping inherited
-/// from the AST span; unsupported operators become out-of-report diagnostics and
-/// are never executable mutants.
-pub fn fromAst(arena: std.mem.Allocator, ast_candidates: []const mutant.Mutant) std.mem.Allocator.Error!Result {
-    var candidates: std.ArrayList(mutant.Mutant) = .empty;
-    var diagnostics: std.ArrayList(Diagnostic) = .empty;
-    for (ast_candidates) |c| {
-        if (isSupported(c.operator)) {
-            try candidates.append(arena, try reTag(arena, c));
-        } else {
-            try diagnostics.append(arena, .{
-                .file = c.file,
-                .operator = c.operator,
-                .span_start = c.span.byte_start,
-                .span_end = c.span.byte_end,
-                .reason = "operator has no exact ZIR source mapping in the prototype; needs type-level ZIR context",
-            });
-        }
-    }
-    return .{
-        .candidates = try candidates.toOwnedSlice(arena),
-        .diagnostics = try diagnostics.toOwnedSlice(arena),
-    };
-}
-
-// --- Real ZIR lowering (task 056, Phase 1: comparison operators) ------------
+// --- Real ZIR lowering (task 056) -------------------------------------------
 //
-// Unlike `fromAst` (the relabel adapter), `fromTree` actually lowers the source
-// to ZIR via `std.zig.AstGen` and recognizes comparison mutation sites from the
-// `cmp_*` instructions, mapping each back to its exact AST comparison node. The
-// candidate metadata mirrors the AST comparison recognizer (src/mutators/comparison.zig,
-// which this task may not modify) so the two backends stay in differential parity
-// -- the zir_backend parity test pins this. ZIR's real contribution is the lowering
-// plus dropping AstGen-injected comparisons (for-bounds, switch ranges) that have
-// no source operator. Source mapping: `pl_node.src_node` is an offset from the
-// enclosing declaration node, so the comparison node `n` is the one whose
-// `n - off` is itself a decl base (innermost wins); injected cmps resolve to none.
+// `fromTree` lowers the source to ZIR via `std.zig.AstGen` and recognizes
+// binary-operator mutation sites from the instructions ZIR emits -- `cmp_*`,
+// `bool_br_and`/`bool_br_or`, and `add`/`sub`/`mul`/`div` -- mapping each back to
+// its exact AST node. Candidate metadata mirrors the AST recognizers
+// (src/mutators/{comparison,logical,arithmetic}.zig) so the two backends stay in
+// differential parity -- the zir_backend parity test pins this. ZIR's real
+// contributions: dropping AstGen-injected operators (for-bounds, switch ranges)
+// that have no source operator, and comptime-context-aware `expected_compile`.
+// Source mapping: `pl_node.src_node` is an offset from the enclosing declaration
+// node, so the operator node `n` is the one whose `n - off` is itself a decl base
+// (innermost wins); injected operators resolve to none.
 
 pub const FromTreeError = error{BackendParseError} || std.mem.Allocator.Error;
 
@@ -479,24 +426,6 @@ pub fn backendOptedIn(cfg: config.Config, name: []const u8) bool {
         if (std.mem.eql(u8, b, name)) return true;
     }
     return false;
-}
-
-pub const BackendError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented } || std.mem.Allocator.Error;
-
-/// Gate and build an experimental backend listing from an already-generated AST
-/// candidate set. `zir` is owned by task 056 and requires explicit config opt-in
-/// (`backend.experimental` contains `zir`), else `error.ExperimentalBackendNotEnabled`.
-/// `air` is owned by task 057 and is `error.BackendNotImplemented` here. The
-/// stable AST default never routes through this gate.
-pub fn experimentalListing(
-    arena: std.mem.Allocator,
-    cfg: config.Config,
-    ast_candidates: []const mutant.Mutant,
-    backend: []const u8,
-) BackendError!Result {
-    if (!std.mem.eql(u8, backend, "zir")) return error.BackendNotImplemented;
-    if (!backendOptedIn(cfg, "zir")) return error.ExperimentalBackendNotEnabled;
-    return fromAst(arena, ast_candidates);
 }
 
 pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError, UnsupportedZigVersion } || std.mem.Allocator.Error;

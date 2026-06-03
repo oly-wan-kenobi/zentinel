@@ -51,29 +51,6 @@ test "ZIR backend default requires explicit experimental opt-in" {
 
 // --- Experimental backend gating -------------------------------------------
 
-test "list-mutants --backend zir is rejected without opt-in and accepted with it" {
-    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena_state.deinit();
-    const arena = arena_state.allocator();
-
-    var d1: config.Diagnostic = .{};
-    const cfg_no = try load(arena, "", &d1);
-    try expect(!zir.backendOptedIn(cfg_no, "zir"));
-    try expectError(error.ExperimentalBackendNotEnabled, zir.experimentalListing(arena, cfg_no, &.{}, "zir"));
-
-    // With opt-in the gate passes and the comparison candidates become
-    // experimental ZIR candidates with no diagnostics.
-    var d2: config.Diagnostic = .{};
-    const cfg_yes = try load(arena, "[backend]\nexperimental = [\"zir\"]\n", &d2);
-    const ast = try comparisonCandidates(arena);
-    try expect(ast.len > 0);
-    const listing = try zir.experimentalListing(arena, cfg_yes, ast, "zir");
-    try expectEqual(ast.len, listing.candidates.len);
-    try expectEqual(@as(usize, 0), listing.diagnostics.len);
-    try expectEqual(mutant.Backend.zir, listing.candidates[0].backend);
-    try expectEqual(mutant.BackendStability.experimental, listing.candidates[0].backend_stability);
-}
-
 fn allCandidates(arena: std.mem.Allocator, file: []const u8, src: []const u8) ![]mutant.Mutant {
     const parsed = try ast_backend.parse(arena, file, src);
     const ranges = try ast_backend.testDeclRanges(parsed, arena);
@@ -135,13 +112,14 @@ test "list-mutants --backend zir lowers comparison/arithmetic to real ZIR candid
     try expectEqual(@as(usize, 1), bool_diags);
 }
 
-test "air backend is not implemented by task 056 (owned by 057)" {
+test "the zir listing path is zir-only: it rejects 'air' (owned by task 057)" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
     var d: config.Diagnostic = .{};
     const cfg = try load(arena, "[backend]\nexperimental = [\"air\"]\n", &d);
-    try expectError(error.BackendNotImplemented, zir.experimentalListing(arena, cfg, &.{}, "air"));
+    const zig_ok = zentinel.zig_version.Discovery{ .version = zentinel.zig_version.supported_version };
+    try expectError(error.BackendNotImplemented, zir.listFromTrees(arena, cfg, zig_ok, &.{}, &.{}, "air"));
 }
 
 test "AST remains the default backend and never routes through the experimental gate" {

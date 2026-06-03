@@ -15,7 +15,7 @@ The remaining operators are **AST-only by principle**, not a backlog — because
 
 The principle: **ZIR is the right layer for operators that survive as a single instruction (the binary operators) and the wrong layer for literal/lexical and control-flow-structural mutations.** The payoff those would want — types, reachability, equivalent-mutant filtering — is a post-`Sema` (**AIR**) property, not a ZIR one. Each unlowered operator is emitted as an out-of-report diagnostic carrying the specific reason, so a previously-listed operator is never silently dropped.
 
-The legacy `fromAst` relabel adapter remains for reference and is exercised by unit tests, but the `list-mutants --backend zir` CLI path uses the real `listFromTrees`. It is reachable **only from `list-mutants --backend zir`**; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error.
+The ZIR backend has a single code path: `listFromTrees` (real ZIR lowering). The legacy `fromAst` relabel adapter has been retired. It is reachable **only from `list-mutants --backend zir`**; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error.
 
 ## Purpose
 
