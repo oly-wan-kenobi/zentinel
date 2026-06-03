@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 5/5 done (ZIR-5 partial via escape hatch: collision loss ~22% → ~10%, residual 3c-guarded)
+**Progress:** 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest)
 
 ---
 
@@ -49,7 +49,9 @@
   - **3c — resolution audit `done`:** `fromTree` asserts cmp/bool/arith instructions resolve to a
     bijection over distinct AST nodes; a second instruction on an already-claimed node is flagged
     `ZNTL_ZIR_RESOLUTION_ANOMALY` and skipped. *Proof:* clean file → no anomaly; a forced
-    two-function `<` collision → exactly one `<`-token anomaly.
+    two-function `<` collision → exactly one `<`-token anomaly. *(Superseded by ZIR-7: once maximum
+    matching made the per-instruction anomaly a false alarm, the diagnostic was removed and the
+    bijection is now guarded by the ZIR-2 oracle + ZIR-6 sweep.)*
   - **Files:** `src/zir_backend.zig`, `src/cli.zig`, `test/zir_backend_test.zig`, `test/cli_backend_experiment_test.zig`, `docs/ZIR_BACKEND.md`
 
 - [x] `done` **ZIR-4** · commit `8ae34dd` · Retire the legacy `fromAst` relabel
@@ -61,7 +63,7 @@
     dead path is gone.
   - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
 
-- [x] `done` **ZIR-5** · commit `2b33e93` · Fix the resolver collision (reopened from ZIR-3b) — partial, via escape hatch
+- [x] `done` **ZIR-5** · commit `2b33e93` · Fix the resolver collision (reopened from ZIR-3b) — partial; superseded by ZIR-7
   - **Goal:** make the ZIR resolver recognize the full binary-operator set on real code by
     eliminating the innermost-base collision (two same-operator sites at equal decl-relative offsets
     resolve to one node, dropping the other). Try a **claim-aware** resolution first — each
@@ -93,6 +95,31 @@
   - **Escape hatch:** if claim-aware cannot guarantee a bijection (e.g. injected instructions
     contending for real nodes) and the structural descent is too fragile to pin to 0.16.0, keep the
     3c audit as the guard and document the residual loss with the measured number.
+  - **Superseded by ZIR-7:** maximum bipartite matching closed the residual to **0** (full
+    parity over `src/`), so the partial claim-aware result above is now of historical note.
+
+- [x] `done` **ZIR-6** · commit `95ea7fd` · Differential-oracle CI sweep over the real tree
+  - **Goal:** make ZIR-2 the continuous oracle it was built to be — a test that walks `src/` and
+    runs `differentialOracle` per file on every `zig build test`, guarding ZIR/AST agreement.
+  - **Result:** sweeps 58 files. Asserts the invariant `zir_only == 0` (ZIR never recognizes a
+    binary-operator site the AST backend misses — catches AST-mutator bugs and Zig-version drift),
+    and ratchets the `ast_only` residual so it cannot silently grow. Baseline `<= 144` at first;
+    tightened to `== 0` (exact parity) once ZIR-7 landed.
+  - **Files:** `test/zir_backend_test.zig`
+
+- [x] `done` **ZIR-7** · commit `08ae96f` · Maximum bipartite matching (resolver gap → 0)
+  - **Goal:** close the ZIR-5 residual without the fragile structural descent — attempt maximum
+    bipartite matching, which uses only the existing offset/base data (no compiler internals).
+  - **Result:** `matchInstructions` (Kuhn's augmenting paths) matches each recognized instruction to
+    a distinct candidate AST node. Over `src/`: ZIR candidates **1310 → 1455 == AST**, gap
+    **144 → 0** — full parity for the lowered operators. A maximum matching makes the per-instruction
+    anomaly a false alarm (an unmatched instruction with all-claimed candidates is a *surplus*
+    lowering, not a lost site — 107 such notes at zero loss), so `ZNTL_ZIR_RESOLUTION_ANOMALY` was
+    removed and surplus instructions are dropped silently; completeness is now guarded by the ZIR-2
+    oracle + ZIR-6 sweep. The structural decl-base descent (old 3b) is no longer needed.
+  - **Proof:** the ZIR-6 sweep tightened to `ast_only == 0`; the ZIR-5 collision test still green
+    (both sites, no anomaly); parity tests on collision-free fixtures unchanged.
+  - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
 
 ---
 
