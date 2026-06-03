@@ -228,6 +228,16 @@ refuted by measurement, not abandoned by guess.
     snapshot updated `may_fail → compiles` for its killed (hence compiled) arithmetic mutant.
   - **Files:** `src/semantic_filter.zig`, `src/root.zig`, `src/run_command.zig`,
     `test/semantic_filter_test.zig`, `test/snapshots/run_command_completed.json`.
+  - **Validated end-to-end with REAL `zig test` compiles** (throwaway project, not mocks): a
+    `arithmetic_add_sub +→-` mutant that compiled-and-was-killed reports `compiles` (heuristic
+    `may_fail` resolved); a `arithmetic_mul_div *→/` mutant that lowers to a comptime `6/0` is
+    genuinely rejected → `compile_error` → `must_fail`. Both branches of the verdict confirmed against
+    the actual compiler.
+  - **Surfacing + honesty follow-ups (post-merge prep):** the empirical verdict already reaches the
+    canonical JSON + jsonl (whole-struct serialization); added it to the junit metadata bag
+    (`a7f940f`); text stays heuristic-free (survivors trivially compile; `status` already shows
+    `compile_error`). AIR-backend docs/module annotated that SEM-1 — not expanding the AIR prototype —
+    is the post-Sema direction (`18a5baf`).
 
 ---
 
