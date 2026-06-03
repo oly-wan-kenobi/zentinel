@@ -29,26 +29,35 @@ fn replacementFor(text: []const u8) ?[]const u8 {
     return null;
 }
 
-/// True when `node` (a `true`/`false` `.identifier`) is an enum/struct/union
-/// field NAME rather than a boolean VALUE. A value-less member like
+/// Collect the `type_expr` node of every tuple-like container field in the tree
+/// (the nodes that are field NAMES, not boolean VALUES). A value-less member like
 /// `enum { true, false }` parses as a tuple-like `container_field_*` whose
-/// `type_expr` IS this identifier node; mutating it forbidden (MUTATOR_SPEC.md)
-/// and yields a guaranteed `duplicate member` compile_error (L23). A boolean
-/// value is never a container-field type expression, so this never skips a real
-/// literal.
-fn isContainerFieldName(tree: std.zig.Ast, node: std.zig.Ast.Node.Index) bool {
+/// `type_expr` IS the `true`/`false` identifier; mutating it is forbidden
+/// (MUTATOR_SPEC.md) and yields a guaranteed `duplicate member` compile_error
+/// (L23). Computed ONCE per `collect` so the per-literal skip check is O(1)
+/// amortized rather than rescanning every node for each literal (O(n^2)). These
+/// fields are rare, so the list is usually empty. A boolean value is never a
+/// container-field type expression, so this never lists a real literal.
+fn containerFieldNameNodes(
+    alloc: std.mem.Allocator,
+    tree: std.zig.Ast,
+) std.mem.Allocator.Error![]const std.zig.Ast.Node.Index {
+    var list: std.ArrayList(std.zig.Ast.Node.Index) = .empty;
     const tags = tree.nodes.items(.tag);
-    for (tags, 0..) |tag, i| {
-        switch (tag) {
-            .container_field, .container_field_init, .container_field_align => {
-                const cf = tree.fullContainerField(@enumFromInt(@as(u32, @intCast(i)))) orelse continue;
-                if (cf.ast.tuple_like) {
-                    if (cf.ast.type_expr.unwrap()) |te| if (te == node) return true;
-                }
-            },
-            else => {},
-        }
-    }
+    for (tags, 0..) |tag, i| switch (tag) {
+        .container_field, .container_field_init, .container_field_align => {
+            const cf = tree.fullContainerField(@enumFromInt(@as(u32, @intCast(i)))) orelse continue;
+            if (cf.ast.tuple_like) {
+                if (cf.ast.type_expr.unwrap()) |te| try list.append(alloc, te);
+            }
+        },
+        else => {},
+    };
+    return list.toOwnedSlice(alloc);
+}
+
+fn nodeInList(nodes: []const std.zig.Ast.Node.Index, node: std.zig.Ast.Node.Index) bool {
+    for (nodes) |n| if (n == node) return true;
     return false;
 }
 
@@ -58,6 +67,9 @@ pub fn collect(
     file: []const u8,
     test_ranges: []const ast_backend.ByteRange,
 ) std.mem.Allocator.Error!void {
+    // Precompute the forbidden field-name nodes ONCE (rare; usually empty) so the
+    // per-literal skip check below is O(1) amortized instead of O(n) per literal.
+    const field_name_nodes = try containerFieldNameNodes(collector.allocator, parsed.tree);
     const node_tags = parsed.tree.nodes.items(.tag);
     for (node_tags, 0..) |tag, i| {
         if (tag != .identifier) continue;
@@ -70,7 +82,7 @@ pub fn collect(
         // A `true`/`false` enum field DECLARATION is a forbidden context: mutating
         // the name would emit a guaranteed `duplicate enum member` compile_error,
         // not a real boolean swap (L23).
-        if (isContainerFieldName(parsed.tree, node)) continue;
+        if (nodeInList(field_name_nodes, node)) continue;
         const end = start + @as(u32, @intCast(text.len));
         const start_pos = source_map.locate(parsed.tree.source, start) orelse continue;
         const end_pos = source_map.locate(parsed.tree.source, end) orelse continue;

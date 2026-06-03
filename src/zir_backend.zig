@@ -194,17 +194,32 @@ fn matchInstructions(
     node_count: i64,
 ) std.mem.Allocator.Error!Matching {
     const node_tags = tree.nodes.items(.tag);
+    // Pre-index nodes by tag ONCE, in ascending node order, so the adjacency build
+    // below visits only nodes of the instruction's `want` tag -- O(N + total
+    // candidates) instead of O(R*N) (rescanning every node per recognized
+    // instruction). Buckets preserve ascending node index, so each adjacency list
+    // (and therefore the matching result) is byte-identical to the prior full scan.
+    var by_tag = std.AutoHashMap(std.zig.Ast.Node.Tag, std.ArrayList(u32)).init(arena);
+    {
+        var n: u32 = 0;
+        while (n < node_count) : (n += 1) {
+            const gop = try by_tag.getOrPut(node_tags[n]);
+            if (!gop.found_existing) gop.value_ptr.* = .empty;
+            try gop.value_ptr.append(arena, n);
+        }
+    }
+
     const adj = try arena.alloc([]const u32, recognized.len);
     const had_candidates = try arena.alloc(bool, recognized.len);
     for (recognized, 0..) |r, ri| {
         var cands: std.ArrayList(u32) = .empty;
-        var n: u32 = 0;
-        while (n < node_count) : (n += 1) {
-            if (node_tags[n] != r.want) continue;
-            const base: i64 = @as(i64, n) - r.off;
-            if (base < 0 or base >= node_count) continue;
-            if (!is_base[@intCast(base)]) continue;
-            try cands.append(arena, n);
+        if (by_tag.get(r.want)) |bucket| {
+            for (bucket.items) |n| {
+                const base: i64 = @as(i64, n) - r.off;
+                if (base < 0 or base >= node_count) continue;
+                if (!is_base[@intCast(base)]) continue;
+                try cands.append(arena, n);
+            }
         }
         adj[ri] = try cands.toOwnedSlice(arena);
         had_candidates[ri] = adj[ri].len > 0;
