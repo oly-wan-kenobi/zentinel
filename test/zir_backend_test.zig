@@ -286,3 +286,40 @@ test "fromTree downgrades expected_compile for a comparison inside a comptime bl
     try expect(runtime_seen);
     try expect(comptime_seen);
 }
+
+// --- ZIR-2: differential oracle (ZIR vs AST) ---------------------------------
+
+test "differentialOracle: an agreeing file has no divergence; dropping one AST site flags exactly that (operator, span) as zir_only (ZIR-2)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const file = "p.zig";
+    // Three binary-operator sites both recognizers agree on: `<`, `and`, `==`.
+    const src = "pub fn f(a: i32, b: i32) bool {\n    return a < b and a == b;\n}\n";
+    const ast = try astCmpAndLogicalOf(arena, file, src);
+    try expect(ast.len >= 3);
+
+    // Agreement: the AST candidate set and ZIR's independent lowering match exactly,
+    // so the oracle reports nothing.
+    const agree = try zir.differentialOracle(arena, file, src, ast);
+    try expectEqual(@as(usize, 0), agree.len);
+
+    // Perturb the AST set: drop one site, as if an AST mutator regressed and missed it.
+    // The oracle must flag exactly that site -- present in ZIR's lowering, absent from
+    // the (perturbed) AST set -- as a zir_only divergence, and report nothing else.
+    const dropped = ast[0];
+    const perturbed = ast[1..];
+    const found = try zir.differentialOracle(arena, file, src, perturbed);
+
+    var flagged = false;
+    for (found) |d| {
+        try expectEqualStrings(file, d.file);
+        try expectEqualStrings(dropped.operator, d.operator);
+        try expectEqual(dropped.span.byte_start, d.span_start);
+        try expectEqual(dropped.span.byte_end, d.span_end);
+        try expectEqual(zir.DivergenceSide.zir_only, d.side);
+        flagged = true;
+    }
+    try expect(flagged);
+}

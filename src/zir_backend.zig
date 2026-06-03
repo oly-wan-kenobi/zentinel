@@ -45,6 +45,22 @@ pub const Result = struct {
     diagnostics: []const Diagnostic,
 };
 
+/// Which recognizer saw a binary-operator mutation site the other missed.
+/// `zir_only`: ZIR lowered a site the AST recognizers did not produce. `ast_only`:
+/// the AST recognizers produced a binary-operator candidate ZIR did not lower.
+pub const DivergenceSide = enum { zir_only, ast_only };
+
+/// One `(operator, span)` the ZIR and AST binary-operator recognizers disagree on,
+/// found by `differentialOracle`. It is a correctness signal about the recognizers,
+/// never a mutant and never a report v1 field.
+pub const Divergence = struct {
+    file: []const u8,
+    operator: []const u8,
+    span_start: u64,
+    span_end: u64,
+    side: DivergenceSide,
+};
+
 /// Operators whose source mapping is exact at the ZIR prototype level: boolean,
 /// comparison, and logical condition operators map 1:1 to a ZIR condition with
 /// the same source span. Arithmetic and integer/loop literal rewrites need
@@ -512,6 +528,81 @@ pub fn listFromTrees(
         .candidates = try mutant.sortAndDedupe(arena, candidates.items),
         .diagnostics = try diagnostics.toOwnedSlice(arena),
     };
+}
+
+/// True when two candidates name the same operator at the same byte span -- the key
+/// the differential oracle compares the two recognizers on.
+fn sameOperatorSpan(a: mutant.Mutant, b: mutant.Mutant) bool {
+    return std.mem.eql(u8, a.operator, b.operator) and
+        a.span.byte_start == b.span.byte_start and
+        a.span.byte_end == b.span.byte_end;
+}
+
+fn divergenceLessThan(_: void, a: Divergence, b: Divergence) bool {
+    if (a.span_start != b.span_start) return a.span_start < b.span_start;
+    if (a.span_end != b.span_end) return a.span_end < b.span_end;
+    return std.mem.order(u8, a.operator, b.operator) == .lt;
+}
+
+/// Differential correctness oracle: independently lower `source` to ZIR and compare the
+/// binary-operator mutation set ZIR recognizes against `ast_candidates` (the AST
+/// backend's candidates for the same file, narrowed to the operators ZIR lowers).
+/// Every `(operator, byte_start, byte_end)` only one path recognized is returned as a
+/// `Divergence`; agreement yields an empty slice. This produces NO mutants -- it is a
+/// check that two independent recognizers agree, so a regression in either (an
+/// AST-mutator bug, or Zig-version drift in ZIR's version-coupled `src_node` offsets)
+/// surfaces as a divergence instead of a silent mutation-score change. Findings are
+/// sorted by (span_start, span_end, operator) for a deterministic report.
+pub fn differentialOracle(
+    arena: std.mem.Allocator,
+    file: []const u8,
+    source: []const u8,
+    ast_candidates: []const mutant.Mutant,
+) FromTreeError![]Divergence {
+    const zir = try fromTree(arena, file, source);
+    var out: std.ArrayList(Divergence) = .empty;
+
+    // zir_only: a site ZIR lowered with no matching AST binary-operator candidate.
+    for (zir.candidates) |z| {
+        var matched = false;
+        for (ast_candidates) |a| {
+            if (isZirLoweredOperator(a.operator) and sameOperatorSpan(z, a)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) try out.append(arena, .{
+            .file = file,
+            .operator = z.operator,
+            .span_start = z.span.byte_start,
+            .span_end = z.span.byte_end,
+            .side = .zir_only,
+        });
+    }
+
+    // ast_only: an AST binary-operator candidate ZIR did not lower at that span. Only
+    // operators ZIR lowers are in scope -- literal/control-flow operators legitimately
+    // have no ZIR candidate (see isZirLoweredOperator) and are not divergences.
+    for (ast_candidates) |a| {
+        if (!isZirLoweredOperator(a.operator)) continue;
+        var matched = false;
+        for (zir.candidates) |z| {
+            if (sameOperatorSpan(a, z)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) try out.append(arena, .{
+            .file = file,
+            .operator = a.operator,
+            .span_start = a.span.byte_start,
+            .span_end = a.span.byte_end,
+            .side = .ast_only,
+        });
+    }
+
+    std.mem.sort(Divergence, out.items, {}, divergenceLessThan);
+    return out.toOwnedSlice(arena);
 }
 
 /// The out-of-report diagnostics artifact (a separate schema, never report v1).
