@@ -1237,6 +1237,14 @@ fn runDoctest(
         error.OutOfMemory => return err,
     };
 
+    // Per-run cleanup: each zig/zig_test/compile_fail case materializes a
+    // content-addressed workspace under .zig-cache/zentinel/doctest (and the Zig
+    // compiler writes its own .zig-cache inside). Nothing reclaimed them, so they
+    // accumulated unbounded across runs. Mirror the mutation run's base cleanup:
+    // remove the whole container (cases regenerate what they need next run).
+    // Best-effort -- a cleanup failure must not change the run's exit code.
+    root_dir.deleteTree(io, zentinel.doctest.workspace.root) catch {};
+
     const rendered = switch (options.format) {
         .text => try zentinel.doctest_command.renderText(gpa, out.report),
         .json => try zentinel.doctest.report.toJson(gpa, out.report),
