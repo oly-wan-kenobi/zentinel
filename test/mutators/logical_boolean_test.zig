@@ -13,7 +13,6 @@ fn readOps(a: std.mem.Allocator) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, "test/fixtures/mutators/logical_boolean/ops.zig", a, std.Io.Limit.limited(1 << 20));
 }
 
-
 test "logical operators emit and<->or swaps in canonical order with exact spans" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
