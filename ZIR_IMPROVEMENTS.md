@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below). SEM-1 is split into 1a (measurement spike — **done**, `c800e53`), 1b (TCE equivalence/dedup filter — **descoped**: 1a measured 0 equivalents/0 duplicates in the Debug pipeline), 1c (compile-as-classifier — todo, the primary win).
+**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). Follow-up track **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below) is now **complete**: 1a (measurement spike — done, `c800e53`), 1b (TCE equivalence/dedup filter — **descoped**: 1a measured 0 equivalents/0 duplicates in the Debug pipeline), 1c (compile-as-classifier — done, `28d2f6b`: the report's `expected_compile` is now the compiler's actual verdict, not a heuristic guess). Beyond-ZIR track has no `todo`/`wip` left.
 
 ---
 
@@ -132,9 +132,10 @@
 > post-Sema IR, use the real compiler as a black-box oracle over candidates from **any**
 > backend. The semantic payoff is a *filter/classifier* stage, not a new candidate generator.
 
-**SEM-1** `wip` · Compiler-oracle semantic filter (TCE-first) — split into 1a (measurement spike,
-done), 1b (TCE equivalence/dedup filter), 1c (compile-as-classifier). Parent stays `wip` until 1b/1c
-resolve.
+**SEM-1** `done` · Compiler-oracle semantic filter (TCE-first) — 1a (measurement spike) done, 1b
+(TCE equivalence/dedup filter) descoped at 0 measured payoff, 1c (compile-as-classifier) done
+(`28d2f6b`). The compile-as-classifier shipped as the primary win; the TCE/equivalence ambition was
+refuted by measurement, not abandoned by guess.
   - **Goal:** a post-generation filter stage that classifies/excludes candidates using the
     pinned compiler as a black box — no IR introspection. Two parts:
     **(a) Trivial Compiler Equivalence (TCE):** compile original + each mutant to a normalized
@@ -207,14 +208,26 @@ resolve.
     fresh standalone compile, and stay opt-in. No code change taken now.
   - **Files:** none (descoped; evidence in `scripts/sem1a_tce_spike.py` + SEM-1a row).
 
-- [ ] `todo` **SEM-1c** · commit `—` · Compile-as-classifier (replace heuristic `expected_compile`)
+- [x] `done` **SEM-1c** · commit `28d2f6b` · Compile-as-classifier (replace heuristic `expected_compile`)
   - **Goal:** replace the heuristic `expected_compile` *prediction* with the compiler's actual
     verdict (compiles / errors) for each mutant, so a non-compiling mutant is classified empirically.
     1a's primary win: 166/1844 candidates are heuristic `may_fail`; the runner already compiles per
     mutant, so marginal cost ≈ 0.
-  - **Proof:** red→green — a named non-compiling mutant is classified by the compiler's verdict
-    (not the guess); agreement with the heuristic on a named compiling mutant is unchanged.
-  - **Files:** `src/semantic_filter.zig` (or `src/mutant_runner.zig` wiring), `test/...`.
+  - **Result:** new pure `src/semantic_filter.zig` `empiricalExpectedCompile(heuristic, status)` maps
+    the mutant's terminal run status to the compiler's verdict — `.compile_error → .must_fail`,
+    `.killed`/`.survived → .compiles` (the test binary ran, so it compiled); ambiguous outcomes
+    (`.compiler_crash`/`.timeout`/`.invalid`/`.skipped`) keep the heuristic (the safe direction, only
+    asserting a bucket when the compiler genuinely spoke). Wired into `run_command.buildEntry` at the
+    one site that previously copied `candidate.expected_compile`; the marginal cost is zero (reuses the
+    run's own compile). The list-mutants *preview* (no run) intentionally keeps the heuristic.
+  - **Proof (red→green via full `zig_test`):** before wiring, the report carried the guess — a
+    comparison mutant the compiler rejects showed `.compiles` (RED, `expected .must_fail, found
+    .compiles`), an arithmetic mutant that compiled showed `.may_fail` (RED, `expected .compiles, found
+    .may_fail`); after wiring both report the empirical verdict (GREEN), a timeout keeps `.may_fail`,
+    and pure-mapping unit tests pin every status. `test/semantic_filter_test.zig`; the completed-run
+    snapshot updated `may_fail → compiles` for its killed (hence compiled) arithmetic mutant.
+  - **Files:** `src/semantic_filter.zig`, `src/root.zig`, `src/run_command.zig`,
+    `test/semantic_filter_test.zig`, `test/snapshots/run_command_completed.json`.
 
 ---
 
