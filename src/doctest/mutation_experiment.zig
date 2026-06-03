@@ -121,7 +121,7 @@ pub fn run(arena: std.mem.Allocator, file: []const u8, source: []const u8, snipp
         const snippet = producer.content;
         summary.cases += 1;
 
-        if (!hasBehavioralAssertion(snippet)) {
+        if (!try hasBehavioralAssertion(arena, snippet)) {
             summary.skipped_cases += 1;
             try cases.append(arena, skippedCase(c, "no_behavioral_assertion"));
             continue;
@@ -192,10 +192,29 @@ fn classify(arena: std.mem.Allocator, raw: runner.RawOutcome, command: StableCom
     return runner.classifyCommand(arena, .mutant, command.original, command.argv, command.cwd, raw);
 }
 
-/// A doctest has a behavioral assertion when it declares a `test` and uses an
-/// `expect`/`try`-based check; otherwise it cannot kill any mutant.
-fn hasBehavioralAssertion(snippet: []const u8) bool {
-    return std.mem.indexOf(u8, snippet, "test") != null and std.mem.indexOf(u8, snippet, "expect") != null;
+/// A doctest has a behavioral assertion when it declares a `test` and uses a
+/// `try`-based check or an `expect`-prefixed call (the canonical std.testing
+/// idioms); otherwise it cannot kill any mutant. Tokenized rather than
+/// substring-matched, so the words `test`/`expect` appearing in a comment or a
+/// string literal never count as an assertion (and vice versa).
+fn hasBehavioralAssertion(arena: std.mem.Allocator, snippet: []const u8) std.mem.Allocator.Error!bool {
+    const buf = try arena.dupeZ(u8, snippet);
+    var tok = std.zig.Tokenizer.init(buf);
+    var saw_test = false;
+    var saw_assertion = false;
+    while (true) {
+        const t = tok.next();
+        switch (t.tag) {
+            .eof => break,
+            .keyword_test => saw_test = true,
+            .keyword_try => saw_assertion = true,
+            .identifier => {
+                if (std.mem.startsWith(u8, buf[t.loc.start..t.loc.end], "expect")) saw_assertion = true;
+            },
+            else => {},
+        }
+    }
+    return saw_test and saw_assertion;
 }
 
 fn candidates(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]mutant.Mutant {
@@ -482,7 +501,7 @@ pub fn stableMutationRun(
         const producer = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
         const snippet = producer.content;
 
-        if (!hasBehavioralAssertion(snippet)) {
+        if (!try hasBehavioralAssertion(arena, snippet)) {
             try cases.append(arena, try skippedMutationCase(arena, c, "no_behavioral_assertion"));
             mutation_summary.total += 1;
             mutation_summary.skipped += 1;
