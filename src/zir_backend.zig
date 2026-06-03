@@ -15,13 +15,18 @@
 // on-disk artifact (`diagnosticsToJson` -> zentinel.experimental_backend_diagnostics.v1,
 // intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
 // is defined and tested but its pipeline write is not yet implemented (L25).
-// Targets pinned Zig 0.16.0; version coupling is handled by opt-in diagnostics.
+// Targets pinned Zig 0.16.0; the version-coupled `src_node` decoding is guarded by
+// `toolchainSupported` -- `listFromTrees` declines (error.UnsupportedZigVersion) on
+// any other toolchain (3a). `differentialOracle` cross-checks the ZIR set against the
+// AST recognizers, and `fromTree` audits that instructions resolve to a bijection over
+// distinct AST nodes, flagging collisions as out-of-report anomalies (3c).
 const std = @import("std");
 const mutant = @import("mutant.zig");
 const config = @import("config.zig");
 const ast_backend = @import("ast_backend.zig");
 const source_map = @import("source_map.zig");
 const run_command = @import("run_command.zig");
+const zig_version = @import("zig_version.zig");
 
 /// Internal deterministic backend contract string for the experimental ZIR
 /// prototype under Zig 0.16.0. It participates in durable identity (so a ZIR
@@ -376,6 +381,12 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     var collector = ast_backend.Collector.init(arena);
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
 
+    // 3c resolution audit: the recognized cmp/bool/arith instructions must map to a
+    // bijection over distinct AST nodes. `claimed[n]` records that node `n` has already
+    // been resolved to, so a second instruction landing on it is flagged as an anomaly.
+    const claimed = try arena.alloc(bool, tree.nodes.len);
+    @memset(claimed, false);
+
     for (inst_tags, 0..) |t, i| {
         const want = expectedAstTag(t) orelse continue;
         const off = @intFromEnum(inst_datas[i].pl_node.src_node);
@@ -391,6 +402,25 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             });
             continue;
         };
+        // 3c audit: a second instruction resolving to an already-claimed node is the
+        // innermost-base heuristic's collision (two same-operator sites at equal
+        // decl-relative offsets). Surface it as an out-of-report anomaly and skip the
+        // duplicate rather than silently letting the collector dedupe it away.
+        if (claimed[n]) {
+            const c_tok = tree.nodeMainToken(@as(std.zig.Ast.Node.Index, @enumFromInt(n)));
+            const c_start = tree.tokenStart(c_tok);
+            const c_end = c_start + @as(u32, @intCast(tree.tokenSlice(c_tok).len));
+            try diagnostics.append(arena, .{
+                .code = "ZNTL_ZIR_RESOLUTION_ANOMALY",
+                .file = file,
+                .operator = "resolution_anomaly",
+                .span_start = c_start,
+                .span_end = c_end,
+                .reason = "ZIR instruction resolved to an AST node another instruction already claimed (non-bijective mapping; innermost-base heuristic collision)",
+            });
+            continue;
+        }
+        claimed[n] = true;
         const node: std.zig.Ast.Node.Index = @enumFromInt(n);
         const mut = mutationFor(node_tags[n]) orelse continue; // resolveNode guarantees a supported tag
         const op_tok = tree.nodeMainToken(node);
@@ -469,7 +499,17 @@ pub fn experimentalListing(
     return fromAst(arena, ast_candidates);
 }
 
-pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError } || std.mem.Allocator.Error;
+pub const ListError = error{ ExperimentalBackendNotEnabled, BackendNotImplemented, BackendParseError, UnsupportedZigVersion } || std.mem.Allocator.Error;
+
+/// 3a version guard: the ZIR path decodes `pl_node.src_node` offsets whose meaning is
+/// coupled to the exact Zig version (`backend_version` pins zig-0.16.0) -- a different
+/// toolchain shifts AstGen's node/instruction layout and would silently mis-resolve.
+/// True only when the discovered toolchain is exactly the pinned `supported_version`;
+/// `listFromTrees` declines with `error.UnsupportedZigVersion` otherwise. Pure and
+/// injectable: the adapter discovers the version, this classifies it.
+pub fn toolchainSupported(discovery: zig_version.Discovery) bool {
+    return zig_version.classify(discovery) == .supported;
+}
 
 /// Operators the ZIR backend lowers to real candidates (those ZIR represents as a
 /// single instruction): the binary-operator mutations -- comparison, short-circuit
@@ -488,16 +528,20 @@ fn isZirLoweredOperator(op: []const u8) bool {
 /// genuine ZIR candidates; every other AST operator (not yet ZIR-lowered in Phase 1)
 /// and every AstGen-injected comparison becomes an out-of-report diagnostic, so a
 /// previously-listed operator is never silently dropped. Requires `backend.experimental`
-/// to contain `zir`. This is the path `list-mutants --backend zir` uses.
+/// to contain `zir` and the discovered toolchain `zig` to be the pinned Zig version
+/// (3a `toolchainSupported`). This is the path `list-mutants --backend zir` uses.
 pub fn listFromTrees(
     arena: std.mem.Allocator,
     cfg: config.Config,
+    zig: zig_version.Discovery,
     files: []const run_command.FileSource,
     ast_candidates: []const mutant.Mutant,
     backend: []const u8,
 ) ListError!Result {
     if (!std.mem.eql(u8, backend, "zir")) return error.BackendNotImplemented;
     if (!backendOptedIn(cfg, "zir")) return error.ExperimentalBackendNotEnabled;
+    // 3a: the version-coupled src_node decoding only holds on the pinned toolchain.
+    if (!toolchainSupported(zig)) return error.UnsupportedZigVersion;
 
     var candidates: std.ArrayList(mutant.Mutant) = .empty;
     var diagnostics: std.ArrayList(Diagnostic) = .empty;

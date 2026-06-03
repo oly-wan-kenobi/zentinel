@@ -50,7 +50,7 @@ Zig compiler frontend data
 
 The ZIR backend must not bypass the shared runner or reporter.
 
-The backend targets pinned Zig `0.16.0`; compiler-internal drift is handled by explicit opt-in diagnostics, not by looking up a moving stable release.
+The backend targets pinned Zig `0.16.0`. Because the `pl_node.src_node` decoding is coupled to that exact toolchain, `listFromTrees` actively declines (`error.UnsupportedZigVersion`, surfaced as a clear `--backend zir` diagnostic) on any other version — including a same-version nightly or a missing Zig — via `toolchainSupported` (3a), rather than risk silent mis-resolution on a moving release. As a standing cross-check, `differentialOracle` compares the ZIR-recognized binary-operator set against the AST recognizers' set, and `fromTree` audits that the recognized instructions resolve to a bijection over distinct AST nodes, flagging any collision as an out-of-report anomaly (3c).
 
 ## Source Mapping Strategy
 

@@ -686,7 +686,8 @@ fn runListMutants(
         // comparison mutation sites recognized from the cmp_* instructions; other
         // operators become out-of-report diagnostics. The stable AST default and the
         // `run` path are unaffected.
-        const listing = zentinel.zir_backend.listFromTrees(gpa, cfg, files.items, candidates, backend) catch |err| switch (err) {
+        const zig_disc = discoverZig(gpa, io);
+        const listing = zentinel.zir_backend.listFromTrees(gpa, cfg, zig_disc, files.items, candidates, backend) catch |err| switch (err) {
             error.OutOfMemory => return err,
             error.ExperimentalBackendNotEnabled => {
                 try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
@@ -698,6 +699,16 @@ fn runListMutants(
             },
             error.BackendParseError => {
                 try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+                return 2;
+            },
+            error.UnsupportedZigVersion => {
+                // The ZIR path's src_node decoding is version-coupled (zir-0.16.0); a
+                // different toolchain would silently mis-resolve, so it declines.
+                const detected: []const u8 = switch (zig_disc) {
+                    .version => |v| v,
+                    .not_found => "not found",
+                };
+                try stderr.print("error[{s}]: --backend zir requires Zig {s}; detected {s} (the ZIR backend's source mapping is version-coupled)\n", .{ zentinel.zig_version.Code.unsupported.token(), zentinel.zig_version.supported_version, detected });
                 return 2;
             },
         };

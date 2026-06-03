@@ -323,3 +323,69 @@ test "differentialOracle: an agreeing file has no divergence; dropping one AST s
     }
     try expect(flagged);
 }
+
+// --- ZIR-3 / 3a: version guard -----------------------------------------------
+
+test "listFromTrees declines on a non-pinned toolchain and accepts Zig 0.16.0 (ZIR-3 / 3a)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const file = "p.zig";
+    const src = "pub fn f(a: i32, b: i32) bool {\n    return a < b;\n}\n";
+    const files = [_]zentinel.run_command.FileSource{.{ .path = file, .source = src }};
+    const ast = try astComparisonOf(arena, file, src);
+
+    var diag: zentinel.config.Diagnostic = .{};
+    const cfg = try zentinel.config.load(arena, "[backend]\nexperimental = [\"zir\"]\n", &diag);
+
+    // The ZIR path's src_node decoding is coupled to the pinned Zig; a different
+    // toolchain, a same-version nightly, or a missing Zig all decline.
+    const older = zentinel.zig_version.Discovery{ .version = "0.15.0" };
+    try std.testing.expectError(error.UnsupportedZigVersion, zir.listFromTrees(arena, cfg, older, &files, ast, "zir"));
+    const nightly = zentinel.zig_version.Discovery{ .version = "0.16.0-dev.42" };
+    try std.testing.expectError(error.UnsupportedZigVersion, zir.listFromTrees(arena, cfg, nightly, &files, ast, "zir"));
+    try std.testing.expectError(error.UnsupportedZigVersion, zir.listFromTrees(arena, cfg, .not_found, &files, ast, "zir"));
+
+    // The pinned version is accepted and the `<` is lowered to a real ZIR candidate.
+    const pinned = zentinel.zig_version.Discovery{ .version = zentinel.zig_version.supported_version };
+    const listing = try zir.listFromTrees(arena, cfg, pinned, &files, ast, "zir");
+    var saw_cmp = false;
+    for (listing.candidates) |c| {
+        if (std.mem.eql(u8, c.operator, "comparison_boundary") and std.mem.eql(u8, c.original, "<")) saw_cmp = true;
+    }
+    try expect(saw_cmp);
+}
+
+// --- ZIR-3 / 3c: resolution-bijection audit ----------------------------------
+
+test "fromTree flags a non-bijective instruction->node resolution as an anomaly; a clean file has none (ZIR-3 / 3c)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const anomaly_code = "ZNTL_ZIR_RESOLUTION_ANOMALY";
+
+    // Clean: distinct operators map to distinct AST nodes -> no resolution anomaly.
+    const clean = "pub fn f(a: i32, b: i32) bool {\n    return a < b and a > b;\n}\n";
+    const clean_res = try zir.fromTree(arena, "p.zig", clean);
+    for (clean_res.diagnostics) |d| {
+        try expect(!std.mem.eql(u8, d.code, anomaly_code));
+    }
+
+    // Forced collision: two identical functions whose `<` sites sit at equal
+    // decl-relative offsets, so the innermost-base heuristic resolves BOTH ZIR
+    // instructions to the same AST node. The audit must surface exactly one anomaly,
+    // flagged at a `<` operator token.
+    const collide = "pub fn p(a: i32, b: i32) bool {\n    return a < b;\n}\npub fn q(a: i32, b: i32) bool {\n    return a < b;\n}\n";
+    const collide_res = try zir.fromTree(arena, "p.zig", collide);
+    var anomalies: usize = 0;
+    for (collide_res.diagnostics) |d| {
+        if (!std.mem.eql(u8, d.code, anomaly_code)) continue;
+        anomalies += 1;
+        try expectEqualStrings("resolution_anomaly", d.operator);
+        // The flagged span is exactly a `<` operator token, not a placeholder.
+        try expectEqualStrings("<", collide[@intCast(d.span_start)..@intCast(d.span_end)]);
+    }
+    try expect(anomalies == 1);
+}

@@ -95,16 +95,19 @@ test "list-mutants --backend zir lowers comparison/arithmetic to real ZIR candid
     const files = [_]zentinel.run_command.FileSource{.{ .path = "p.zig", .source = src }};
     const ast_all = try allCandidates(arena, "p.zig", src);
 
+    // The pinned toolchain (3a version guard is exercised separately).
+    const zig_ok = zentinel.zig_version.Discovery{ .version = zentinel.zig_version.supported_version };
+
     // Without opt-in the real ZIR path is gated shut.
     var d_no: config.Diagnostic = .{};
     const cfg_no = try load(arena, "", &d_no);
-    try expectError(error.ExperimentalBackendNotEnabled, zir.listFromTrees(arena, cfg_no, &files, ast_all, "zir"));
+    try expectError(error.ExperimentalBackendNotEnabled, zir.listFromTrees(arena, cfg_no, zig_ok, &files, ast_all, "zir"));
 
     // With opt-in: comparison + arithmetic are REAL ZIR-lowered candidates; the
     // boolean literal (lexical, no instruction) is an out-of-report diagnostic.
     var d_yes: config.Diagnostic = .{};
     const cfg_yes = try load(arena, "[backend]\nexperimental = [\"zir\"]\n", &d_yes);
-    const listing = try zir.listFromTrees(arena, cfg_yes, &files, ast_all, "zir");
+    const listing = try zir.listFromTrees(arena, cfg_yes, zig_ok, &files, ast_all, "zir");
 
     try expectEqual(@as(usize, 3), listing.candidates.len);
     var cmp_n: usize = 0;
