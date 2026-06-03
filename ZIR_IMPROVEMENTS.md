@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 4/5 done · 1 todo (ZIR-5, reopened from 3b on measured evidence)
+**Progress:** 5/5 done (ZIR-5 partial via escape hatch: collision loss ~22% → ~10%, residual 3c-guarded)
 
 ---
 
@@ -61,7 +61,7 @@
     dead path is gone.
   - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
 
-- [ ] `todo` **ZIR-5** · commit `—` · Fix the resolver collision (reopened from ZIR-3b)
+- [x] `done` **ZIR-5** · commit `2b33e93` · Fix the resolver collision (reopened from ZIR-3b) — partial, via escape hatch
   - **Goal:** make the ZIR resolver recognize the full binary-operator set on real code by
     eliminating the innermost-base collision (two same-operator sites at equal decl-relative offsets
     resolve to one node, dropping the other). Try a **claim-aware** resolution first — each
@@ -79,7 +79,17 @@
     decl-relative offsets) asserting BOTH spans are recognized and zero anomalies — red before (one
     span lost + one anomaly, exactly the ZIR-3c collision case), green after. Corroborate with the
     real-tree AST-vs-ZIR gap (1455 vs 1140 → expect 0).
-  - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`
+  - **Result (partial — escape hatch taken):** claim-aware resolution shipped (`resolveNode` returns
+    the innermost *unclaimed* node; `.none`=injected, `.exhausted`=residual anomaly). Measured over
+    `src/`: ZIR candidates **1140 → 1310**, gap **315 (~22%) → 144 (~10%)**, anomalies **436 → 256** —
+    ~54% of the loss recovered, no regressions, no mis-located candidates. The acceptance target
+    (gap → 0) was **not** reached: the residual is cross-offset contention the greedy pass cannot
+    place, and full closure needs per-instruction declaration tracking (the fragile structural
+    descent the escape hatch declines). Per the escape hatch the residual is kept visible by the 3c
+    audit and documented here + in `docs/ZIR_BACKEND.md`. The 3c test was repurposed to assert the
+    fix (former collision → both sites, no anomaly). Follow-up if the residual matters: wire the
+    ZIR-2 oracle into a CI sweep to track it, or attempt bipartite max-matching before going fragile.
+  - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
   - **Escape hatch:** if claim-aware cannot guarantee a bijection (e.g. injected instructions
     contending for real nodes) and the structural descent is too fragile to pin to 0.16.0, keep the
     3c audit as the guard and document the residual loss with the measured number.
