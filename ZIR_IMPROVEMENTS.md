@@ -6,11 +6,11 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 0/4 done
+**Progress:** 1/4 done
 
 ---
 
-- [ ] `todo` **ZIR-1** · commit `—` · Comptime-context-aware `expected_compile`
+- [x] `done` **ZIR-1** · commit `907651e` · Comptime-context-aware `expected_compile`
   - **Goal:** the resolver tracks comptime nesting (`block_comptime` / comptime bodies); a
     binary-operator candidate whose site is comptime-evaluated is emitted with a comptime-aware
     `expected_compile` (not `.compiles`), since comptime evaluation is strict.
