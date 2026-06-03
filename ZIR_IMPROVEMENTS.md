@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 2/4 done
+**Progress:** 3/4 done
 
 ---
 
@@ -36,18 +36,20 @@
     one side is perturbed. Red→green.
   - **Files:** `src/zir_backend.zig` (+ optional CLI surface), `test/zir_backend_test.zig`
 
-- [ ] `todo` **ZIR-3** · commit `—` · Harden the resolver (3a version-guard · 3b exact base · 3c audit)
-  - **3a — version guard:** gate the ZIR path on the discovered Zig version == pinned `0.16.0`;
-    emit a clear diagnostic and decline if mismatched (the `src_node` offsets are version-coupled).
-    *Proof:* an injected non-`0.16.0` version → the version diagnostic / declines.
-  - **3b — exact decl-base tracking:** replace the innermost-base heuristic with the structural
-    decl-base descent (`getDeclaration`/`getFnInfo`/`getStructDecl`). **LIKELY `descoped`** —
-    fragile compiler-internals, and the parity tests already net the heuristic. Record the reason.
-  - **3c — resolution audit:** assert ZIR cmp/bool/arith instructions resolve to a bijection over
-    distinct AST nodes; surface anomalies as diagnostics. *Proof:* clean fixture → no anomaly; a
-    forced anomaly is flagged.
-  - **Do 3a + 3c; descope 3b with a reason.**
-  - **Files:** `src/zir_backend.zig`, `src/zig_version.zig` (read-only reuse), `test/zir_backend_test.zig`
+- [x] `done` **ZIR-3** · commit `4e443a6` · Harden the resolver (3a version-guard ✓ · 3b descoped · 3c audit ✓)
+  - **3a — version guard `done`:** `listFromTrees` takes the discovered toolchain and declines
+    (`error.UnsupportedZigVersion`) on anything but pinned `0.16.0` via `toolchainSupported`
+    (reusing `zig_version.classify`); the CLI prints a clear `--backend zir requires Zig 0.16.0`
+    diagnostic. *Proof:* non-`0.16.0` / nightly / not-found all decline; `0.16.0` is accepted.
+  - **3b — exact decl-base tracking `descoped`:** `getDeclaration`/`getFnInfo`/`getStructDecl` are
+    unstable compiler internals (the same version-coupling fragility 3a guards), and 3c now makes
+    the heuristic's only real failure mode — a collision — observable as an anomaly diagnostic, so
+    the parity tests + the 3c audit net it without taking on fragile internals. No code change.
+  - **3c — resolution audit `done`:** `fromTree` asserts cmp/bool/arith instructions resolve to a
+    bijection over distinct AST nodes; a second instruction on an already-claimed node is flagged
+    `ZNTL_ZIR_RESOLUTION_ANOMALY` and skipped. *Proof:* clean file → no anomaly; a forced
+    two-function `<` collision → exactly one `<`-token anomaly.
+  - **Files:** `src/zir_backend.zig`, `src/cli.zig`, `test/zir_backend_test.zig`, `test/cli_backend_experiment_test.zig`, `docs/ZIR_BACKEND.md`
 
 - [ ] `todo` **ZIR-4** · commit `—` · Retire the legacy `fromAst` relabel
   - **Goal:** remove `fromAst` / `isSupported` and the relabel-only unit tests now that
