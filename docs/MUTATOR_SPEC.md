@@ -2,7 +2,7 @@
 
 This document defines the mutation operators zentinel may generate. A mutator is stable only when this document defines its transformation, allowed contexts, forbidden contexts, equivalent-mutant risks, fixture requirements, and compile-error expectations.
 
-The AST backend is the stable implementation target. ZIR and AIR backends may implement compatible operators later, but they must emit the same shared mutant model and result semantics.
+The AST backend is the stable implementation target. the ZIR backend may implement compatible operators later, but they must emit the same shared mutant model and result semantics.
 
 ## Common Rules
 

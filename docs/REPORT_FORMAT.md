@@ -245,11 +245,11 @@ If generated-command preflight fails, times out, or crashes the compiler, the ge
 
 ## Stability Fields
 
-`backend_stability` describes the backend that produced the mutant. Valid values are `stable` and `experimental`; the AST backend is stable, while ZIR and AIR are experimental until promoted by a future ADR and release criteria.
+`backend_stability` describes the backend that produced the mutant. Valid values are `stable` and `experimental`; the AST backend is stable, while ZIR is experimental until promoted by a future ADR and release criteria.
 
 `backend_version` is intentionally omitted from report v1 public mutant entries. It remains internal identity/cache evidence and must not be added to report v1 without a schema-versioned report change.
 
-report v1 has no backend-specific diagnostics namespace. Experimental ZIR/AIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
+report v1 has no backend-specific diagnostics namespace. Experimental ZIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
 
 The `mode` field is single-valued until safety-mode matrix work lands; mode-matrix reporting is owned by task `058`. Task `058` may add optional `result.mode_matrix` fields only as an additive change: mode-matrix reporting remains an additive `zentinel.report.v1` extension and must preserve existing `result.mode` semantics. If those semantics must change, the work requires a new report schema version.
 

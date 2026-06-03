@@ -11,7 +11,7 @@ zentinel development is phased so future agents can build independently without 
 | 2 | Zig Semantics | Zig-native mutators and executable mutator documentation examples. | AST |
 | 3 | Performance | Parallel execution, caching, fail-fast, test impact analysis, doctest cache. | AST |
 | 4 | AI-Assisted UX | Explain, suggest, review flows, and advisory doctest assistance. | AST |
-| 5 | Experimental Backends | ZIR and AIR backends behind explicit opt-in, with future doctest semantic checks. | AST + ZIR/AIR |
+| 5 | Experimental Backends | the ZIR backend behind explicit opt-in, with future doctest semantic checks. | AST + ZIR |
 | 6 | Safety Mode Intelligence | Compare results across Zig optimization/safety modes, including mode-aware doctests. | AST + optional IR |
 | 7 | Dogfooding Expansion | zentinel mutates and doctests substantial parts of itself in CI. | Stable defaults |
 
@@ -137,13 +137,12 @@ Exit criteria:
 - doctest AI subcommands are user-facing CLI surfaces with stub-provider coverage
 - AI doctest suggestions are validated as advisory-only outputs
 
-## Phase 5: Experimental ZIR/AIR Backends
+## Phase 5: Experimental ZIR Backends
 
 Deliver:
 
 - backend selection config
 - ZIR candidate generation prototype
-- AIR candidate generation prototype
 - source mapping diagnostics
 - compatibility guards for pinned Zig `0.16.0` internals
 - backend parity tests against AST fixtures where applicable

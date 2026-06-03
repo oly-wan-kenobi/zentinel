@@ -400,7 +400,7 @@ Responsibilities:
 - review design boundary changes
 - check compiler-tooling risks
 - protect AST default and deterministic core
-- review ZIR/AIR experimental isolation
+- review ZIR experimental isolation
 
 Forbidden:
 
@@ -416,5 +416,5 @@ Required artifacts:
 Verification duties:
 
 - confirm AST remains the stable default
-- confirm ZIR/AIR behavior is experimental and explicitly opted in
+- confirm ZIR behavior is experimental and explicitly opted in
 - reject changes that let AI determine deterministic correctness

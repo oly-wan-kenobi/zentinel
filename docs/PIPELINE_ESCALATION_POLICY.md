@@ -11,7 +11,7 @@ Each task receives the highest applicable class.
 | Low-risk | Narrow docs clarification, metadata-only change, non-contract typo. | Test Author, Implementer, Verifier. | Task-system validation; targeted check for changed file. |
 | Normal | Single-module behavior with clear contract and local tests. | Test Author, Test Reviewer, Implementer, Implementation Reviewer, Verifier. | Unit/fixture tests; snapshots when output changes. |
 | High-risk | Shared models, reports, runner, cache, mutation classification, public schemas. | Normal roles plus Property Test Agent or Mutation Agent as applicable. | Unit tests, property tests for invariants, mutation gate when mutation-testable. |
-| Compiler-internal | AST/ZIR/AIR, source mapping, Zig version coupling, compile-error classification, safety modes. | High-risk roles plus Architecture Reviewer. | Source mapping fixtures, property tests, mutation gate, architecture review. |
+| Compiler-internal | AST/ZIR, source mapping, Zig version coupling, compile-error classification, safety modes. | High-risk roles plus Architecture Reviewer. | Source mapping fixtures, property tests, mutation gate, architecture review. |
 | Architecture | Roadmap, public contracts, task system, module boundaries, backend stability. | Phase Planner, Contract Editor, Architecture Reviewer, Test Reviewer for executable contracts, Verifier. | Contract validation, task-system validation, doctest readiness for public examples. |
 
 Required gates are monotonic. Escalating a task may add gates, but must not remove gates required by a lower class.
@@ -39,7 +39,7 @@ Low-risk tasks may omit Test Reviewer and Implementation Reviewer only when the 
 | --- | --- |
 | Public schema, CLI, config, or report contract changes. | Implementation Reviewer and Test Reviewer. |
 | Mutator semantics, result classification, or survivor behavior changes. | Mutation Triage Agent. |
-| Source spans, AST/ZIR/AIR mapping, Zig version internals. | Architecture Reviewer. |
+| Source spans, AST/ZIR mapping, Zig version internals. | Architecture Reviewer. |
 | New property-test invariant or generator. | Property Test Agent. |
 | Public documentation examples. | Doctest Agent once doctest support exists. |
 | Sandbox, process execution, filesystem isolation. | Architecture Reviewer and security review against `docs/SANDBOX_SECURITY.md`. |

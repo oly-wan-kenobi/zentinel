@@ -18,7 +18,7 @@ When a new concept becomes part of the public contract, add it here before using
 
 **AST backend**: The stable default backend that generates mutants from Zig source syntax and exact source spans.
 
-**Backend**: A component that discovers mutation candidates and emits the shared `Mutant` model. Valid backend names are `ast`, `zir`, and `air`.
+**Backend**: A component that discovers mutation candidates and emits the shared `Mutant` model. Valid backend names are `ast` and `zir`.
 
 **Baseline**: The test command result collected before any mutant is applied. A failed baseline blocks mutation execution.
 
@@ -48,7 +48,7 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Equivalent risk**: Metadata saying a mutant may be semantically equivalent or may require a stronger test to distinguish. It is not a reason to suppress the mutant unless a deterministic equivalent filter is documented and tested.
 
-**Experimental backend**: A backend available only behind explicit opt-in. ZIR and AIR are experimental until promoted by docs, tests, and release criteria.
+**Experimental backend**: A backend available only behind explicit opt-in. ZIR is experimental until promoted by docs, tests, and release criteria.
 
 **Fixture**: A small Zig project or source file designed to exercise one behavior or mutator contract.
 
@@ -92,4 +92,4 @@ When a new concept becomes part of the public contract, add it here before using
 
 **ZIR backend**: An experimental backend that may inspect Zig IR when stable, public APIs make that safe.
 
-**AIR backend**: An experimental backend that may inspect lower-level Zig IR when stable, public APIs make that safe.
+**AIR backend (retired)**: A former experimental backend, removed because meaningful AIR-level mutation mapping is infeasible without Zig's `Sema` stage; the prototype only relabeled AST candidates. AST is the stable default; ZIR is the experimental backend.

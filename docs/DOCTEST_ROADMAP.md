@@ -11,7 +11,7 @@ Doctests become first-class in zentinel through staged adoption. Normal executab
 | Phase 2 | Make mutator specs executable through `zig before`/`zig after` examples. |
 | Phase 3 | Add caching, deterministic parallel execution, and doctest runtime budgets. |
 | Phase 4 | Add advisory AI flows for doctest failures, missing examples, and snapshot review. |
-| Phase 5 | Explore ZIR/AIR-backed semantic checks for mutation-aware doctest examples. |
+| Phase 5 | Explore ZIR-backed semantic checks for mutation-aware doctest examples. |
 | Phase 6 | Add safety-mode doctest matrices for examples that document mode-specific behavior. |
 | Phase 7 | Dogfood doctests across zentinel docs and gate public docs in CI. |
 

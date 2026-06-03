@@ -54,7 +54,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Enforcement.* AI schema tests and report contract tests.
 - *Failure mode.* Remote text changes whether a mutant is killed, survived, skipped, or invalid.
 
-**I-005.** AST is the stable default backend; ZIR and AIR are experimental opt-in backends.
+**I-005.** AST is the stable default backend; ZIR is experimental opt-in backends.
 - *Rationale.* Stable behavior must not depend on compiler-internal surfaces until source mapping and version coupling are proven.
 - *Status.* documented.
 - *Enforcement.* Config validation tests and backend selection tests.

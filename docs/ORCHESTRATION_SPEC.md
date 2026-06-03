@@ -71,7 +71,7 @@ Subagents must:
 | Low-risk | Docs-only or narrow tests with no public contract change. |
 | Normal | Single-module behavior with clear tests. |
 | High-risk | Shared model, runner, cache, report, mutation semantics, or public schema. |
-| Compiler-internal | AST/ZIR/AIR, source mapping, Zig version coupling, or safety-mode semantics. |
+| Compiler-internal | AST/ZIR, source mapping, Zig version coupling, or safety-mode semantics. |
 | Architecture | Roadmap, public contracts, task system, or module boundaries. |
 
 The Orchestrator chooses the highest applicable class.

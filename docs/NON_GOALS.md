@@ -25,7 +25,7 @@ This document records what zentinel will not do. It exists so agents do not spen
 - **Mutating Zig `test` declarations by default. [never]** Tests are evidence, not normal mutation targets. Explicit test-mutation experiments must be separately labeled.
 - **Suppressing possible equivalent mutants by intuition. [never]** Equivalent risk is metadata unless a deterministic, documented filter proves the skip.
 - **Hiding compile errors or compiler crashes as invalid mutants. [never]** Compile errors are normal deterministic results when a syntactically valid mutant does not type-check; compiler crashes are separate deterministic runner results.
-- **Using private compiler internals in stable paths. [never]** ZIR and AIR remain experimental unless the source mapping and version coupling are proven.
+- **Using private compiler internals in stable paths. [never]** ZIR remains experimental unless the source mapping and version coupling are proven.
 - **Generating multiple edits for a single mutant by default. [never]** A mutant is one documented source change unless a future ADR changes the model.
 
 ## Engineering Non-Goals

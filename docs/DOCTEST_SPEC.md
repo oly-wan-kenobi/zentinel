@@ -508,7 +508,7 @@ invalid
 | `survivor_ref` | Durable `ds_...` survivor ref when `case.status = "survived"`; otherwise `null`. |
 | `operator` | Stable mutator operator name from `docs/MUTATOR_SPEC.md`. |
 | `operator_stability` | `stable`, `preview`, or `experimental`. |
-| `backend` | `ast` for stable doctest mutation; `zir` and `air` remain experimental only. |
+| `backend` | `ast` for stable doctest mutation; `zir` remains experimental only. |
 | `backend_stability` | `stable` or `experimental`. |
 | `doc_file` | Project-relative documentation path that owns the doctest case. |
 | `doc_line` | One-based anchor line for display and diagnostics only. |

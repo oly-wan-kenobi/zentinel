@@ -12,7 +12,7 @@ zentinel CI must protect deterministic behavior first. Mutation testing is added
 | Contract tests | Protect report/config/AI schemas. | 1-4 |
 | Dogfood advisory | Run zentinel on selected zentinel modules. | 2-3 |
 | Dogfood gating | Fail on protected mutation regressions. | 4+ |
-| Experimental backend jobs | Validate ZIR/AIR without blocking stable path. | 5+ |
+| Experimental backend jobs | Validate ZIR without blocking stable path. | 5+ |
 
 ## Required Baseline Jobs
 
@@ -124,7 +124,7 @@ CI should not fail on:
 
 ## Experimental Backends
 
-ZIR and AIR jobs must be:
+ZIR jobs must be:
 
 - clearly named experimental
 - opt-in or non-blocking until promoted

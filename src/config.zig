@@ -91,7 +91,7 @@ const operators = [_]OperatorInfo{
 };
 
 const known_modes = [_][]const u8{ "Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall" };
-const known_backends = [_][]const u8{ "ast", "zir", "air" };
+const known_backends = [_][]const u8{ "ast", "zir" };
 const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all", "impact_graph" };
 const known_providers = [_][]const u8{ "disabled", "stub", "local", "remote" };
 const known_report_formats = [_][]const u8{ "text", "json", "jsonl", "junit" };
@@ -360,7 +360,7 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     for (backend_experimental) |b| {
         if (!inList(&known_backends, b)) return fail(diag, .invalid_value, "backend", "experimental", "unknown backend");
     }
-    if ((std.mem.eql(u8, backend_default, "zir") or std.mem.eql(u8, backend_default, "air")) and
+    if (std.mem.eql(u8, backend_default, "zir") and
         !inList(backend_experimental, backend_default))
     {
         return fail(diag, .experimental_backend, "backend", "default", "experimental backend requires explicit opt-in");

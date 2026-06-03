@@ -68,7 +68,7 @@ CI must:
 
 ## Experimental Backends
 
-ZIR and AIR are more tightly coupled to compiler internals than the AST backend. They must include:
+ZIR is more tightly coupled to compiler internals than the AST backend. It must include:
 
 - adapter version checks
 - clear diagnostics for unsupported compiler internals

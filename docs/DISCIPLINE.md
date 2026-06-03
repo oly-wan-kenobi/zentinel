@@ -88,7 +88,7 @@ Each rule is binding even before it is fully machine-enforced. When a rule is no
 
 **D-600.** The AST backend remains the default stable backend unless a future ADR supersedes that decision.
 
-**D-601.** ZIR and AIR code paths must remain opt-in and clearly labeled experimental.
+**D-601.** ZIR code paths must remain opt-in and clearly labeled experimental.
 
 **D-602.** Experimental backend failures must not fail stable AST jobs unless the active task explicitly changes promotion status.
 

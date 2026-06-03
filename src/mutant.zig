@@ -15,7 +15,7 @@ pub const id_namespace = "zentinel.mutant.v1";
 /// is intentionally absent from report v1 public entries.
 pub const ast_backend_version = "ast.v1.zig-0.16.0";
 
-pub const Backend = enum { ast, zir, air };
+pub const Backend = enum { ast, zir };
 pub const BackendStability = enum { stable, experimental };
 pub const OperatorStability = enum { stable, preview, experimental };
 pub const ExpectedCompile = enum { compiles, may_fail, must_fail };

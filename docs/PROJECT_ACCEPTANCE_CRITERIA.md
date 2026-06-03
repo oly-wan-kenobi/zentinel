@@ -112,7 +112,7 @@ Default CI must not require:
 
 - remote AI providers
 - network access after dependencies are available
-- experimental ZIR/AIR backends
+- experimental ZIR backends
 
 ## Required Performance Baseline
 

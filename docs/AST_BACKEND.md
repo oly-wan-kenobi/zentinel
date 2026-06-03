@@ -105,6 +105,6 @@ AST backend evolution:
 1. Phase 1 syntactic operators.
 2. Phase 2 Zig-native semantic operators with conservative validation.
 3. Phase 3 performance improvements through parsed-file caching.
-4. Phase 5 parity tests against ZIR/AIR where semantic mapping overlaps.
+4. Phase 5 parity tests against ZIR where semantic mapping overlaps.
 
 The AST backend remains the stable default even after experimental backends exist.

@@ -192,7 +192,7 @@
         "mutant_id": { "type": "string" },
         "operator": { "type": "string" },
         "operator_stability": { "enum": ["stable", "preview", "experimental"] },
-        "backend": { "enum": ["ast", "zir", "air"] },
+        "backend": { "enum": ["ast", "zir"] },
         "backend_stability": { "enum": ["stable", "experimental"] },
         "doc_file": { "type": "string" },
         "doc_line": { "type": "integer", "minimum": 1 },

@@ -33,7 +33,7 @@ Property-test requirements scale with the task complexity class:
 | Low-risk | Not required unless the task touches a Required For surface. |
 | Normal | Required when the task touches a Required For surface; enumerated or generated evidence is acceptable before task `062`. |
 | High-risk | Required whenever a Required For surface is touched; a high-risk report with no property evidence is rejected. |
-| Compiler-internal | Required; property evidence over source spans, ZIR/AIR mapping, or Zig-version internals is mandatory and missing evidence is an escalation trigger per `docs/PIPELINE_ESCALATION_POLICY.md`. |
+| Compiler-internal | Required; property evidence over source spans, ZIR mapping, or Zig-version internals is mandatory and missing evidence is an escalation trigger per `docs/PIPELINE_ESCALATION_POLICY.md`. |
 
 A task whose active scope touches no Required For surface records `scope` `not_property_required` with a written reason instead of empty evidence.
 

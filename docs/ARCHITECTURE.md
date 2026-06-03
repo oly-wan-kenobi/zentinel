@@ -29,8 +29,7 @@ zentinel
 ├─ Doctest Engine
 ├─ Mutation Engine
 │  ├─ AST Backend (stable default)
-│  ├─ ZIR Backend (experimental)
-│  └─ AIR Backend (experimental)
+│  └─ ZIR Backend (experimental)
 ├─ Mutators
 ├─ Sandbox / Patch Application
 ├─ Runner
@@ -116,7 +115,7 @@ Every backend emits the same logical `Mutant` model:
 Mutant
 ├─ id: stable deterministic identifier
 ├─ display_id: report-local compact index, assigned only when rendering a report
-├─ backend: ast | zir | air
+├─ backend: ast | zir
 ├─ backend_stability: stable | experimental
 ├─ operator: mutation operator name
 ├─ operator_stability: stable | preview | experimental
@@ -152,7 +151,7 @@ replacement
 
 The display ID is stable only within one report after canonical sorting. It is useful for terminal output and short CLI selectors against a selected report, but it is not a durable backend identity and must not be stored in handoffs or AI context as the canonical reference.
 
-`backend_version` is an internal deterministic backend contract string, not a user-facing backend choice. For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`. ZIR and AIR may define experimental backend versions only when their experiment tasks document version coupling and mapping semantics.
+`backend_version` is an internal deterministic backend contract string, not a user-facing backend choice. For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`. ZIR may define an experimental backend version only when its experiment task documents version coupling and mapping semantics.
 
 ## Pipeline
 
@@ -262,7 +261,7 @@ Error messages must be compiler-like: direct, scoped, and actionable.
 | experimental | Available only behind explicit opt-in. Output may change between releases. |
 | internal | Not exposed in config, CLI, or report contracts. |
 
-The AST backend is stable by default. ZIR and AIR are experimental **relabel prototypes**: they re-tag the stable AST candidate set with `backend = zir|air` and do **no IR lowering or compiler-internal analysis** (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). They are reachable only through `list-mutants --backend <zir|air>`; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error. Real IR-level analysis is future work, not current behavior.
+The AST backend is stable by default. The ZIR backend is experimental: it re-tags the stable AST candidate set with `backend = zir` (binary-operator sites are recognized from real `std.zig.AstGen` ZIR lowering; see `docs/ZIR_BACKEND.md`). It is reachable only through `list-mutants --backend <zir>`; the `run` command always uses the stable AST backend and rejects `--backend` with a clear usage error. Real IR-level analysis is future work, not current behavior.
 
 ## Architecture Invariants
 

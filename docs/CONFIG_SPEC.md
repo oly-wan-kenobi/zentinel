@@ -160,10 +160,9 @@ Allowed backend values:
 ```text
 ast
 zir
-air
 ```
 
-`zir` and `air` are rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag. The experimental CLI backend flag is `list-mutants --backend <zir|air>` and is owned by tasks `056` and `057`.
+`zir` is rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag. The experimental CLI backend flag is `list-mutants --backend zir` and is owned by task `056`. (The `air` backend was retired: AIR-level mutation mapping is infeasible without Zig's `Sema` stage.)
 
 ## Mutators Section
 

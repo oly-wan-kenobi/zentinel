@@ -55,10 +55,10 @@ pub const ast_backend = @import("ast_backend.zig");
 /// operators as out-of-report diagnostics (task 056).
 pub const zir_backend = @import("zir_backend.zig");
 
-/// Experimental AIR backend prototype (docs/AIR_BACKEND.md). Opt-in only; like
-/// ZIR but with a distinct exact-mapping operator set, a source_mapping enum, and
-/// safety-mode metadata in its out-of-report diagnostics (task 057).
-pub const air_backend = @import("air_backend.zig");
+// The experimental AIR backend was retired: meaningful AIR-level mutation
+// mapping is infeasible without Zig's SEMA stage, and the prototype only
+// relabeled AST candidates. AST is the stable default; ZIR is the experimental
+// lowered-IR backend.
 
 /// AST mutators (deterministic core). Each recognizer emits candidates through
 /// the shared collector; mutators may not import runner/sandbox/report/cli/ai.

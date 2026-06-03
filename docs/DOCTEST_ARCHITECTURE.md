@@ -82,7 +82,7 @@ Doctest modules may depend on:
 Doctest modules must not depend on:
 
 - AI providers for pass/fail behavior
-- experimental ZIR/AIR backends
+- experimental ZIR backends
 - mutation execution unless `--mutate` is explicitly enabled
 
 ## Extraction Pipeline

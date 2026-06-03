@@ -413,7 +413,7 @@ fn runRun(
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
-            error.BackendNotInRun => "--backend is list-mutants-only; run always uses the stable AST backend (the experimental ZIR/AIR backends re-tag AST candidates and do no IR analysis)",
+            error.BackendNotInRun => "--backend is list-mutants-only; run always uses the stable AST backend (the experimental ZIR backend re-tags AST candidates and does no IR analysis)",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
         return 2;
@@ -603,9 +603,10 @@ fn runListMutants(
     stdout: *std.Io.Writer,
     stderr: *std.Io.Writer,
 ) !u8 {
-    // Extract the experimental `--backend <ast|zir|air>` opt-in here in the
+    // Extract the experimental `--backend <ast|zir>` opt-in here in the
     // adapter (task 056): the frozen list-mutants parser owns only
     // `--operator`/`--format` and stays unchanged. Default is the stable AST.
+    // (AIR was retired: AIR-level mutation mapping is infeasible without SEMA.)
     var backend: []const u8 = "ast";
     var filtered: std.ArrayList([]const u8) = .empty;
     {
@@ -619,8 +620,8 @@ fn runListMutants(
                     return 2;
                 }
                 backend = inv.args[i];
-                if (!std.mem.eql(u8, backend, "ast") and !std.mem.eql(u8, backend, "zir") and !std.mem.eql(u8, backend, "air")) {
-                    try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --backend must be 'ast', 'zir', or 'air'\n");
+                if (!std.mem.eql(u8, backend, "ast") and !std.mem.eql(u8, backend, "zir")) {
+                    try stderr.writeAll("error[ZNTL_CLI_INVALID_OPTION]: --backend must be 'ast' or 'zir'\n");
                     return 2;
                 }
             } else {
@@ -728,30 +729,6 @@ fn runListMutants(
         // Out-of-report backend diagnostics: stderr only, never report fields.
         for (listing.diagnostics) |d| {
             try stderr.writeAll(try zentinel.zir_backend.renderDiagnosticNote(gpa, d));
-        }
-        return 0;
-    } else if (std.mem.eql(u8, backend, "air")) {
-        const listing = zentinel.air_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
-            error.OutOfMemory => return err,
-            error.ExperimentalBackendNotEnabled => {
-                try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
-                return 2;
-            },
-            error.BackendNotImplemented => {
-                try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet\n", .{backend});
-                return 2;
-            },
-        };
-        const rendered = switch (options.format) {
-            .text => try zentinel.list_mutants_command.renderText(gpa, listing.candidates),
-            .json => try zentinel.list_mutants_command.renderJson(gpa, listing.candidates),
-        };
-        try stdout.writeAll(rendered);
-        if (options.format == .json) try stdout.writeAll("\n");
-        // Out-of-report AIR diagnostics (with source_mapping + safety mode):
-        // stderr only, never report fields.
-        for (listing.diagnostics) |d| {
-            try stderr.writeAll(try zentinel.air_backend.renderDiagnosticNote(gpa, d));
         }
         return 0;
     }

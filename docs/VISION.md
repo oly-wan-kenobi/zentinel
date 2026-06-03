@@ -106,7 +106,7 @@ zentinel is not:
 
 ## Long-Term Direction
 
-The stable product starts with an AST/source backend because users need reliable behavior early. Experimental ZIR and AIR backends will later explore deeper semantic mutation while preserving the same shared mutant model and deterministic report contract.
+The stable product starts with an AST/source backend because users need reliable behavior early. An experimental ZIR backend will later explore deeper semantic mutation while preserving the same shared mutant model and deterministic report contract.
 
 The long-term goal is:
 

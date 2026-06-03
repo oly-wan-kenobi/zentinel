@@ -358,7 +358,7 @@ pub fn validate(value: std.json.Value) Violation {
     // mutant: distinct backend vs operator stability
     const m = asObject(obj.get("mutant").?) orelse return .not_object;
     if (!requireAll(m, &.{ "id", "display_id", "backend", "backend_stability", "operator", "operator_stability", "file", "span", "original", "replacement", "diff", "expected_compile" })) return .missing_field;
-    if (!enumOk(m, "backend", &.{ "ast", "zir", "air" })) return .bad_enum;
+    if (!enumOk(m, "backend", &.{ "ast", "zir" })) return .bad_enum;
     if (!enumOk(m, "backend_stability", &.{ "stable", "experimental" })) return .bad_enum; // rejects `preview`
     if (!enumOk(m, "operator_stability", &.{ "stable", "preview", "experimental" })) return .bad_enum; // accepts `preview`
     if (!enumOk(m, "expected_compile", &.{ "compiles", "may_fail", "must_fail" })) return .bad_enum;

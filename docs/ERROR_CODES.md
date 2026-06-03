@@ -39,7 +39,7 @@ INTERNAL
 | `ZNTL_CONFIG_UNKNOWN_KEY` | Config | Config contains an unsupported section or key. |
 | `ZNTL_CONFIG_INVALID_VALUE` | Config | Config value has wrong type or unsupported enum value. |
 | `ZNTL_CONFIG_INVALID_COMMAND` | Config | Configured test command cannot be parsed by zentinel's shell-free command grammar. |
-| `ZNTL_CONFIG_EXPERIMENTAL_BACKEND` | Config | ZIR/AIR selected without explicit experimental opt-in. |
+| `ZNTL_CONFIG_EXPERIMENTAL_BACKEND` | Config | ZIR selected without explicit experimental opt-in. |
 | `ZNTL_ZIG_NOT_FOUND` | Zig version | Zig executable could not be found. |
 | `ZNTL_ZIG_UNSUPPORTED_VERSION` | Zig version | Discovered Zig version is not the pinned supported Zig version for this zentinel release. |
 | `ZNTL_PROJECT_NO_SOURCES` | Project model | Include/exclude rules produce no source files. |

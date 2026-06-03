@@ -37,7 +37,7 @@ For behavior changes, also read:
 - Preserve deterministic core behavior.
 - Support only pinned Zig `0.16.0` for this zentinel version.
 - Keep AST as the stable default backend.
-- Treat ZIR and AIR as experimental only.
+- Treat ZIR as experimental only.
 - Never use AI output to determine mutation correctness.
 - Dogfood zentinel as soon as the task system requires it.
 - Cite `docs/INVARIANTS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, or ADR IDs when they govern a non-obvious choice.

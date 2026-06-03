@@ -21,7 +21,7 @@ These choices are fixed for autonomous agents:
 - Unsupported TOML features must fail with clear validation errors.
 - AST mutation should prefer pinned Zig `0.16.0` public parser APIs such as `std.zig.Ast` when available.
 - If no usable public parser API exists, Phase 1 may use a token-aware source backend limited to documented operators and must keep the module named `ast_backend` until a parser-backed adapter replaces it.
-- ZIR and AIR work must not use private compiler internals in stable code paths.
+- ZIR work must not use private compiler internals in stable code paths.
 
 ## Adding a Dependency
 

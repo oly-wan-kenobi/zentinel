@@ -3085,21 +3085,13 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
             "report v1 does not define backend-specific diagnostic fields",
             "pinned Zig `0.16.0`",
         ],
-        "docs/AIR_BACKEND.md": [
-            "`backend_stability` is `experimental`",
-            "out-of-report AIR diagnostics",
-            "report v1 does not define backend-specific diagnostic fields",
-            "pinned Zig `0.16.0`",
-        ],
+        # docs/AIR_BACKEND.md retired: AIR-level mutation mapping is infeasible
+        # without Zig's Sema stage. The AIR backend and its doc were removed.
         "docs/REPORT_FORMAT.md": [
             "report v1 has no backend-specific diagnostics namespace",
             "`backend_stability`",
         ],
         "tasks/056-zir-backend-experiment.md": [
-            "`backend_stability`",
-            "out-of-report diagnostics",
-        ],
-        "tasks/057-air-backend-experiment.md": [
             "`backend_stability`",
             "out-of-report diagnostics",
         ],
@@ -3116,7 +3108,6 @@ def validate_analysis_followup_hardening_contracts(tasks: list[dict[str, object]
     backend_forbidden_phrases = {
         "docs/AST_BACKEND.md": ["Latest-stable", "latest-stable"],
         "docs/ZIR_BACKEND.md": ["Latest-stable", "latest-stable", "\"stability\":", "\"source_mapping\":"],
-        "docs/AIR_BACKEND.md": ["Latest-stable", "latest-stable"],
     }
     for rel, phrases in backend_forbidden_phrases.items():
         path = ROOT / rel
@@ -3694,17 +3685,15 @@ def validate_autonomous_agent_contract_closure_contracts(tasks: list[dict[str, o
             "Public contract changes route through Contract Editor",
         ],
         "docs/CLI_SPEC.md": [
-            "`list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`.",
+            "`list-mutants --backend zir` is owned by task `056`",
         ],
         "docs/CONFIG_SPEC.md": [
-            "The experimental CLI backend flag is `list-mutants --backend <zir|air>` and is owned by tasks `056` and `057`.",
+            "The experimental CLI backend flag is `list-mutants --backend zir` and is owned by task `056`.",
         ],
         "tasks/056-zir-backend-experiment.md": [
             "`list-mutants --backend zir`",
         ],
-        "tasks/057-air-backend-experiment.md": [
-            "`list-mutants --backend air`",
-        ],
+        # task 057 (AIR backend) retired: AIR-level mapping needs Zig's Sema stage.
         "docs/DOCTEST_SPEC.md": [
             "`run.error` is required and null for `completed` or `failed`; for `internal_error` it is a closed object",
         ],
@@ -3974,9 +3963,7 @@ def validate_handoff_baseline_and_contract_drift_closure_contracts(
         "docs/ZIR_BACKEND.md": [
             "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
         ],
-        "docs/AIR_BACKEND.md": [
-            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
-        ],
+        # docs/AIR_BACKEND.md retired (AIR backend removed; needs Zig's Sema stage).
         "docs/DOCTEST_MUTATION_STRATEGY.md": [
             "`failure_kind`",
             "mutation-aware doctest runner evidence",
@@ -4001,9 +3988,7 @@ def validate_handoff_baseline_and_contract_drift_closure_contracts(
         "tasks/056-zir-backend-experiment.md": [
             "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
         ],
-        "tasks/057-air-backend-experiment.md": [
-            "artifacts/pipeline/<task-id>/experimental-backend-diagnostics/",
-        ],
+        # task 057 (AIR backend) retired.
         "tasks/061-doctest-mutate-stabilization.md": [
             "`failure_kind`",
             "mutation-aware doctest runner evidence",
