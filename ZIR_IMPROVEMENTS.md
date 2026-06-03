@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 1/4 done
+**Progress:** 2/4 done
 
 ---
 
@@ -24,7 +24,7 @@
   - **Escape hatch:** if comptime context can't be determined from the public `Zir`, `descoped`
     with evidence.
 
-- [ ] `todo` **ZIR-2** · commit `—` · Differential oracle (ZIR vs AST on real files)
+- [x] `done` **ZIR-2** · commit `283b965` · Differential oracle (ZIR vs AST on real files)
   - **Goal:** a `zir_backend` function that compares the ZIR-recognized binary-operator set against
     the AST recognizers' set per file and reports any `(operator, byte_start, byte_end)` divergence
     — turning parity into a continuous correctness oracle for the default AST backend (catches
