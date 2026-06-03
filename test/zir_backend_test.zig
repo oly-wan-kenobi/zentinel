@@ -237,3 +237,52 @@ test "fromTree also lowers arithmetic (+,-,*,/) in parity with the AST recognize
         }
     }
 }
+
+// --- ZIR-1: comptime-context-aware expected_compile --------------------------
+
+test "fromTree downgrades expected_compile for a comparison inside a comptime block; the runtime one stays .compiles (ZIR-1)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const file = "p.zig";
+    // Two comparison_boundary sites (`<` and `>`, both normally .compiles): one in a
+    // runtime fn (line 2) and one inside a `comptime { ... }` block (line 6). Distinct
+    // operators are used on purpose so each maps to its own AST node -- two identical
+    // operators would collide in the resolver's innermost-base heuristic (a separate,
+    // pre-existing limitation that ZIR-3 hardens), which is orthogonal to this test.
+    const src =
+        "pub fn rt(a: i32, b: i32) bool {\n" ++ // line 1
+        "    return a < b;\n" ++ // line 2 -- runtime comparison (`<`)
+        "}\n" ++ // line 3
+        "pub fn ct(comptime a: i32, comptime b: i32) bool {\n" ++ // line 4
+        "    comptime {\n" ++ // line 5
+        "        return a > b;\n" ++ // line 6 -- comptime comparison (`>`)
+        "    }\n" ++ // line 7
+        "}\n"; // line 8
+
+    const result = try zir.fromTree(arena, file, src);
+
+    var runtime_seen = false;
+    var comptime_seen = false;
+    for (result.candidates) |c| {
+        // Both `<` and `>` are the comparison_boundary operator.
+        try expectEqualStrings("comparison_boundary", c.operator);
+        if (c.span.line_start == 2) {
+            runtime_seen = true;
+            try expectEqualStrings("<", c.original);
+            // Runtime context: the swap compiles, exactly as the AST recognizer says.
+            try expectEqual(mutant.ExpectedCompile.compiles, c.expected_compile);
+        } else if (c.span.line_start == 6) {
+            comptime_seen = true;
+            try expectEqualStrings(">", c.original);
+            // Inside `comptime { ... }` the swap is comptime-evaluated: strict, so
+            // .compiles is downgraded to .may_fail. (Red before ZIR-1: was .compiles.)
+            try expectEqual(mutant.ExpectedCompile.may_fail, c.expected_compile);
+        } else {
+            return error.UnexpectedCandidate;
+        }
+    }
+    try expect(runtime_seen);
+    try expect(comptime_seen);
+}

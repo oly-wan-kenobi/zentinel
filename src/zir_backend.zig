@@ -192,6 +192,89 @@ fn resolveNode(tree: std.zig.Ast, is_base: []const bool, want: std.zig.Ast.Node.
     return best;
 }
 
+/// A half-open source byte range `[start, end)`.
+const ByteRange = struct { start: u32, end: u32 };
+
+/// Source byte-spans of the `comptime { ... }` regions in `tree`, confirmed against
+/// the ZIR `block_comptime` instructions AstGen emits for comptime-forced code. This
+/// is the one comptime signal recoverable in process from the public `Zir`: the AST
+/// records the `comptime` keyword, but only AstGen decides which regions it actually
+/// comptime-forces.
+///
+/// A `block_comptime`'s `src_node` is a decl-relative offset, like every `pl_node`.
+/// Rather than resolve each instruction to a single node -- which mis-resolves when
+/// two comptime blocks share an offset, since the innermost-base heuristic collapses
+/// them onto one node -- we enumerate the unambiguous `.@"comptime"` AST nodes and
+/// confirm each: a node is comptime-forced iff some `block_comptime` offset places it
+/// on a declaration base. Same-offset blocks are then each confirmed independently.
+///
+/// Out of scope (left at the AST recognizers' runtime-context bucket): implicit
+/// comptime contexts (container const initializers, array lengths) emit no
+/// `block_comptime`, and the `comptime var` / inherited-comptime-block forms anchor
+/// `block_comptime` to a non-`.@"comptime"` node. A missed region only forgoes the
+/// refinement; it never mislabels a runtime site.
+fn comptimeBlockSpans(
+    arena: std.mem.Allocator,
+    tree: std.zig.Ast,
+    is_base: []const bool,
+    inst_tags: []const std.zig.Zir.Inst.Tag,
+    inst_datas: []const std.zig.Zir.Inst.Data,
+    node_count: i64,
+) std.mem.Allocator.Error![]ByteRange {
+    var spans: std.ArrayList(ByteRange) = .empty;
+
+    // Decl-relative offsets carried by the ZIR block_comptime instructions.
+    var offsets: std.ArrayList(i32) = .empty;
+    for (inst_tags, 0..) |t, i| {
+        if (t == .block_comptime) try offsets.append(arena, @intFromEnum(inst_datas[i].pl_node.src_node));
+    }
+    if (offsets.items.len == 0) return spans.toOwnedSlice(arena);
+
+    const node_tags = tree.nodes.items(.tag);
+    var n: u32 = 0;
+    while (n < node_count) : (n += 1) {
+        if (node_tags[n] != .@"comptime") continue;
+        // Confirm against ZIR: some block_comptime offset must place this comptime
+        // node on a declaration base (the offsets are measured from the decl base).
+        var confirmed = false;
+        for (offsets.items) |off| {
+            const base: i64 = @as(i64, n) - off;
+            if (base >= 0 and base < node_count and is_base[@intCast(base)]) {
+                confirmed = true;
+                break;
+            }
+        }
+        if (!confirmed) continue;
+        const ni: std.zig.Ast.Node.Index = @enumFromInt(n);
+        const first = tree.tokenStart(tree.firstToken(ni));
+        const last_tok = tree.lastToken(ni);
+        const end = tree.tokenStart(last_tok) + @as(u32, @intCast(tree.tokenSlice(last_tok).len));
+        try spans.append(arena, .{ .start = first, .end = end });
+    }
+    return spans.toOwnedSlice(arena);
+}
+
+/// True when source byte `byte` falls inside any comptime block span.
+fn inComptimeSpan(spans: []const ByteRange, byte: u32) bool {
+    for (spans) |s| {
+        if (byte >= s.start and byte < s.end) return true;
+    }
+    return false;
+}
+
+/// Comptime evaluation is strict: a binary-operator swap that compiles at runtime can
+/// surface a *compile* error when comptime-evaluated (a `@compileError` path, a
+/// comptime-only bound, or a comptime type mismatch the runtime path would defer), so
+/// a `.compiles` site is downgraded to `.may_fail` inside a comptime block. Already
+/// uncertain buckets (arithmetic's `.may_fail`, and `.must_fail`) are left unchanged.
+fn comptimeAwareCompile(e: mutant.ExpectedCompile) mutant.ExpectedCompile {
+    return switch (e) {
+        .compiles => .may_fail,
+        .may_fail => .may_fail,
+        .must_fail => .must_fail,
+    };
+}
+
 // Operator metadata mirrored from src/mutators/comparison.zig and logical.zig (files
 // this task may not modify). The parity test guarantees these stay equivalent to the
 // AST recognizers; a drift surfaces as a parity failure, not a silent divergence.
@@ -250,7 +333,10 @@ fn isNullToken(tree: std.zig.Ast, tok: u32) bool {
 /// and arithmetic (`arithmetic_add_sub`, `arithmetic_mul_div`). Candidates are
 /// byte-for-byte the AST recognizers', re-tagged `backend = .zir`; AstGen-injected
 /// arithmetic/comparisons (for-bounds, array indexing, switch ranges) become
-/// out-of-report diagnostics, never mutants.
+/// out-of-report diagnostics, never mutants. The one refinement over the AST set:
+/// a candidate inside a `comptime { ... }` block (located via the ZIR `block_comptime`
+/// instructions) carries a comptime-aware `expected_compile` -- `.compiles` is
+/// downgraded to `.may_fail` because comptime evaluation is strict.
 pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) FromTreeError!Result {
     const parsed = ast_backend.parse(arena, file, source) catch return error.BackendParseError;
     if (!parsed.ok()) return error.BackendParseError;
@@ -266,6 +352,10 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     const inst_tags = code.instructions.items(.tag);
     const inst_datas = code.instructions.items(.data);
     const node_count: i64 = @intCast(tree.nodes.len);
+
+    // Comptime-forced regions (from the ZIR `block_comptime` instructions): an
+    // operator inside one is comptime-evaluated, where evaluation is strict.
+    const comptime_spans = try comptimeBlockSpans(arena, tree, is_base, inst_tags, inst_datas, node_count);
 
     var collector = ast_backend.Collector.init(arena);
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
@@ -301,6 +391,13 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
         const op_end = op_start + @as(u32, @intCast(op_text.len));
         const start_pos = source_map.locate(tree.source, op_start) orelse continue;
         const end_pos = source_map.locate(tree.source, op_end) orelse continue;
+        // The one refinement ZIR adds over the AST recognizers: a site inside a
+        // comptime block gets a comptime-aware `expected_compile` (strict evaluation),
+        // not the AST's runtime-context bucket.
+        const expected_compile = if (inComptimeSpan(comptime_spans, op_start))
+            comptimeAwareCompile(mut.expected_compile)
+        else
+            mut.expected_compile;
         try collector.add(.{
             .id = "",
             .backend = .zir,
@@ -319,7 +416,7 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             },
             .original = op_text,
             .replacement = mut.replacement,
-            .expected_compile = mut.expected_compile,
+            .expected_compile = expected_compile,
             .equivalent_risks = mut.risks,
         });
     }
