@@ -170,7 +170,18 @@ const RunCtx = struct {
 /// Run one configured command via direct argv (no shell), honoring the
 /// configured timeout. Spawn/exec failures and timeouts are mapped onto the
 /// runner's raw-outcome contract so the deterministic classifier owns the verdict.
+/// Wall-clock milliseconds elapsed since `start_ms` (a real-clock millisecond
+/// reading). Clamped to >= 0 so a backward clock step can never produce a negative
+/// or huge unsigned duration. Report comparisons normalize durations
+/// (docs/REPORT_FORMAT.md "Repeated-Run Comparison"), so real timings here stay
+/// deterministic for snapshot/dogfood checks.
+fn elapsedMs(io: std.Io, start_ms: i64) u64 {
+    const now_ms = std.Io.Timestamp.now(io, .real).toMilliseconds();
+    return @intCast(@max(0, now_ms - start_ms));
+}
+
 fn execProcess(rt: *RunCtx, argv: []const []const u8, cwd: std.process.Child.Cwd) zentinel.runner.RawOutcome {
+    const start_ms = std.Io.Timestamp.now(rt.io, .real).toMilliseconds();
     const result = std.process.run(rt.gpa, rt.io, .{
         .argv = argv,
         .cwd = cwd,
@@ -183,17 +194,19 @@ fn execProcess(rt: *RunCtx, argv: []const []const u8, cwd: std.process.Child.Cwd
         // docs/SANDBOX_SECURITY.md). Phase 1 still cannot fully OS-sandbox.
         .environ_map = rt.env,
     }) catch |err| {
+        const dur = elapsedMs(rt.io, start_ms);
         if (err == error.Timeout) {
-            return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
+            return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = dur, .stdout = "", .stderr = "" };
         }
-        return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
+        return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = dur, .stdout = "", .stderr = "" };
     };
+    const dur = elapsedMs(rt.io, start_ms);
     return switch (result.term) {
         .exited => |code| .{
             .exit_code = @as(i64, code),
             .timed_out = false,
             .crashed = false,
-            .duration_ms = 0,
+            .duration_ms = dur,
             .stdout = result.stdout,
             .stderr = result.stderr,
         },
@@ -202,7 +215,7 @@ fn execProcess(rt: *RunCtx, argv: []const []const u8, cwd: std.process.Child.Cwd
             .exit_code = null,
             .timed_out = false,
             .crashed = true,
-            .duration_ms = 0,
+            .duration_ms = dur,
             .stdout = result.stdout,
             .stderr = result.stderr,
         },
@@ -758,6 +771,7 @@ const DoctestCtx = struct {
 /// via direct argv, no shell. The deterministic runner owns the verdict.
 fn doctestExecFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.RawOutcome {
     const rt: *DoctestCtx = @ptrCast(@alignCast(ctx));
+    const start_ms = std.Io.Timestamp.now(rt.io, .real).toMilliseconds();
     const result = std.process.run(rt.gpa, rt.io, .{
         .argv = argv,
         .cwd = .{ .dir = rt.root_dir },
@@ -766,12 +780,14 @@ fn doctestExecFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.RawO
         .timeout = rt.timeout,
         .environ_map = rt.env,
     }) catch |err| {
-        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
-        return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = "", .stderr = "" };
+        const dur = elapsedMs(rt.io, start_ms);
+        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = dur, .stdout = "", .stderr = "" };
+        return .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = dur, .stdout = "", .stderr = "" };
     };
+    const dur = elapsedMs(rt.io, start_ms);
     return switch (result.term) {
-        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
-        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = dur, .stdout = result.stdout, .stderr = result.stderr },
+        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = dur, .stdout = result.stdout, .stderr = result.stderr },
     };
 }
 
@@ -1291,6 +1307,7 @@ fn doctestMutateRunFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.runn
     if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, rel)) return crash;
     if (std.fs.path.dirname(rel)) |parent| rt.root_dir.createDirPath(rt.io, parent) catch return crash;
     rt.root_dir.writeFile(rt.io, .{ .sub_path = rel, .data = mutated_source }) catch return crash;
+    const start_ms = std.Io.Timestamp.now(rt.io, .real).toMilliseconds();
     const result = std.process.run(rt.gpa, rt.io, .{
         .argv = &.{ "zig", "test", rel },
         .cwd = .{ .dir = rt.root_dir },
@@ -1299,12 +1316,14 @@ fn doctestMutateRunFn(ctx: *anyopaque, mutated_source: []const u8) zentinel.runn
         .timeout = rt.timeout,
         .environ_map = rt.env,
     }) catch |err| {
-        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = 0, .stdout = "", .stderr = "" };
+        const dur = elapsedMs(rt.io, start_ms);
+        if (err == error.Timeout) return .{ .exit_code = null, .timed_out = true, .crashed = false, .duration_ms = dur, .stdout = "", .stderr = "" };
         return crash;
     };
+    const dur = elapsedMs(rt.io, start_ms);
     return switch (result.term) {
-        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
-        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = 0, .stdout = result.stdout, .stderr = result.stderr },
+        .exited => |code| .{ .exit_code = @as(i64, code), .timed_out = false, .crashed = false, .duration_ms = dur, .stdout = result.stdout, .stderr = result.stderr },
+        else => .{ .exit_code = null, .timed_out = false, .crashed = true, .duration_ms = dur, .stdout = result.stdout, .stderr = result.stderr },
     };
 }
 
