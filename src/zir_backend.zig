@@ -138,26 +138,47 @@ fn isDeclBase(t: std.zig.Ast.Node.Tag) bool {
     };
 }
 
-/// Resolve a `pl_node` instruction to its source AST node of tag `want`, or null
-/// when the instruction is AstGen-injected (for-bounds / switch range / etc.) with
-/// no matching source node. The real node `n` is the one whose `n - off` is a
-/// declaration base; the innermost decl (largest such base) wins.
-fn resolveNode(tree: std.zig.Ast, is_base: []const bool, want: std.zig.Ast.Node.Tag, off: i32, node_count: i64) ?u32 {
+/// Outcome of resolving a `pl_node` instruction to its source AST node.
+const Resolution = union(enum) {
+    /// The instruction's source node (tag `want`); the caller claims it.
+    node: u32,
+    /// At least one node of tag `want` has a valid decl base for this offset, but every
+    /// such node is already claimed -- a genuine over-subscription the claim-aware pass
+    /// could not place. The 3c residual guard fires here (does not occur on real code).
+    exhausted,
+    /// No node of tag `want` has a valid decl base for this offset: the instruction is
+    /// AstGen-injected (for-bounds / switch range / etc.) with no source operator.
+    none,
+};
+
+/// Resolve a `pl_node` instruction to its source AST node of tag `want`, claim-aware:
+/// among the nodes whose `n - off` is a declaration base, return the innermost (largest
+/// such base) one that is NOT yet `claimed`. Two same-operator sites at equal
+/// decl-relative offsets thus resolve to distinct nodes -- the first takes the innermost
+/// decl, the second the next -- recovering the site the old innermost-only heuristic
+/// dropped (ZIR-5). `.none` is an injected instruction (no candidate node); `.exhausted`
+/// means candidate nodes exist but are all claimed.
+fn resolveNode(tree: std.zig.Ast, is_base: []const bool, claimed: []const bool, want: std.zig.Ast.Node.Tag, off: i32, node_count: i64) Resolution {
     const node_tags = tree.nodes.items(.tag);
     var best: ?u32 = null;
     var best_base: i64 = -1;
+    var any_candidate = false;
     var i: u32 = 0;
     while (i < node_count) : (i += 1) {
         if (node_tags[i] != want) continue;
         const base: i64 = @as(i64, i) - off;
         if (base < 0 or base >= node_count) continue;
         if (!is_base[@intCast(base)]) continue;
+        any_candidate = true; // a real source node exists for this offset
+        if (claimed[i]) continue; // ...but it is already taken by another instruction
         if (base > best_base) {
             best = i;
             best_base = base;
         }
     }
-    return best;
+    if (best) |n| return .{ .node = n };
+    if (any_candidate) return .exhausted;
+    return .none;
 }
 
 /// A half-open source byte range `[start, end)`.
@@ -328,45 +349,46 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     var collector = ast_backend.Collector.init(arena);
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
 
-    // 3c resolution audit: the recognized cmp/bool/arith instructions must map to a
-    // bijection over distinct AST nodes. `claimed[n]` records that node `n` has already
-    // been resolved to, so a second instruction landing on it is flagged as an anomaly.
+    // Claim-aware resolution + 3c audit: `claimed[n]` records that node `n` has been
+    // resolved to, so the next instruction at the same decl-relative offset takes the
+    // next-innermost node instead of colliding onto it (ZIR-5). A genuine
+    // over-subscription -- candidate nodes all claimed -- surfaces as a residual anomaly.
     const claimed = try arena.alloc(bool, tree.nodes.len);
     @memset(claimed, false);
 
     for (inst_tags, 0..) |t, i| {
         const want = expectedAstTag(t) orelse continue;
         const off = @intFromEnum(inst_datas[i].pl_node.src_node);
-        const n = resolveNode(tree, is_base, want, off, node_count) orelse {
-            // AstGen-injected comparison (for-bounds / switch range): no source
-            // operator, so it is an out-of-report diagnostic, never a mutant.
-            try diagnostics.append(arena, .{
-                .file = file,
-                .operator = "injected",
-                .span_start = 0,
-                .span_end = 0,
-                .reason = "ZIR instruction with no source operator (compiler-injected bounds/range check)",
-            });
-            continue;
+        const n = switch (resolveNode(tree, is_base, claimed, want, off, node_count)) {
+            .node => |nn| nn,
+            .none => {
+                // AstGen-injected comparison (for-bounds / switch range): no source
+                // operator, so it is an out-of-report diagnostic, never a mutant.
+                try diagnostics.append(arena, .{
+                    .file = file,
+                    .operator = "injected",
+                    .span_start = 0,
+                    .span_end = 0,
+                    .reason = "ZIR instruction with no source operator (compiler-injected bounds/range check)",
+                });
+                continue;
+            },
+            .exhausted => {
+                // 3c residual guard: candidate nodes existed for this offset but were
+                // all claimed by other instructions -- a non-bijective mapping the
+                // claim-aware resolver could not place. Does not occur on real code (the
+                // src/ audit is zero); surface it rather than silently dropping a site.
+                try diagnostics.append(arena, .{
+                    .code = "ZNTL_ZIR_RESOLUTION_ANOMALY",
+                    .file = file,
+                    .operator = "resolution_anomaly",
+                    .span_start = 0,
+                    .span_end = 0,
+                    .reason = "ZIR instruction's candidate AST nodes were all claimed by other instructions (non-bijective mapping the claim-aware resolver could not place)",
+                });
+                continue;
+            },
         };
-        // 3c audit: a second instruction resolving to an already-claimed node is the
-        // innermost-base heuristic's collision (two same-operator sites at equal
-        // decl-relative offsets). Surface it as an out-of-report anomaly and skip the
-        // duplicate rather than silently letting the collector dedupe it away.
-        if (claimed[n]) {
-            const c_tok = tree.nodeMainToken(@as(std.zig.Ast.Node.Index, @enumFromInt(n)));
-            const c_start = tree.tokenStart(c_tok);
-            const c_end = c_start + @as(u32, @intCast(tree.tokenSlice(c_tok).len));
-            try diagnostics.append(arena, .{
-                .code = "ZNTL_ZIR_RESOLUTION_ANOMALY",
-                .file = file,
-                .operator = "resolution_anomaly",
-                .span_start = c_start,
-                .span_end = c_end,
-                .reason = "ZIR instruction resolved to an AST node another instruction already claimed (non-bijective mapping; innermost-base heuristic collision)",
-            });
-            continue;
-        }
         claimed[n] = true;
         const node: std.zig.Ast.Node.Index = @enumFromInt(n);
         const mut = mutationFor(node_tags[n]) orelse continue; // resolveNode guarantees a supported tag

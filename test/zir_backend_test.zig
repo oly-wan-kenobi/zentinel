@@ -299,35 +299,40 @@ test "listFromTrees declines on a non-pinned toolchain and accepts Zig 0.16.0 (Z
     try expect(saw_cmp);
 }
 
-// --- ZIR-3 / 3c: resolution-bijection audit ----------------------------------
+// --- ZIR-5: claim-aware resolution recovers same-offset collisions -----------
 
-test "fromTree flags a non-bijective instruction->node resolution as an anomaly; a clean file has none (ZIR-3 / 3c)" {
+test "fromTree resolves a same-operator collision to BOTH sites (claim-aware), with no anomaly (ZIR-5)" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
 
     const anomaly_code = "ZNTL_ZIR_RESOLUTION_ANOMALY";
 
-    // Clean: distinct operators map to distinct AST nodes -> no resolution anomaly.
+    // Two identical functions: the `<` sites sit at equal decl-relative offsets, which
+    // the old innermost-only heuristic collapsed onto one node (one site lost + an
+    // anomaly). Claim-aware resolution gives each instruction a distinct node, so BOTH
+    // `<` sites are recognized -- p's on line 2, q's on line 5 -- and no anomaly remains.
+    const collide = "pub fn p(a: i32, b: i32) bool {\n    return a < b;\n}\npub fn q(a: i32, b: i32) bool {\n    return a < b;\n}\n";
+    const res = try zir.fromTree(arena, "p.zig", collide);
+
+    for (res.diagnostics) |d| {
+        try expect(!std.mem.eql(u8, d.code, anomaly_code)); // collision is resolved, not flagged
+    }
+    var p_seen = false;
+    var q_seen = false;
+    for (res.candidates) |c| {
+        try expectEqualStrings("comparison_boundary", c.operator);
+        try expectEqualStrings("<", c.original);
+        if (c.span.line_start == 2) p_seen = true;
+        if (c.span.line_start == 5) q_seen = true;
+    }
+    try expect(p_seen); // p's `<` -- the site the old heuristic dropped
+    try expect(q_seen); // q's `<`
+
+    // A file with distinct operators stays clean too (no regression, no anomaly).
     const clean = "pub fn f(a: i32, b: i32) bool {\n    return a < b and a > b;\n}\n";
     const clean_res = try zir.fromTree(arena, "p.zig", clean);
     for (clean_res.diagnostics) |d| {
         try expect(!std.mem.eql(u8, d.code, anomaly_code));
     }
-
-    // Forced collision: two identical functions whose `<` sites sit at equal
-    // decl-relative offsets, so the innermost-base heuristic resolves BOTH ZIR
-    // instructions to the same AST node. The audit must surface exactly one anomaly,
-    // flagged at a `<` operator token.
-    const collide = "pub fn p(a: i32, b: i32) bool {\n    return a < b;\n}\npub fn q(a: i32, b: i32) bool {\n    return a < b;\n}\n";
-    const collide_res = try zir.fromTree(arena, "p.zig", collide);
-    var anomalies: usize = 0;
-    for (collide_res.diagnostics) |d| {
-        if (!std.mem.eql(u8, d.code, anomaly_code)) continue;
-        anomalies += 1;
-        try expectEqualStrings("resolution_anomaly", d.operator);
-        // The flagged span is exactly a `<` operator token, not a placeholder.
-        try expectEqualStrings("<", collide[@intCast(d.span_start)..@intCast(d.span_end)]);
-    }
-    try expect(anomalies == 1);
 }
