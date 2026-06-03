@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below). SEM-1 is split into 1a (measurement spike — **done**, `c800e53`), 1b (TCE equivalence/dedup filter — todo, 1a evidence indicates descope), 1c (compile-as-classifier — todo, the primary win).
+**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below). SEM-1 is split into 1a (measurement spike — **done**, `c800e53`), 1b (TCE equivalence/dedup filter — **descoped**: 1a measured 0 equivalents/0 duplicates in the Debug pipeline), 1c (compile-as-classifier — todo, the primary win).
 
 ---
 
@@ -189,16 +189,23 @@ resolve.
     cost is ~0.
   - **Files:** `scripts/sem1a_tce_spike.py` (reproducible spike).
 
-- [ ] `todo` **SEM-1b** · commit `—` · TCE equivalence/dedup filter — scope per 1a evidence
-  - **1a says:** payoff ≈ 0% (0 genuine equiv / 0 dup in 80 Debug mutants), cost ~1s/mutant, and any
-    standalone-compile oracle is **unsound** (omits killable mutants via lazy codegen). The cheap
-    equivalent-mutant wins are already deterministic (`equivalent_risks`, `equivalentToCanonical`).
-  - **Decision to make next iteration:** strongly indicated → `descoped` (near-zero payoff in the
-    Debug pipeline + high soundness bar). If kept, it MUST diff the runner's own test-binary artifact
-    (pre-link IR, fixed caches, `-fstrip`) — never a fresh standalone compile — and be opt-in/sampled.
-  - **Sound-direction invariant:** identical-artifact ⇒ exclude, differing ⇒ keep, never the reverse;
-    a genuinely-killable mutant must be retained (assert with a test).
-  - **Files:** `src/semantic_filter.zig`, `test/semantic_filter_test.zig`.
+- [x] `descoped` **SEM-1b** · commit `—` · TCE equivalence/dedup filter
+  - **Reason (evidence-backed, one line):** SEM-1a measured **0 genuine equivalents and 0 duplicates
+    over 80 real Debug-mode mutants** — TCE's payoff is *zero* in this project's pipeline because the
+    runner compiles at **Debug** (`modes = ["Debug"]`), where the optimizer normalizes nothing, so the
+    only IR-identical mutants are structurally-dead code already handled deterministically by
+    `equivalent_risks` + `equivalentToCanonical`; a sound version would additionally have to diff the
+    runner's own test-binary artifact (standalone compiles silently omit lazily-uncodegen'd code and
+    would exclude *killable* mutants), which is disproportionate work for no measured benefit.
+  - **Re-analysis note:** SEM-1a's lone "1/13 genuine" candidate (`mutant.zig` `isValidCandidate`
+    `return false → return true`) is in fact **provably killable** — it only read as equivalent because
+    that struct method is not emitted under either oracle root (the `refAllDecls` method hole). Genuine
+    TCE-equivalents in the 80-sample is therefore literally **0**, reinforcing the descope.
+  - **Revisit trigger (not a TODO):** only worthwhile if the project later adds an optimized
+    (`ReleaseFast`/`ReleaseSafe`) mutation mode where the optimizer *can* normalize equivalent forms;
+    even then it must diff the runner's test-binary pre-link IR (fixed caches, `-fstrip`), never a
+    fresh standalone compile, and stay opt-in. No code change taken now.
+  - **Files:** none (descoped; evidence in `scripts/sem1a_tce_spike.py` + SEM-1a row).
 
 - [ ] `todo` **SEM-1c** · commit `—` · Compile-as-classifier (replace heuristic `expected_compile`)
   - **Goal:** replace the heuristic `expected_compile` *prediction* with the compiler's actual
