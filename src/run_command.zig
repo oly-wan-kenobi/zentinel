@@ -398,6 +398,7 @@ pub fn run(
                 .project_hash = project_hash,
                 .config_hash = obs.config_hash,
                 .test_command = try joinCommands(arena, job.commands),
+                .configured_command = try joinCommands(arena, cfg.test_commands),
                 .mode = @tagName(mode),
                 .environment = "minimal",
                 .environment_hash = obs.environment_hash,
@@ -503,12 +504,18 @@ fn buildCacheMetadata(result_keys: []const cache.ResultKey, no_cache: bool, name
     };
 }
 
-/// Join selected commands into one deterministic cache-key field.
-fn joinCommands(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const u8 {
+/// Encode a command vector into one canonical, INJECTIVE cache-key field. Each
+/// command is length-prefixed (and the vector is count-prefixed), so two distinct
+/// vectors can never collide into the same field -- e.g. `["a && b"]` and
+/// `["a", "b"]` produced the identical string under the prior `" && "` join,
+/// which would let one cached verdict be reused for the other.
+pub fn joinCommands(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const u8 {
     var out: std.ArrayList(u8) = .empty;
-    for (commands, 0..) |c, i| {
-        if (i > 0) try out.appendSlice(arena, " && ");
+    try out.appendSlice(arena, try std.fmt.allocPrint(arena, "{d}\n", .{commands.len}));
+    for (commands) |c| {
+        try out.appendSlice(arena, try std.fmt.allocPrint(arena, "{d}\n", .{c.len}));
         try out.appendSlice(arena, c);
+        try out.append(arena, '\n');
     }
     return out.toOwnedSlice(arena);
 }

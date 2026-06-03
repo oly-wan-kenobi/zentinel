@@ -882,20 +882,43 @@ test "run rejects --backend with a dedicated error and the backend docs state th
     defer arena.deinit();
     const a = arena.allocator();
 
-    // The experimental ZIR/AIR backends are reachable only from `list-mutants`
-    // (they re-tag AST candidates, they do no IR analysis). `run --backend <...>`
-    // is rejected with a dedicated error -- not the generic UnknownOption, and
-    // never silently ignored.
+    // The experimental ZIR backend is reachable only from `list-mutants` (it
+    // re-tags AST candidates and does no IR analysis). `run --backend <...>` is
+    // rejected with a dedicated error -- not the generic UnknownOption, and never
+    // silently ignored. The rejection is value-agnostic.
     try expectError(error.BackendNotInRun, rc.parseArgs(&.{ "--backend", "zir" }));
-    try expectError(error.BackendNotInRun, rc.parseArgs(&.{ "--backend", "air" }));
+    try expectError(error.BackendNotInRun, rc.parseArgs(&.{ "--backend", "ast" }));
     // A real run option still parses (the dedicated rejection is specific to --backend).
     _ = try rc.parseArgs(&.{"--fail-on-survivors"});
 
-    // The backend docs describe the prototypes honestly: they re-tag AST
+    // The ZIR backend doc describes the prototype honestly: it re-tags AST
     // candidates and `--backend` is list-mutants-only (no IR-level analysis).
-    for ([_][]const u8{ "docs/ZIR_BACKEND.md", "docs/AIR_BACKEND.md" }) |doc| {
-        const text = try readDoc(a, doc);
+    // (The AIR backend was retired -- see docs/ZIR_BACKEND.md / root.zig.)
+    {
+        const text = try readDoc(a, "docs/ZIR_BACKEND.md");
         try expect(std.mem.indexOf(u8, text, "re-tag") != null);
         try expect(std.mem.indexOf(u8, text, "list-mutants") != null);
     }
+}
+
+test "joinCommands is injective: distinct command vectors never collide into one key field" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The classic ambiguity the prior " && " join produced: one command that
+    // literally contains " && " vs two separate commands. Length-prefixing keeps
+    // them distinct.
+    const one = try rc.joinCommands(a, &.{"a && b"});
+    const two = try rc.joinCommands(a, &.{ "a", "b" });
+    try expect(!std.mem.eql(u8, one, two));
+
+    // Deterministic and stable for the same input.
+    const again = try rc.joinCommands(a, &.{ "a", "b" });
+    try expectEqualStrings(two, again);
+
+    // Empty vs a single empty command are distinct, too.
+    const none = try rc.joinCommands(a, &.{});
+    const empty1 = try rc.joinCommands(a, &.{""});
+    try expect(!std.mem.eql(u8, none, empty1));
 }

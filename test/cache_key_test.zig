@@ -20,6 +20,7 @@ fn baseInputs() cache.KeyInputs {
         .project_hash = "sha256:project",
         .config_hash = "sha256:cfg",
         .test_command = "zig test src/calc.zig",
+        .configured_command = "zig build test",
         .mode = "Debug",
         .environment = "minimal",
         .environment_hash = "sha256:environment",
@@ -76,6 +77,14 @@ test "changing any documented deterministic input changes the key" {
     {
         var i = baseInputs();
         i.test_command = "zig build test";
+        try differs(a, base_key, i);
+    }
+    {
+        // The configured suite is a distinct key dimension from the executed
+        // (possibly narrowed) command: a narrowed survivor's verdict is reverified
+        // against it, so it must affect the key.
+        var i = baseInputs();
+        i.configured_command = "zig build test -Dother";
         try differs(a, base_key, i);
     }
     {

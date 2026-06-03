@@ -30,7 +30,16 @@ pub const KeyInputs = struct {
     /// outside the mutated source.
     project_hash: []const u8,
     config_hash: []const u8,
+    /// Canonical injective encoding of the commands actually EXECUTED for this
+    /// mutant (may be a narrowed test selection).
     test_command: []const u8,
+    /// Canonical injective encoding of the CONFIGURED test suite
+    /// (`cfg.test_commands`), kept distinct from `test_command`. A narrowed
+    /// survivor's verdict is reverified against the configured suite, so a cached
+    /// result is only sound for reuse when BOTH the executed-narrowed commands and
+    /// the authoritative configured suite match -- otherwise a key built from a
+    /// narrowed command could be served for a configured-suite verdict.
+    configured_command: []const u8,
     mode: []const u8,
     /// Normalized environment policy label (e.g. "minimal").
     environment: []const u8,
@@ -67,6 +76,7 @@ pub fn computeKey(arena: std.mem.Allocator, inputs: KeyInputs) std.mem.Allocator
         inputs.project_hash,
         inputs.config_hash,
         inputs.test_command,
+        inputs.configured_command,
         inputs.mode,
         inputs.environment,
         inputs.environment_hash,
