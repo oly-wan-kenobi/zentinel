@@ -332,3 +332,39 @@ test "canonical mutant ordering assigns display ids after sorting (I-003)" {
     try expectEqualStrings("src/zzz.zig", m[1].file);
     try expectEqual(@as(u32, 2), m[1].display_id);
 }
+
+// --- JUnit attribute vs text escaping (numeric refs for \n/\t/\r in attrs) ---
+
+const newline_attr_cmd = [_]report.CommandResult{.{
+    .command = .{ .original = "printf 'a\nb'", .argv = &.{ "printf", "a\nb" }, .cwd = "<project>", .environment_policy = .minimal, .shell = false },
+    .phase = .mutant,
+    .status = .failed,
+    .exit_code = 1,
+    .timed_out = false,
+    .failure_kind = .test_failure,
+    .duration_ms = 0,
+    .evidence = .{ .stdout_excerpt = "", .stderr_excerpt = "", .failure_summary = "" },
+    .skip_reason = null,
+}};
+
+test "junit: a newline in an attribute value is numeric-encoded; element text keeps it verbatim" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var m0 = mutant(1, .killed, "src/x.zig", false);
+    m0.result.commands = &newline_attr_cmd;
+    // An evidence excerpt (element TEXT content) carries the same newline.
+    m0.result.evidence = .{ .stdout_excerpt = "line1\nline2", .stderr_excerpt = "", .failure_summary = "" };
+    const m = [_]report.Mutant{m0};
+
+    const xml = try report_junit.render(a, completedReport(&m), false);
+
+    // The command_0_original / command_0_argv ATTRIBUTE values carry a newline; it
+    // must be a numeric character reference (&#10;), never a raw newline that a
+    // conforming parser would silently fold to a space.
+    try expect(contains(xml, "command_0_original"));
+    try expect(contains(xml, "&#10;"));
+    // The <system-out> element TEXT content keeps the raw newline (valid in content).
+    try expect(contains(xml, "<system-out>line1\nline2</system-out>"));
+}

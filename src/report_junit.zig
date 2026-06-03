@@ -55,7 +55,7 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, strict: bool) std.me
 
 fn emitMutant(arena: std.mem.Allocator, out: *std.ArrayList(u8), m: report.Mutant, strict: bool) std.mem.Allocator.Error!void {
     const name = try std.fmt.allocPrint(arena, "{d} {s} {s}:{d}", .{ m.display_id, m.operator, m.file, m.span.line_start });
-    try out.print(arena, "  <testcase classname=\"zentinel.mutant\" name=\"{s}\">\n", .{try escape(arena, name)});
+    try out.print(arena, "  <testcase classname=\"zentinel.mutant\" name=\"{s}\">\n", .{try escapeAttr(arena, name)});
 
     // Properties: mutant + per-command structured evidence.
     try out.appendSlice(arena, "    <properties>\n");
@@ -101,10 +101,10 @@ fn emitMutant(arena: std.mem.Allocator, out: *std.ArrayList(u8), m: report.Mutan
 
 fn emitEvidence(arena: std.mem.Allocator, out: *std.ArrayList(u8), evidence: report.Evidence) std.mem.Allocator.Error!void {
     if (evidence.stdout_excerpt.len > 0) {
-        try out.print(arena, "    <system-out>{s}</system-out>\n", .{try escape(arena, evidence.stdout_excerpt)});
+        try out.print(arena, "    <system-out>{s}</system-out>\n", .{try escapeText(arena, evidence.stdout_excerpt)});
     }
     if (evidence.stderr_excerpt.len > 0) {
-        try out.print(arena, "    <system-err>{s}</system-err>\n", .{try escape(arena, evidence.stderr_excerpt)});
+        try out.print(arena, "    <system-err>{s}</system-err>\n", .{try escapeText(arena, evidence.stderr_excerpt)});
     }
 }
 
@@ -114,7 +114,7 @@ fn emitBaselineEvidence(arena: std.mem.Allocator, out: *std.ArrayList(u8), rep: 
         try buf.print(arena, "{s} {s}\n", .{ @tagName(c.status), c.command.original });
     }
     if (buf.items.len > 0) {
-        try out.print(arena, "    <system-err>{s}</system-err>\n", .{try escape(arena, buf.items)});
+        try out.print(arena, "    <system-err>{s}</system-err>\n", .{try escapeText(arena, buf.items)});
     }
 }
 
@@ -128,11 +128,26 @@ fn joinArgv(arena: std.mem.Allocator, argv: []const []const u8) std.mem.Allocato
 }
 
 fn prop(arena: std.mem.Allocator, out: *std.ArrayList(u8), name: []const u8, value: []const u8) std.mem.Allocator.Error!void {
-    try out.print(arena, "      <property name=\"{s}\" value=\"{s}\"/>\n", .{ name, try escape(arena, value) });
+    try out.print(arena, "      <property name=\"{s}\" value=\"{s}\"/>\n", .{ name, try escapeAttr(arena, value) });
 }
 
-/// Escape XML special characters in attribute values and text content.
-fn escape(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]const u8 {
+/// Escape XML special characters in element TEXT content (`<system-out>` etc.),
+/// where tab/LF/CR are valid literal characters and preserved verbatim.
+fn escapeText(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]const u8 {
+    return escapeImpl(arena, s, false);
+}
+
+/// Escape XML special characters in ATTRIBUTE values (`name="..."`,
+/// `value="..."`). XML attribute-value normalization replaces a literal tab/LF/CR
+/// with a space in a conforming parser, so a value carrying one (e.g. a
+/// `command_N_argv` with an embedded newline) would survive as well-formed XML
+/// but be silently altered. Encode them as numeric character references so the
+/// attribute round-trips byte-for-byte.
+fn escapeAttr(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]const u8 {
+    return escapeImpl(arena, s, true);
+}
+
+fn escapeImpl(arena: std.mem.Allocator, s: []const u8, attr: bool) std.mem.Allocator.Error![]const u8 {
     var buf: std.ArrayList(u8) = .empty;
     for (s) |c| switch (c) {
         '&' => try buf.appendSlice(arena, "&amp;"),
@@ -140,8 +155,12 @@ fn escape(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]con
         '>' => try buf.appendSlice(arena, "&gt;"),
         '"' => try buf.appendSlice(arena, "&quot;"),
         '\'' => try buf.appendSlice(arena, "&apos;"),
-        // Tab, LF, and CR are the only control characters XML 1.0 permits.
-        '\t', '\n', '\r' => try buf.append(arena, c),
+        // Tab, LF, and CR are the only control characters XML 1.0 permits. In TEXT
+        // content they are preserved verbatim; in ATTRIBUTE values they must be
+        // numeric character references to survive attribute-value normalization.
+        '\t' => if (attr) try buf.appendSlice(arena, "&#9;") else try buf.append(arena, c),
+        '\n' => if (attr) try buf.appendSlice(arena, "&#10;") else try buf.append(arena, c),
+        '\r' => if (attr) try buf.appendSlice(arena, "&#13;") else try buf.append(arena, c),
         // Every other C0 control byte (ANSI ESC \x1b, BEL \x07, ...) and DEL are
         // illegal in XML 1.0; captured Zig output is routinely ANSI-colored, so
         // emitting them verbatim would make a strict CI parser reject the whole
