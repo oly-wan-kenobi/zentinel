@@ -83,7 +83,7 @@
         "-     return a + b;",
         "+     return a - b;"
       ],
-      "expected_compile": "may_fail",
+      "expected_compile": "compiles",
       "result": {
         "status": "killed",
         "mode": "Debug",

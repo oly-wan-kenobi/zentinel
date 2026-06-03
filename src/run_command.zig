@@ -21,6 +21,7 @@ const integer_boundary = @import("mutators/integer_boundary.zig");
 const loop_boundary = @import("mutators/loop_boundary.zig");
 const runner = @import("runner.zig");
 const mutant_runner = @import("mutant_runner.zig");
+const semantic_filter = @import("semantic_filter.zig");
 const report = @import("report.zig");
 const command = @import("command.zig");
 const test_selection = @import("test_selection.zig");
@@ -794,7 +795,11 @@ fn buildEntry(
         .original = candidate.original,
         .replacement = candidate.replacement,
         .diff = try computeDiff(arena, source, candidate),
-        .expected_compile = candidate.expected_compile,
+        // SEM-1c (compile-as-classifier): the runner already compiled this mutant,
+        // so report the compiler's ACTUAL verdict (from the terminal run status)
+        // rather than the per-operator heuristic guess. Ambiguous outcomes
+        // (timeout/crash/invalid/skipped) keep the heuristic.
+        .expected_compile = semantic_filter.empiricalExpectedCompile(candidate.expected_compile, result.status),
         .result = .{
             .status = result.status,
             .mode = mode,

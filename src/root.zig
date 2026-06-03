@@ -98,6 +98,12 @@ pub const list_mutants_command = @import("list_mutants_command.zig");
 /// Same-file test selection + fallback (deterministic core).
 pub const test_selection = @import("test_selection.zig");
 
+/// Compiler-oracle semantic filter (deterministic core, ZIR_IMPROVEMENTS SEM-1c):
+/// replaces the heuristic `expected_compile` prediction with the compiler's actual
+/// verdict, derived from the mutant's terminal run status (the runner already
+/// compiled it). SEM-1b's TCE equivalence half was descoped (0 measured payoff).
+pub const semantic_filter = @import("semantic_filter.zig");
+
 /// Shared error-code tokens (deterministic core).
 pub const error_codes = @import("error_codes.zig");
 
