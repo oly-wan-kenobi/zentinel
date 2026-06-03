@@ -375,9 +375,8 @@ test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator
     // divergence would be an AST-mutator bug or Zig-version drift. Always holds.
     try expectEqual(@as(usize, 0), zir_only);
 
-    // Residual ratchet: ast_only divergences are the ZIR resolver's known completeness
-    // gap (sites dropped to offset collisions; surfaced by the 3c audit, ZIR-5). Guard
-    // it from silently growing. Tighten this baseline whenever the resolver improves.
-    const ast_only_baseline: usize = 144;
-    try expect(ast_only <= ast_only_baseline);
+    // Full parity: ZIR-7's maximum matching recovers every binary-operator site over
+    // src/, so the ZIR set equals the AST set (ast_only == 0). Asserted exactly -- any
+    // regression that drops a site (a resolver change, or Zig-version drift) fails here.
+    try expectEqual(@as(usize, 0), ast_only);
 }

@@ -18,9 +18,10 @@
 // is defined and tested but its pipeline write is not yet implemented (L25).
 // Targets pinned Zig 0.16.0; the version-coupled `src_node` decoding is guarded by
 // `toolchainSupported` -- `listFromTrees` declines (error.UnsupportedZigVersion) on
-// any other toolchain (3a). `differentialOracle` cross-checks the ZIR set against the
-// AST recognizers, and `fromTree` audits that instructions resolve to a bijection over
-// distinct AST nodes, flagging collisions as out-of-report anomalies (3c).
+// any other toolchain (3a). `fromTree` resolves instructions to distinct AST nodes by
+// maximum bipartite matching (`matchInstructions`, ZIR-7), so it recovers every site
+// over `src/` (ZIR == AST); `differentialOracle` cross-checks ZIR against the AST
+// recognizers and the ZIR-6 test sweeps it over the tree to keep that parity honest.
 const std = @import("std");
 const mutant = @import("mutant.zig");
 const config = @import("config.zig");
@@ -138,47 +139,92 @@ fn isDeclBase(t: std.zig.Ast.Node.Tag) bool {
     };
 }
 
-/// Outcome of resolving a `pl_node` instruction to its source AST node.
-const Resolution = union(enum) {
-    /// The instruction's source node (tag `want`); the caller claims it.
-    node: u32,
-    /// At least one node of tag `want` has a valid decl base for this offset, but every
-    /// such node is already claimed -- a genuine over-subscription the claim-aware pass
-    /// could not place. The 3c residual guard fires here (does not occur on real code).
-    exhausted,
-    /// No node of tag `want` has a valid decl base for this offset: the instruction is
-    /// AstGen-injected (for-bounds / switch range / etc.) with no source operator.
-    none,
+/// A recognized binary-operator instruction and the decl-relative offset its source
+/// node sits at (`expectedAstTag(t)` gave `want`).
+const RecognizedInst = struct {
+    inst: u32,
+    want: std.zig.Ast.Node.Tag,
+    off: i32,
 };
 
-/// Resolve a `pl_node` instruction to its source AST node of tag `want`, claim-aware:
-/// among the nodes whose `n - off` is a declaration base, return the innermost (largest
-/// such base) one that is NOT yet `claimed`. Two same-operator sites at equal
-/// decl-relative offsets thus resolve to distinct nodes -- the first takes the innermost
-/// decl, the second the next -- recovering the site the old innermost-only heuristic
-/// dropped (ZIR-5). `.none` is an injected instruction (no candidate node); `.exhausted`
-/// means candidate nodes exist but are all claimed.
-fn resolveNode(tree: std.zig.Ast, is_base: []const bool, claimed: []const bool, want: std.zig.Ast.Node.Tag, off: i32, node_count: i64) Resolution {
-    const node_tags = tree.nodes.items(.tag);
-    var best: ?u32 = null;
-    var best_base: i64 = -1;
-    var any_candidate = false;
-    var i: u32 = 0;
-    while (i < node_count) : (i += 1) {
-        if (node_tags[i] != want) continue;
-        const base: i64 = @as(i64, i) - off;
-        if (base < 0 or base >= node_count) continue;
-        if (!is_base[@intCast(base)]) continue;
-        any_candidate = true; // a real source node exists for this offset
-        if (claimed[i]) continue; // ...but it is already taken by another instruction
-        if (base > best_base) {
-            best = i;
-            best_base = base;
+/// Result of the maximum bipartite matching, parallel to the `recognized` list.
+const Matching = struct {
+    /// The AST node each recognized instruction is matched to, or null if unmatched.
+    match_inst: []const ?u32,
+    /// Whether the instruction had any candidate node (false = AstGen-injected).
+    had_candidates: []const bool,
+};
+
+/// Kuhn's augmenting-path bipartite matcher: recognized instructions (left) to their
+/// candidate AST nodes (right). `adj[ri]` lists candidate nodes for instruction `ri`;
+/// `match_node[n]` is the instruction currently matched to node `n`.
+const BipartiteMatcher = struct {
+    adj: []const []const u32,
+    match_node: []?u32,
+    visited: []bool,
+
+    fn augment(self: *BipartiteMatcher, ri: u32) bool {
+        for (self.adj[ri]) |n| {
+            if (self.visited[n]) continue;
+            self.visited[n] = true;
+            if (self.match_node[n] == null or self.augment(self.match_node[n].?)) {
+                self.match_node[n] = ri;
+                return true;
+            }
         }
+        return false;
     }
-    if (best) |n| return .{ .node = n };
-    if (any_candidate) return .exhausted;
-    return .none;
+};
+
+/// Resolve every recognized instruction to a DISTINCT source AST node via maximum
+/// bipartite matching (ZIR-7), maximizing the source sites recovered. An edge
+/// (instruction, node) exists when `node`'s tag is the instruction's `want` and
+/// `node - off` is a declaration base. This dominates the greedy claim-aware pass:
+/// where greedy could strand a site by taking a higher-base node a later instruction
+/// needed, the augmenting search re-routes the earlier instruction. Each node is reached
+/// by at most one instruction (a bijection over matched nodes); over `src/` this recovers
+/// every site (ZIR == AST, gap 0). Unmatched instructions with candidates are surplus
+/// lowerings, not lost sites. The decl-relative offset is still version-coupled, hence
+/// the 3a version guard remains.
+fn matchInstructions(
+    arena: std.mem.Allocator,
+    tree: std.zig.Ast,
+    is_base: []const bool,
+    recognized: []const RecognizedInst,
+    node_count: i64,
+) std.mem.Allocator.Error!Matching {
+    const node_tags = tree.nodes.items(.tag);
+    const adj = try arena.alloc([]const u32, recognized.len);
+    const had_candidates = try arena.alloc(bool, recognized.len);
+    for (recognized, 0..) |r, ri| {
+        var cands: std.ArrayList(u32) = .empty;
+        var n: u32 = 0;
+        while (n < node_count) : (n += 1) {
+            if (node_tags[n] != r.want) continue;
+            const base: i64 = @as(i64, n) - r.off;
+            if (base < 0 or base >= node_count) continue;
+            if (!is_base[@intCast(base)]) continue;
+            try cands.append(arena, n);
+        }
+        adj[ri] = try cands.toOwnedSlice(arena);
+        had_candidates[ri] = adj[ri].len > 0;
+    }
+
+    const match_node = try arena.alloc(?u32, @intCast(node_count));
+    @memset(match_node, null);
+    const visited = try arena.alloc(bool, @intCast(node_count));
+    var matcher = BipartiteMatcher{ .adj = adj, .match_node = match_node, .visited = visited };
+    for (0..recognized.len) |ri| {
+        @memset(visited, false);
+        _ = matcher.augment(@intCast(ri));
+    }
+
+    const match_inst = try arena.alloc(?u32, recognized.len);
+    @memset(match_inst, null);
+    for (match_node, 0..) |mi, n| {
+        if (mi) |ri| match_inst[ri] = @intCast(n);
+    }
+    return .{ .match_inst = match_inst, .had_candidates = had_candidates };
 }
 
 /// A half-open source byte range `[start, end)`.
@@ -349,21 +395,30 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     var collector = ast_backend.Collector.init(arena);
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
 
-    // Claim-aware resolution + 3c audit: `claimed[n]` records that node `n` has been
-    // resolved to, so the next instruction at the same decl-relative offset takes the
-    // next-innermost node instead of colliding onto it (ZIR-5). A genuine
-    // over-subscription -- candidate nodes all claimed -- surfaces as a residual anomaly.
-    const claimed = try arena.alloc(bool, tree.nodes.len);
-    @memset(claimed, false);
-
+    // Resolve recognized instructions to DISTINCT source nodes via maximum bipartite
+    // matching (ZIR-7), then emit a candidate per matched node. Maximizing the matching
+    // recovers same-/cross-offset collision sites the greedy heuristic stranded.
+    var recognized: std.ArrayList(RecognizedInst) = .empty;
     for (inst_tags, 0..) |t, i| {
         const want = expectedAstTag(t) orelse continue;
-        const off = @intFromEnum(inst_datas[i].pl_node.src_node);
-        const n = switch (resolveNode(tree, is_base, claimed, want, off, node_count)) {
-            .node => |nn| nn,
-            .none => {
-                // AstGen-injected comparison (for-bounds / switch range): no source
-                // operator, so it is an out-of-report diagnostic, never a mutant.
+        try recognized.append(arena, .{
+            .inst = @intCast(i),
+            .want = want,
+            .off = @intFromEnum(inst_datas[i].pl_node.src_node),
+        });
+    }
+    const matching = try matchInstructions(arena, tree, is_base, recognized.items, node_count);
+
+    for (recognized.items, 0..) |_, ri| {
+        const n = matching.match_inst[ri] orelse {
+            // Unmatched. Under a maximum matching an instruction whose candidate nodes are
+            // all claimed is a SURPLUS lowering (AstGen emitted more instructions than the
+            // operator has source nodes) -- its node is already mutated via another
+            // instruction, so no site is lost; drop it silently. An instruction with NO
+            // candidate node is AstGen-injected (for-bounds / switch range) and is the only
+            // case worth an out-of-report diagnostic. (Completeness is now guarded at the
+            // suite level by the ZIR-2 oracle / ZIR-6 sweep, which assert ZIR == AST.)
+            if (!matching.had_candidates[ri]) {
                 try diagnostics.append(arena, .{
                     .file = file,
                     .operator = "injected",
@@ -371,27 +426,11 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
                     .span_end = 0,
                     .reason = "ZIR instruction with no source operator (compiler-injected bounds/range check)",
                 });
-                continue;
-            },
-            .exhausted => {
-                // 3c residual guard: candidate nodes existed for this offset but were
-                // all claimed by other instructions -- a non-bijective mapping the
-                // claim-aware resolver could not place. Does not occur on real code (the
-                // src/ audit is zero); surface it rather than silently dropping a site.
-                try diagnostics.append(arena, .{
-                    .code = "ZNTL_ZIR_RESOLUTION_ANOMALY",
-                    .file = file,
-                    .operator = "resolution_anomaly",
-                    .span_start = 0,
-                    .span_end = 0,
-                    .reason = "ZIR instruction's candidate AST nodes were all claimed by other instructions (non-bijective mapping the claim-aware resolver could not place)",
-                });
-                continue;
-            },
+            }
+            continue;
         };
-        claimed[n] = true;
         const node: std.zig.Ast.Node.Index = @enumFromInt(n);
-        const mut = mutationFor(node_tags[n]) orelse continue; // resolveNode guarantees a supported tag
+        const mut = mutationFor(node_tags[n]) orelse continue; // matching guarantees a supported tag
         const op_tok = tree.nodeMainToken(node);
         const op_start = tree.tokenStart(op_tok);
         // Parity with the AST recognizers: skip operators inside test bodies, and
