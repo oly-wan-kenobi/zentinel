@@ -140,13 +140,15 @@ test "config-aware init accepts --backend ast" {
     try std.testing.expect(out.write_config);
 }
 
-test "init rejects experimental --backend zir/air without enabling them" {
+test "init only writes the stable AST backend; --backend zir (or the retired air) is rejected" {
     const zir = dispatch(&[_][]const u8{ "init", "--backend", "zir" }, false);
     try std.testing.expectEqual(@as(u8, 2), zir.exit_code);
     try std.testing.expect(zir.error_code == .cli_invalid_option);
     try std.testing.expect(!zir.write_config);
     try std.testing.expectEqualStrings("zir", zir.detail);
 
+    // `air` was retired and is now just an unknown backend value; init still
+    // accepts only `ast`, so it is rejected with the value echoed as the detail.
     const air = dispatch(&[_][]const u8{ "init", "--backend", "air" }, false);
     try std.testing.expectEqual(@as(u8, 2), air.exit_code);
     try std.testing.expect(!air.write_config);
