@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 3/4 done
+**Progress:** 4/4 done
 
 ---
 
@@ -51,7 +51,7 @@
     two-function `<` collision → exactly one `<`-token anomaly.
   - **Files:** `src/zir_backend.zig`, `src/cli.zig`, `test/zir_backend_test.zig`, `test/cli_backend_experiment_test.zig`, `docs/ZIR_BACKEND.md`
 
-- [ ] `todo` **ZIR-4** · commit `—` · Retire the legacy `fromAst` relabel
+- [x] `done` **ZIR-4** · commit `8ae34dd` · Retire the legacy `fromAst` relabel
   - **Goal:** remove `fromAst` / `isSupported` and the relabel-only unit tests now that
     `listFromTrees` is the live CLI path — one code path for the ZIR backend.
   - **Acceptance:** no remaining `fromAst` references (except git history); the CLI is unaffected;
