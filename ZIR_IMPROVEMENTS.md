@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest)
+**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below).
 
 ---
 
@@ -120,6 +120,52 @@
   - **Proof:** the ZIR-6 sweep tightened to `ast_only == 0`; the ZIR-5 collision test still green
     (both sites, no anomaly); parity tests on collision-free fixtures unchanged.
   - **Files:** `src/zir_backend.zig`, `test/zir_backend_test.zig`, `docs/ZIR_BACKEND.md`
+
+---
+
+## Beyond ZIR — semantic filtering (alternative to the AIR backend)
+
+> Not part of the ZIR-1..7 campaign (which is complete). This is the recommended path
+> *instead of* a task-057 AIR backend. AIR is not exposed by `std` (only `Ast`/`Zir` are);
+> an AIR backend would have to vendor `Sema`/`Air`/`InternPool` — far more fragile than the
+> version-coupled `src_node` offsets ZIR-3/ZIR-7 already fought. So rather than introspect
+> post-Sema IR, use the real compiler as a black-box oracle over candidates from **any**
+> backend. The semantic payoff is a *filter/classifier* stage, not a new candidate generator.
+
+- [ ] `todo` **SEM-1** · commit `—` · Compiler-oracle semantic filter (TCE-first)
+  - **Goal:** a post-generation filter stage that classifies/excludes candidates using the
+    pinned compiler as a black box — no IR introspection. Two parts:
+    **(a) Trivial Compiler Equivalence (TCE):** compile original + each mutant to a normalized
+    artifact (`-femit-llvm-ir`, or `-femit-asm` as a backend-agnostic fallback) and diff —
+    identical-to-original ⇒ provably-equivalent mutant (a guaranteed survivor) → exclude;
+    identical-to-another-mutant ⇒ duplicate → dedupe.
+    **(b) compile-as-classifier:** replace the heuristic `expected_compile` *prediction* with
+    the compiler's actual verdict (compiles / errors), so a non-compiling mutant is classified
+    empirically rather than guessed.
+  - **Why:** delivers the equivalent-mutant + type/compile payoff that motivated AIR, without
+    AIR's accessibility wall. TCE is sound-but-incomplete — it only ever excludes *provably*
+    equivalent/duplicate mutants (the safe direction, mirroring the `zir_only == 0` invariant) —
+    and is published technique (Trivial Compiler Equivalence, Papadakis/Jia/Harman, ICSE 2015).
+    (b) makes Sema the type oracle; the runner already compiles per mutant, so marginal cost is low.
+    Works for the default AST backend too, not just ZIR.
+  - **Acceptance:** (a) a constructed equivalent mutant (e.g. a swap the optimizer normalizes
+    away, or on a comptime-false/dead branch) is excluded with reason "provably equivalent (TCE)";
+    a constructed duplicate pair collapses to one; a genuinely-killable mutant is **kept**
+    (identical artifact ⇒ exclude, differing ⇒ keep — never the reverse). (b) a non-compiling
+    mutant is classified by the compiler's verdict; agreement with the heuristic on compiling
+    mutants is unchanged. The stage is opt-in and changes scores only by removing
+    guaranteed-equivalent/duplicate survivors.
+  - **Proof:** red→green tests — (i) an equivalent mutant excluded, (ii) a duplicate pair deduped,
+    (iii) a non-equivalent mutant retained, (iv) a non-compiling mutant empirically classified.
+    Corroborate by measuring, over `src/`, how many candidates TCE marks equivalent/duplicate
+    (the payoff number, like the ZIR-7 gap measurement).
+  - **Files:** new `src/semantic_filter.zig` + wiring in `src/cli.zig` `runListMutants` (and the
+    run path); `test/semantic_filter_test.zig`; a `docs/` note (supersedes the AIR-backend plan).
+    Reuses the pinned toolchain + the 3a-style version guard.
+  - **Escape hatch:** if per-mutant compilation is too costly even with batching/caching, scope (a)
+    to a sampled/opt-in audit and keep (b) as the primary win. If `-femit-llvm-ir` isn't stable
+    across Zig backends, use `-femit-asm`; if neither artifact is deterministic enough for reliable
+    equivalence, descope (a) with the measured flakiness and keep (b).
 
 ---
 
