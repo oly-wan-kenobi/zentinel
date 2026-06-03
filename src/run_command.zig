@@ -798,7 +798,10 @@ fn buildEntry(
         // SEM-1c (compile-as-classifier): the runner already compiled this mutant,
         // so report the compiler's ACTUAL verdict (from the terminal run status)
         // rather than the per-operator heuristic guess. Ambiguous outcomes
-        // (timeout/crash/invalid/skipped) keep the heuristic.
+        // (timeout/crash/invalid/skipped) keep the heuristic. In a multi-mode matrix
+        // run this reflects the PRIMARY (first configured) mode's status, matching
+        // the rest of the top-level entry (`result.status`); per-mode compile
+        // outcomes live in `mode_matrix`.
         .expected_compile = semantic_filter.empiricalExpectedCompile(candidate.expected_compile, result.status),
         .result = .{
             .status = result.status,

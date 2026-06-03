@@ -8,6 +8,7 @@
       <property name="operator" value="comparison_boundary"/>
       <property name="operator_stability" value="stable"/>
       <property name="status" value="killed"/>
+      <property name="expected_compile" value="compiles"/>
       <property name="phase" value="mutant"/>
       <property name="command_count" value="1"/>
       <property name="command_0_original" value="zig test src/range.zig"/>
@@ -28,6 +29,7 @@
       <property name="operator" value="comparison_boundary"/>
       <property name="operator_stability" value="stable"/>
       <property name="status" value="survived"/>
+      <property name="expected_compile" value="compiles"/>
       <property name="phase" value="mutant"/>
       <property name="command_count" value="0"/>
     </properties>

@@ -14,9 +14,12 @@ const runner = zentinel.runner;
 const mutant_runner = zentinel.mutant_runner;
 const mutant = zentinel.mutant;
 const report = zentinel.report;
+const report_jsonl = zentinel.report_jsonl;
+const report_junit = zentinel.report_junit;
 const semantic_filter = zentinel.semantic_filter;
 
 const expectEqual = std.testing.expectEqual;
+const expect = std.testing.expect;
 
 // --- pure mapping: the compiler's verdict overrides the heuristic guess ---------
 
@@ -176,4 +179,24 @@ test "run path: an ambiguous (timeout) outcome keeps the arithmetic may_fail heu
     const e = entryFor(outcome.report, "arithmetic_add_sub");
     try expectEqual(report.ResultStatus.timeout, e.result.status);
     try expectEqual(mutant.ExpectedCompile.may_fail, e.expected_compile);
+}
+
+test "the compiler's verdict reaches the machine-readable report surfaces (jsonl + junit)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = compileError() };
+    const files = [_]rc.FileSource{.{ .path = "src/cmp.zig", .source = cmp_src }};
+    const outcome = try rc.run(a, loadCfg(a, cmp_cfg), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    // jsonl already carries the field via whole-struct serialization; junit carries
+    // it as a new property. Both must show the empirical `must_fail`, not the
+    // comparison heuristic `compiles`.
+    const jsonl = try report_jsonl.render(a, outcome.report);
+    try expect(std.mem.indexOf(u8, jsonl, "\"expected_compile\":\"must_fail\"") != null);
+    try expect(std.mem.indexOf(u8, jsonl, "\"expected_compile\":\"compiles\"") == null);
+
+    const junit = try report_junit.render(a, outcome.report, false);
+    try expect(std.mem.indexOf(u8, junit, "<property name=\"expected_compile\" value=\"must_fail\"/>") != null);
 }
