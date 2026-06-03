@@ -186,25 +186,46 @@ fn runCase(
     var snapshot: ?doc_report.Snapshot = null;
     var expectation: ?doc_report.Expectation = null;
 
-    // Match a following expectation block (cli/compile-fail/output cases).
+    // Match EVERY following expectation block (a case may carry more than one,
+    // e.g. `text output` plus `diagnostic expected`). All must match; the first
+    // mismatch -- or, if all match, the first expectation -- is recorded as the
+    // snapshot evidence. Each block is matched against the stream appropriate for
+    // the case kind / mode (see actualOutputFor): matching the wrong stream is a
+    // false-pass.
     if (c.block_refs.len > 1 and status != .invalid and status != .skipped) {
-        if (findBlockByLine(blocks, lineOfRef(c.block_refs[1]))) |exp| {
+        var all_matched = true;
+        for (c.block_refs[1..]) |ref| {
+            const exp = findBlockByLine(blocks, lineOfRef(ref)) orelse continue;
             const mode = matchModeFor(exp);
-            const sr = try snap.compare(arena, c.id, c.file, c.anchor_line, mode, exp.content, cr.stdout_excerpt, norm_opts);
-            expectation = .{ .mode = mode, .block_ref = c.block_refs[1] };
-            snapshot = .{
-                .expected_excerpt = sr.expected_excerpt,
-                .actual_excerpt = sr.actual_excerpt,
-                .normalized_expected_excerpt = sr.normalized_expected,
-                .normalized_actual_excerpt = sr.normalized_actual,
-                .match_mode = mode,
-                .expected_block_ref = c.block_refs[1],
-                .actual_ref = .stdout,
-                .matched = sr.matched,
-            };
-            // A passing command whose output mismatches the snapshot fails.
-            if (status == .passed and !sr.matched) status = .failed;
+            const actual = actualOutputFor(c.kind, mode, cr);
+            const sr = try snap.compare(arena, c.id, c.file, c.anchor_line, mode, exp.content, actual.text, norm_opts);
+            // Default to recording the first expectation; once a mismatch is seen,
+            // capture that one instead so the report points at the actual failure.
+            if (snapshot == null or (all_matched and !sr.matched)) {
+                expectation = .{ .mode = mode, .block_ref = ref };
+                snapshot = .{
+                    .expected_excerpt = sr.expected_excerpt,
+                    .actual_excerpt = sr.actual_excerpt,
+                    .normalized_expected_excerpt = sr.normalized_expected,
+                    .normalized_actual_excerpt = sr.normalized_actual,
+                    .match_mode = mode,
+                    .expected_block_ref = ref,
+                    .actual_ref = actual.ref,
+                    .matched = sr.matched,
+                };
+            }
+            if (!sr.matched) all_matched = false;
         }
+        // A mismatch demotes a passing verdict. A `zig compile_fail` case passes
+        // as `expected_compile_error`; a non-matching expected diagnostic must
+        // demote it to `compile_error` (docs/DOCTEST_SPEC.md), not stay green.
+        // Other passing cases (including config_fail, which passes when validation
+        // fails as expected) demote to `failed`.
+        if (!all_matched) status = switch (status) {
+            .expected_compile_error => .compile_error,
+            .passed => .failed,
+            else => status,
+        };
     }
 
     const diags = try arena.alloc(doc_report.Diagnostic, cr.diagnostics.len);
@@ -268,6 +289,10 @@ fn failureSummary(status: doc_report.Status) []const u8 {
 /// Derive a matcher mode from an expectation block's tags. text output defaults
 /// to exact; json expected defaults to json; subset/contains/unordered refine it.
 pub fn matchModeFor(b: block.Block) matcher.Mode {
+    // A `diagnostic expected` block matches a compiler/config/runtime diagnostic
+    // with line/column numbers collapsed (matcher.diagnosticText), regardless of
+    // the producer language.
+    if (b.language == .diagnostic) return .diagnostic;
     if (b.language == .json) {
         return switch (b.match_mode) {
             .subset => .json_subset,
@@ -277,7 +302,32 @@ pub fn matchModeFor(b: block.Block) matcher.Mode {
     }
     return switch (b.match_mode) {
         .contains => .contains,
+        .regex => .regex,
         else => .exact,
+    };
+}
+
+const ActualOutput = struct { text: []const u8, ref: doc_report.ActualRef };
+
+/// Choose which captured stream an expectation block is matched against, plus the
+/// `actual_ref` recorded in the report. Compiler diagnostics from a
+/// `zig compile_fail` case, and any `diagnostic`-mode expectation, live on stderr;
+/// config validation diagnostics are routed to the stdout slot by the runner;
+/// everything else matches stdout (the program's primary output). Matching the
+/// wrong stream is a false-pass: a compile-fail diagnostic compared against the
+/// (empty) stdout would vacuously satisfy a `contains` expectation.
+fn actualOutputFor(kind: case_mod.CaseKind, mode: matcher.Mode, cr: runner.CaseResult) ActualOutput {
+    if (mode == .diagnostic) {
+        // The runner places a config validation diagnostic on the stdout slot;
+        // compiler/runtime diagnostics are on stderr.
+        if (kind == .config or kind == .config_fail) return .{ .text = cr.stdout_excerpt, .ref = .diagnostic };
+        return .{ .text = cr.stderr_excerpt, .ref = .diagnostic };
+    }
+    return switch (kind) {
+        .zig_compile_fail => .{ .text = cr.stderr_excerpt, .ref = .stderr },
+        // runConfig formats the validation diagnostic into the stdout slot.
+        .config, .config_fail => .{ .text = cr.stdout_excerpt, .ref = .stdout },
+        else => .{ .text = cr.stdout_excerpt, .ref = .stdout },
     };
 }
 

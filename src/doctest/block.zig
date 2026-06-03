@@ -6,13 +6,13 @@
 // classification deterministic.
 const std = @import("std");
 
-pub const Language = enum { zig, bash, json, text, toml, other };
+pub const Language = enum { zig, bash, json, text, toml, diagnostic, other };
 
 /// Block kind from the info string. `unit_test` is the `test` tag (renamed to
 /// avoid the Zig keyword); `none` is a plain language block (e.g. `zig`).
 pub const Kind = enum { none, unit_test, compile_fail, expected, output, config, config_fail, before, after, cli };
 
-pub const MatchMode = enum { none, subset, contains, exact, unordered };
+pub const MatchMode = enum { none, subset, contains, exact, unordered, regex };
 
 pub const Block = struct {
     file: []const u8,
@@ -40,6 +40,10 @@ pub fn languageFromToken(tok: []const u8) Language {
     if (std.mem.eql(u8, tok, "json")) return .json;
     if (std.mem.eql(u8, tok, "text")) return .text;
     if (std.mem.eql(u8, tok, "toml")) return .toml;
+    // `diagnostic expected` blocks pin a compiler / config / runtime diagnostic.
+    // The matcher's `.diagnostic` mode (line/column-insensitive containment)
+    // applies; matchModeFor maps language `.diagnostic` to it.
+    if (std.mem.eql(u8, tok, "diagnostic")) return .diagnostic;
     return .other;
 }
 
@@ -65,5 +69,10 @@ pub fn matchModeFromToken(tok: []const u8) ?MatchMode {
     // this entry the documented tag was rejected as unsupported, leaving the
     // implemented json_unordered match logic unreachable (M6).
     if (std.mem.eql(u8, tok, "unordered")) return .unordered;
+    // `regex` selects the matcher's pure backtracking regex engine on a text
+    // expectation (matchModeFor maps it to matcher.Mode.regex). Without this entry
+    // the documented tag was rejected as unsupported, leaving the regex engine
+    // unreachable.
+    if (std.mem.eql(u8, tok, "regex")) return .regex;
     return null;
 }
