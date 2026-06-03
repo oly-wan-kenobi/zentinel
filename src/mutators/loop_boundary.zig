@@ -7,6 +7,17 @@
 //   integer literal. Infinite loops (`while (true)`), non-comparison conditions,
 //   non-integer or open range ends, and test bodies are skipped. Pure: emits
 //   candidates through the shared collector; no patching or execution.
+//
+// Relationship with `comparison_boundary`: a `while` condition's boundary swap is
+// the SAME physical edit `comparison_boundary` emits for that comparison node
+// (identical file/span/original/replacement). When BOTH operators are enabled,
+// `sortAndDedupe` (mutant.samePhysicalEdit) keeps exactly one representative -- the
+// alphabetically-first operator, `comparison_boundary` -- so the while-condition
+// candidate emitted here is intentionally deduped away (no duplicate mutant). This
+// branch is therefore only the producing operator for while conditions when
+// `comparison_boundary` is disabled; `loop_boundary`'s unique contribution when
+// both are on is the `for`-range increment/decrement, which no other operator
+// emits. This redundancy is intended, not a missed mutation.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");

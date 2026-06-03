@@ -3,7 +3,8 @@
 - Pick rule: FIRST `todo` top-to-bottom (that is the priority order).
 - Statuses: `todo` · `wip` · `done` · `descoped` (with a one-line evidence-backed reason).
 - The ZIR backend lives in `src/zir_backend.zig` (`fromTree`/`listFromTrees` + the resolver:
-  `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
+  `expectedAstTag` → `matchInstructions` (max bipartite matching, ZIR-7) → `mutationFor`); the
+  CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
 **Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). Follow-up track **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below) is now **complete**: 1a (measurement spike — done, `c800e53`), 1b (TCE equivalence/dedup filter — **descoped**: 1a measured 0 equivalents/0 duplicates in the Debug pipeline), 1c (compile-as-classifier — done, `28d2f6b`: the report's `expected_compile` is now the compiler's actual verdict, not a heuristic guess). Beyond-ZIR track has no `todo`/`wip` left.

@@ -285,7 +285,7 @@ The default JUnit mode is diagnostic:
 - emit one `<testcase>` per mutant in canonical report order
 - set each testcase `classname` to `zentinel.mutant`
 - set each testcase `name` to `<display_id> <operator> <file>:<line_start>`
-- add testcase `<properties>` for `mutant_id`, `backend`, `backend_stability`, `operator`, `operator_stability`, `status`, `phase`, command count, and each command's original text, argv, cwd, environment policy, shell flag, command status, and skip reason
+- add testcase `<properties>` for `mutant_id`, `backend`, `backend_stability`, `operator`, `operator_stability`, `status`, `expected_compile`, `phase`, command count, and each command's original text, argv, cwd, environment policy, shell flag, command status, and skip reason
 - write bounded deterministic evidence to `<system-out>` or `<system-err>` with normalized durations in snapshots
 
 Status mapping in diagnostic mode:

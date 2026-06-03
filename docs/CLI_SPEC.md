@@ -51,8 +51,6 @@ zentinel embeds the `std.zig.Ast` parser, so mutant *generation* never shells ou
 --config <path>
 --root <path>
 --no-color
---verbose
---quiet
 ```
 
 Global options parse before command dispatch only after their owner task is implemented. Before then, a known future global option must fail with exit code `2` and `ZNTL_CLI_INVALID_OPTION`; unknown options also fail with exit code `2`.
@@ -64,8 +62,8 @@ Ownership:
 | `--no-color` | `tasks/001-cli-shell.md` | all terminal output | Needed for stable help and error snapshots. |
 | `--config <path>` | `tasks/005-version-policy.md` | `check`; reused by `run`, `list-mutants`, and `doctest` as those commands land | Shared parser only; command-specific behavior is added by each command task. |
 | `--root <path>` | `tasks/005-version-policy.md` | `check`; reused by later project commands | Normalizes project-relative paths before command dispatch. |
-| `--verbose` | `tasks/018-report-renderers.md` | report-producing commands | Must not change deterministic JSON fields. |
-| `--quiet` | `tasks/018-report-renderers.md` | report-producing commands | Must not hide errors or required evidence. |
+
+`--verbose` and `--quiet` are **not** global options: they are command-local to `zentinel run` (parsed after the subcommand, e.g. `zentinel run --verbose`) and select the text-report verbosity only. They must not change deterministic JSON fields or hide errors/required evidence. See the `run` section below.
 
 `--format` is not a global option in v1. It is command-local where documented, such as `zentinel doctest --format <text|json>`. `doctest` output is `text` or `json` only; streaming `jsonl` and `junit` are mutation-run report formats, not doctest formats. Mutation runs use `--report <text|json|jsonl|junit>` to avoid ambiguity.
 
@@ -203,9 +201,13 @@ Useful options:
 --report <text|json|jsonl|junit>
 --output <path>
 --no-cache
+--verbose
+--quiet
 ```
 
-`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR backends never participate in a run.
+`--verbose` and `--quiet` are command-local to `run` and select the text-report verbosity (`--quiet` prints only the compact summary; `--verbose` lists every mutant). They are mutually exclusive, affect only text rendering, and never change the canonical JSON. They are parsed after the `run` subcommand (`zentinel run --verbose`), not as leading global options.
+
+`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR backend never participates in a run.
 
 ## Run Option Ownership
 
@@ -219,7 +221,7 @@ Useful options:
 | `--fail-on-survivors` | `tasks/016-minimal-run-command.md` | Changes the run command exit code to `1` when survivors are present; JUnit survivor-failure rendering is expanded by task `018`. |
 | `--report <text|json>` | `tasks/016-minimal-run-command.md` | Phase 1 run output supports text and canonical JSON. |
 | `--report <jsonl|junit>` | `tasks/018-report-renderers.md` | Report-renderer task adds streaming JSONL and JUnit. |
-| `--output <path>` | `tasks/016-minimal-run-command.md` | Writes the selected run report under the configured or explicit output path. |
+| `--output <path>` | `tasks/016-minimal-run-command.md` | Writes the **canonical JSON** report to the configured or explicit output path (this is the durable machine artifact that `--input-report` consumers read back). `--report` selects only the **stdout** rendering; it does not change the format written to `--output`. So `--output ci.json --report junit` writes canonical JSON to `ci.json` and prints JUnit to stdout. |
 | `--no-cache` | `tasks/021-cache-key-design.md` | Disables zentinel result-cache reads and writes for the invocation; Zig build-cache isolation remains governed by runner and worker tasks. |
 | `--jobs <n>` | `tasks/050-parallel-worker-pool.md` | Overrides normalized `run.jobs` for the invocation. |
 | `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | `tasks/058-safety-mode-matrix.md` | Overrides configured `zig.modes` for a single-mode run. |
