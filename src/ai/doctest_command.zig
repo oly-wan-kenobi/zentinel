@@ -1213,11 +1213,15 @@ pub fn validateSurvivorPrompt(value: std.json.Value) PromptViolation {
     return .ok;
 }
 
-fn stubSurvivorExplain(arena: std.mem.Allocator, case: std.json.Value) !Response {
+fn stubSurvivorExplain(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const mutation = get(case, "mutation");
-    const survivor_ref = s(getO(mutation, "survivor_ref"));
-    const dm = s(get(case, "id"));
-    const operator = s(getO(mutation, "operator"));
+    // The report is untrusted: redact every field echoed into the rendered
+    // advisory (summary + evidence refs) so a path- or secret-shaped survivor_ref/
+    // id/operator cannot leak to stdout, matching stubExplain/stubSuggest (F-4).
+    var sink = context.RedactionLog.init(arena);
+    const survivor_ref = try context.redactField(arena, s(getO(mutation, "survivor_ref")), patterns, &sink);
+    const dm = try context.redactField(arena, s(get(case, "id")), patterns, &sink);
+    const operator = try context.redactField(arena, s(getO(mutation, "operator")), patterns, &sink);
     const refs = try arena.alloc(EvidenceRef, 2);
     refs[0] = .{ .kind = "doctest_survivor", .ref = survivor_ref };
     refs[1] = .{ .kind = "mutation_case", .ref = dm };
@@ -1262,8 +1266,9 @@ pub fn runSurvivor(arena: std.mem.Allocator, input: SurvivorInput, format: Forma
     };
     if (validateSurvivorPrompt(prompt) != .ok) return error.AiResponseInvalid;
 
-    const response = stubSurvivorExplain(arena, case) catch |e| switch (e) {
+    const response = stubSurvivorExplain(arena, case, input.settings.redact_patterns) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
+        error.RedactionFailed => return error.AiResponseInvalid,
     };
     const json = try responseJson(arena, response);
     const value = std.json.parseFromSliceLeaky(std.json.Value, arena, json, .{}) catch return error.AiResponseInvalid;

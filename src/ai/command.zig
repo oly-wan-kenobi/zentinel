@@ -711,15 +711,20 @@ fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Val
     }
 }
 
-fn stubReview(arena: std.mem.Allocator, report: std.json.Value) !Response {
+fn stubReview(arena: std.mem.Allocator, report: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const mutants = arrOf(get(report, "mutants")) orelse &.{};
     const ids = try arena.alloc([]const u8, mutants.len);
     const classes = try arena.alloc([]const u8, mutants.len);
+    // The report is untrusted (--input-report). Redact every id echoed into the
+    // rendered clusters: the `m_` prefix validator does not exclude a path- or
+    // secret-shaped id, so an unredacted id would leak to stdout/JSON -- the same
+    // leak stubMutantResponse guards against (F-4, M9).
+    var log = context.RedactionLog.init(arena);
     var n: usize = 0;
     for (mutants) |m| {
         const status = s(getO(get(m, "result"), "status"));
         if (!eqStr(status, "survived")) continue;
-        ids[n] = s(get(m, "id"));
+        ids[n] = try context.redactField(arena, s(get(m, "id")), patterns, &log);
         classes[n] = mapClassification(s(get(m, "operator")), status);
         n += 1;
     }
@@ -1036,8 +1041,9 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
         },
         .review_tests => blk: {
             anchor = firstSurvivor(report);
-            break :blk stubReview(arena, report) catch |err| switch (err) {
+            break :blk stubReview(arena, report, input.settings.redact_patterns) catch |err| switch (err) {
                 error.OutOfMemory => return error.OutOfMemory,
+                error.RedactionFailed => return error.AiResponseInvalid,
             };
         },
     };

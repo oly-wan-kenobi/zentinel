@@ -95,6 +95,66 @@ test "explain rejects a non-integer report integer instead of treating it as zer
     try expectError(error.AiReportNotFound, command.run(a, input, .json));
 }
 
+test "review-tests redacts secret-shaped report ids before echoing them into clusters (F-4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Untrusted report whose survivor id embeds a GitHub-token-shaped secret. The
+    // `m_` prefix passes response validation, but the secret must not reach the
+    // rendered review output (the leak this stub previously had).
+    const leaky =
+        \\{
+        \\  "mutants": [
+        \\    {
+        \\      "id": "m_ghp_abcdefghijklmnopqrstuvwxyz0123",
+        \\      "display_id": 1,
+        \\      "operator": "comparison_boundary",
+        \\      "backend": "ast",
+        \\      "backend_stability": "stable",
+        \\      "operator_stability": "stable",
+        \\      "file": "src/x.zig",
+        \\      "span": { "byte_start": 0, "byte_end": 1, "line_start": 1, "column_start": 1, "line_end": 1, "column_end": 2 },
+        \\      "original": "a < b",
+        \\      "replacement": "a <= b",
+        \\      "diff": ["-a < b", "+a <= b"],
+        \\      "expected_compile": "compiles",
+        \\      "result": {
+        \\        "status": "survived",
+        \\        "mode": "Debug",
+        \\        "commands": [
+        \\          {
+        \\            "command": { "original": "zig test src/x.zig", "argv": ["zig", "test", "src/x.zig"], "cwd": ".", "environment_policy": "minimal", "shell": false },
+        \\            "phase": "mutant",
+        \\            "status": "passed",
+        \\            "exit_code": 0,
+        \\            "timed_out": false,
+        \\            "failure_kind": "none",
+        \\            "duration_ms": 0,
+        \\            "evidence": { "stdout_excerpt": "", "stderr_excerpt": "", "failure_summary": "" },
+        \\            "skip_reason": null
+        \\          }
+        \\        ],
+        \\        "evidence": {}
+        \\      }
+        \\    }
+        \\  ]
+        \\}
+    ;
+    const input = command.Input{
+        .flow = .review_tests,
+        .mutant_ref = null,
+        .provider_override = null,
+        .report_json = leaky,
+        .settings = stubSettings(),
+    };
+    const outcome = try command.run(a, input, .json);
+    try expectEqual(@as(u8, 0), outcome.exit_code);
+    // The secret is gone; a redacted id (m_ prefix preserved) remains.
+    try expect(std.mem.indexOf(u8, outcome.body, github_secret) == null);
+    try expect(std.mem.indexOf(u8, outcome.body, "m_") != null);
+}
+
 test "explain still succeeds on a valid in-range report" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
