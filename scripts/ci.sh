@@ -65,8 +65,14 @@ python3 scripts/check_pipeline_artifacts.py
 # keep CI fast and deterministic; selected production-source dogfood is opt-in
 # via scripts/dogfood-production.sh.
 printf '== ci stage: advisory_dogfood ==\n'
-if ! scripts/dogfood.sh >/dev/null 2>&1; then
-  printf 'advisory dogfood reported a non-zero status (advisory; review survivors)\n' >&2
+# Suppress only the dogfood STDOUT; let its STDERR through. dogfood.sh does NOT
+# pass --fail-on-survivors, so mutation survivors exit 0 -- a non-zero status is
+# therefore always an infrastructure/deterministic-core error (a `zig build`
+# failure, a binary crash, or a ZNTL_ runtime error), never a survivor. Redirecting
+# stderr to /dev/null as well (the old behavior) hid that real cause, and the
+# message wrongly blamed survivors (L33).
+if ! scripts/dogfood.sh >/dev/null; then
+  printf 'advisory dogfood exited non-zero: infrastructure/deterministic-core error (survivors exit 0 without --fail-on-survivors) -- inspect the dogfood stderr above\n' >&2
 fi
 
 # Stage 7: final release dogfood gate (task 085). Validates the archived

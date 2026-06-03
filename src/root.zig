@@ -98,6 +98,12 @@ pub const list_mutants_command = @import("list_mutants_command.zig");
 /// Same-file test selection + fallback (deterministic core).
 pub const test_selection = @import("test_selection.zig");
 
+/// Compiler-oracle semantic filter (deterministic core, ZIR_IMPROVEMENTS SEM-1c):
+/// replaces the heuristic `expected_compile` prediction with the compiler's actual
+/// verdict, derived from the mutant's terminal run status (the runner already
+/// compiled it). SEM-1b's TCE equivalence half was descoped (0 measured payoff).
+pub const semantic_filter = @import("semantic_filter.zig");
+
 /// Shared error-code tokens (deterministic core).
 pub const error_codes = @import("error_codes.zig");
 
@@ -142,8 +148,25 @@ pub const report_text = @import("report_text.zig");
 pub const report_jsonl = @import("report_jsonl.zig");
 pub const report_junit = @import("report_junit.zig");
 
+/// Whether a `--test-command` value can be safely embedded as a TOML basic-string
+/// array element in zentinel.toml. zentinel's TOML reader (src/config_toml.zig)
+/// has NO string escapes, so a value containing `"` would close the string early
+/// and inject extra array elements (e.g. `zig test", "evil` -> two commands), and
+/// a control byte (newline/tab/...) would malform the file. Such a value is
+/// unrepresentable; `dispatchInit` rejects it rather than write an injected or
+/// broken config (L21). Backslash is read literally by the reader, so it is safe.
+pub fn testCommandEmbeddable(value: []const u8) bool {
+    for (value) |c| {
+        if (c == '"' or c < 0x20 or c == 0x7f) return false;
+    }
+    return true;
+}
+
 /// Render the deterministic default `zentinel.toml`, optionally substituting the
-/// baseline test command for config-aware `init --test-command`.
+/// baseline test command for config-aware `init --test-command`. Precondition:
+/// `dispatchInit` has rejected any value that is not `testCommandEmbeddable`, so
+/// the raw substitution stays a single quoted array element and is injection-safe
+/// (L21).
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
     const cmd = test_command orelse return default_config;
     const needle = "commands = [\"zig build test\"]";
@@ -275,14 +298,6 @@ pub const Outcome = struct {
     init_test_command: ?[]const u8 = null,
 };
 
-/// Known future global options not owned by task 001 (rejected until their owner lands).
-const future_global_options = [_][]const u8{
-    "--config",
-    "--root",
-    "--verbose",
-    "--quiet",
-};
-
 fn eq(a: []const u8, b: []const u8) bool {
     return std.mem.eql(u8, a, b);
 }
@@ -306,7 +321,7 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
             // Accepted globally; non-colored output is unchanged.
             continue;
         }
-        // Known future global options and unknown options are usage errors.
+        // Unknown options (including not-yet-owned global ones) are usage errors.
         return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = opt };
     }
 
@@ -342,6 +357,10 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
         } else if (eq(arg, "--test-command")) {
             i += 1;
             if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
+            // Reject values that cannot be embedded in zentinel's escape-free TOML:
+            // a `"` would inject extra commands, a control byte would malform the
+            // file (L21). Caught here so no "created zentinel.toml" is printed.
+            if (!testCommandEmbeddable(rest[i])) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
             test_command = rest[i];
         } else if (eq(arg, "--backend")) {
             i += 1;
@@ -386,17 +405,22 @@ pub fn resolveConfigPathForRoot(arena: std.mem.Allocator, globals: Globals) Conf
     return std.fmt.allocPrint(arena, "{s}/{s}", .{ globals.root, globals.config_path });
 }
 
+/// The single stable cleanup-warning diagnostic format, shared by the allocating
+/// `cleanupWarningText` and the streaming `emitCleanupWarningIfNeeded` so the two
+/// surfaces cannot drift apart (L17).
+const cleanup_warning_fmt = "warning: failed to remove {d} mutation workspace(s)\n";
+
 /// Stable cleanup warning surface shared by the CLI adapter and tests.
 pub fn cleanupWarningText(arena: std.mem.Allocator, count: u32) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(arena, "warning: failed to remove {d} mutation workspace(s)\n", .{count});
+    return std.fmt.allocPrint(arena, cleanup_warning_fmt, .{count});
 }
 
-/// Adapter-visible cleanup warning emission. A zero count is intentionally
-/// silent; non-zero counts use the single stable diagnostic text above.
-pub fn emitCleanupWarningIfNeeded(arena: std.mem.Allocator, count: u32, stderr: *std.Io.Writer) !void {
-    _ = arena;
+/// Adapter-visible cleanup warning emission. A zero count is intentionally silent;
+/// a non-zero count streams `cleanup_warning_fmt` directly. It needs no allocator
+/// -- the prior signature accepted one only to discard it via `_ = arena;` (L17).
+pub fn emitCleanupWarningIfNeeded(count: u32, stderr: *std.Io.Writer) !void {
     if (count == 0) return;
-    try stderr.print("warning: failed to remove {d} mutation workspace(s)\n", .{count});
+    try stderr.print(cleanup_warning_fmt, .{count});
 }
 
 /// Redact user-supplied path values before echoing them in diagnostics that may

@@ -61,6 +61,24 @@ test "doctest AI --ai-provider disabled is ZNTL_AI_DISABLED" {
     try expectError(error.AiDisabled, dc.run(arena, input, .json));
 }
 
+// --- required positional is a usage error, not a downstream AI failure (L32) ---
+
+test "doctest AI subcommands reject a missing required positional as a usage error (L32)" {
+    // suggest needs <doc-path>; explain and review-snapshot need <case-ref>. A
+    // missing positional must surface this exact CLI usage detail (rendered as
+    // ZNTL_CLI_INVALID_OPTION) instead of being forwarded as a null ref the engine
+    // reports as the opaque ZNTL_DOCTEST_{DOC,CASE}_NOT_FOUND.
+    try expectEqualStrings("missing <doc-path>", dc.missingPositional(.suggest_doctest, null).?);
+    try expectEqualStrings("missing <case-ref>", dc.missingPositional(.explain_doctest_failure, null).?);
+    try expectEqualStrings("missing <case-ref>", dc.missingPositional(.review_snapshot, null).?);
+    // suggest-missing takes its target via --file, so it requires no positional.
+    try expect(dc.missingPositional(.suggest_missing_doctests, null) == null);
+    // A present positional satisfies every flow (no over-rejection).
+    try expect(dc.missingPositional(.suggest_doctest, "docs/CONFIG_SPEC.md") == null);
+    try expect(dc.missingPositional(.explain_doctest_failure, "dt_01hr7p6h0v2fj3drdzt9k2a0xe") == null);
+    try expect(dc.missingPositional(.review_snapshot, "dt_01hr7p6h0v2fj3drdzt9k2a0xe") == null);
+}
+
 // --- review-snapshot requires snapshot evidence ----------------------------
 
 test "review-snapshot on a case without snapshot evidence is ZNTL_DOCTEST_CASE_NOT_FOUND" {

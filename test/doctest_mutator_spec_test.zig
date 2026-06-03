@@ -51,6 +51,37 @@ test "boolean_literal before/after pair matches AST mutator output" {
     try expectEqualStrings("boolean_literal", v.pairs[0].operator);
 }
 
+// A Phase-2 stable operator (optional_orelse_unreachable): before the fix, the
+// validator wired only the 4 Phase-1 collectors, so this pair produced ZERO
+// candidates and was falsely reported as drift ("not produced by any stable
+// mutator"). With all 8 stable collectors wired it matches like any Phase-1 pair.
+const optional_phase2_doc =
+    \\# optional_orelse_unreachable
+    \\
+    \\```zig before
+    \\fn pick(x: ?u32) u32 {
+    \\    return x orelse 0;
+    \\}
+    \\```
+    \\
+    \\```zig after
+    \\fn pick(x: ?u32) u32 {
+    \\    return x orelse unreachable;
+    \\}
+    \\```
+;
+
+test "a Phase-2 before/after pair (optional_orelse_unreachable) matches, not flagged as drift (L24)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const v = try md.validateDoc(a, "spec.md", optional_phase2_doc);
+    try expectEqual(@as(usize, 0), v.diagnostics.len); // no ZNTL_DOCTEST_SNAPSHOT_MISMATCH
+    try expectEqual(@as(usize, 1), v.pairs.len);
+    try expect(v.pairs[0].matched);
+    try expectEqualStrings("optional_orelse_unreachable", v.pairs[0].operator);
+}
+
 test "a before block without an after block is an invalid grouping" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -130,6 +161,21 @@ test "validatePair matches a real transformation and rejects an unproduced one" 
     try expectEqualStrings("arithmetic_add_sub", matched.operator);
     const unmatched = try md.validatePair(a, before, "fn add(a: i32, b: i32) i32 {\n    return a * b;\n}\n");
     try expect(!unmatched.matched);
+}
+
+test "lineOfRef parses a normal ref and resolves an overlong ref to 0 instead of overflowing (S17)" {
+    // A normal "file:line[:label]" anchor parses to its 1-based line.
+    try expectEqual(@as(u32, 42), md.lineOfRef("docs/x.md:42"));
+    try expectEqual(@as(u32, 7), md.lineOfRef("a:7:label"));
+    // No colon / no digit run -> line 0 (matches no real anchor).
+    try expectEqual(@as(u32, 0), md.lineOfRef("nodigits"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:"));
+    // u32 max parses; the very next value (and any longer run) exceeds u32. The prior
+    // hand-rolled `n = n*10 + d` accumulator panicked with `integer overflow`
+    // (Debug/ReleaseSafe) on such a ref; the checked parse resolves it to 0 (S17).
+    try expectEqual(@as(u32, 4294967295), md.lineOfRef("x:4294967295"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:4294967296"));
+    try expectEqual(@as(u32, 0), md.lineOfRef("x:999999999999"));
 }
 
 test "property: before/after pair ids are stable across repeated validation" {

@@ -25,7 +25,6 @@ pub const Options = struct {
     file: ?[]const u8 = null,
     format: Format = .text,
     case_ref: ?[]const u8 = null,
-    no_color: bool = false,
 };
 
 pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat, UnsupportedSubcommand };
@@ -55,7 +54,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             if (i >= args.len) return error.MissingValue;
             opts.case_ref = args[i];
         } else if (std.mem.eql(u8, a, "--no-color")) {
-            opts.no_color = true;
+            // Accepted for CLI uniformity (root.zig accepts `--no-color` globally
+            // too), but a pure no-op: doctest renderers never emit ANSI color, so
+            // there is nothing to suppress and nothing to store (L20). Threading a
+            // dead flag into renderText would only re-create an unused parameter.
         } else if (std.mem.startsWith(u8, a, "--")) {
             return error.UnknownOption;
         } else {
@@ -64,6 +66,33 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         }
     }
     return opts;
+}
+
+/// How a `zentinel doctest <args>` invocation dispatches. `mutate` is the
+/// experimental flag mode; the named variants are the advisory-AI subcommands;
+/// `parse` is the ordinary doctest run (handled by `parseArgs`).
+pub const Route = enum { mutate, explain, suggest, review_snapshot, suggest_missing, explain_survivor, parse };
+
+/// Decide the doctest dispatch for `args`. A recognized named subcommand in the
+/// FIRST positional slot wins BEFORE the `--mutate` flag scan, so e.g.
+/// `doctest suggest --mutate` runs the suggest flow rather than being hijacked by
+/// `--mutate` appearing later and rejected as a bogus mutate option (L22).
+pub fn route(args: []const []const u8) Route {
+    if (args.len > 0 and !std.mem.startsWith(u8, args[0], "-")) {
+        const sub = args[0];
+        if (std.mem.eql(u8, sub, "explain")) return .explain;
+        if (std.mem.eql(u8, sub, "suggest")) return .suggest;
+        if (std.mem.eql(u8, sub, "review-snapshot")) return .review_snapshot;
+        if (std.mem.eql(u8, sub, "suggest-missing")) return .suggest_missing;
+        if (std.mem.eql(u8, sub, "explain-survivor")) return .explain_survivor;
+    }
+    // Experimental opt-in: `--mutate` anywhere (e.g. `doctest --mutate --file X`)
+    // selects the mutation-aware doctest prototype -- but only when args[0] is not
+    // a named subcommand (handled above).
+    for (args) |arg| {
+        if (std.mem.eql(u8, arg, "--mutate")) return .mutate;
+    }
+    return .parse;
 }
 
 pub const Observation = struct {
@@ -85,7 +114,10 @@ pub const Output = struct {
     exit_code: u8,
 };
 
-pub const RunError = error{CaseNotFound} || workspace.MaterializeError;
+// A per-case workspace-creation failure is isolated as an `.invalid` case by the
+// runner (L12), so it never reaches here; the only errors that abort the whole
+// run are an unresolved `--case` selector and OOM.
+pub const RunError = error{CaseNotFound} || std.mem.Allocator.Error;
 
 /// Execute normal doctests over `doc_source` and assemble the report.
 pub fn run(
@@ -234,11 +266,12 @@ fn failureSummary(status: doc_report.Status) []const u8 {
 }
 
 /// Derive a matcher mode from an expectation block's tags. text output defaults
-/// to exact; json expected defaults to json; subset/contains refine it.
-fn matchModeFor(b: block.Block) matcher.Mode {
+/// to exact; json expected defaults to json; subset/contains/unordered refine it.
+pub fn matchModeFor(b: block.Block) matcher.Mode {
     if (b.language == .json) {
         return switch (b.match_mode) {
             .subset => .json_subset,
+            .unordered => .json_unordered,
             else => .json,
         };
     }
@@ -256,14 +289,16 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
 }
 
 fn lineOfRef(ref: []const u8) u32 {
-    // ref is "file:line[:label]"; take the digits after the first ':'.
+    // ref is "file:line[:label]"; take the digit run after the first ':'.
     const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var i = first + 1;
-    var n: u32 = 0;
-    while (i < ref.len and ref[i] >= '0' and ref[i] <= '9') : (i += 1) {
-        n = n * 10 + (ref[i] - '0');
-    }
-    return n;
+    var end = first + 1;
+    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
+    // Parse with a checked routine, not a hand-rolled `n = n*10 + d` accumulator:
+    // an out-of-range or overlong numeric ref must resolve to line 0 (which matches
+    // no real 1-based anchor -> CaseNotFound) rather than overflow into a
+    // `panic: integer overflow` (Debug/ReleaseSafe) or a wrapped, wrong line
+    // (ReleaseFast). Mirrors the already-hardened src/ai/doctest_command.zig (M4).
+    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
 }
 
 /// Resolve a `--case` selector: a durable `dt_...` id or an anchor-line

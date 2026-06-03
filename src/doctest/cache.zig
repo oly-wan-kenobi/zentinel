@@ -43,9 +43,12 @@ pub fn buildMetadata(
     run: RunInputs,
 ) std.mem.Allocator.Error!cache.DoctestMetadata {
     var keys: std.ArrayList(cache.DoctestCaseKey) = .empty;
+    // Index blocks by start line ONCE so the per-case / per-expectation-ref block
+    // lookups below are O(1), not an O(B) scan per ref -- O(C*(1+R)*B) overall (L19).
+    const block_index = try buildBlockIndex(arena, blocks);
     for (cases) |c| {
-        const content_hash = try hashBlock(arena, blocks, c.anchor_line);
-        const expectation_hash = try hashExpectations(arena, blocks, c);
+        const content_hash = try hashBlock(arena, block_index, c.anchor_line);
+        const expectation_hash = try hashExpectations(arena, block_index, c);
         const key = try cache.computeDoctestKey(arena, .{
             .engine_version = workspace.engine_version,
             .doc_file = file,
@@ -67,16 +70,16 @@ pub fn buildMetadata(
     };
 }
 
-fn hashBlock(arena: std.mem.Allocator, blocks: []const block.Block, line: u32) std.mem.Allocator.Error![]const u8 {
-    if (findBlockByLine(blocks, line)) |b| return cache.sourceHash(arena, b.content);
+fn hashBlock(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.Block), line: u32) std.mem.Allocator.Error![]const u8 {
+    if (index.get(line)) |b| return cache.sourceHash(arena, b.content);
     return cache.sourceHash(arena, "");
 }
 
-fn hashExpectations(arena: std.mem.Allocator, blocks: []const block.Block, c: case_mod.Case) std.mem.Allocator.Error![]const u8 {
+fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.Block), c: case_mod.Case) std.mem.Allocator.Error![]const u8 {
     var buf: std.ArrayList(u8) = .empty;
     if (c.block_refs.len > 1) {
         for (c.block_refs[1..]) |ref| {
-            if (findBlockByLine(blocks, lineOfRef(ref))) |b| {
+            if (index.get(lineOfRef(ref))) |b| {
                 try buf.appendSlice(arena, b.content);
                 try buf.append(arena, 0);
             }
@@ -85,11 +88,22 @@ fn hashExpectations(arena: std.mem.Allocator, blocks: []const block.Block, c: ca
     return cache.sourceHash(arena, buf.items);
 }
 
-fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
+/// Test-only counter: how many times the per-document block index (line_start ->
+/// Block) is built. Every block is indexed ONCE so each case's block lookups are
+/// O(1) map gets, not O(B) scans per expectation ref -- a regression that rebuilt
+/// per case (or scanned per ref) would push this above 1 (L19).
+pub var block_index_builds: usize = 0;
+
+/// Index blocks by their starting line. First occurrence wins, matching the prior
+/// `findBlockByLine` linear scan's first-match semantics.
+fn buildBlockIndex(arena: std.mem.Allocator, blocks: []const block.Block) std.mem.Allocator.Error!std.AutoHashMap(u32, block.Block) {
+    block_index_builds += 1;
+    var index = std.AutoHashMap(u32, block.Block).init(arena);
     for (blocks) |b| {
-        if (b.line_start == line) return b;
+        const gop = try index.getOrPut(b.line_start);
+        if (!gop.found_existing) gop.value_ptr.* = b;
     }
-    return null;
+    return index;
 }
 
 fn lineOfRef(ref: []const u8) u32 {

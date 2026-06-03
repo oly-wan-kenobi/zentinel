@@ -50,6 +50,21 @@ pub fn flowName(flow: Flow) []const u8 {
     };
 }
 
+/// The CLI usage-error detail for a doctest-AI subcommand invoked WITHOUT its
+/// required positional, or null when the requirement is satisfied. `suggest` needs
+/// `<doc-path>`; `explain` and `review-snapshot` need `<case-ref>`;
+/// `suggest-missing` takes its target via `--file`, so it requires no positional.
+/// Surfacing this as a usage error keeps a missing argument from being forwarded as
+/// a null doc/case ref that the engine reports as an opaque DOC/CASE_NOT_FOUND (L32).
+pub fn missingPositional(flow: Flow, positional: ?[]const u8) ?[]const u8 {
+    if (positional != null) return null;
+    return switch (flow) {
+        .suggest_doctest => "missing <doc-path>",
+        .explain_doctest_failure, .review_snapshot => "missing <case-ref>",
+        .suggest_missing_doctests => null,
+    };
+}
+
 pub fn responseSchemaName(flow: Flow) []const u8 {
     return switch (flow) {
         .explain_doctest_failure => "zentinel.ai.explain.response.v1",
@@ -349,6 +364,10 @@ fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []cons
     var meta = meta_in;
     meta.file = try context.redactField(arena, meta.file, patterns, log);
     if (meta.source_ref) |sr| meta.source_ref = try context.redactField(arena, sr, patterns, log);
+    // The doctest id is a free-form report string under an untrusted --input-report
+    // (the validator only prefix-checks it), so scrub it like file/source_ref so a
+    // path/secret in its suffix cannot reach the provider via doctest.id (S1).
+    if (meta.id) |id| meta.id = try context.redactField(arena, id, patterns, log);
     return meta;
 }
 
@@ -1088,17 +1107,22 @@ pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std
     const patterns = settings.redact_patterns;
     var log = context.RedactionLog.init(arena);
     const mutation = present(get(case, "mutation")) orelse return error.DoctestSurvivorNotFound;
+    // Every report-sourced id/operator string under an untrusted --input-report is
+    // routed through the same path-normalize + secret-scrub pass as .file/.source_ref,
+    // so a path or secret smuggled in survivor_ref / doctest_case_id / case_id /
+    // mutant_id / operator (whose validator prefix checks leave the suffix free) cannot
+    // reach the provider, and redactions_applied stays truthful (S1, mirroring M9).
     const ev = SurvivorEvidence{
-        .survivor_ref = s(get(mutation, "survivor_ref")),
+        .survivor_ref = try context.redactField(arena, s(get(mutation, "survivor_ref")), patterns, &log),
         .source_case = .{
-            .doctest_case_id = optStr(get(mutation, "doctest_case_id")),
+            .doctest_case_id = if (optStr(get(mutation, "doctest_case_id"))) |id| try context.redactField(arena, id, patterns, &log) else null,
             .file = try context.redactField(arena, s(get(case, "file")), patterns, &log),
             .source_ref = if (optStr(get(case, "source_ref"))) |sr| try context.redactField(arena, sr, patterns, &log) else null,
         },
         .mutation_case = .{
-            .case_id = s(get(case, "id")),
-            .mutant_id = s(get(mutation, "mutant_id")),
-            .operator = s(get(mutation, "operator")),
+            .case_id = try context.redactField(arena, s(get(case, "id")), patterns, &log),
+            .mutant_id = try context.redactField(arena, s(get(mutation, "mutant_id")), patterns, &log),
+            .operator = try context.redactField(arena, s(get(mutation, "operator")), patterns, &log),
             // The mutated diff is source the AI is meant to see; path-normalize and
             // secret-scrub it (F-4) without redacting the code itself.
             .mutated_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutation, "mutated_diff")), patterns, &log),

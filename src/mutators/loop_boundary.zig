@@ -117,8 +117,16 @@ fn rangeEnd(
     const sp = source_map.locate(tree.source, start) orelse return;
     const ep = source_map.locate(tree.source, end) orelse return;
     const span: mutant.Span = .{ .byte_start = start, .byte_end = end, .line_start = sp.line, .column_start = sp.column, .line_end = ep.line, .column_end = ep.column };
-    try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{value + 1}));
-    try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{value - 1}));
+    // Guard the range-end arithmetic against i128 overflow exactly as
+    // integer_boundary does: a +/-1 boundary unrepresentable in i128 is skipped
+    // rather than computed, since the unchecked add/sub would panic in-process and
+    // abort the whole candidate-generation pass on a legal source literal (H1).
+    if (std.math.add(i128, value, 1)) |plus| {
+        try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
+    } else |_| {}
+    if (std.math.sub(i128, value, 1)) |minus| {
+        try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{minus}));
+    } else |_| {}
 }
 
 fn emitRange(

@@ -335,7 +335,11 @@ def validate_queue(queue: object, errors: list[str]) -> list[dict[str, object]]:
 
         for key in ("allowed_files", "forbidden_files"):
             value = task.get(key)
-            require(isinstance(value, list) and all(isinstance(item, str) and item for item in value), errors, f"task {task_id} {key} must be a non-empty string array")
+            # `all()` is vacuously True on an empty list, so the "non-empty" guard
+            # silently accepted `[]` -- which then grants the task an unconstrained
+            # scope in validate_completion_scope_evidence (those checks only fire when
+            # the lists are non-empty). Require a positive length explicitly (S13).
+            require(isinstance(value, list) and len(value) > 0 and all(isinstance(item, str) and item for item in value), errors, f"task {task_id} {key} must be a non-empty string array")
 
         normalized.append(task)
 
@@ -573,6 +577,14 @@ def validate_completion_evidence(status: dict[object, object], task_by_id: dict[
             require(isinstance(entry.get(field), str) and bool(entry.get(field)), errors, f"completion_evidence entry {index} field {field} must be a non-empty string")
         for field in ["files_changed", "tests_added", "tests_run", "follow_up_tasks"]:
             require(isinstance(entry.get(field), list) and all(isinstance(item, str) and item for item in entry.get(field, [])), errors, f"completion_evidence entry {index} field {field} must be a string array")
+        # files_changed is the scope-critical field: validate_completion_scope_evidence
+        # iterates it to check every changed file against the task's allowed/forbidden
+        # scope, so an empty list silently bypasses that audit. all() is vacuously True
+        # on [], so the generic check above accepts []; require it non-empty (S14).
+        # (tests_run is separately required to include the validator command above; an
+        # empty tests_added is allowed but must carry a failing_evidence explanation;
+        # follow_up_tasks is legitimately empty.)
+        require(isinstance(entry.get("files_changed"), list) and len(entry.get("files_changed", [])) > 0, errors, f"completion_evidence entry {index} files_changed must be a non-empty string array")
         if "artifacts" in entry:
             require(isinstance(entry.get("artifacts"), list) and all(isinstance(item, str) and item for item in entry.get("artifacts", [])), errors, f"completion_evidence entry {index} field artifacts must be a string array")
         gap_rows = entry.get("gap_registry_rows_changed")
@@ -1576,6 +1588,22 @@ def validate_pipeline_artifact_tree(root) -> list[str]:
                 schema = _load_pipeline_schema("zentinel.pipeline.context.v1")
                 if schema is not None:
                     violations += subset_validate(data, schema, str(cj.relative_to(root)))
+        # Every completed task commits a verification/report.json under the
+        # zentinel.pipeline.verification.v1 schema; without this block those
+        # artifacts were never schema-validated or task-scoped, so a malformed one
+        # passed CI undetected (M12).
+        verification_dir = task_dir / "verification"
+        if verification_dir.is_dir():
+            for vj in sorted(verification_dir.glob("*.json")):
+                data = _load_json_or_none(vj)
+                if not isinstance(data, dict):
+                    violations.append(f"{vj.relative_to(root)}: not a JSON object")
+                    continue
+                schema = _load_pipeline_schema("zentinel.pipeline.verification.v1")
+                if schema is not None:
+                    violations += subset_validate(data, schema, str(vj.relative_to(root)))
+                if data.get("task_id") != task_id:
+                    violations.append(f"{vj.relative_to(root)}: task_id {data.get('task_id')!r} does not match artifact directory task {task_id}")
     return violations
 
 
@@ -1760,6 +1788,10 @@ def validate_failure_recovery(errors: list[str]) -> None:
             rel = str(fx.relative_to(ROOT))
             data = _load_json_or_none(fx)
             if not isinstance(data, dict):
+                # A non-dict invalid fixture is a fixture-authoring error, not a
+                # silently-skipped no-op -- the validator only rejects JSON objects,
+                # so flag it like the valid loop does rather than hiding it (L49).
+                fail(errors, f"{rel}: invalid failure-recovery fixture must be a JSON object")
                 continue
             violations = validate_failure_recovery_record(data, rel)
             require(bool(violations), errors, f"invalid failure-recovery fixture {fx.name} must be rejected by the recovery validator")
@@ -4515,10 +4547,10 @@ def validate_zig_architecture_layers(errors: list[str]) -> None:
 def resolve_zig_import(importer: Path, imported: str) -> Path | None:
     if not imported.endswith(".zig"):
         return None
-    if imported.startswith("src/"):
-        candidate = ROOT / imported
-    else:
-        candidate = importer.parent / imported
+    # A Zig @import string for a .zig file is always relative to the importing file's
+    # directory; no valid import takes a project-root-relative `src/`-prefixed form
+    # (no src/**/*.zig uses @import("src/...")), so resolve against the importer (L48).
+    candidate = importer.parent / imported
     try:
         resolved = candidate.resolve()
     except OSError:

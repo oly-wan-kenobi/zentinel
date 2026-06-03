@@ -141,3 +141,21 @@ test "optional operators inside test bodies are excluded" {
     try expectEqualStrings("optional_orelse_unreachable", c[0].operator);
     try expectEqualStrings("0", c[0].original);
 }
+
+test "a parenthesized orelse unreachable is not re-mutated (L6)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // `orelse (unreachable)` is already semantically `orelse unreachable`; mutating
+    // it only strips the redundant parens -- a pure no-op equivalent survivor that
+    // the exact-string guard missed (L6).
+    var parsed = try ast_backend.parse(std.testing.allocator, "o.zig",
+        \\pub fn f(x: ?i32) i32 {
+        \\    return x orelse (unreachable);
+        \\}
+    );
+    defer parsed.deinit();
+    const c = try collectOptional(a, parsed);
+    for (c) |m| try expect(!std.mem.eql(u8, m.operator, "optional_orelse_unreachable"));
+}

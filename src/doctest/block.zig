@@ -12,7 +12,7 @@ pub const Language = enum { zig, bash, json, text, toml, other };
 /// avoid the Zig keyword); `none` is a plain language block (e.g. `zig`).
 pub const Kind = enum { none, unit_test, compile_fail, expected, output, config, config_fail, before, after, cli };
 
-pub const MatchMode = enum { none, subset, contains, exact };
+pub const MatchMode = enum { none, subset, contains, exact, unordered };
 
 pub const Block = struct {
     file: []const u8,
@@ -60,5 +60,10 @@ pub fn matchModeFromToken(tok: []const u8) ?MatchMode {
     if (std.mem.eql(u8, tok, "subset")) return .subset;
     if (std.mem.eql(u8, tok, "contains")) return .contains;
     if (std.mem.eql(u8, tok, "exact")) return .exact;
+    // `unordered` selects order-insensitive JSON array matching (mapped to the
+    // matcher's `json_unordered` mode in doctest_command.matchModeFor). Without
+    // this entry the documented tag was rejected as unsupported, leaving the
+    // implemented json_unordered match logic unreachable (M6).
+    if (std.mem.eql(u8, tok, "unordered")) return .unordered;
     return null;
 }

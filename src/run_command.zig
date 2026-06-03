@@ -21,6 +21,7 @@ const integer_boundary = @import("mutators/integer_boundary.zig");
 const loop_boundary = @import("mutators/loop_boundary.zig");
 const runner = @import("runner.zig");
 const mutant_runner = @import("mutant_runner.zig");
+const semantic_filter = @import("semantic_filter.zig");
 const report = @import("report.zig");
 const command = @import("command.zig");
 const test_selection = @import("test_selection.zig");
@@ -145,7 +146,7 @@ pub const RunError = error{
     SourceFileMissing,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun, ConflictingOptions };
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
@@ -166,6 +167,10 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         } else if (std.mem.eql(u8, arg, "--operator")) {
             i += 1;
             if (i >= args.len) return error.MissingValue;
+            // Reject an unknown operator up front; otherwise the filter matches no
+            // candidate and the run reports 0 mutants with a clean exit 0, masking a
+            // mistyped name in CI (L31).
+            if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--mutant")) {
             i += 1;
@@ -209,6 +214,9 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             return error.UnknownOption;
         }
     }
+    // --verbose and --quiet select opposite verbosities; accepting both would let
+    // quiet silently win and discard the requested verbose output (L44).
+    if (opts.verbose and opts.quiet) return error.ConflictingOptions;
     return opts;
 }
 
@@ -226,6 +234,10 @@ pub fn run(
     if (options.output) |out| {
         if (config.isOutsideRoot(out)) return error.OutputOutsideRoot;
     }
+
+    // `cache.enabled = false` disables the result cache exactly like `--no-cache`,
+    // so the config field is honored rather than parsed-and-ignored (M5).
+    const no_cache = options.no_cache or !cfg.cache_enabled;
 
     // Safety/optimization mode matrix (task 058). `mode` is the primary mode
     // reflected in `result.mode`; `matrix_modes` is the full set run for the
@@ -249,12 +261,14 @@ pub fn run(
                 .summary = .{},
                 .mutants = &.{},
             },
-            .cache = buildCacheMetadata(&.{}, options.no_cache, obs.zig_cache_namespace),
+            .cache = buildCacheMetadata(&.{}, no_cache, obs.zig_cache_namespace),
         };
     }
 
-    // Generate candidates over the discovered files, then filter.
-    const candidates = try generateCandidates(arena, cfg, files, options);
+    // Generate candidates over the discovered files, then filter. The single parse
+    // per file also yields each file's same-file tests, reused by selection (L30).
+    const generated = try generateCandidates(arena, cfg, files, options);
+    const candidates = generated.mutants;
 
     const strategy = strategyFromConfig(cfg.test_selection);
 
@@ -263,13 +277,28 @@ pub fn run(
     // executor -- and assemble one deterministic job per mutant. Selection state
     // and the baseline executor are only touched here, never on a worker thread.
     var file_cache: std.ArrayList(FileSelection) = .empty;
+    // The resolution + selection specs are a pure function of the file (and the
+    // run-constant config), so memoize them per file instead of recomputing for
+    // every mutant from the same source (L5).
+    var spec_cache: std.ArrayList(FileSpec) = .empty;
     var job_list: std.ArrayList(Job) = .empty;
+    // Index sources by path ONCE so the per-mutant lookup below is O(1), not a
+    // linear scan of `files` per candidate (O(M*F)) (L18).
+    var source_index = try buildSourceIndex(arena, files);
     for (candidates) |candidate| {
-        const source = sourceFor(files, candidate.file) orelse return error.SourceFileMissing;
-        const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, source, cfg.test_commands, baseline_executor, obs.project_root);
-        const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
-        const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
-        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = resolution.commands, .command_specs = specs, .selection = resolution.selection });
+        const source = source_index.get(candidate.file) orelse return error.SourceFileMissing;
+        const fs = blk: {
+            for (spec_cache.items) |c| {
+                if (std.mem.eql(u8, c.file, candidate.file)) break :blk c;
+            }
+            const fsel = try selectionForFile(arena, &file_cache, strategy, candidate.file, &generated.same_file_tests, cfg.test_commands, baseline_executor, obs.project_root);
+            const resolution = try test_selection.resolve(arena, strategy, candidate.file, fsel.same_file_tests, cfg.test_commands, fsel.preflight, fsel.generated_in_baseline);
+            const specs = try commandSpecsForSelection(arena, resolution.commands, candidate.file);
+            const computed = FileSpec{ .file = candidate.file, .resolution = resolution, .specs = specs };
+            try spec_cache.append(arena, computed);
+            break :blk computed;
+        };
+        try job_list.append(arena, .{ .candidate = candidate, .source = source, .commands = fs.resolution.commands, .command_specs = fs.specs, .selection = fs.resolution.selection });
     }
     const jobs = try job_list.toOwnedSlice(arena);
 
@@ -294,10 +323,13 @@ pub fn run(
     // `survived`/`killed` verdict always reflects the configured suite (I-012:
     // nothing is hidden). The primary mode is re-verified here before the mode
     // matrix reads it.
+    // `cfg.test_commands` is constant for the whole run, so parse it into specs
+    // ONCE and share the read-only slice across every surviving mutant rather than
+    // re-parsing per survivor (L4).
+    const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
     for (jobs, 0..) |job, ji| {
         if (results[ji].status != .survived) continue;
         if (!test_selection.needsConfiguredReverification(job.commands, cfg.test_commands)) continue;
-        const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
         const reverify = mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, mode);
         results[ji] = try mergeReverification(arena, results[ji], reverify);
     }
@@ -314,7 +346,18 @@ pub fn run(
             if (m == mode) {
                 for (results, 0..) |r, ji| col[ji] = r.status;
             } else {
-                for (jobs, 0..) |job, ji| col[ji] = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m).status;
+                for (jobs, 0..) |job, ji| {
+                    const narrowed = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m);
+                    // Re-verify a narrowed `survived` against the configured suite
+                    // for THIS mode, mirroring Phase B.5. Without it a non-primary
+                    // column can record `survived` for a mutant the configured suite
+                    // kills in that mode -- understating kills and manufacturing a
+                    // spurious mode-dependent signal vs the reverified primary (L27).
+                    col[ji] = if (narrowed.status == .survived and test_selection.needsConfiguredReverification(job.commands, cfg.test_commands))
+                        mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, m).status
+                    else
+                        narrowed.status;
+                }
             }
             grid[mi] = col;
         }
@@ -327,6 +370,9 @@ pub fn run(
     var entries: std.ArrayList(report.Mutant) = .empty;
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
     const project_hash = try projectHash(arena, files);
+    // Hash each unique file's source ONCE; the result-cache key below reuses it per
+    // mutant instead of re-hashing the same bytes O(M) times (S3).
+    const source_hashes = try buildSourceHashIndex(arena, files);
     for (jobs, results, 0..) |job, result, ji| {
         const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
             const rows = try arena.alloc(report.ModeResult, matrix_modes.len);
@@ -337,8 +383,8 @@ pub fn run(
         try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, mode_matrix, job.selection));
 
         // Compute the deterministic result-cache key (metadata only; reuse stays
-        // disabled in Phase 1). --no-cache skips result keys entirely.
-        if (!options.no_cache) {
+        // disabled in Phase 1). A disabled cache skips result keys entirely.
+        if (!no_cache) {
             const key = try cache.computeKey(arena, .{
                 .mutant_id = job.candidate.id,
                 .zentinel_version = obs.zentinel_version,
@@ -347,7 +393,7 @@ pub fn run(
                 .backend = @tagName(job.candidate.backend),
                 .backend_version = job.candidate.backend_version,
                 .operator = job.candidate.operator,
-                .source_hash = try cache.sourceHash(arena, job.source),
+                .source_hash = source_hashes.get(job.candidate.file) orelse return error.SourceFileMissing,
                 .project_hash = project_hash,
                 .config_hash = obs.config_hash,
                 .test_command = try joinCommands(arena, job.commands),
@@ -373,7 +419,7 @@ pub fn run(
             .summary = summary,
             .mutants = mutants,
         },
-        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), options.no_cache, obs.zig_cache_namespace),
+        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), no_cache, obs.zig_cache_namespace),
     };
 }
 
@@ -392,11 +438,44 @@ fn baseRun(obs: Observation, status: report.RunStatus) report.Run {
     };
 }
 
-fn sourceFor(files: []const FileSource, path: []const u8) ?[]const u8 {
+/// Test-only counter: how many times the per-run source index (path -> bytes) is
+/// built. Every file is indexed ONCE so the Phase A per-mutant source lookup is
+/// O(1) (`index.get`), not a linear scan of `files` per candidate (O(M*F)); a
+/// regression that rebuilt or scanned per mutant would push this above 1 (L18).
+pub var source_index_builds: usize = 0;
+
+/// Index source bytes by project-relative path. First occurrence wins, matching
+/// the prior `sourceFor` linear scan's first-match semantics (`files` is already
+/// de-duplicated by `discover`, so this only matters defensively).
+fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
+    source_index_builds += 1;
+    var index = std.StringHashMap([]const u8).init(arena);
     for (files) |f| {
-        if (std.mem.eql(u8, f.path, path)) return f.source;
+        const gop = try index.getOrPut(f.path);
+        if (!gop.found_existing) gop.value_ptr.* = f.source;
     }
-    return null;
+    return index;
+}
+
+/// Test-only counter: how many times a source file's SHA-256 result-cache hash is
+/// computed. The hash is a pure function of the file bytes, identical for every
+/// mutant from that file, so it is computed ONCE per unique file and reused in the
+/// Phase C per-mutant loop; recomputing per mutant would push this to O(M) (S3).
+pub var source_hash_count: usize = 0;
+
+/// Index each unique file's source-cache hash (path -> hex SHA-256) ONCE, so the
+/// Phase C result-cache key lookup is O(1) per mutant instead of an O(M) re-hash of
+/// the same bytes (S3). First occurrence wins, mirroring buildSourceIndex.
+fn buildSourceHashIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
+    var index = std.StringHashMap([]const u8).init(arena);
+    for (files) |f| {
+        const gop = try index.getOrPut(f.path);
+        if (!gop.found_existing) {
+            source_hash_count += 1;
+            gop.value_ptr.* = try cache.sourceHash(arena, f.source);
+        }
+    }
+    return index;
 }
 
 /// Return the first project-relative source file that fails AST parsing.
@@ -474,7 +553,21 @@ const FileSelection = struct {
     generated_in_baseline: bool,
 };
 
+/// Per-file memo of the resolved selection and its parsed command specs, shared
+/// by every mutant from that file (L5). All fields are arena-owned, read-only.
+const FileSpec = struct {
+    file: []const u8,
+    resolution: test_selection.Resolution,
+    specs: []const command.Spec,
+};
+
+/// Test-only counter: how many times the configured commands were parsed into
+/// specs. They are constant across the Phase B.5 survivor reverification loop, so
+/// this must be 1 per run, not 1 per surviving mutant (L4).
+pub var configured_specs_parse_count: usize = 0;
+
 fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const command.Spec {
+    configured_specs_parse_count += 1;
     const specs = try arena.alloc(command.Spec, commands.len);
     for (commands, 0..) |original, i| {
         const argv = switch (try command.parse(arena, original)) {
@@ -489,7 +582,13 @@ fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const
     return specs;
 }
 
+/// Test-only counter: how many times the per-file selection specs were built.
+/// The selection commands are identical for every mutant from the same source
+/// file, so this must be 1 per unique file, not 1 per mutant (L5).
+pub var selection_specs_build_count: usize = 0;
+
 fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const u8, file: []const u8) std.mem.Allocator.Error![]const command.Spec {
+    selection_specs_build_count += 1;
     const generated = try test_selection.generatedCommand(arena, file);
     const generated_argv = try test_selection.generatedCommandArgv(arena, file);
     const specs = try arena.alloc(command.Spec, commands.len);
@@ -507,6 +606,12 @@ fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const 
     return specs;
 }
 
+/// Test-only counter: how many times a source file's AST is parsed during a run.
+/// Each file is parsed once in `generateCandidates`; the same-file selection then
+/// reuses that parse via the per-file table rather than parsing a second time, so
+/// this must be 1 per unique file, not 2 (L30).
+pub var ast_parse_count: usize = 0;
+
 /// Compute (and cache) the selection inputs for `file`. When the strategy uses
 /// same-file tests and the generated `zig test <file>` command is not already a
 /// baseline command, this runs the generated command against the UNMUTATED
@@ -518,7 +623,7 @@ fn selectionForFile(
     sel_cache: *std.ArrayList(FileSelection),
     strategy: test_selection.Strategy,
     file: []const u8,
-    source: []const u8,
+    same_file_tests_by_file: *const std.StringHashMap([]const report.SelectedTest),
     configured: []const []const u8,
     baseline_executor: runner.Executor,
     cwd: []const u8,
@@ -530,9 +635,9 @@ fn selectionForFile(
     var same_file_tests: []const report.SelectedTest = &.{};
     const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
     if (same_file_enabled) {
-        var parsed = try ast_backend.parse(arena, file, source);
-        defer parsed.deinit();
-        if (parsed.ok()) same_file_tests = try test_selection.sameFileTests(arena, parsed, file);
+        // Reuse the parse from generateCandidates: this file's same-file tests were
+        // computed there and memoized, so selection never re-parses the file (L30).
+        same_file_tests = same_file_tests_by_file.get(file) orelse &.{};
     }
 
     const generated = try test_selection.generatedCommand(arena, file);
@@ -567,22 +672,46 @@ fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: [
     return try runner.classifyCommand(arena, .selection_preflight, original, argv, cwd, raw);
 }
 
-fn enabled(cfg: config.Config, operator: []const u8) bool {
-    for (cfg.mutators_enabled) |op| {
-        if (std.mem.eql(u8, op, operator)) return true;
-    }
-    return false;
+/// Test-only counter: how many times the enabled-operator membership set is
+/// built (a single linear pass over cfg.mutators_enabled) during candidate
+/// generation. The enabled set is constant for a run, so this must be 1 per run,
+/// not 1 per raw candidate -- the prior `enabled()` helper re-scanned the list
+/// for every candidate, an O(M*E) filter (S10).
+pub var enabled_operator_scan_count: usize = 0;
+
+/// Build the enabled-operator membership set with one linear pass over
+/// cfg.mutators_enabled, so the per-candidate enable check is an O(1) hash lookup
+/// rather than an O(E) scan repeated for every raw candidate (O(M*E)) (S10).
+fn enabledOperatorSet(arena: std.mem.Allocator, cfg: config.Config) std.mem.Allocator.Error!std.StringHashMap(void) {
+    enabled_operator_scan_count += 1;
+    var set = std.StringHashMap(void).init(arena);
+    for (cfg.mutators_enabled) |op| try set.put(op, {});
+    return set;
 }
 
-/// Recognize Phase 1 AST candidates over every file, then keep only those whose
-/// operator is enabled in config and that match the optional CLI filters.
-fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []const FileSource, options: Options) RunError![]mutant.Mutant {
+/// The mutant candidates plus the same-file tests discovered during the single
+/// per-file parse, so the same-file selection never re-parses a file (L30).
+const GeneratedCandidates = struct {
+    mutants: []mutant.Mutant,
+    same_file_tests: std.StringHashMap([]const report.SelectedTest),
+};
+
+/// Recognize Phase 1+2 AST candidates over every file (keeping only those whose
+/// operator is enabled in config and that match the optional CLI filters) and, from
+/// the same parse, record each file's same-file tests so selection need not
+/// re-parse the file (L30).
+fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []const FileSource, options: Options) RunError!GeneratedCandidates {
     var collector = ast_backend.Collector.init(arena);
+    var same_file_tests = std.StringHashMap([]const report.SelectedTest).init(arena);
     for (files) |f| {
+        ast_parse_count += 1;
         var parsed = try ast_backend.parse(arena, f.path, f.source);
         defer parsed.deinit();
         if (!parsed.ok()) return error.BackendParseError;
         const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
+        // Discover same-file tests from THIS parse so selectionForFile reuses them
+        // instead of parsing the file a second time (L30).
+        try same_file_tests.put(f.path, try test_selection.sameFileTests(arena, parsed, f.path));
         try arithmetic.collect(&collector, parsed, f.path, test_ranges);
         try comparison.collect(&collector, parsed, f.path, test_ranges);
         try logical.collect(&collector, parsed, f.path, test_ranges);
@@ -598,9 +727,12 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
     if (collector.invalidCount() > 0) return error.InvalidCandidate;
     const all = try collector.finishRaw();
 
+    // Build the enabled-operator set once per run; each candidate's enable check
+    // is then an O(1) lookup instead of an O(E) linear scan per candidate (S10).
+    const enabled_ops = try enabledOperatorSet(arena, cfg);
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {
-        if (!enabled(cfg, c.operator)) continue;
+        if (!enabled_ops.contains(c.operator)) continue;
         if (options.operator_filter) |op| {
             if (!std.mem.eql(u8, c.operator, op)) continue;
         }
@@ -609,7 +741,8 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         }
         try kept.append(arena, c);
     }
-    return mutant.sortAndDedupe(arena, kept.items);
+    const mutants = try mutant.sortAndDedupe(arena, kept.items);
+    return .{ .mutants = mutants, .same_file_tests = same_file_tests };
 }
 
 /// Merge a narrowed-selection survivor with its configured-suite re-verification.
@@ -662,7 +795,14 @@ fn buildEntry(
         .original = candidate.original,
         .replacement = candidate.replacement,
         .diff = try computeDiff(arena, source, candidate),
-        .expected_compile = candidate.expected_compile,
+        // SEM-1c (compile-as-classifier): the runner already compiled this mutant,
+        // so report the compiler's ACTUAL verdict (from the terminal run status)
+        // rather than the per-operator heuristic guess. Ambiguous outcomes
+        // (timeout/crash/invalid/skipped) keep the heuristic. In a multi-mode matrix
+        // run this reflects the PRIMARY (first configured) mode's status, matching
+        // the rest of the top-level entry (`result.status`); per-mode compile
+        // outcomes live in `mode_matrix`.
+        .expected_compile = semantic_filter.empiricalExpectedCompile(candidate.expected_compile, result.status),
         .result = .{
             .status = result.status,
             .mode = mode,

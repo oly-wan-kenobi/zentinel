@@ -133,6 +133,8 @@ test "parseArgs reads documented options and rejects the rest" {
     try expectError(error.UnknownOption, lm.parseArgs(&.{"--nope"}));
     try expectError(error.MissingValue, lm.parseArgs(&.{"--operator"}));
     try expectError(error.InvalidFormat, lm.parseArgs(&.{ "--format", "yaml" }));
+    // An unknown --operator name is a usage error, not a clean 0-mutant preview (L31).
+    try expectError(error.UnknownOperator, lm.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
 }
 
 test "snapshot: text listing" {

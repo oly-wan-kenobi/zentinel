@@ -65,6 +65,10 @@ fn emitMutant(arena: std.mem.Allocator, out: *std.ArrayList(u8), m: report.Mutan
     try prop(arena, out, "operator", m.operator);
     try prop(arena, out, "operator_stability", @tagName(m.operator_stability));
     try prop(arena, out, "status", @tagName(m.result.status));
+    // SEM-1c: the compiler's actual verdict for this mutant (empirical once it has
+    // run; the per-operator heuristic for the list-mutants preview). Metadata bag,
+    // so it sits alongside backend/operator rather than in the status element.
+    try prop(arena, out, "expected_compile", @tagName(m.expected_compile));
     try prop(arena, out, "phase", @tagName(m.result.phase));
     try prop(arena, out, "command_count", try std.fmt.allocPrint(arena, "{d}", .{m.result.commands.len}));
     for (m.result.commands, 0..) |c, i| {
@@ -136,6 +140,14 @@ fn escape(arena: std.mem.Allocator, s: []const u8) std.mem.Allocator.Error![]con
         '>' => try buf.appendSlice(arena, "&gt;"),
         '"' => try buf.appendSlice(arena, "&quot;"),
         '\'' => try buf.appendSlice(arena, "&apos;"),
+        // Tab, LF, and CR are the only control characters XML 1.0 permits.
+        '\t', '\n', '\r' => try buf.append(arena, c),
+        // Every other C0 control byte (ANSI ESC \x1b, BEL \x07, ...) and DEL are
+        // illegal in XML 1.0; captured Zig output is routinely ANSI-colored, so
+        // emitting them verbatim would make a strict CI parser reject the whole
+        // testsuite. Replace each with `?` so the JUnit XML is always well-formed
+        // (M11).
+        0x00...0x08, 0x0b, 0x0c, 0x0e...0x1f, 0x7f => try buf.append(arena, '?'),
         else => try buf.append(arena, c),
     };
     return buf.toOwnedSlice(arena);

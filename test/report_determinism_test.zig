@@ -125,3 +125,65 @@ test "normalizeExcerpt replaces hex addresses and absolute paths but keeps other
     const windows = try report.normalizeExcerpt(a, "panic at C:\\Users\\oli\\My Project\\src\\x.zig:7:3");
     try expectEqualStrings("panic at <path>", windows);
 }
+
+test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerpts (M3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A `//`-led run is a Zig comment marker, not an absolute path. Committed
+    // report excerpts that quote source lines must keep the comment intact rather
+    // than collapsing it to `<path>` (M3).
+    try expectEqualStrings("// boundary off-by-one", try report.normalizeExcerpt(a, "// boundary off-by-one"));
+    try expectEqualStrings("/// doc comment", try report.normalizeExcerpt(a, "/// doc comment"));
+
+    // A real absolute path on the same line is still redacted; the comment stays.
+    try expectEqualStrings(
+        "keep // and <path>",
+        try report.normalizeExcerpt(a, "keep // and /home/ci/build/key"),
+    );
+}
+
+test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme:// URIs (L28)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The boundary that introduces a `/`-rooted path is not only whitespace/quote/
+    // bracket: build & test output routinely glues a path to a preceding `=`, `:`
+    // or `>` (`key=/abs`, `note:/abs`, redirection `2>/abs`) or embeds it in a
+    // `scheme://` URI. Each of these must collapse to `<path>` so the absolute
+    // developer path never lands in the committed report and the excerpt bytes are
+    // identical across machines (L28).
+    try expectEqualStrings("root=<path>", try report.normalizeExcerpt(a, "root=/Users/dev/secret/leak.zig"));
+    try expectEqualStrings("note:<path>", try report.normalizeExcerpt(a, "note:/home/ci/build/x.zig"));
+    try expectEqualStrings("wrote><path>", try report.normalizeExcerpt(a, "wrote>/Users/dev/out/leak.zig"));
+    try expectEqualStrings("see file:<path> now", try report.normalizeExcerpt(a, "see file:///Users/dev/secret/leak.zig now"));
+
+    // Determinism: the same line from two different machines normalizes to one
+    // byte sequence (the whole point of normalizeExcerpt).
+    const alice = try report.normalizeExcerpt(a, "cache_dir=/Users/alice/proj/.zig-cache failed");
+    const bob = try report.normalizeExcerpt(a, "cache_dir=/Users/bob/work/.zig-cache failed");
+    try expectEqualStrings("cache_dir=<path> failed", alice);
+    try expectEqualStrings(alice, bob);
+
+    // A lone division operator and a relative segment after `=` are NOT paths
+    // (single segment / no leading slash): they survive unchanged.
+    try expectEqualStrings("n=a/b", try report.normalizeExcerpt(a, "n=a/b"));
+    try expectEqualStrings("x=/tmp", try report.normalizeExcerpt(a, "x=/tmp"));
+}
+
+test "report.isoTimestamp formats epoch-ms as second-precision UTC ISO-8601 (L41)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The single formatter now shared by the run observation (run.started_at) and
+    // the doctest run, replacing two byte-identical inline blocks in cli.zig (L41).
+    try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, 0));
+    try expectEqualStrings("2001-09-09T01:46:40Z", try report.isoTimestamp(a, 1_000_000_000_000));
+    // Sub-second milliseconds truncate down to the whole second.
+    try expectEqualStrings("1970-01-01T00:00:01Z", try report.isoTimestamp(a, 1_999));
+    // A negative (pre-epoch / unset clock) input clamps to the epoch, never panics.
+    try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, -1_000));
+}

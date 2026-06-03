@@ -11,6 +11,7 @@
 const std = @import("std");
 const command = @import("command.zig");
 const report = @import("report.zig");
+const worker_pool = @import("worker_pool.zig");
 
 /// Bound for normalized command output excerpts (docs/SANDBOX_SECURITY.md).
 pub const excerpt_limit = 4096;
@@ -21,12 +22,20 @@ pub const excerpt_limit = 4096;
 pub const env_allowlist = [_][]const u8{ "PATH", "HOME", "TMPDIR", "ZIG_GLOBAL_CACHE_DIR", "ZIG_LOCAL_CACHE_DIR" };
 
 /// Build the minimal command environment from a parent environment: copy only the
-/// allowlisted keys that are present (absent keys are omitted, never synthesized)
-/// and force `LC_ALL=C`/`LANG=C` for deterministic, locale-independent tool output
-/// (docs/SANDBOX_SECURITY.md). This makes the report's `environment_policy =
-/// minimal` label truthful -- the real executor passes exactly this restricted
-/// map, not the inherited developer environment. Pure: it transforms one map into
-/// a new owned map and never spawns a process.
+/// allowlisted keys that are present (absent keys are omitted, never synthesized),
+/// force `LC_ALL=C`/`LANG=C` for deterministic, locale-independent tool output, and
+/// force a cwd-relative `ZIG_LOCAL_CACHE_DIR` (docs/SANDBOX_SECURITY.md). This makes
+/// the report's `environment_policy = minimal` label truthful -- the real executor
+/// passes exactly this restricted map, not the inherited developer environment.
+///
+/// The forced `ZIG_LOCAL_CACHE_DIR` enforces the documented per-worker cache
+/// isolation regardless of host env: each test command runs with cwd = its own
+/// per-mutant workspace, so a cwd-relative local cache resolves to THAT workspace's
+/// `.zig-cache`. `ZIG_LOCAL_CACHE_DIR` is in the allowlist, so without this override
+/// a host-set absolute value would be forwarded and collapse every parallel worker's
+/// local cache into one shared directory -- violating docs/PERFORMANCE_STRATEGY.md
+/// and docs/SANDBOX_SECURITY.md ("No two workers may write the same local cache")
+/// (L10). Pure: it transforms one map into a new owned map and never spawns a process.
 pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ.Map) std.mem.Allocator.Error!std.process.Environ.Map {
     var out = std.process.Environ.Map.init(gpa);
     errdefer out.deinit();
@@ -35,6 +44,10 @@ pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ
     }
     try out.put("LC_ALL", "C");
     try out.put("LANG", "C");
+    // Override any forwarded ZIG_LOCAL_CACHE_DIR with the cwd-relative per-workspace
+    // cache (worker_pool.cacheDirIn, the canonical workspace cache-path builder), so
+    // each worker's own workspace owns its `.zig-cache` independent of host env (L10).
+    try out.put("ZIG_LOCAL_CACHE_DIR", try worker_pool.cacheDirIn(gpa, "."));
     return out;
 }
 
@@ -100,13 +113,26 @@ fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.
 }
 
 /// Markers that distinguish a Zig compile failure from a post-compile test
-/// failure in pinned Zig 0.16 `zig test`/`zig build` output (docs/REPORT_FORMAT.md,
-/// I-010). A compile failure emits compiler diagnostics of the form
-/// `<path>:<line>:<col>: error: ...` and never runs the test binary, so the test
-/// runner's completion summary (`N passed; M skipped; K failed.`) is absent; a
-/// runtime assertion failure always prints that summary.
+/// failure in pinned Zig 0.16 `zig test`/`zig build test` output
+/// (docs/REPORT_FORMAT.md, I-010). A compile failure emits compiler diagnostics of
+/// the form `<path>:<line>:<col>: error: ...` and never runs the test binary, so
+/// neither test-runner completion summary below is present.
+///
+/// The summary takes one of two forms, and the classifier must recognize BOTH
+/// (H4) -- the default configured command is `zig build test`, not direct
+/// `zig test`:
+///   - direct `zig test <file>`: the per-binary runner prints
+///     `N passed; M skipped; K failed.` -> substring `passed;`.
+///   - `zig build test` (uses the `--listen=-` build protocol): the per-binary
+///     `passed;` line is NOT forwarded; instead the aggregated Build Summary
+///     carries `N/M tests passed (K failed|crashed)` -> substring `tests passed`,
+///     for both assertion failures and runtime panics/crashes. A compile
+///     failure's Build Summary (`0/N steps succeeded ...`) has no `tests passed`
+///     clause, so either summary marker is decisive positive evidence that
+///     compilation succeeded and the test binary ran.
 const compile_diagnostic_marker = ": error: ";
 const test_runner_summary_marker = "passed;";
+const build_test_summary_marker = "tests passed";
 
 /// True if `marker` appears in either captured stream.
 fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bool {
@@ -116,13 +142,20 @@ fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bo
 /// Deterministically decide whether a non-zero (non-timeout, non-crash) command
 /// outcome is a Zig compile failure rather than a post-compile test failure. The
 /// signal is taken only from captured command output -- AI never influences
-/// `failure_kind` or `status` (I-001). It is a compile failure exactly when the
-/// output carries a Zig compile diagnostic and shows no evidence that the test
-/// runner ran (its completion summary is absent). When neither signal is present
-/// (for example a custom non-Zig command), the result conservatively stays a test
-/// failure, preserving the prior classification.
+/// `failure_kind` or `status` (I-001).
+///
+/// Positive evidence that the test binary actually ran (either runner-summary
+/// form) is DECISIVE and overrides the compile-diagnostic marker: a failing test
+/// may legitimately print a `path:line:col: error:` line in its asserted output
+/// (parser/lint/diagnostic tests), and under `zig build test` -- the default
+/// command -- that is exactly the genuine KILL that was previously mis-bucketed as
+/// compile_error, deflating the score (H4). Absent any runner summary, a Zig
+/// compile diagnostic means compile_error; absent both (for example a custom
+/// non-Zig command) the result conservatively stays a test failure, preserving the
+/// prior classification.
 fn isCompileFailure(stdout: []const u8, stderr: []const u8) bool {
     if (outputContains(stdout, stderr, test_runner_summary_marker)) return false;
+    if (outputContains(stdout, stderr, build_test_summary_marker)) return false;
     return outputContains(stdout, stderr, compile_diagnostic_marker);
 }
 

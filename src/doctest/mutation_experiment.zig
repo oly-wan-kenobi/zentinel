@@ -16,6 +16,10 @@ const arithmetic = @import("../mutators/arithmetic.zig");
 const comparison = @import("../mutators/comparison.zig");
 const logical = @import("../mutators/logical.zig");
 const boolean = @import("../mutators/boolean.zig");
+const optional = @import("../mutators/optional.zig");
+const error_path = @import("../mutators/error_path.zig");
+const integer_boundary = @import("../mutators/integer_boundary.zig");
+const loop_boundary = @import("../mutators/loop_boundary.zig");
 const runner = @import("../runner.zig");
 const mutant_runner = @import("../mutant_runner.zig");
 const report = @import("../report.zig");
@@ -441,6 +445,15 @@ fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.
     try comparison.collect(&collector, parsed, snippet_file, test_ranges);
     try logical.collect(&collector, parsed, snippet_file, test_ranges);
     try boolean.collect(&collector, parsed, snippet_file, test_ranges);
+    // Phase-2 stable collectors, matching the run/list-mutants pipeline
+    // (run_command.generateCandidates). Without these the doctest --mutate path
+    // silently emitted zero mutants for a snippet whose only mutable construct is
+    // an optional/error-path/integer-boundary/loop-boundary form, falsely
+    // reporting a weak documentation example as fully covered (M7).
+    try optional.collect(&collector, parsed, snippet_file, test_ranges);
+    try error_path.collect(&collector, parsed, snippet_file, test_ranges);
+    try integer_boundary.collect(&collector, parsed, snippet_file, test_ranges);
+    try loop_boundary.collect(&collector, parsed, snippet_file, test_ranges);
     if (collector.invalidCount() > 0) return .invalid_candidate;
     return .{ .ok = try collector.finish() };
 }

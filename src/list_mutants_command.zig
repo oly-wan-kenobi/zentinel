@@ -28,7 +28,7 @@ pub const Options = struct {
     format: Format = .text,
 };
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidFormat };
 pub const GenerateError = error{ BackendParseError, InvalidCandidate } || std.mem.Allocator.Error;
 
 /// Pure parser for the documented `list-mutants` options.
@@ -40,6 +40,9 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         if (std.mem.eql(u8, arg, "--operator")) {
             i += 1;
             if (i >= args.len) return error.MissingValue;
+            // Reject an unknown operator up front so a mistyped name is a usage
+            // error, not a silent 0-mutant preview with exit 0 (L31).
+            if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--format")) {
             i += 1;

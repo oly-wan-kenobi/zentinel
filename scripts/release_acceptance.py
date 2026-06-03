@@ -95,14 +95,26 @@ def check_criteria() -> dict[str, tuple[bool, str]]:
             "artifacts/pipeline/085/dogfood/survivor_review.md",
         ]
     )
-    gate_clean = not rdg.validate_manifest(
-        json.loads((ROOT / "test/fixtures/release/valid/release_evidence.json").read_text(encoding="utf-8")),
-        check_archives=True,
-    )
-    results["final_dogfood_gate"] = (
-        archives and gate_clean,
-        "task-085 archived dogfood evidence + scripts/release_dogfood_gate.py manifest pass",
-    )
+    evidence_path = ROOT / "test/fixtures/release/valid/release_evidence.json"
+    if evidence_path.is_file():
+        # execute_checks=True actually RUNS each verified_by script (matching the
+        # rdg.main() path below) rather than checking only on-disk existence. Without
+        # it a verified_by script that exists but exits non-zero left this criterion
+        # reported "final_dogfood_gate: OK" before rdg.main() printed the real failure,
+        # making the per-criterion acceptance table contradict the gate outcome (L34).
+        gate_clean = not rdg.validate_manifest(
+            json.loads(evidence_path.read_text(encoding="utf-8")),
+            check_archives=True,
+            execute_checks=True,
+        )
+        gate_detail = "task-085 archived dogfood evidence + scripts/release_dogfood_gate.py manifest pass"
+    else:
+        # Before the release evidence is prepared the manifest is absent; report a
+        # failed gate with a clear detail instead of crashing with an uncaught
+        # FileNotFoundError, matching rdg.main()'s is_file() guard (L47).
+        gate_clean = False
+        gate_detail = "release_evidence.json missing"
+    results["final_dogfood_gate"] = (archives and gate_clean, gate_detail)
     ci = _read("scripts/ci.sh")
     results["ci_network_free"] = (
         "release_dogfood_gate" in ci and "remote_allowed = true" not in ci,

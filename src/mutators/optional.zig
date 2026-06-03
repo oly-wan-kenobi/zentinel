@@ -60,8 +60,9 @@ fn collectOrelse(
     const end = tree.tokenStart(last) + @as(u32, @intCast(last_slice.len));
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const original = tree.source[start..end];
-    // An existing `orelse unreachable` is a forbidden context.
-    if (std.mem.eql(u8, original, "unreachable")) return;
+    // An existing `orelse unreachable` (any spelling, e.g. `(unreachable)`) is a
+    // forbidden context: re-mutating it would emit a pure-formatting no-op (L6).
+    if (mutant.equivalentToCanonical(original, "unreachable")) return;
     const start_pos = source_map.locate(tree.source, start) orelse return;
     const end_pos = source_map.locate(tree.source, end) orelse return;
     try collector.add(.{

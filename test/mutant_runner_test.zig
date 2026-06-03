@@ -165,6 +165,57 @@ test "workspace creation failure is classified invalid (F-010)" {
     try expect(std.mem.indexOf(u8, res.evidence.failure_summary, "workspace") != null);
 }
 
+/// An executor mock that records the exact argv it was handed, so a test can
+/// assert that the optimize mode actually reaches the spawned command (the
+/// existing `Mock` discards argv, which is why the H5 gap was invisible to tests).
+const ArgvCaptureMock = struct {
+    result: runner.RawOutcome,
+    last_argv: []const []const u8 = &.{},
+    fn run(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+        const self: *ArgvCaptureMock = @ptrCast(@alignCast(ctx));
+        self.last_argv = argv;
+        return self.result;
+    }
+    fn exec(self: *ArgvCaptureMock) runner.Executor {
+        return .{ .ctx = self, .runFn = ArgvCaptureMock.run };
+    }
+};
+
+fn containsArg(argv: []const []const u8, needle: []const u8) bool {
+    for (argv) |arg| if (std.mem.eql(u8, arg, needle)) return true;
+    return false;
+}
+
+test "the optimize mode reaches the executor as a real argv element, not just a label (H5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const src = try readTarget(a);
+
+    // A ReleaseFast run of a generated `zig test <file>` command: the spawned argv
+    // must carry `-OReleaseFast`, otherwise every `--mode` silently runs Debug and
+    // `result.mode` is an untruthful label (H5).
+    var mock = ArgvCaptureMock{ .result = outcome(0, false, false) };
+    const res = try mutant_runner.run(a, plusMutant(src, "+"), src, .created, &.{"zig test target.zig"}, "<project>", mock.exec(), .ReleaseFast);
+    try expectEqual(report.Mode.ReleaseFast, res.mode);
+    try expect(containsArg(mock.last_argv, "-OReleaseFast"));
+    // The recorded report argv is truthful about what actually ran.
+    try expect(containsArg(res.commands[0].command.argv, "-OReleaseFast"));
+
+    // A configured `zig build test` uses the build-system optimize form
+    // (`zig build` rejects `-O<mode>`; verified on pinned Zig 0.16).
+    var mock2 = ArgvCaptureMock{ .result = outcome(0, false, false) };
+    _ = try mutant_runner.run(a, plusMutant(src, "+"), src, .created, &.{"zig build test"}, "<project>", mock2.exec(), .ReleaseSafe);
+    try expect(containsArg(mock2.last_argv, "-Doptimize=ReleaseSafe"));
+
+    // Debug is the compiler default: no optimize flag is injected, so the
+    // default/no-`--mode` path stays byte-for-byte identical to before.
+    var mock3 = ArgvCaptureMock{ .result = outcome(0, false, false) };
+    _ = try mutant_runner.run(a, plusMutant(src, "+"), src, .created, &.{"zig test target.zig"}, "<project>", mock3.exec(), .Debug);
+    try expectEqual(@as(usize, 3), mock3.last_argv.len);
+    try expect(!containsArg(mock3.last_argv, "-ODebug"));
+}
+
 test "fail-fast records later commands as skipped" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

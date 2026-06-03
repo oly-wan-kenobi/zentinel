@@ -14,6 +14,7 @@ const sandbox = @import("sandbox.zig");
 const runner = @import("runner.zig");
 const report = @import("report.zig");
 const command = @import("command.zig");
+const safety_modes = @import("safety_modes.zig");
 
 /// The deterministic authority that produced a mutant result. Internal evidence
 /// for report construction; never populated from AI output.
@@ -172,8 +173,13 @@ pub fn runSpecs(
             try results.append(arena, skippedCommandSpec(spec, cwd));
             continue;
         }
-        const raw = executor.run(spec.argv);
-        const cr = try runner.classifyCommand(arena, .mutant, spec.original, spec.argv, cwd, raw);
+        // The optimize mode must reach the spawned process as an actual argv
+        // element (not just the `result.mode` label), so a `--mode`/matrix run
+        // genuinely evaluates the mutant under that mode (H5). The same adjusted
+        // argv is recorded so the report is truthful about what actually ran.
+        const argv = try safety_modes.argvForMode(arena, spec.argv, mode);
+        const raw = executor.run(argv);
+        const cr = try runner.classifyCommand(arena, .mutant, spec.original, argv, cwd, raw);
         try results.append(arena, cr);
         if (terminalStatus(cr) != null) decided = true;
     }

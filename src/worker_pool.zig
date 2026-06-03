@@ -11,6 +11,7 @@
 // local .zig-cache, or zig-out directory. Pure scheduling: process execution and
 // filesystem I/O are performed by the injected task, not by this module.
 const std = @import("std");
+const config = @import("config.zig");
 
 /// Hard upper bound on concurrent workers, independent of any configured value,
 /// so an over-large `--jobs` / `run.jobs` can never spawn unbounded threads.
@@ -82,21 +83,153 @@ pub fn run(jobs: usize, count: usize, ctx: *anyopaque, task: Task) void {
     while (j < spawned) : (j += 1) threads[j].join();
 }
 
+/// The per-run workspace container holding every per-mutant workspace for one
+/// run: `.zig-cache/zentinel/workspaces/{run_id}`. setupWorkspace materializes it
+/// (via createDirPath of a nested `workspaceRoot`), but the per-mutant cleanup
+/// only removes the content-addressed leaf, so the caller must deleteTree this
+/// base after the run or it leaks one stale `run_<x>` dir per invocation (L8).
+/// Every `workspaceRoot` for the run is nested under it, so a single deleteTree
+/// reclaims all leaves.
+pub fn workspaceRunBase(arena: std.mem.Allocator, run_id: []const u8) std.mem.Allocator.Error![]const u8 {
+    return std.fmt.allocPrint(arena, ".zig-cache/zentinel/workspaces/{s}", .{run_id});
+}
+
 /// Dedicated, content-addressed writable workspace root for one mutant run,
 /// isolated by run id and mutant id so two concurrent workers never share a
-/// directory. The developer working tree is never mutated in place.
+/// directory. The developer working tree is never mutated in place. Built as
+/// `{workspaceRunBase}/{mutant_id}` so the run-base deleteTree (L8) reclaims it.
 pub fn workspaceRoot(arena: std.mem.Allocator, run_id: []const u8, mutant_id: []const u8) std.mem.Allocator.Error![]const u8 {
-    return std.fmt.allocPrint(arena, ".zig-cache/zentinel/workspaces/{s}/{s}", .{ run_id, mutant_id });
+    const base = try workspaceRunBase(arena, run_id);
+    return std.fmt.allocPrint(arena, "{s}/{s}", .{ base, mutant_id });
 }
 
 /// The local Zig build cache for a workspace root, nested inside the root so a
 /// worker's `zig build` / `zig test` cache cannot collide with another worker's.
+/// Wired into the runner: `runner.minimalEnviron` sets `ZIG_LOCAL_CACHE_DIR =
+/// cacheDirIn(".")` (cwd-relative), so each spawned command's cwd (= its per-mutant
+/// workspace) owns its `.zig-cache` independent of host env -- this is what makes
+/// the per-worker local-cache isolation contract true rather than aspirational (L10).
 pub fn cacheDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/.zig-cache", .{root});
 }
 
-/// The local Zig output directory for a workspace root, nested inside the root
-/// so a worker's `zig-out` cannot collide with another worker's.
+/// The local Zig output directory for a workspace root, nested inside the root so a
+/// worker's `zig-out` cannot collide with another worker's. Unlike the local cache,
+/// `zig-out` needs no env override: Zig defaults the install prefix to
+/// build-root/`zig-out` (cwd-relative), and each command's cwd is its own workspace,
+/// so output isolation is inherent. This builder is the canonical path used by tests
+/// and tools asserting that invariant.
 pub fn outDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/zig-out", .{root});
+}
+
+/// Directories whose entire subtree is excluded from a per-mutant workspace copy:
+/// the zentinel-controlled build cache, the build-output dir, and the VCS dir.
+/// Matched by exact path SEGMENT (a sibling like `zig-outputs/` is NOT excluded).
+const excluded_descent_dirs = [_][]const u8{ ".zig-cache", "zig-out", ".git" };
+
+fn isExcludedDescentDir(basename: []const u8) bool {
+    for (excluded_descent_dirs) |name| {
+        if (std.mem.eql(u8, basename, name)) return true;
+    }
+    return false;
+}
+
+/// Whether a project-relative `path` is excluded from the workspace copy because
+/// its FIRST path segment is a cache / build-output / VCS dir. Segment-based (not
+/// a raw byte prefix), so a sibling like `zig-outputs/foo.zig` (first segment
+/// `zig-outputs`, not `zig-out`) or `.github/workflows/x.zig` is NOT excluded --
+/// the prior `startsWith` check wrongly dropped such discovered sources, which
+/// then failed the patched write and misclassified the mutant `invalid` (M2).
+pub fn excludedCopyPath(path: []const u8) bool {
+    const first = path[0 .. std.mem.indexOfScalar(u8, path, '/') orelse path.len];
+    return isExcludedDescentDir(first);
+}
+
+/// Copy the project tree from `src` into `dst`, descending into every directory
+/// EXCEPT `excluded_descent_dirs`. The walker never enters those dirs, which is
+/// what keeps a parallel run's per-mutant workspace builders from racing sibling
+/// workers tearing down their workspaces under `.zig-cache/zentinel/workspaces`
+/// (a transient openDir/copyFile failure there was collapsed into a spurious
+/// `invalid` mutant, hiding survivors) and avoids the O(N^2) re-walk of every
+/// other worker's copied tree (H3, L7).
+///
+/// A file whose path matches `copyExcluded` (a raw-prefix legacy filter owned by
+/// the caller) is still skipped, so the copied set is byte-identical to the prior
+/// full-walk behavior; an entry that escapes `src` by symlink is rejected. `src`
+/// must be opened with `iterate = true`.
+pub fn copyProjectTree(
+    io: std.Io,
+    gpa: std.mem.Allocator,
+    src: std.Io.Dir,
+    dst: std.Io.Dir,
+    copyExcluded: *const fn (path: []const u8) bool,
+) !void {
+    var walker = try src.walkSelectively(gpa);
+    defer walker.deinit();
+    while (try walker.next(io)) |entry| {
+        if (entry.kind == .directory) {
+            // Descend only into non-excluded dirs: never enter the cache / build
+            // output / VCS trees. This removes the sibling-teardown race and the
+            // O(N^2) re-walk that the prior full `walk()` suffered (H3, L7).
+            if (!isExcludedDescentDir(entry.basename)) try walker.enter(io, entry);
+            continue;
+        }
+        if (entry.kind != .file) continue;
+        if (copyExcluded(entry.path)) continue;
+        if (config.pathEscapesRoot(io, src, entry.path)) return error.WorkspaceCreateFailed;
+        try src.copyFile(entry.path, dst, entry.path, io, .{ .make_path = true });
+    }
+}
+
+/// An isolated per-mutant workspace: the project-relative `rel` path and an open
+/// handle `dir` to it. On success the caller owns both (close `dir`, deleteTree
+/// `rel`).
+pub const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
+
+/// Build an isolated per-mutant workspace under the run base: create the
+/// content-addressed `{run_id}/{mutant_id}` dir, copy the project tree (minus
+/// caches/VCS), and overwrite `mutant_file` with `patched`. Isolated by run +
+/// content-addressed mutant id, so the developer working tree is never modified.
+///
+/// On ANY failure after the directory is created, the partial workspace is
+/// unwound -- the fd is closed and the on-disk tree removed -- so no orphaned
+/// `{mutant_id}` dir is left behind; if that removal itself fails, `cleanup_failures`
+/// is bumped so the end-of-run warning stays truthful. Without this unwind the
+/// caller's success-only cleanup defer never fired on the failure path, silently
+/// leaking a partial dir and undercounting cleanup failures (L9).
+pub fn createMutantWorkspace(
+    io: std.Io,
+    arena: std.mem.Allocator,
+    root_dir: std.Io.Dir,
+    run_id: []const u8,
+    mutant_id: []const u8,
+    mutant_file: []const u8,
+    patched: []const u8,
+    cleanup_failures: *std.atomic.Value(u32),
+) !Workspace {
+    const rel = try workspaceRoot(arena, run_id, mutant_id);
+    if (config.pathEscapesRoot(io, root_dir, rel)) return error.WorkspaceCreateFailed;
+    try root_dir.createDirPath(io, rel);
+    // Unwind the on-disk workspace on ANY failure below. createDirPath just
+    // materialized {rel}; the caller's deleteTree/cleanup defer is armed only
+    // after this returns successfully, so without this a copyProjectTree /
+    // containment / writeFile / openDir error would orphan a partial {mutant_id}
+    // dir and leave it uncounted (L9). A failed removal still bumps
+    // cleanup_failures so the end-of-run warning stays truthful. errdefers unwind
+    // in reverse, so the fd (closed just below) is released before this deleteTree.
+    errdefer root_dir.deleteTree(io, rel) catch {
+        _ = cleanup_failures.fetchAdd(1, .monotonic);
+    };
+    var dir = try root_dir.openDir(io, rel, .{});
+    errdefer dir.close(io);
+
+    try copyProjectTree(io, arena, root_dir, dir, excludedCopyPath);
+    if (config.pathEscapesRoot(io, dir, mutant_file)) return error.WorkspaceCreateFailed;
+    // Ensure the mutated file's parent dir exists before the patched write:
+    // `writeFile` does not create parents, so a missing parent would otherwise
+    // fail the write and misclassify a real mutant as `invalid` (M2).
+    if (std.fs.path.dirname(mutant_file)) |parent| try dir.createDirPath(io, parent);
+    try dir.writeFile(io, .{ .sub_path = mutant_file, .data = patched });
+    return .{ .rel = rel, .dir = dir };
 }

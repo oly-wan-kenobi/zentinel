@@ -181,6 +181,52 @@ test "mode matrix records per-mode status, preserves result.mode, and flags mode
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
+/// A command-aware executor: the narrowed `zig test <file>` selection misses the
+/// mutant (passes -> survived), but the configured `zig build test` suite catches
+/// it (fails -> killed). Distinguishes the two by the presence of `build` in argv.
+fn configuredKillsCmd(ctx: *anyopaque, argv: []const []const u8) runner.RawOutcome {
+    _ = ctx;
+    for (argv) |tok| if (std.mem.eql(u8, tok, "build")) return failure();
+    return pass();
+}
+fn configuredKillsRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
+    const env: *Env = @ptrCast(@alignCast(ctx));
+    spinLock(&env.lock);
+    defer spinUnlock(&env.lock);
+    const ex = runner.Executor{ .ctx = env, .runFn = configuredKillsCmd };
+    return mutant_runner.run(env.arena, m, source, .created, commands, env.cwd, ex, mode) catch @panic("mutant run failed");
+}
+
+test "non-primary mode-matrix columns re-verify narrowed survivors against the configured suite (L27)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // reverify_src has a same-file test, so selection narrows to `zig test <file>`.
+    // The narrowed run misses the mutant (survives) but the configured `zig build
+    // test` suite kills it. Before L27 only the PRIMARY (Debug) column re-verified,
+    // so the non-primary (ReleaseFast) column recorded the narrowed `survived` and
+    // isModeDependent flipped true purely from the selection asymmetry. Now every
+    // column re-verifies, so both record `killed` and there is no mode effect (L27).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+    const mr = rc.MutantRunner{ .ctx = &env, .runFn = configuredKillsRunFn };
+
+    const outcome = try rc.run(a, loadCfg(a, mode_matrix_cfg), &files, .{}, baselineExecutor(&env), mr, observation());
+
+    try expect(outcome.report.mutants.len > 0);
+    for (outcome.report.mutants) |mut| {
+        // Primary status is reverified against the configured suite -> killed.
+        try expectEqual(report.ResultStatus.killed, mut.result.status);
+        const mm = mut.result.mode_matrix orelse return error.TestUnexpectedResult;
+        try expectEqual(@as(usize, 2), mm.len);
+        // BOTH columns are killed (the configured suite kills in every mode), so no
+        // spurious mode-dependent signal from the narrowed-selection asymmetry.
+        for (mm) |row| try expectEqual(report.ResultStatus.killed, row.status);
+        try expect(!zentinel.safety_modes.isModeDependent(mm));
+    }
+}
+
 test "single-mode runs do not populate result.mode_matrix" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -257,6 +303,135 @@ test "a passing test leaves the mutant surviving" {
     try expectEqual(report.ResultStatus.survived, outcome.report.mutants[0].result.status);
     try expectEqual(@as(u32, 1), outcome.report.summary.survived);
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
+}
+
+// A source with a same-file test (so selection narrows to `zig test <file>`,
+// triggering configured reverification) and two mutable production sites.
+const reverify_src =
+    \\pub fn f(a: i32, b: i32) i32 {
+    \\    return a + b;
+    \\}
+    \\pub fn g(a: i32, b: i32) i32 {
+    \\    return a * b;
+    \\}
+    \\test "t" {
+    \\    _ = f(1, 2);
+    \\    _ = g(1, 2);
+    \\}
+;
+
+test "configured reverification specs are parsed once per run, not once per surviving mutant (L4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Both mutants survive (mock passes) and both need configured reverification
+    // (the same-file selection narrowed away from `zig build test`), so Phase B.5
+    // reverifies twice -- but the configured specs are constant across the loop.
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.configured_specs_parse_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.survived);
+    // Hoisted: parsed once for the whole run, not once per surviving mutant.
+    try expectEqual(@as(usize, 1), rc.configured_specs_parse_count);
+}
+
+test "selection specs are built once per file, not once per mutant (L5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants share one source file; the selection commands are identical for
+    // both, so the per-file selection specs must be built once.
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.selection_specs_build_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    // Memoized per file: built once, not once per mutant.
+    try expectEqual(@as(usize, 1), rc.selection_specs_build_count);
+}
+
+test "the source index is built once per run, not scanned once per mutant (L18)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants over one source file: the path->source index is built ONCE for
+    // the whole run, so each mutant's source lookup is an O(1) map get rather than
+    // a fresh linear scan of `files` per candidate (the old O(M*F) behavior) (L18).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.source_index_builds = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.source_index_builds);
+}
+
+test "each file's result-cache source hash is computed once per file, not once per mutant (S3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Two mutants over one source file: the SHA-256 source hash is a pure function
+    // of the file bytes (identical for both mutants), so Phase C computes it ONCE for
+    // the file and reuses it, rather than re-hashing the whole file per mutant (S3).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.source_hash_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.source_hash_count);
+}
+
+test "each source file's AST is parsed once per run, not re-parsed for same-file selection (L30)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // One source file, two mutants, default same_file_then_package selection (the
+    // file has a same-file test, so selection narrows). generateCandidates parses
+    // the file to find candidates; the same-file selection must reuse that parse
+    // via the per-file table instead of parsing the file a second time (L30).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.ast_parse_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    // Parsed exactly once for the single file, not once in generateCandidates and
+    // again in selectionForFile.
+    try expectEqual(@as(usize, 1), rc.ast_parse_count);
+}
+
+test "the enabled-operator set is scanned once per run, not once per raw candidate (S10)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // reverify_src yields two raw arithmetic candidates (f's `a + b`, g's `a * b`),
+    // both enabled in cfg_toml. The prior code called enabled() once per raw
+    // candidate, re-scanning cfg.mutators_enabled each time (O(M*E)). The membership
+    // structure is now built once per run and reused for an O(1) check, so the scan
+    // count must be 1 regardless of candidate count -- not 2 (one per candidate) (S10).
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
+
+    rc.enabled_operator_scan_count = 0;
+    const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+
+    try expectEqual(@as(u32, 2), outcome.report.summary.total);
+    try expectEqual(@as(usize, 1), rc.enabled_operator_scan_count);
 }
 
 test "--fail-on-survivors exits 1 when a mutant survives" {
@@ -528,6 +703,14 @@ test "parseArgs rejects unknown options and missing values instead of ignoring t
     try expectError(error.InvalidReportFormat, rc.parseArgs(&.{ "--report", "yaml" }));
 }
 
+test "parseArgs rejects an unknown --operator name instead of silently matching nothing (L31)" {
+    // A mistyped operator must be a usage error, not a clean run over 0 mutants.
+    try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
+    try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "arithmetic_add" })); // truncated real name
+    // A registered operator (including a Phase-2 one) still round-trips unchanged.
+    try expectEqualStrings("loop_boundary", (try rc.parseArgs(&.{ "--operator", "loop_boundary" })).operator_filter.?);
+}
+
 test "parseArgs accepts jsonl and junit report formats" {
     try expectEqual(rc.ReportFormat.jsonl, (try rc.parseArgs(&.{ "--report", "jsonl" })).report_format);
     try expectEqual(rc.ReportFormat.junit, (try rc.parseArgs(&.{ "--report", "junit" })).report_format);
@@ -557,6 +740,11 @@ test "--verbose and --quiet parse as run options without affecting report data" 
     const quiet = try rc.parseArgs(&.{"--quiet"});
     try expect(quiet.quiet);
     try expect(!quiet.verbose);
+
+    // Passing both is a usage error, not a silent quiet-wins (L44); order does not
+    // matter.
+    try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--verbose", "--quiet" }));
+    try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--quiet", "--verbose" }));
 
     // Verbosity is not an input to the deterministic run: identical reports.
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
@@ -599,6 +787,37 @@ test "--no-cache disables the result cache but keeps build-cache isolation and r
 
     // Cache policy never changes mutant correctness: identical canonical reports.
     try expectEqualStrings(try report.toJson(a, cached.report), try report.toJson(a, uncached.report));
+}
+
+const cfg_cache_off =
+    \\[project]
+    \\name = "sample"
+    \\
+    \\[mutators]
+    \\enabled = ["arithmetic_add_sub", "arithmetic_mul_div"]
+    \\
+    \\[test]
+    \\commands = ["zig build test"]
+    \\
+    \\[cache]
+    \\enabled = false
+    \\
+;
+
+test "cache.enabled = false in config disables the result cache like --no-cache (M5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = failure() };
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    // No --no-cache flag; the disable comes purely from the config field, which
+    // was previously parsed and then ignored (M5).
+    const outcome = try rc.run(a, loadCfg(a, cfg_cache_off), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(report.CacheMode.disabled, outcome.cache.mode);
+    try expect(!outcome.cache.enabled);
+    try expectEqual(@as(usize, 0), outcome.cache.result_keys.len);
 }
 
 // --- Deterministic JSON snapshots ------------------------------------------

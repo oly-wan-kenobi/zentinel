@@ -189,3 +189,21 @@ test "cache diagnostics serialize under diagnostics.cache and keep the report sc
 // The concrete numeric CI smoke budgets in docs/PERFORMANCE_STRATEGY.md are
 // verified by scripts/check_perf_budgets.py (a cross-directory @embedFile of the
 // doc is disallowed by the Zig package boundary).
+
+test "benchmark.sh describes its committed deterministic snapshot, not a timing trend (L46)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const sh = try std.Io.Dir.cwd().readFileAlloc(std.testing.io, "scripts/benchmark.sh", a, std.Io.Limit.limited(1 << 20));
+
+    // The script prints the committed, byte-pinned benchmark snapshot (the suite's
+    // reference EQUIVALENCE result, validated by the benchmark_snapshot test above),
+    // not a live wall-clock measurement -- so it must not claim to feed a
+    // performance "trend comparison" (L46).
+    try expect(std.mem.indexOf(u8, sh, "trend comparison") == null);
+    // It still names what it actually does: runs the deterministic suite that pins
+    // the snapshot.
+    try expect(std.mem.indexOf(u8, sh, "deterministic") != null);
+    try expect(std.mem.indexOf(u8, sh, "zig build test") != null);
+}

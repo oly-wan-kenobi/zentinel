@@ -167,3 +167,37 @@ test "release acceptance checklist script and CI exercise the release gates" {
     // The acceptance check runs the final dogfood gate from task 085.
     try expect(contains(acc, "release_dogfood_gate.py"));
 }
+
+// 7. The final_dogfood_gate criterion must reflect verified_by script EXECUTION,
+//    not just on-disk existence. check_criteria validates the manifest with
+//    execute_checks=True (matching the rdg.main() path), so a verified_by script
+//    that exists but exits non-zero fails the criterion instead of printing
+//    "final_dogfood_gate: OK" before rdg.main() reports the real failure (L34).
+test "release acceptance gate criterion executes verified_by checks, not just existence (L34)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const acc = try readFile(arena, "scripts/release_acceptance.py");
+    // The gate_clean computation runs the verified_by scripts; the existence-only
+    // default (execute_checks=False) -- the bug -- is gone.
+    try expect(contains(acc, "execute_checks=True"));
+    // It is still the archive-checked validate_manifest call that computes gate_clean.
+    try expect(contains(acc, "check_archives=True"));
+}
+
+// 8. check_criteria reads the release evidence manifest behind an is_file() guard,
+//    so running the acceptance gate before the evidence is prepared reports a failed
+//    gate with a clear detail instead of crashing with an uncaught FileNotFoundError
+//    (matching rdg.main()'s guard) (L47).
+test "release acceptance gate guards the evidence read against a missing manifest (L47)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const acc = try readFile(arena, "scripts/release_acceptance.py");
+    // The evidence path is read through an is_file() guard, and the absent case has
+    // a structured failure detail rather than an unhandled read_text() crash.
+    try expect(contains(acc, "evidence_path.is_file()"));
+    try expect(contains(acc, "release_evidence.json missing"));
+}

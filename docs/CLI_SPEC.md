@@ -30,6 +30,21 @@ Phase 0 implements the CLI shell incrementally:
 
 Every command listed in `--help` is implemented. The frozen Phase 0 `dispatch` shell owns only `--help`, `version`, and `init`; the project commands (`check`, `run`, `list-mutants`, `doctest`) and the advisory AI commands are handled by the routing layer, so none of them is a "not implemented" roadmap stub anymore. A command that is not recognized fails deterministically with exit code `2` and `ZNTL_CLI_UNKNOWN_COMMAND`. The `ZNTL_CLI_COMMAND_NOT_IMPLEMENTED` code stays defined in the error taxonomy for any future roadmap command added before its handler lands, but no shipped command returns it.
 
+## External Zig binary requirement
+
+zentinel embeds the `std.zig.Ast` parser, so mutant *generation* never shells out to `zig`. The external `zig` binary is only needed to compile and run code. Each command falls into exactly one of three groups; a new command MUST be placed in one of them explicitly (this is the authoritative list — `FAILURE_MODES.md` F-001 references it):
+
+- **Require the external `zig` binary** — the command aborts before project analysis when `zig` is absent or its version is outside the pinned `0.16.0` policy:
+  - `check` — exits `2` with `ZNTL_ZIG_NOT_FOUND` before analysis; reporting the discovered Zig's compatibility is the command's whole job.
+  - `run` — pre-flights the Zig version gate (`zig_version.fatalStatusLine`) before mutating, because it compiles and runs the test suite.
+  - `doctest` and `doctest --mutate` — pre-flight the same gate, because they compile and run extracted documentation code.
+- **Discover `zig` but never fatal on it** — informational status only; the command always proceeds and its exit code is independent of Zig:
+  - `version` — prints the discovered-Zig status as non-fatal environment info on stderr and still exits `0`.
+  - the advisory AI commands `explain`, `suggest`, `review-tests`, and the doctest AI subcommands (`doctest explain` / `suggest` / `review-snapshot` / `suggest-missing` / `explain-survivor`) — use the discovered Zig only as a `supported`/`unknown` label.
+- **Do not use the external `zig` binary at all**:
+  - `list-mutants` — generates candidates with the embedded `std.zig.Ast` parser only; it never invokes `zig`, so it runs even when no `zig` is on `PATH`.
+  - `init` — writes `zentinel.toml`; no Zig is involved.
+
 ## Global Options
 
 ```text
@@ -170,7 +185,7 @@ Experimental backends require explicit opt-in.
 
 `list-mutants --backend zir` is owned by task `056`; `list-mutants --backend air` is owned by task `057`. Before those tasks land, `list-mutants --backend <zir|air>` must fail deterministically as a known experimental option that is not yet implemented, while `--backend ast` remains the stable path owned by the initial `list-mutants` work.
 
-`--backend` is **`list-mutants`-only**. The experimental ZIR and AIR backends are relabel prototypes that re-tag the stable AST candidate set with `backend = zir|air`; they do no IR-level analysis or lowering (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). They affect only the `list-mutants` listing's backend labels and never change which mutants are generated or run.
+`--backend` is **`list-mutants`-only**. `--backend zir` does **real ZIR lowering for every binary-operator mutation** (task 056, Phases 1-3): it lowers each source file to ZIR via `std.zig.AstGen` and recognizes `equality_swap`/`comparison_boundary` (from `cmp_*`), `logical_and_or` (from `bool_br_and`/`bool_br_or`), and `arithmetic_add_sub`/`arithmetic_mul_div` (from `add`/`sub`/`mul`/`div`) sites, in exact differential parity with the AST recognizers; every other operator and every AstGen-injected operator is an out-of-report diagnostic, never a mutant. The remaining operators are AST-only **by principle**: literal mutations (`boolean_literal`, `integer_literal_boundary`) lower to operand refs (no instruction), and control-flow ones (`error_catch_unreachable`, `optional_orelse_unreachable`, `errdefer_remove`, `loop_boundary`) desugar into multi-instruction patterns the AST node recognizes more cleanly. `--backend air` is still a relabel prototype that re-tags the stable AST candidate set with `backend = air` and does no IR lowering (see `docs/ZIR_BACKEND.md`, `docs/AIR_BACKEND.md`). Both are `experimental`, opt-in, and affect only the `list-mutants` listing — never `run`.
 
 ## `run`
 
@@ -190,7 +205,7 @@ Useful options:
 --no-cache
 ```
 
-`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR relabel backends never participate in a run.
+`run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR/AIR backends never participate in a run.
 
 ## Run Option Ownership
 

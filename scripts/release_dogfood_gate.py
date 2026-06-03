@@ -189,14 +189,28 @@ def validate_manifest(manifest: object, check_archives: bool = True, execute_che
     return sorted(v)
 
 
+def _load_json_or_none(path: Path):
+    """Parse a JSON file, or return None if it is missing or not valid JSON, so a
+    malformed manifest/fixture yields a structured diagnostic instead of an unhandled
+    JSONDecodeError traceback (mirrors _reports_normalized_equal's guard) (S5)."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def self_test() -> list[str]:
     """Every release manifest under valid/ must pass; every one under invalid/
-    must be rejected. Non-manifest JSON files are ignored."""
+    must be rejected. Non-manifest JSON files are ignored; a non-JSON file is a
+    fixture-authoring error and is reported."""
     problems: list[str] = []
     valid_dir = RELEASE_FIXTURES / "valid"
     if valid_dir.is_dir():
         for fx in sorted(valid_dir.glob("*.json")):
-            data = json.loads(fx.read_text(encoding="utf-8"))
+            data = _load_json_or_none(fx)
+            if data is None:
+                problems.append(f"valid manifest {fx.name} is not valid JSON")
+                continue
             if not isinstance(data, dict) or data.get("schema_version") != SCHEMA_VERSION:
                 continue
             violations = validate_manifest(data, check_archives=True)
@@ -205,7 +219,10 @@ def self_test() -> list[str]:
     invalid_dir = RELEASE_FIXTURES / "invalid"
     if invalid_dir.is_dir():
         for fx in sorted(invalid_dir.glob("*.json")):
-            data = json.loads(fx.read_text(encoding="utf-8"))
+            data = _load_json_or_none(fx)
+            if data is None:
+                problems.append(f"invalid manifest {fx.name} is not valid JSON")
+                continue
             if not isinstance(data, dict) or data.get("schema_version") != SCHEMA_VERSION:
                 continue
             if not validate_manifest(data, check_archives=True):
@@ -217,17 +234,24 @@ def main(argv: list[str]) -> int:
     failed = False
 
     if DEFAULT_MANIFEST.is_file():
-        # The real manifest is validated with execute_checks=True so the
-        # script-type verified_by checks are actually run (not merely named) and
-        # the repeated-run comparison is recomputed from the archived reports.
-        violations = validate_manifest(json.loads(DEFAULT_MANIFEST.read_text(encoding="utf-8")), check_archives=True, execute_checks=True)
-        if violations:
+        manifest = _load_json_or_none(DEFAULT_MANIFEST)
+        if manifest is None:
+            # A truncated/corrupt manifest is a structured gate failure, not an
+            # unhandled JSONDecodeError traceback in CI stage 7 (S5).
             failed = True
-            for viol in violations:
-                print(f"release-gate: violation: {viol}")
-            print(f"release-gate: final dogfood manifest FAILED with {len(violations)} violation(s)")
+            print(f"release-gate: malformed manifest JSON: {DEFAULT_MANIFEST.relative_to(ROOT)}")
         else:
-            print("release-gate: final dogfood manifest OK (archived deterministic evidence present)")
+            # The real manifest is validated with execute_checks=True so the
+            # script-type verified_by checks are actually run (not merely named) and
+            # the repeated-run comparison is recomputed from the archived reports.
+            violations = validate_manifest(manifest, check_archives=True, execute_checks=True)
+            if violations:
+                failed = True
+                for viol in violations:
+                    print(f"release-gate: violation: {viol}")
+                print(f"release-gate: final dogfood manifest FAILED with {len(violations)} violation(s)")
+            else:
+                print("release-gate: final dogfood manifest OK (archived deterministic evidence present)")
     else:
         failed = True
         print(f"release-gate: missing manifest {DEFAULT_MANIFEST.relative_to(ROOT)}")

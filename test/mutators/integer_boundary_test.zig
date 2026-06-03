@@ -135,3 +135,28 @@ test "integer literals inside test bodies are excluded" {
     try expectEqual(@as(usize, 2), c.len);
     try expectEqualStrings("5", c[0].original);
 }
+
+test "an i128-max comparison literal skips the overflowing +1 boundary instead of panicking (H1)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // i128 max = 2^127 - 1 = 170141183460469231731687303715884105727. Pre-fix the
+    // mutator computed `value + 1` in i128 with no bounds check, so this legal
+    // source literal aborted the WHOLE candidate-generation pass with an
+    // unrecoverable `panic: integer overflow`. The mutator must instead drop just
+    // the unrepresentable +1 boundary and still emit the -1 boundary.
+    var parsed = try ast_backend.parse(std.testing.allocator, "max.zig",
+        \\pub fn f(x: i128) bool {
+        \\    return x == 170141183460469231731687303715884105727;
+        \\}
+    );
+    defer parsed.deinit();
+    const c = try collect(a, parsed);
+    // Exactly one candidate survives: the -1 boundary (max - 1). The +1 boundary
+    // is unrepresentable in i128 and is skipped, not crashed on.
+    try expectEqual(@as(usize, 1), c.len);
+    try expectEqualStrings("170141183460469231731687303715884105727", c[0].original);
+    try expectEqualStrings("170141183460469231731687303715884105726", c[0].replacement);
+    try expectEqual(mutant.ExpectedCompile.may_fail, c[0].expected_compile);
+}

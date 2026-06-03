@@ -94,6 +94,7 @@ const known_modes = [_][]const u8{ "Debug", "ReleaseSafe", "ReleaseFast", "Relea
 const known_backends = [_][]const u8{ "ast", "zir", "air" };
 const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all", "impact_graph" };
 const known_providers = [_][]const u8{ "disabled", "stub", "local", "remote" };
+const known_report_formats = [_][]const u8{ "text", "json", "jsonl", "junit" };
 const default_exclude = [_][]const u8{ ".zig-cache/**", "zig-out/**", "test/**" };
 const default_redact = [_][]const u8{ "(?i)api[_-]?key", "(?i)token" };
 
@@ -144,6 +145,13 @@ fn findOperator(name: []const u8) ?OperatorInfo {
         if (std.mem.eql(u8, op.name, name)) return op;
     }
     return null;
+}
+
+/// True if `name` is a registered mutation operator (the canonical registry that
+/// mirrors docs/MUTATOR_SPEC.md). Exposed so CLI parsers can reject an unknown
+/// `--operator` value up front instead of silently matching no candidate (L31).
+pub fn isKnownOperator(name: []const u8) bool {
+    return findOperator(name) != null;
 }
 
 fn fail(diag: *Diagnostic, code: Code, section: []const u8, key: []const u8, message: []const u8) Error {
@@ -338,6 +346,10 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     for (zig_modes) |m| {
         if (!inList(&known_modes, m)) return fail(diag, .invalid_value, "zig", "modes", "unknown Zig mode");
     }
+    // An explicit `modes = []` is meaningless intent that the matrix would silently
+    // redirect to Debug; reject it (omitting `modes` keeps the Debug default),
+    // matching how empty `test.commands` is handled below (L45).
+    if (zig_modes.len == 0) return fail(diag, .invalid_value, "zig", "modes", "modes must not be empty");
 
     // [backend]
     const backend_default = try look.getString("backend", "default", "ast", diag);
@@ -386,6 +398,11 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         return fail(diag, .invalid_value, "report", "output_dir", "output directory must stay within the project root");
     }
     const report_formats = try look.getArray("report", "formats", &.{ "text", "json" }, diag);
+    for (report_formats) |fmt| {
+        if (!inList(&known_report_formats, fmt)) {
+            return fail(diag, .invalid_value, "report", "formats", "report format must be text, json, jsonl, or junit");
+        }
+    }
 
     // [ai]
     const ai_provider = try look.getString("ai", "provider", "disabled", diag);

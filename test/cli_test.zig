@@ -111,6 +111,29 @@ test "config-aware init accepts --test-command (owned by task 002)" {
     try std.testing.expectEqualStrings("zig build test", out.init_test_command.?);
 }
 
+test "config-aware init rejects a --test-command that would inject TOML structure (L21)" {
+    // zentinel's TOML reader has no string escapes, so a `"` in --test-command
+    // would close the string and inject a SECOND array element (silently adding a
+    // command). The value is rejected with exit 2 and NO config is written (L21).
+    const out = dispatch(&[_][]const u8{ "init", "--force", "--test-command", "zig test\", \"evil" }, false);
+    try std.testing.expectEqual(@as(u8, 2), out.exit_code);
+    try std.testing.expect(out.error_code == .cli_invalid_option);
+    try std.testing.expect(!out.write_config);
+    try std.testing.expect(out.init_test_command == null);
+    // A control byte (e.g. a newline) would also malform the file -> rejected.
+    const nl = dispatch(&[_][]const u8{ "init", "--force", "--test-command", "zig test\nevil" }, false);
+    try std.testing.expectEqual(@as(u8, 2), nl.exit_code);
+    try std.testing.expect(!nl.write_config);
+
+    // The embeddability predicate: ordinary commands (including backslashes, which
+    // the escape-free reader treats literally) are accepted; quotes and control
+    // bytes are rejected.
+    try std.testing.expect(zentinel.testCommandEmbeddable("zig build test -Dfoo=bar"));
+    try std.testing.expect(zentinel.testCommandEmbeddable("C:\\zig\\zig.exe test"));
+    try std.testing.expect(!zentinel.testCommandEmbeddable("a\" b"));
+    try std.testing.expect(!zentinel.testCommandEmbeddable("a\tb"));
+}
+
 test "config-aware init accepts --backend ast" {
     const out = dispatch(&[_][]const u8{ "init", "--backend", "ast" }, false);
     try std.testing.expectEqual(@as(u8, 0), out.exit_code);
@@ -205,11 +228,16 @@ test "cleanup warning text is a stable CLI diagnostic" {
 test "CLI cleanup warning emission writes only when cleanup failures occur" {
     var out = std.Io.Writer.Allocating.init(std.testing.allocator);
     defer out.deinit();
-    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 0, &out.writer);
+    try zentinel.emitCleanupWarningIfNeeded(0, &out.writer);
     try std.testing.expectEqualStrings("", out.writer.buffer[0..out.writer.end]);
-    try zentinel.emitCleanupWarningIfNeeded(std.testing.allocator, 2, &out.writer);
+    try zentinel.emitCleanupWarningIfNeeded(2, &out.writer);
     try std.testing.expectEqualStrings(
         "warning: failed to remove 2 mutation workspace(s)\n",
         out.writer.buffer[0..out.writer.end],
     );
+    // The emitter renders EXACTLY cleanupWarningText -- one source for the
+    // diagnostic string, so the two functions cannot drift apart (L17).
+    const text = try zentinel.cleanupWarningText(std.testing.allocator, 2);
+    defer std.testing.allocator.free(text);
+    try std.testing.expectEqualStrings(text, out.writer.buffer[0..out.writer.end]);
 }

@@ -12,8 +12,18 @@
 // the documented `source_mapping` enum (none/approximate/exact, only `exact`
 // enters the mutant list) and the active safety-mode metadata. report v1 stays
 // closed (only `backend`/`backend_stability`); all backend-specific evidence is
-// out-of-report, written to artifacts/pipeline/<task-id>/experimental-backend-diagnostics/.
+// out-of-report. At CLI runtime it is surfaced as stderr `note[...]` lines
+// (src/cli.zig); the schema-versioned on-disk artifact (`diagnosticsToJson`,
+// intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
+// is defined and tested but its pipeline write is not yet implemented (L25).
 // Targets pinned Zig 0.16.0; version coupling is handled by opt-in diagnostics.
+//
+// Direction note (docs/AIR_BACKEND.md): this prototype is a FROZEN opt-in
+// experiment. The post-Sema "type/compile oracle" ambition was delivered instead
+// by the compiler-oracle semantic filter (SEM-1 in ZIR_IMPROVEMENTS.md): SEM-1c
+// (src/semantic_filter.zig) makes `expected_compile` the compiler's actual verdict
+// without IR introspection; the TCE/equivalence half (SEM-1b) was descoped at 0
+// measured payoff. This module is not the path to post-Sema semantics — SEM-1 is.
 const std = @import("std");
 const mutant = @import("mutant.zig");
 const config = @import("config.zig");
@@ -139,7 +149,19 @@ const DiagnosticsArtifact = struct {
     unsupported: []const Diagnostic,
 };
 
+/// Serialize the unsupported-operator diagnostics to deterministic JSON. Ready
+/// and byte-pinned by tests, but NOT yet wired to an on-disk write: at CLI
+/// runtime these diagnostics are surfaced as stderr `note[...]` lines, not this
+/// artifact (L25).
 pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnostic, safety_mode: []const u8) std.mem.Allocator.Error![]u8 {
     const artifact = DiagnosticsArtifact{ .safety_mode = safety_mode, .unsupported = diagnostics };
     return std.json.Stringify.valueAlloc(arena, artifact, .{ .whitespace = .indent_2 });
+}
+
+/// The human-facing stderr `note[...]` line for one out-of-report AIR diagnostic
+/// (carries `source_mapping` and the active safety mode) -- the CLI surface for
+/// unsupported operators. Kept here (not inline in cli.zig) so the note format is
+/// directly testable rather than only reachable end-to-end through the binary (L26).
+pub fn renderDiagnosticNote(arena: std.mem.Allocator, d: Diagnostic) std.mem.Allocator.Error![]u8 {
+    return std.fmt.allocPrint(arena, "note[{s}]: {s} at {s}:{d}..{d} source_mapping={s} mode={s} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.source_mapping, d.safety_mode, d.reason });
 }

@@ -2,8 +2,9 @@
 //
 // Mutator-spec doctest validation (docs/MUTATOR_SPEC.md). It treats a
 // `zig before` + `zig after` documentation pair as an executable contract: the
-// documented `after` must be exactly what a stable Phase 1 AST mutator produces
-// from `before`. It reuses the real candidate generation (no test execution, no
+// documented `after` must be exactly what a stable AST mutator produces from
+// `before` (all stable operators, Phase 1 and Phase 2). It reuses the real
+// candidate generation (no test execution, no
 // mutation against assertions) and reports documentation drift when the docs no
 // longer match mutator output. Pure and deterministic.
 const std = @import("std");
@@ -13,6 +14,10 @@ const arithmetic = @import("../mutators/arithmetic.zig");
 const comparison = @import("../mutators/comparison.zig");
 const logical = @import("../mutators/logical.zig");
 const boolean = @import("../mutators/boolean.zig");
+const optional = @import("../mutators/optional.zig");
+const error_path = @import("../mutators/error_path.zig");
+const integer_boundary = @import("../mutators/integer_boundary.zig");
+const loop_boundary = @import("../mutators/loop_boundary.zig");
 const block = @import("block.zig");
 const parser = @import("parser.zig");
 const extractor = @import("extractor.zig");
@@ -55,8 +60,8 @@ const CandidateSet = union(enum) {
     invalid_candidate,
 };
 
-/// Generate the stable Phase 1 candidate set for a parseable Zig snippet. An
-/// unparseable snippet yields no candidates.
+/// Generate the candidate set from ALL stable AST mutators (Phase 1 and Phase 2)
+/// for a parseable Zig snippet. An unparseable snippet yields no candidates.
 pub fn candidates(arena: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]mutant.Mutant {
     return switch (try candidatesOrParseError(arena, source)) {
         .ok => |items| items,
@@ -70,10 +75,18 @@ fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.
     if (!parsed.ok()) return .parse_error;
     var collector = ast_backend.Collector.init(arena);
     const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
+    // ALL stable AST collectors, matching the real pipeline (run_command.zig,
+    // list_mutants_command.zig). Wiring only the Phase-1 four would make
+    // validateDoc falsely report any documented Phase-2 before/after example as
+    // drift -- "not produced by any stable mutator" -- even though it is (L24).
     try arithmetic.collect(&collector, parsed, doctest_file, test_ranges);
     try comparison.collect(&collector, parsed, doctest_file, test_ranges);
     try logical.collect(&collector, parsed, doctest_file, test_ranges);
     try boolean.collect(&collector, parsed, doctest_file, test_ranges);
+    try optional.collect(&collector, parsed, doctest_file, test_ranges);
+    try error_path.collect(&collector, parsed, doctest_file, test_ranges);
+    try integer_boundary.collect(&collector, parsed, doctest_file, test_ranges);
+    try loop_boundary.collect(&collector, parsed, doctest_file, test_ranges);
     if (collector.invalidCount() > 0) return .invalid_candidate;
     return .{ .ok = try collector.finish() };
 }
@@ -180,10 +193,15 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
     return null;
 }
 
-fn lineOfRef(ref: []const u8) u32 {
+pub fn lineOfRef(ref: []const u8) u32 {
+    // ref is "file:line[:label]"; take the digit run after the first ':'.
     const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var i = first + 1;
-    var n: u32 = 0;
-    while (i < ref.len and ref[i] >= '0' and ref[i] <= '9') : (i += 1) n = n * 10 + (ref[i] - '0');
-    return n;
+    var end = first + 1;
+    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
+    // Parse with a checked routine, not a hand-rolled `n = n*10 + d` accumulator:
+    // an out-of-range or overlong numeric ref resolves to line 0 (which matches no
+    // real 1-based anchor) rather than a `panic: integer overflow` (Debug/ReleaseSafe)
+    // or a wrapped, wrong line (ReleaseFast). This third copy is brought to parity with
+    // the already-hardened lineOfRef in src/doctest_command.zig (M4 / S17).
+    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
 }

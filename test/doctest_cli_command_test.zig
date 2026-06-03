@@ -186,6 +186,57 @@ test "--case selects by durable id and by anchor-line source ref; expectation li
     try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = exp_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
 }
 
+test "the `unordered` json block tag wires through to the json_unordered matcher mode (M6)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const block = zentinel.doctest.block;
+    const parser = zentinel.doctest.parser;
+    const matcher = zentinel.doctest.matcher;
+
+    // 1. The tag is recognized (it returned null before, so the parser rejected
+    //    `unordered` as an unsupported tag).
+    try expectEqual(@as(?block.MatchMode, .unordered), block.matchModeFromToken("unordered"));
+
+    // 2. End-to-end through the parser: a json expectation block tagged
+    //    `unordered` is a VALID doctest block carrying match_mode = .unordered.
+    const src =
+        \\# doc
+        \\
+        \\```json expected unordered
+        \\[1, 2, 3]
+        \\```
+        \\
+    ;
+    const parsed = try parser.parse(a, "d.md", src);
+    var json_block: ?block.Block = null;
+    for (parsed.blocks) |b| {
+        if (b.language == .json and b.kind == .expected) json_block = b;
+    }
+    try expect(json_block != null);
+    try expectEqual(block.MatchMode.unordered, json_block.?.match_mode);
+    try expect(json_block.?.is_doctest);
+
+    // 3. matchModeFor maps it to the json_unordered matcher mode -- not the
+    //    exact-order .json that the `else` branch produced before -- so the
+    //    already-implemented order-insensitive array match is finally reachable.
+    try expectEqual(matcher.Mode.json_unordered, dc.matchModeFor(json_block.?));
+}
+
+test "--case with an out-of-range numeric ref yields CaseNotFound, not an overflow panic (M4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const src = try readFixture(a, "test/fixtures/doctest/cli/select.md");
+    // A line number past maxInt(u32): the hand-rolled `n = n*10 + d` accumulator
+    // overflowed, aborting the whole process with `panic: integer overflow`
+    // (Debug/ReleaseSafe) or wrapping to a wrong line (ReleaseFast). A malformed
+    // or typo'd `--case` ref must deterministically resolve to nothing (M4).
+    const overflow_ref = "test/fixtures/doctest/cli/select.md:99999999999";
+    try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = overflow_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
+}
+
 test "property: --file selection preserves case ordering by anchor line" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -211,22 +262,48 @@ test "property: repeated runs are equivalent except normalized observation metad
     try expectEqualStrings(j1, j2);
 }
 
-test "property: --no-color does not change doctest output" {
+test "property: --no-color is accepted as a pure no-op and never changes doctest output (L20)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
-    const colored = try runFile(a, "test/fixtures/doctest/cli/fail.md", .{ .file = "x", .no_color = false });
-    const plain = try runFile(a, "test/fixtures/doctest/cli/fail.md", .{ .file = "x", .no_color = true });
-    const t1 = try dc.renderText(a, colored.report);
-    const t2 = try dc.renderText(a, plain.report);
-    try expectEqualStrings(t1, t2);
+    // --no-color must parse WITHOUT error (it is accepted for CLI uniformity), and
+    // since doctest renderers emit no ANSI color it stores nothing -- so the run
+    // with the flag yields byte-identical output to the run without it (L20).
+    const with = try dc.parseArgs(&.{ "--file", "x", "--no-color" });
+    const without = try dc.parseArgs(&.{ "--file", "x" });
+    const colored = try runFile(a, "test/fixtures/doctest/cli/fail.md", with);
+    const plain = try runFile(a, "test/fixtures/doctest/cli/fail.md", without);
+    try expectEqualStrings(try dc.renderText(a, colored.report), try dc.renderText(a, plain.report));
 }
 
 test "doctest parseArgs rejects unsupported subcommands and unknown options" {
     try std.testing.expectError(error.UnsupportedSubcommand, dc.parseArgs(&.{"explain"}));
     try std.testing.expectError(error.UnknownOption, dc.parseArgs(&.{"--mutate"}));
     try std.testing.expectError(error.InvalidFormat, dc.parseArgs(&.{ "--format", "yaml" }));
+    // --no-color is accepted (no error), parsed alongside the real options, and
+    // stores nothing -- it is a pure no-op (L20).
     const ok = try dc.parseArgs(&.{ "--file", "docs/CLI_SPEC.md", "--format", "json", "--no-color" });
     try expectEqual(dc.Format.json, ok.format);
-    try expect(ok.no_color);
+    try expectEqualStrings("docs/CLI_SPEC.md", ok.file.?);
+}
+
+test "doctest route: a named AI subcommand wins over a later --mutate flag (L22)" {
+    // A recognized subcommand in the first slot routes to its AI flow even when
+    // `--mutate` appears later -- otherwise the flag scan hijacks dispatch and
+    // rejects e.g. `suggest` as a bogus mutate option instead of running it (L22).
+    try expectEqual(dc.Route.suggest, dc.route(&.{ "suggest", "docs/CLI_SPEC.md", "--mutate" }));
+    try expectEqual(dc.Route.explain, dc.route(&.{ "explain", "doc.md:1", "--mutate" }));
+    try expectEqual(dc.Route.review_snapshot, dc.route(&.{ "review-snapshot", "doc.md:1", "--mutate" }));
+    try expectEqual(dc.Route.suggest_missing, dc.route(&.{ "suggest-missing", "--mutate" }));
+    try expectEqual(dc.Route.explain_survivor, dc.route(&.{ "explain-survivor", "m_x", "--mutate" }));
+
+    // The experimental flag mode still wins when no named subcommand is first:
+    // `--mutate` selects mutate whether first or later in the (subcommand-free) args.
+    try expectEqual(dc.Route.mutate, dc.route(&.{"--mutate"}));
+    try expectEqual(dc.Route.mutate, dc.route(&.{ "--mutate", "--file", "docs/X.md" }));
+    try expectEqual(dc.Route.mutate, dc.route(&.{ "--file", "docs/X.md", "--mutate" }));
+
+    // No subcommand and no --mutate -> ordinary doctest run (parseArgs path).
+    try expectEqual(dc.Route.parse, dc.route(&.{ "--file", "docs/X.md", "--format", "json" }));
+    try expectEqual(dc.Route.parse, dc.route(&.{}));
 }

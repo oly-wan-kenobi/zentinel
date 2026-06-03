@@ -222,6 +222,90 @@ test "a bare non-zero exit with no compile diagnostic stays test_failure" {
     try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
 }
 
+// --- `zig build test` summary form (H4) ------------------------------------
+//
+// The default configured command is `zig build test`, which uses the `--listen=-`
+// build protocol. Ground-truth capture on pinned Zig 0.16: the per-binary
+// `N passed; M skipped; K failed.` summary is NEVER forwarded under `zig build`;
+// instead the aggregated `Build Summary: .../.. tests passed (K failed|crashed)`
+// line carries the result. A runtime test failure can also legitimately print a
+// compiler-shaped `path:line:col: error:` line in its asserted output (any
+// parser/lint/diagnostic test). With only the old `passed;` + `: error: ` markers
+// such a genuine KILL was mis-bucketed as compile_error, deflating the score.
+
+// Faithful excerpt of real `zig build test` stderr for a RUNTIME assertion
+// failure whose asserted text contains `path:line:col: error:` (captured Zig
+// 0.16, --listen=-): no `passed;`, a `: error: ` token, a `tests passed` clause.
+const zig_build_test_runtime_failure_with_diagnostic =
+    \\test
+    \\+- run test 0 pass, 1 fail (1 total)
+    \\error: 'main.test.asserts on a compiler-style diagnostic string' failed:
+    \\       ====== expected this output: =========
+    \\       src/foo.zig:3:5: warning: nope
+    \\       ======== instead found this: =========
+    \\       src/foo.zig:3:5: error: expected type 'u8'
+    \\       ======================================
+    \\Build Summary: 1/3 steps succeeded (1 failed); 0/1 tests passed (1 failed)
+;
+
+// Faithful excerpt of real `zig build test` stderr for a runtime PANIC/crash
+// (captured Zig 0.16): the `tests passed` clause reports `1 crashed`. The test
+// also printed a compiler-shaped `: error: ` line before panicking, so this
+// exercises the same override path -- the crash is still a KILL, not a compile.
+const zig_build_test_runtime_crash =
+    \\test
+    \\+- run test 0 pass, 1 crash (1 total)
+    \\src/x.zig:1:1: error: diagnostic printed before the panic
+    \\thread panic: index out of bounds: index 6, len 2
+    \\Build Summary: 1/3 steps succeeded (1 failed); 0/1 tests passed (1 crashed)
+;
+
+// Faithful excerpt of real `zig build test` stderr for a COMPILE failure
+// (captured Zig 0.16): a `: error: ` diagnostic and a Build Summary with NO
+// `tests passed` clause, because no test binary ran.
+const zig_build_test_compile_failure =
+    \\test
+    \\+- run test
+    \\   +- compile test Debug native 1 errors
+    \\src/main.zig:3:19: error: use of undeclared identifier 'gone_identifier'
+    \\    const x: u8 = gone_identifier;
+    \\                  ^~~~~~~~~~~~~~~
+    \\error: 1 compilation errors
+    \\Build Summary: 0/3 steps succeeded (1 failed)
+;
+
+test "a zig build test runtime failure with a diagnostic-shaped assertion stays test_failure (H4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The `tests passed` aggregate is decisive evidence the binary compiled and
+    // ran, so the `: error: ` in the asserted text must NOT win: this is a KILL.
+    const cr = try classifyOne(a, outcome(1, false, false, "", zig_build_test_runtime_failure_with_diagnostic));
+    try expectEqual(report.CommandStatus.failed, cr.status);
+    try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
+}
+
+test "a zig build test runtime panic stays test_failure, not compile_error (H4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const cr = try classifyOne(a, outcome(1, false, false, "", zig_build_test_runtime_crash));
+    try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
+}
+
+test "a zig build test compile failure stays compile_error (H4)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Guard the other direction: a genuine compile failure (no `tests passed`
+    // clause) must remain compile_error so the fix does not over-credit kills.
+    const cr = try classifyOne(a, outcome(1, false, false, "", zig_build_test_compile_failure));
+    try expectEqual(report.FailureKind.compile_error, cr.failure_kind);
+}
+
 // --- Truthful minimal environment (task 112) -------------------------------
 //
 // The report labels every command `environment_policy = minimal`; the real
@@ -259,6 +343,32 @@ test "minimalEnviron restricts the command environment to the documented allowli
     // A non-allowlisted parent variable is dropped -- the inherited developer
     // environment does NOT pass through, so `environment_policy = minimal` is true.
     try expect(minimal.get("ZNTL_SECRET") == null);
-    // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale keys.
-    try expectEqual(@as(usize, 4), minimal.keys().len);
+    // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale
+    // keys plus the forced per-workspace local cache (ZIG_LOCAL_CACHE_DIR, L10).
+    try expectEqual(@as(usize, 5), minimal.keys().len);
+    try expectEqualStrings("./.zig-cache", minimal.get("ZIG_LOCAL_CACHE_DIR").?);
+}
+
+test "minimalEnviron forces a cwd-relative ZIG_LOCAL_CACHE_DIR, overriding a host absolute value (L10)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var parent = std.process.Environ.Map.init(a);
+    defer parent.deinit();
+    try parent.put("PATH", "/usr/bin");
+    // A host ZIG_LOCAL_CACHE_DIR pointing at one shared absolute dir would, if
+    // forwarded, route EVERY parallel worker's local Zig cache into that single
+    // directory -- violating the documented per-worker isolation contract
+    // (docs/SANDBOX_SECURITY.md, docs/PERFORMANCE_STRATEGY.md). The minimal env must
+    // OVERRIDE it with the cwd-relative workspace cache so each command's own
+    // working directory (= its per-mutant workspace) owns its `.zig-cache` (L10).
+    try parent.put("ZIG_LOCAL_CACHE_DIR", "/tmp/shared-zig-cache");
+
+    var minimal = try runner.minimalEnviron(a, &parent);
+    defer minimal.deinit();
+
+    // Overridden to the cwd-relative cache, NOT the forwarded host absolute value.
+    try expectEqualStrings("./.zig-cache", minimal.get("ZIG_LOCAL_CACHE_DIR").?);
+    try expect(!std.mem.eql(u8, minimal.get("ZIG_LOCAL_CACHE_DIR").?, "/tmp/shared-zig-cache"));
 }

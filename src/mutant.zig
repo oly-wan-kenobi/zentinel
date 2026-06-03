@@ -107,6 +107,58 @@ pub const Mutant = struct {
     }
 };
 
+fn isMutantSpace(c: u8) bool {
+    return c == ' ' or c == '\t' or c == '\r' or c == '\n';
+}
+
+/// True when `a` equals `b` ignoring ALL whitespace bytes in either.
+fn eqlIgnoringWhitespace(a: []const u8, b: []const u8) bool {
+    var i: usize = 0;
+    var j: usize = 0;
+    while (true) {
+        while (i < a.len and isMutantSpace(a[i])) i += 1;
+        while (j < b.len and isMutantSpace(b[j])) j += 1;
+        if (i >= a.len or j >= b.len) return i >= a.len and j >= b.len;
+        if (a[i] != b[j]) return false;
+        i += 1;
+        j += 1;
+    }
+}
+
+/// Strip a matched pair of outer parentheses that wraps the WHOLE expression
+/// (e.g. `(unreachable)` -> `unreachable`), repeatedly; leaves `(a) + (b)` alone.
+fn stripWrappingParens(s: []const u8) []const u8 {
+    var t = std.mem.trim(u8, s, " \t\r\n");
+    while (t.len >= 2 and t[0] == '(' and t[t.len - 1] == ')') {
+        var depth: usize = 0;
+        var wraps_whole = false;
+        for (t, 0..) |c, idx| {
+            if (c == '(') {
+                depth += 1;
+            } else if (c == ')') {
+                depth -= 1;
+                if (depth == 0) {
+                    wraps_whole = idx == t.len - 1;
+                    break;
+                }
+            }
+        }
+        if (!wraps_whole) break;
+        t = std.mem.trim(u8, t[1 .. t.len - 1], " \t\r\n");
+    }
+    return t;
+}
+
+/// Whether `original` is already semantically `canonical` -- ignoring surrounding
+/// whitespace, a wrapping paren pair, and all interior whitespace. Phase-2
+/// mutators use this to skip re-mutating non-canonically-spelled source (e.g.
+/// `errdefer  {}`, `catch (unreachable)`, `orelse (unreachable)`) that would
+/// otherwise emit a pure-formatting no-op -- a guaranteed-equivalent survivor
+/// that pollutes the surviving set and depresses the mutation score (L6).
+pub fn equivalentToCanonical(original: []const u8, canonical: []const u8) bool {
+    return eqlIgnoringWhitespace(stripWrappingParens(original), canonical);
+}
+
 /// Lowercase Crockford base32 alphabet (excludes i, l, o, u).
 const crockford_lower = "0123456789abcdefghjkmnpqrstvwxyz";
 

@@ -20,14 +20,14 @@ Each failure mode has:
 
 **F-001. Zig executable missing**
 - *Phase.* Zig version.
-- *Expected outcome.* Fatal for commands that require Zig. `zentinel check` exits `2` before project analysis with `ZNTL_ZIG_NOT_FOUND`; `zentinel version` records this as non-fatal environment status on stderr while still exiting `0`.
+- *Expected outcome.* Fatal for the commands that require the external Zig binary — `check`, `run`, and `doctest` (see `CLI_SPEC.md` § External Zig binary requirement for the authoritative grouping); `list-mutants` (embedded `std.zig.Ast` parser) and `init` do not need it. `zentinel check` exits `2` before project analysis with `ZNTL_ZIG_NOT_FOUND`; `zentinel version` records this as non-fatal environment status on stderr while still exiting `0`.
 - *Code/status.* `ZNTL_ZIG_NOT_FOUND`.
 - *Invariants stressed.* I-006, I-014.
 - *Required test surface.* Version-policy test with stubbed missing Zig.
 
 **F-002. Unsupported Zig version**
 - *Phase.* Zig version.
-- *Expected outcome.* Clear diagnostic explaining the pinned Zig `0.16.0` policy. Commands that require Zig fail before project analysis; `zentinel version` reports the mismatch as non-fatal environment status.
+- *Expected outcome.* Clear diagnostic explaining the pinned Zig `0.16.0` policy. The commands that require the external Zig binary (`check`, `run`, `doctest`) fail before project analysis; `zentinel version` reports the mismatch as non-fatal environment status.
 - *Code/status.* `ZNTL_ZIG_UNSUPPORTED_VERSION`.
 - *Invariants stressed.* I-006.
 - *Required test surface.* Version-policy test with stubbed older version.

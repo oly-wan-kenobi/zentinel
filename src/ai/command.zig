@@ -101,6 +101,9 @@ pub const Settings = struct {
     project_name: []const u8 = "zentinel",
     zig_version: []const u8 = "0.16.0",
     zentinel_version: []const u8 = "0.0.0",
+    /// Configured source-context window (`ai.source_context_lines`): lines before/
+    /// after the mutation declared in the AI context. Default matches config (L43).
+    source_context_lines: u32 = 4,
 };
 
 /// Resolve the effective provider mode from normalized config plus an optional
@@ -361,6 +364,14 @@ fn commandsFromResult(
             return out;
         }
     }
+    // A non-running mutant (invalid/skipped) legitimately executed no command, so
+    // a real report serializes `"commands": []`. Return an empty command set so
+    // explain/suggest can still describe why the mutant did not run, instead of
+    // misreporting a present, resolved report as AiReportNotFound (L1). A RUNNING
+    // status (survived/killed/...) with no structured command evidence remains a
+    // malformed report and is still rejected.
+    const result_status = s(get(result, "status"));
+    if (eqStr(result_status, "invalid") or eqStr(result_status, "skipped")) return &.{};
     return error.AiReportNotFound;
 }
 
@@ -427,6 +438,12 @@ fn buildContext(
     const m_file = try context.redactField(arena, s(get(mutant, "file")), patterns, &log);
     const m_original = try context.redactField(arena, s(get(mutant, "original")), patterns, &log);
     const m_replacement = try context.redactField(arena, s(get(mutant, "replacement")), patterns, &log);
+    // The mutant id and operator are free-form report strings under full control
+    // of an untrusted `--input-report`, so they pass through the same redaction as
+    // every other field rather than reaching the provider verbatim (M9). A
+    // legitimate id/operator carries no path or secret, so it is unchanged.
+    const m_id = try context.redactField(arena, s(get(mutant, "id")), patterns, &log);
+    const m_operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &log);
     const m_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutant, "diff")), patterns, &log);
     const project_name = try context.redactField(arena, settings.project_name, patterns, &log);
 
@@ -445,6 +462,13 @@ fn buildContext(
     const selection = get(mutant, "test_selection");
     const project_zig = try context.redactField(arena, sOr(getO(run_info, "zig_version"), settings.zig_version), patterns, &log);
     const project_zentinel = try context.redactField(arena, sOr(getO(run_info, "zentinel_version"), settings.zentinel_version), patterns, &log);
+    // The selection strategy is a free-form string on the read side of an untrusted
+    // `--input-report` (parsed as a raw JSON string, not the typed Strategy enum),
+    // so it passes through the same logged redaction as every other field rather
+    // than reaching the provider verbatim (L29). A legitimate strategy carries no
+    // path or secret, so it is unchanged. Computed here (not inline in the literal)
+    // so its redactions land in `log` before privacy.redactions_applied reads it.
+    const selection_reason = try context.redactField(arena, sOr(getO(selection, "strategy"), "same_file_then_package"), patterns, &log);
 
     return context.Context{
         .schema_version = "zentinel.ai.context.v1",
@@ -463,11 +487,11 @@ fn buildContext(
             .zentinel_version = project_zentinel,
         },
         .mutant = .{
-            .id = s(get(mutant, "id")),
+            .id = m_id,
             .display_id = try reportU32(get(mutant, "display_id")),
             .backend = sOr(get(mutant, "backend"), "ast"),
             .backend_stability = sOr(get(mutant, "backend_stability"), "stable"),
-            .operator = s(get(mutant, "operator")),
+            .operator = m_operator,
             .operator_stability = sOr(get(mutant, "operator_stability"), "stable"),
             .file = m_file,
             .span = try readSpan(get(mutant, "span")),
@@ -486,22 +510,25 @@ fn buildContext(
             .skip_reason = if (eqStr(rstatus, "skipped")) try context.redactField(arena, sOr(get(result, "skip_reason"), "result skipped"), patterns, &log) else null,
         },
         .source_context = .{
+            // The configured window (ai.source_context_lines) is declared so the
+            // provider knows the requested before/after budget; the policy stays
+            // "none" so the source snippet itself is still withheld (L43).
             .policy = "none",
             .language = "zig",
-            .before_lines = 0,
-            .after_lines = 0,
+            .before_lines = settings.source_context_lines,
+            .after_lines = settings.source_context_lines,
             .snippet = &.{},
             .symbols = &.{},
         },
         .test_context = .{
-            .selection_reason = sOr(getO(selection, "strategy"), "same_file_then_package"),
+            .selection_reason = selection_reason,
             .selected_tests = &.{},
             .baseline_status = baselineStatusFor(report),
             .same_file_tests_excluded_from_mutation = true,
         },
         .operator = .{
-            .name = s(get(mutant, "operator")),
-            .category = categoryForOperator(s(get(mutant, "operator"))),
+            .name = m_operator,
+            .category = categoryForOperator(m_operator),
             .equivalent_risks = &.{},
             .suggested_test_focus = &.{},
         },
@@ -643,14 +670,17 @@ fn categoryWord(classification: []const u8) []const u8 {
 }
 
 fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
-    const operator = s(get(mutant, "operator"));
+    // Redact every report field the stub echoes into its advisory text -- file,
+    // operator, and id -- so the rendered output (stdout) never leaks an absolute
+    // path or secret-looking token from an untrusted report (F-4, M9). A
+    // legitimate operator carries no path/secret, so classification is unchanged.
+    var sink = context.RedactionLog.init(arena);
+    const operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &sink);
+    const id = try context.redactField(arena, s(get(mutant, "id")), patterns, &sink);
+    const file = try context.redactField(arena, s(get(mutant, "file")), patterns, &sink);
     const status = s(getO(get(mutant, "result"), "status"));
     const classification = mapClassification(operator, status);
     const word = categoryWord(classification);
-    // Redact the file path the stub echoes into its advisory text so the rendered
-    // output (stdout) never leaks an absolute path or secret-looking token (F-4).
-    var sink = context.RedactionLog.init(arena);
-    const file = try context.redactField(arena, s(get(mutant, "file")), patterns, &sink);
     switch (flow) {
         .explain => {
             const confidence: []const u8 = if (eqStr(classification, "unclear")) "unclear" else "medium";
@@ -659,7 +689,7 @@ fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Val
             return .{ .explain = .{
                 .classification = classification,
                 .confidence = confidence,
-                .summary = try std.fmt.allocPrint(arena, "Mutant {s} in {s} ({s}) is {s}; the stub flags a {s} gap.", .{ s(get(mutant, "id")), file, operator, status, word }),
+                .summary = try std.fmt.allocPrint(arena, "Mutant {s} in {s} ({s}) is {s}; the stub flags a {s} gap.", .{ id, file, operator, status, word }),
                 .evidence_refs = refs,
                 .next_action = try std.fmt.allocPrint(arena, "Add a test that exercises the {s} case in {s}.", .{ word, file }),
             } };
@@ -911,6 +941,58 @@ fn renderText(arena: std.mem.Allocator, response: Response) ![]u8 {
 // --- Top-level command run -------------------------------------------------
 
 pub const Format = enum { text, json };
+
+/// The AI CLI options shared by `zentinel ai <cmd>`, `zentinel doctest suggest`,
+/// and `zentinel doctest review-survivors`: `--ai-provider`, `--input-report`,
+/// and `--format`. Parsed in one place so the three command loops cannot drift
+/// (L16); each command still owns its positional args and command-specific flags
+/// (e.g. doctest's `--file`).
+pub const SharedOptions = struct {
+    provider_override: ?Mode = null,
+    input_report: ?[]const u8 = null,
+    format: Format = .text,
+};
+
+/// Outcome of trying to consume a shared AI option at `args[i.*]`.
+pub const SharedOptionResult = union(enum) {
+    /// A shared option (and its value) was parsed; `i` advanced past the value.
+    consumed,
+    /// `args[i.*]` is not a shared option; the caller handles it (positional, a
+    /// command-specific flag, or an unknown-option error). `i` is unchanged.
+    not_shared,
+    /// A missing/invalid value; the caller surfaces `detail` as a usage error.
+    err: []const u8,
+};
+
+/// Parse the shared AI option at `args[i.*]` into `out`, advancing `i` past any
+/// consumed value. Returns `.not_shared` (leaving `i` untouched) when the arg is
+/// not one of the three shared options. The error strings are owned here so all
+/// three command loops report them identically (L16).
+pub fn parseSharedOption(args: []const []const u8, i: *usize, out: *SharedOptions) SharedOptionResult {
+    const a = args[i.*];
+    if (std.mem.eql(u8, a, "--ai-provider")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--ai-provider requires a value" };
+        out.provider_override = provider.modeFromName(args[i.*]) orelse
+            return .{ .err = "--ai-provider must be disabled|stub|local|remote" };
+        return .consumed;
+    } else if (std.mem.eql(u8, a, "--input-report")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--input-report requires a value" };
+        out.input_report = args[i.*];
+        return .consumed;
+    } else if (std.mem.eql(u8, a, "--format")) {
+        i.* += 1;
+        if (i.* >= args.len) return .{ .err = "--format requires a value" };
+        if (std.mem.eql(u8, args[i.*], "text")) {
+            out.format = .text;
+        } else if (std.mem.eql(u8, args[i.*], "json")) {
+            out.format = .json;
+        } else return .{ .err = "--format must be 'text' or 'json'" };
+        return .consumed;
+    }
+    return .not_shared;
+}
 
 pub const Outcome = struct {
     exit_code: u8,

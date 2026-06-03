@@ -3,9 +3,14 @@
 // Boolean literal AST mutator (docs/MUTATOR_SPEC.md): `boolean_literal` swaps
 // `true`<->`false`. In Zig `true`/`false` are identifier expressions, so this
 // recognizes `.identifier` nodes whose token text is exactly `true`/`false`.
-// That excludes enum literals like `.true` (a different node tag) and literals
-// inside comments or strings (which are not identifier nodes). Pure: emits
-// candidates through the shared collector.
+// That excludes enum literals like `.true` (a `field_access` node) and literals
+// inside comments or strings (which are not identifier nodes). It ALSO skips an
+// enum field DECLARATION named `true`/`false` (e.g. `enum { true, false }`):
+// MUTATOR_SPEC.md forbids mutating field names, and such a member parses as a
+// tuple-like `container_field_*` whose `type_expr` is the `true`/`false`
+// identifier -- mutating it would emit `enum { false, false }`, a guaranteed
+// `duplicate enum member name` compile_error rather than a real boolean swap
+// (L23). Pure: emits candidates through the shared collector.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
@@ -24,6 +29,29 @@ fn replacementFor(text: []const u8) ?[]const u8 {
     return null;
 }
 
+/// True when `node` (a `true`/`false` `.identifier`) is an enum/struct/union
+/// field NAME rather than a boolean VALUE. A value-less member like
+/// `enum { true, false }` parses as a tuple-like `container_field_*` whose
+/// `type_expr` IS this identifier node; mutating it forbidden (MUTATOR_SPEC.md)
+/// and yields a guaranteed `duplicate member` compile_error (L23). A boolean
+/// value is never a container-field type expression, so this never skips a real
+/// literal.
+fn isContainerFieldName(tree: std.zig.Ast, node: std.zig.Ast.Node.Index) bool {
+    const tags = tree.nodes.items(.tag);
+    for (tags, 0..) |tag, i| {
+        switch (tag) {
+            .container_field, .container_field_init, .container_field_align => {
+                const cf = tree.fullContainerField(@enumFromInt(@as(u32, @intCast(i)))) orelse continue;
+                if (cf.ast.tuple_like) {
+                    if (cf.ast.type_expr.unwrap()) |te| if (te == node) return true;
+                }
+            },
+            else => {},
+        }
+    }
+    return false;
+}
+
 pub fn collect(
     collector: *ast_backend.Collector,
     parsed: ast_backend.Parsed,
@@ -39,6 +67,10 @@ pub fn collect(
         const replacement = replacementFor(text) orelse continue;
         const start = parsed.tree.tokenStart(tok);
         if (ast_backend.inTestBody(test_ranges, start)) continue;
+        // A `true`/`false` enum field DECLARATION is a forbidden context: mutating
+        // the name would emit a guaranteed `duplicate enum member` compile_error,
+        // not a real boolean swap (L23).
+        if (isContainerFieldName(parsed.tree, node)) continue;
         const end = start + @as(u32, @intCast(text.len));
         const start_pos = source_map.locate(parsed.tree.source, start) orelse continue;
         const end_pos = source_map.locate(parsed.tree.source, end) orelse continue;

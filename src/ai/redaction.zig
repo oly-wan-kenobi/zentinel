@@ -87,8 +87,19 @@ pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.me
     var changed = false;
     var i: usize = 0;
     while (i < text.len) {
-        const at_boundary = i == 0 or !isPathByte(text[i - 1]);
-        if (text[i] == '/' and at_boundary) {
+        // A `/` begins an absolute path at a token boundary: start of text, after
+        // a non-path byte, OR after a `:`. The `:` case catches `label:/abs` and
+        // `scheme://abs` URIs (e.g. file://) whose path the old rule -- which
+        // counted `:` as a path byte -- left verbatim, leaking developer/home
+        // paths to the AI provider (M8).
+        const prev_is_colon = i > 0 and text[i - 1] == ':';
+        const at_boundary = i == 0 or !isPathByte(text[i - 1]) or prev_is_colon;
+        // A `//`-led run is a Zig comment marker (`//`, `///`, `//!`), not an
+        // absolute path, so preserve it (M3) -- EXCEPT when the `//` is glued to a
+        // preceding `:` as a `scheme://` separator, where it introduces a URI path
+        // to redact (M8).
+        const comment_marker = i + 1 < text.len and text[i + 1] == '/' and !prev_is_colon;
+        if (text[i] == '/' and at_boundary and !comment_marker) {
             var end = i + 1;
             var inner_slashes: usize = 0;
             const quote: ?u8 = if (i > 0 and isQuote(text[i - 1])) text[i - 1] else null;

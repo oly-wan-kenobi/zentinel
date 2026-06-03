@@ -2,7 +2,11 @@
 const std = @import("std");
 const zentinel = @import("zentinel");
 
-const config_path = "zentinel.toml";
+// Derive the adapter's config path from the core's single source of truth
+// (`zentinel.config_default_path`) rather than a private duplicate literal, so
+// `init`'s write path and the config-existence probe can never silently diverge
+// from the path the rest of the system resolves config from (S9).
+const config_path = zentinel.config_default_path;
 const read_limit = std.Io.Limit.limited(1 << 20);
 
 /// Thin presentation adapter. Pure decision logic lives in the zentinel core:
@@ -225,38 +229,16 @@ fn workspaceRunFn(ctx: *anyopaque, argv: []const []const u8) zentinel.runner.Raw
     return execProcess(w.rt, argv, .{ .dir = w.dir });
 }
 
-fn copyExcluded(path: []const u8) bool {
-    return std.mem.startsWith(u8, path, ".zig-cache") or
-        std.mem.startsWith(u8, path, "zig-out") or
-        std.mem.startsWith(u8, path, ".git");
-}
-
-const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
+const Workspace = zentinel.worker_pool.Workspace;
 
 /// Build an isolated per-mutant workspace under the zentinel-controlled cache
 /// location: copy the project tree (minus caches/VCS), then overwrite the
 /// mutated file with the patched bytes. Isolated by run + content-addressed
-/// mutant id, so the developer working tree is never modified.
+/// mutant id, so the developer working tree is never modified. The workspace
+/// lifecycle (creation + failure-path unwind, L9) lives in worker_pool beside
+/// the workspace path helpers; on success the caller owns `ws.dir`/`ws.rel`.
 fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
-    // Content-addressed, per-mutant root so concurrent workers never share a
-    // writable workspace, local .zig-cache, or zig-out (tasks/050).
-    const rel = try zentinel.worker_pool.workspaceRoot(rt.gpa, rt.run_id, m.id);
-    if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, rel)) return error.WorkspaceCreateFailed;
-    try rt.root_dir.createDirPath(rt.io, rel);
-    var dir = try rt.root_dir.openDir(rt.io, rel, .{});
-    errdefer dir.close(rt.io);
-
-    var walker = try rt.root_dir.walk(rt.gpa);
-    defer walker.deinit();
-    while (try walker.next(rt.io)) |entry| {
-        if (entry.kind != .file) continue;
-        if (copyExcluded(entry.path)) continue;
-        if (zentinel.config.pathEscapesRoot(rt.io, rt.root_dir, entry.path)) return error.WorkspaceCreateFailed;
-        try rt.root_dir.copyFile(entry.path, dir, entry.path, rt.io, .{ .make_path = true });
-    }
-    if (zentinel.config.pathEscapesRoot(rt.io, dir, m.file)) return error.WorkspaceCreateFailed;
-    try dir.writeFile(rt.io, .{ .sub_path = m.file, .data = patched });
-    return .{ .rel = rel, .dir = dir };
+    return zentinel.worker_pool.createMutantWorkspace(rt.io, rt.gpa, rt.root_dir, rt.run_id, m.id, m.file, patched, &rt.cleanup_failures);
 }
 
 fn mutantRunFn(
@@ -312,15 +294,7 @@ fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, z
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
     const run_id = try std.fmt.allocPrint(gpa, "run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
 
-    const secs: u64 = @intCast(@max(0, @divTrunc(ts, 1000)));
-    const es = std.time.epoch.EpochSeconds{ .secs = secs };
-    const ed = es.getEpochDay();
-    const yd = ed.calculateYearDay();
-    const md = yd.calculateMonthDay();
-    const day = es.getDaySeconds();
-    const started_at = try std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
-        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
-    });
+    const started_at = try zentinel.report.isoTimestamp(gpa, ts);
 
     var digest: [32]u8 = undefined;
     std.crypto.hash.sha2.Sha256.hash(cfg_bytes, &digest, .{});
@@ -434,6 +408,8 @@ fn runRun(
         const detail = switch (err) {
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
+            error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
+            error.ConflictingOptions => "--verbose and --quiet are mutually exclusive",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
@@ -540,7 +516,20 @@ fn runRun(
         error.OutOfMemory => return err,
     };
 
-    try zentinel.emitCleanupWarningIfNeeded(gpa, rt.cleanup_failures.load(.monotonic), stderr);
+    // Remove the per-run workspace container that setupWorkspace materialized via
+    // createDirPath (.zig-cache/zentinel/workspaces/{run_id}). mutantRunSpecsFn
+    // deletes each content-addressed per-mutant leaf, but nothing removed the
+    // {run_id} parent, so every invocation leaked one stale `run_<x>` dir under
+    // the controlled cache namespace. Best-effort and counted like the per-mutant
+    // cleanup so a failure surfaces in the warning below (L8).
+    {
+        const run_base = try zentinel.worker_pool.workspaceRunBase(gpa, rt.run_id);
+        rt.root_dir.deleteTree(rt.io, run_base) catch {
+            _ = rt.cleanup_failures.fetchAdd(1, .monotonic);
+        };
+    }
+
+    try zentinel.emitCleanupWarningIfNeeded(rt.cleanup_failures.load(.monotonic), stderr);
 
     // Write the JSON report to the resolved output path (under the project root).
     const json = try zentinel.report.toJson(gpa, outcome.report);
@@ -567,7 +556,10 @@ fn runRun(
     // cache write shares the symlink containment guard; an escape is skipped
     // rather than fatal because the cache is best-effort.
     const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
-    const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.report_output_dir});
+    // The cache artifact goes under the configured cache.directory (M5), not the
+    // report output dir; the symlink-containment guard and parent-dir creation
+    // below keep the write safe and best-effort.
+    const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.cache_directory});
     if (!zentinel.config.pathEscapesRoot(io, root_dir, cache_path)) {
         if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
         root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
@@ -634,6 +626,7 @@ fn runListMutants(
         const detail = switch (err) {
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown list-mutants option",
+            error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
             error.InvalidFormat => "--format must be 'text' or 'json'",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
@@ -689,7 +682,12 @@ fn runListMutants(
     // unchanged; experimental backends are gated by config and emit out-of-report
     // diagnostics for operators with no exact source mapping.
     if (std.mem.eql(u8, backend, "zir")) {
-        const listing = zentinel.zir_backend.experimentalListing(gpa, cfg, candidates, backend) catch |err| switch (err) {
+        // Real ZIR lowering (task 056): each source file is lowered to ZIR and its
+        // comparison mutation sites recognized from the cmp_* instructions; other
+        // operators become out-of-report diagnostics. The stable AST default and the
+        // `run` path are unaffected.
+        const zig_disc = discoverZig(gpa, io);
+        const listing = zentinel.zir_backend.listFromTrees(gpa, cfg, zig_disc, files.items, candidates, backend) catch |err| switch (err) {
             error.OutOfMemory => return err,
             error.ExperimentalBackendNotEnabled => {
                 try stderr.print("error[ZNTL_CONFIG_EXPERIMENTAL_BACKEND]: backend '{s}' requires explicit opt-in via [backend] experimental\n", .{backend});
@@ -697,6 +695,20 @@ fn runListMutants(
             },
             error.BackendNotImplemented => {
                 try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: backend '{s}' is not implemented yet\n", .{backend});
+                return 2;
+            },
+            error.BackendParseError => {
+                try stderr.writeAll("error[ZNTL_BACKEND_PARSE_ERROR]: could not parse one or more source files\n");
+                return 2;
+            },
+            error.UnsupportedZigVersion => {
+                // The ZIR path's src_node decoding is version-coupled (zir-0.16.0); a
+                // different toolchain would silently mis-resolve, so it declines.
+                const detected: []const u8 = switch (zig_disc) {
+                    .version => |v| v,
+                    .not_found => "not found",
+                };
+                try stderr.print("error[{s}]: --backend zir requires Zig {s}; detected {s} (the ZIR backend's source mapping is version-coupled)\n", .{ zentinel.zig_version.Code.unsupported.token(), zentinel.zig_version.supported_version, detected });
                 return 2;
             },
         };
@@ -708,7 +720,7 @@ fn runListMutants(
         if (options.format == .json) try stdout.writeAll("\n");
         // Out-of-report backend diagnostics: stderr only, never report fields.
         for (listing.diagnostics) |d| {
-            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.reason });
+            try stderr.writeAll(try zentinel.zir_backend.renderDiagnosticNote(gpa, d));
         }
         return 0;
     } else if (std.mem.eql(u8, backend, "air")) {
@@ -732,7 +744,7 @@ fn runListMutants(
         // Out-of-report AIR diagnostics (with source_mapping + safety mode):
         // stderr only, never report fields.
         for (listing.diagnostics) |d| {
-            try stderr.print("note[{s}]: {s} at {s}:{d}..{d} source_mapping={s} mode={s} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.source_mapping, d.safety_mode, d.reason });
+            try stderr.writeAll(try zentinel.air_backend.renderDiagnosticNote(gpa, d));
         }
         return 0;
     }
@@ -798,17 +810,6 @@ fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.
     }
 }
 
-fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) ![]const u8 {
-    const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
-    const es = std.time.epoch.EpochSeconds{ .secs = secs };
-    const yd = es.getEpochDay().calculateYearDay();
-    const md = yd.calculateMonthDay();
-    const day = es.getDaySeconds();
-    return std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
-        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
-    });
-}
-
 /// `zentinel doctest`: read the target doc, execute its normal doctests through
 /// real process/workspace adapters, and emit a deterministic text or JSON
 /// zentinel.doctest.report.v1 report.
@@ -831,31 +832,16 @@ fn runAiCommand(
     const arena = arena_state.allocator();
 
     var mutant_ref: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var input_report: ?[]const u8 = null;
-    var format: zentinel.ai.command.Format = .text;
-
+    var ai_opts = zentinel.ai.command.SharedOptions{};
     var i: usize = 0;
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown AI command option");
         } else if (flow != .review_tests and mutant_ref == null) {
             mutant_ref = a;
@@ -863,6 +849,9 @@ fn runAiCommand(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const provider_override = ai_opts.provider_override;
+    const input_report = ai_opts.input_report;
+    const format = ai_opts.format;
     if (flow != .review_tests and mutant_ref == null) {
         return aiOptionError(stderr, "missing <mutant-ref>");
     }
@@ -959,6 +948,9 @@ fn aiSettings(
     settings.remote_allowed = cfg.ai_remote_allowed;
     settings.redact_patterns = cfg.ai_redact_patterns;
     settings.project_name = cfg.project_name;
+    // ai.source_context_lines is validated >= 0; clamp to u32 for the context
+    // window so a huge configured value cannot overflow the cast (L43).
+    settings.source_context_lines = @intCast(@min(cfg.ai_source_context_lines, @as(i64, std.math.maxInt(u32))));
     return .{ .settings = settings, .project_root = cfg.project_root };
 }
 
@@ -982,35 +974,24 @@ fn runDoctestAi(
 
     var positional: ?[]const u8 = null;
     var file_opt: ?[]const u8 = null;
-    var input_report: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var format: zentinel.ai.command.Format = .text;
+    var ai_opts = zentinel.ai.command.SharedOptions{};
 
     var i: usize = 1; // skip the subcommand token at inv.args[0]
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--file")) {
+        // `--file` is doctest-specific; the rest are the shared AI options (L16).
+        if (std.mem.eql(u8, a, "--file")) {
             i += 1;
             if (i >= inv.args.len) return aiOptionError(stderr, "--file requires a value");
             file_opt = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+            continue;
+        }
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown doctest AI option");
         } else if (positional == null) {
             positional = a;
@@ -1018,6 +999,9 @@ fn runDoctestAi(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const input_report = ai_opts.input_report;
+    const provider_override = ai_opts.provider_override;
+    const format = ai_opts.format;
 
     const flow_is_case = (flow == .explain_doctest_failure or flow == .review_snapshot);
     const doc_path: ?[]const u8 = switch (flow) {
@@ -1038,6 +1022,15 @@ fn runDoctestAi(
     }
 
     const ai_cfg = (try aiSettings(arena, gpa, io, dir, inv.globals, stderr)) orelse return 2;
+
+    // A required positional missing (doc-path for suggest, case-ref for explain /
+    // review-snapshot) is a CLI usage error, surfaced like the top-level AI commands'
+    // `missing <mutant-ref>`/`missing <survivor-ref>` guards instead of being
+    // forwarded as a null ref the engine reports as an opaque DOC/CASE_NOT_FOUND
+    // (L32). Checked after config/--config validation so a bad --config still wins.
+    if (zentinel.ai.doctest_command.missingPositional(flow, positional)) |detail| {
+        return aiOptionError(stderr, detail);
+    }
 
     var roots = (try openEffectiveProjectRoot(io, dir, inv.globals.root, ai_cfg.project_root, stderr)) orelse return 2;
     defer roots.close(io);
@@ -1102,31 +1095,17 @@ fn runDoctestSurvivorAi(
     const arena = arena_state.allocator();
 
     var survivor_ref: ?[]const u8 = null;
-    var input_report: ?[]const u8 = null;
-    var provider_override: ?zentinel.ai.command.Mode = null;
-    var format: zentinel.ai.command.Format = .text;
+    var ai_opts = zentinel.ai.command.SharedOptions{};
 
     var i: usize = 1; // skip the subcommand token at inv.args[0]
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        if (std.mem.eql(u8, a, "--ai-provider")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--ai-provider requires a value");
-            provider_override = zentinel.ai.provider.modeFromName(inv.args[i]) orelse
-                return aiOptionError(stderr, "--ai-provider must be disabled|stub|local|remote");
-        } else if (std.mem.eql(u8, a, "--input-report")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--input-report requires a value");
-            input_report = inv.args[i];
-        } else if (std.mem.eql(u8, a, "--format")) {
-            i += 1;
-            if (i >= inv.args.len) return aiOptionError(stderr, "--format requires a value");
-            if (std.mem.eql(u8, inv.args[i], "text")) {
-                format = .text;
-            } else if (std.mem.eql(u8, inv.args[i], "json")) {
-                format = .json;
-            } else return aiOptionError(stderr, "--format must be 'text' or 'json'");
-        } else if (std.mem.startsWith(u8, a, "--")) {
+        switch (zentinel.ai.command.parseSharedOption(inv.args, &i, &ai_opts)) {
+            .consumed => continue,
+            .err => |detail| return aiOptionError(stderr, detail),
+            .not_shared => {},
+        }
+        if (std.mem.startsWith(u8, a, "--")) {
             return aiOptionError(stderr, "unknown doctest AI option");
         } else if (survivor_ref == null) {
             survivor_ref = a;
@@ -1134,6 +1113,9 @@ fn runDoctestSurvivorAi(
             return aiOptionError(stderr, "unexpected positional argument");
         }
     }
+    const input_report = ai_opts.input_report;
+    const provider_override = ai_opts.provider_override;
+    const format = ai_opts.format;
     if (survivor_ref == null) return aiOptionError(stderr, "missing <survivor-ref>");
     // Read-side path containment (F-5): reject an out-of-root --input-report.
     if (zentinel.readPathOutsideRootOption(inv.args)) |opt| {
@@ -1178,21 +1160,17 @@ fn runDoctest(
     stderr: *std.Io.Writer,
     parent_env: *const std.process.Environ.Map,
 ) !u8 {
-    // Experimental opt-in: `zentinel doctest --mutate` runs the mutation-aware
-    // doctest prototype over fixture docs only (task 039).
-    for (inv.args) |arg| {
-        if (std.mem.eql(u8, arg, "--mutate")) return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env);
-    }
-
-    // Advisory doctest-AI subcommands: explain/suggest/review-snapshot/
-    // suggest-missing (task 055) and explain-survivor (task 067).
-    if (inv.args.len > 0 and !std.mem.startsWith(u8, inv.args[0], "-")) {
-        const sub = inv.args[0];
-        if (std.mem.eql(u8, sub, "explain")) return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr);
-        if (std.mem.eql(u8, sub, "suggest")) return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr);
-        if (std.mem.eql(u8, sub, "review-snapshot")) return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr);
-        if (std.mem.eql(u8, sub, "suggest-missing")) return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr);
-        if (std.mem.eql(u8, sub, "explain-survivor")) return runDoctestSurvivorAi(gpa, io, dir, inv, stdout, stderr);
+    // A recognized named AI subcommand in the first slot dispatches BEFORE the
+    // experimental `--mutate` flag scan, so `doctest suggest --mutate` runs the
+    // suggest flow instead of being hijacked by `--mutate` (task 039/055/067, L22).
+    switch (zentinel.doctest_command.route(inv.args)) {
+        .mutate => return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env),
+        .explain => return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr),
+        .suggest => return runDoctestAi(gpa, io, dir, inv, .suggest_doctest, stdout, stderr),
+        .review_snapshot => return runDoctestAi(gpa, io, dir, inv, .review_snapshot, stdout, stderr),
+        .suggest_missing => return runDoctestAi(gpa, io, dir, inv, .suggest_missing_doctests, stdout, stderr),
+        .explain_survivor => return runDoctestSurvivorAi(gpa, io, dir, inv, stdout, stderr),
+        .parse => {},
     }
 
     const options = zentinel.doctest_command.parseArgs(inv.args) catch |err| {
@@ -1233,7 +1211,7 @@ fn runDoctest(
 
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
     const run_id = try std.fmt.allocPrint(gpa, "doctest_run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
-    const started_at = try isoTimestamp(gpa, ts);
+    const started_at = try zentinel.report.isoTimestamp(gpa, ts);
     const fmt_label: []const u8 = switch (options.format) {
         .text => "text",
         .json => "json",
@@ -1269,10 +1247,9 @@ fn runDoctest(
             try stderr.print("error[ZNTL_DOCTEST_CASE_NOT_FOUND]: --case did not resolve to exactly one case\n", .{});
             return 2;
         },
-        error.WorkspaceCreateFailed => {
-            try stderr.writeAll("error: could not create doctest workspace\n");
-            return 4;
-        },
+        // A per-case workspace-creation failure no longer reaches here: the runner
+        // isolates it as an `.invalid` case so the run still produces a report
+        // (L12). Only OOM remains as a run-wide internal error.
         error.OutOfMemory => return err,
     };
 

@@ -196,6 +196,28 @@ test "junit status mapping per result status" {
     try expect(contains(bf, "name=\"baseline\""));
 }
 
+test "junit renderer replaces XML-illegal control chars from captured evidence (M11)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Captured stderr with ANSI-colored compiler output (ESC \x1b) and a BEL
+    // (\x07): both are forbidden by XML 1.0, so emitting them verbatim makes a
+    // strict CI parser reject the whole testsuite. The renderer must sanitize them
+    // while keeping the surrounding text (M11).
+    var m = mutant(1, .survived, "src/x.zig", false);
+    m.result.evidence = .{ .stdout_excerpt = "", .stderr_excerpt = "error: \x1b[31mboom\x1b[0m\ttab\x07", .failure_summary = "" };
+    const ms = [_]report.Mutant{m};
+    const xml = try report_junit.render(a, completedReport(&ms), false);
+
+    // No XML-1.0-illegal control byte survives into the output...
+    try expect(std.mem.indexOfScalar(u8, xml, 0x1b) == null);
+    try expect(std.mem.indexOfScalar(u8, xml, 0x07) == null);
+    // ...each illegal byte is replaced by `?`, legal whitespace (tab) is kept, and
+    // the legible text is preserved verbatim.
+    try expect(contains(xml, "<system-err>error: ?[31mboom?[0m\ttab?</system-err>"));
+}
+
 test "junit strict survivor-failing mode emits a failure only for survivors" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -252,6 +274,32 @@ test "summary counts are derived from mutants, not trusted" {
     var bad = completedReport(&m);
     bad.summary.killed = 5;
     try expectEqual(report.Violation.summary_count_mismatch, report.validate(bad));
+}
+
+test "summarize pins every per-status count so a non-kill arm cannot be miscounted as killed (M10)" {
+    // One mutant per ResultStatus: each status must increment exactly its own
+    // bucket. The five non-kill terminal statuses (compile_error/compiler_crash/
+    // timeout/skipped/invalid) must stay OUT of killed/survived (I-010), so a
+    // regression like `.compile_error => s.killed += 1` -- which validate() cannot
+    // catch, being recomputed from the same summarize -- fails here (M10).
+    const m = [_]report.Mutant{
+        mutant(1, .killed, "src/a.zig", false),
+        mutant(2, .survived, "src/b.zig", false),
+        mutant(3, .compile_error, "src/c.zig", false),
+        mutant(4, .compiler_crash, "src/d.zig", false),
+        mutant(5, .timeout, "src/e.zig", false),
+        mutant(6, .skipped, "src/f.zig", false),
+        mutant(7, .invalid, "src/g.zig", false),
+    };
+    const s = report.summarize(&m);
+    try expectEqual(@as(u64, 7), s.total);
+    try expectEqual(@as(u64, 1), s.killed);
+    try expectEqual(@as(u64, 1), s.survived);
+    try expectEqual(@as(u64, 1), s.compile_error);
+    try expectEqual(@as(u64, 1), s.compiler_crash);
+    try expectEqual(@as(u64, 1), s.timeout);
+    try expectEqual(@as(u64, 1), s.skipped);
+    try expectEqual(@as(u64, 1), s.invalid);
 }
 
 test "snapshot normalization normalizes durations and ids (I-015)" {

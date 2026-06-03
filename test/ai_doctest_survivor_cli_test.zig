@@ -190,6 +190,58 @@ test "survivor AI context redacts runner command evidence and skip reason" {
     try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
 }
 
+test "survivor AI context redacts the id/operator fields, not just file/source_ref (S1)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    const secret = "ghp_123456789012345678901234567890123456";
+    // file/source_ref are clean, so any path/secret that survives into the serialized
+    // context comes specifically from the id/operator fields -- survivor_ref, case_id
+    // (case.id, which also flows to doctest.id), mutant_id, operator, doctest_case_id --
+    // whose validator prefix checks (ds_/dm_/m_/dt_) leave the suffix free (S1).
+    const case = parseValue(arena,
+        \\{
+        \\  "id": "dm_x /Users/victim/case.pem",
+        \\  "file": "docs/EXAMPLE.md",
+        \\  "line_start": 1,
+        \\  "line_end": 4,
+        \\  "source_ref": "docs/EXAMPLE.md:1",
+        \\  "kind": "mutation",
+        \\  "status": "survived",
+        \\  "mutation": {
+        \\    "doctest_case_id": "dt_x /Users/victim/dt.pem",
+        \\    "mutant_id": "m_x ghp_123456789012345678901234567890123456",
+        \\    "operator": "comparison_boundary /Users/victim/op.pem",
+        \\    "mutated_diff": ["- >=", "+ >"],
+        \\    "survivor_ref": "ds_x ghp_123456789012345678901234567890123456",
+        \\    "runner_evidence": {
+        \\      "status": "skipped",
+        \\      "command": { "original": "zig test x.zig", "argv": ["zig", "test", "x.zig"], "cwd": "<project>", "environment_policy": "minimal", "shell": false },
+        \\      "exit_code": null,
+        \\      "timed_out": false,
+        \\      "failure_kind": "skipped",
+        \\      "stdout_excerpt": "",
+        \\      "stderr_excerpt": "",
+        \\      "failure_summary": "",
+        \\      "skip_reason": null
+        \\    }
+        \\  }
+        \\}
+    );
+    const ctx = try dc.buildSurvivorContextValue(arena, .stub, case, settings());
+    const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
+
+    // No path or secret smuggled in an id/operator field reaches the provider...
+    try expect(std.mem.indexOf(u8, bytes, secret) == null);
+    try expect(std.mem.indexOf(u8, bytes, "/Users/victim") == null);
+    // ...and the scrubs are recorded, so redactions_applied stays truthful.
+    try expect(std.mem.indexOf(u8, bytes, "absolute_path") != null);
+    try expect(std.mem.indexOf(u8, bytes, "secret_value") != null);
+    // The redacted context still validates: the ds_/dm_/m_/dt_ prefixes survive.
+    try expectEqual(dc.ContextViolation.ok, dc.validateSurvivorContext(ctx));
+}
+
 test "survivor AI rejects unknown runner evidence status and failure kind" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();

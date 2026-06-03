@@ -207,14 +207,12 @@ pub const Report = struct {
 
 // --- Serialization ---------------------------------------------------------
 
-/// Serialize a report as deterministic, pretty-printed canonical JSON.
+/// Serialize a report as deterministic, pretty-printed canonical JSON. This is
+/// the single report serializer: the CLI writes the returned buffer with
+/// `writeFile` (atomic, symlink-safe), so there is no streaming variant to drift
+/// out of sync with it (L15).
 pub fn toJson(arena: std.mem.Allocator, report: Report) std.mem.Allocator.Error![]u8 {
     return std.json.Stringify.valueAlloc(arena, report, .{ .whitespace = .indent_2 });
-}
-
-/// Stream a report as canonical JSON to a writer.
-pub fn writeJson(report: Report, writer: *std.Io.Writer) std.json.Stringify.Error!void {
-    return std.json.Stringify.value(report, .{ .whitespace = .indent_2 }, writer);
 }
 
 // --- Summary + ordering ----------------------------------------------------
@@ -384,6 +382,24 @@ fn invalidSummaryOk(failure_summary: []const u8) bool {
         std.mem.startsWith(u8, failure_summary, "backend:");
 }
 
+// --- Observation timestamp -------------------------------------------------
+
+/// Format epoch-milliseconds as a UTC ISO-8601 second-precision timestamp
+/// (`YYYY-MM-DDThh:mm:ssZ`), the canonical form of `run.started_at`. Negative
+/// inputs clamp to the epoch and sub-second milliseconds are truncated. Pure and
+/// deterministic: the wall-clock read stays in the CLI, so the run observation and
+/// the doctest run share this one formatter instead of duplicating it (L41).
+pub fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) std.mem.Allocator.Error![]const u8 {
+    const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
+    const es = std.time.epoch.EpochSeconds{ .secs = secs };
+    const yd = es.getEpochDay().calculateYearDay();
+    const md = yd.calculateMonthDay();
+    const day = es.getDaySeconds();
+    return std.fmt.allocPrint(gpa, "{d:0>4}-{d:0>2}-{d:0>2}T{d:0>2}:{d:0>2}:{d:0>2}Z", .{
+        yd.year, md.month.numeric(), md.day_index + 1, day.getHoursIntoDay(), day.getMinutesIntoHour(), day.getSecondsIntoMinute(),
+    });
+}
+
 // --- Repeated-run normalization --------------------------------------------
 
 /// Normalize the canonical JSON for repeated-run comparison by replacing only
@@ -470,7 +486,9 @@ fn replaceKeyStringValue(arena: std.mem.Allocator, text: []const u8, key: []cons
 /// addresses (`0x<hex>`, which differ on every run) and absolute machine paths
 /// (which differ across machines); both are replaced with the stable placeholders
 /// `0x<addr>` and `<path>` so a killed mutant's stderr can no longer make the
-/// report non-deterministic. Surrounding prose is preserved (excerpts are
+/// report non-deterministic. An absolute path is recognized whether it starts the
+/// line, follows whitespace/quote/bracket, or is glued to a `=`/`:`/`>`/`,` or a
+/// `scheme://` prefix (L28). Surrounding prose is preserved (excerpts are
 /// normalized, never dropped). Returns an arena-owned copy; the input is unchanged.
 pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
     var out: std.ArrayList(u8) = .empty;
@@ -486,8 +504,23 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
         // Absolute path token: Unix `/abs/path` entries and Windows `C:\path`
         // entries are replaced even when quoted paths contain spaces. This keeps
         // repeated-run comparison stable across developer machines.
-        const at_boundary = i == 0 or isExcerptBoundary(text[i - 1]);
-        if (text[i] == '/' and at_boundary) {
+        // A `/` begins an absolute path at a token boundary: start of text, after
+        // a non-path byte, OR after a `:`. Build/test output routinely glues a path
+        // to a preceding `=`, `:`, `>` or `,` (`key=/abs`, `note:/abs`, redirection
+        // `2>/abs`) or embeds it in a `scheme://` URI; the old positive-set boundary
+        // (whitespace/quote/bracket only) left those verbatim, leaking the absolute
+        // developer path into the committed report and breaking cross-machine
+        // determinism (L28). This mirrors redaction.normalizeAbsolutePaths (M8) so
+        // the two normalizers stay consistent.
+        const prev_is_colon = i > 0 and text[i - 1] == ':';
+        const at_boundary = i == 0 or !isExcerptPathByte(text[i - 1]) or prev_is_colon;
+        // A `//`-led run is a Zig comment marker (`//`, `///`, `//!`), not an
+        // absolute path; excluding it keeps source-line comments in committed
+        // excerpts intact instead of collapsing them to `<path>` (M3) -- EXCEPT when
+        // the `//` is glued to a preceding `:` as a `scheme://` separator, where it
+        // introduces a URI path to redact (L28).
+        const comment_marker = i + 1 < text.len and text[i + 1] == '/' and !prev_is_colon;
+        if (text[i] == '/' and at_boundary and !comment_marker) {
             var end = i + 1;
             var inner_slashes: usize = 0;
             const quote: ?u8 = if (i > 0 and isExcerptQuote(text[i - 1])) text[i - 1] else null;
@@ -546,8 +579,12 @@ fn excerptSpaceContinuesPath(text: []const u8, space_index: usize) bool {
     }
     return false;
 }
-fn isExcerptBoundary(c: u8) bool {
-    return isExcerptSpace(c) or isExcerptQuote(c) or c == '(' or c == '[' or c == '{';
+/// True for a byte that can appear inside an absolute-path token. A `/` is treated
+/// as starting a path only when the preceding byte is NOT one of these (or is a
+/// `:`), mirroring redaction.isPathByte (M8) so excerpt and AI-context path
+/// normalization agree on token boundaries.
+fn isExcerptPathByte(c: u8) bool {
+    return std.ascii.isAlphanumeric(c) or c == '/' or c == '\\' or c == ':' or c == '.' or c == '_' or c == '-';
 }
 fn isWindowsExcerptPathAt(text: []const u8, i: usize) bool {
     return i + 2 < text.len and

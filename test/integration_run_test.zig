@@ -88,30 +88,146 @@ test "the built binary mutates a real fixture project and reports one killed and
     // The real run produced the fixture's two arithmetic mutants plus the
     // error-path mutant: add's is killed by the same-file test; mul's and
     // parsePositive's error_catch_unreachable mutant survive (no test exercises
-    // them). `invalid` must be zero -- before task 117 the error_catch_unreachable
-    // mutant's `original` borrowed the parsed tree's source, dangled past the
-    // per-file `defer parsed.deinit()`, and the real binary misclassified this
-    // valid candidate as `invalid` on a Debug build (the freed bytes poisoned to
-    // 0xAA), hiding a real survivor behind a false "0 survivors" for that operator.
+    // them). `invalid` must be zero: before task 117 the error_catch_unreachable
+    // mutant's `original` borrowed the parsed tree's source and dangled past the
+    // per-file `defer parsed.deinit()`. This is an END-TO-END smoke check that the
+    // Collector.add() dup is wired through the real binary -- NOT the byte-level
+    // teardown guard: the binary uses an ArenaAllocator whose `free` is a no-op
+    // rewind that neither frees nor poisons `owned_source` (so no "0xAA" here).
+    // The actual revert-catching guard is the GPA-backed teardown test in
+    // test/sandbox_test.zig (F-1 plus the all-stable-operator case) (L2).
     try expectEqual(@as(i64, 3), summary.get("total").?.integer);
     try expectEqual(@as(i64, 1), summary.get("killed").?.integer);
     try expectEqual(@as(i64, 2), summary.get("survived").?.integer);
     try expectEqual(@as(i64, 0), summary.get("invalid").?.integer);
 
-    // A non-arithmetic operator (error_catch_unreachable) is executed end-to-end
-    // and classified `survived`, never dropped to `invalid`; its `original` is the
-    // real handler text (`0`), not freed memory (task 117 acceptance criterion 4).
+    // Bind the EXACT per-mutant kill/survive mapping, not just the fungible
+    // aggregate counts (S7): killed==1/survived==2 is invariant under an
+    // add<->mul classification swap (add's mutant wrongly surviving while mul's is
+    // wrongly killed leaves both totals unchanged), so only the per-mutant
+    // (operator, span line, status) assertions below actually pin kill-detection
+    // end-to-end. add's arithmetic_add_sub at calc.zig:13 (original `+`) is KILLED
+    // by the same-file `add` test; mul's arithmetic_mul_div at calc.zig:17
+    // (original `*`) SURVIVES (no test exercises it); parsePositive's
+    // error_catch_unreachable at calc.zig:21 SURVIVES and its `original` is the
+    // real handler text (`0`), not freed memory, never dropped to `invalid`
+    // (task 117 acceptance criterion 4).
     const mutants = parsed.object.get("mutants").?.array;
+    var saw_add_sub = false;
+    var saw_mul_div = false;
     var saw_error_catch = false;
     for (mutants.items) |entry| {
         const obj = entry.object;
-        if (std.mem.eql(u8, obj.get("operator").?.string, "error_catch_unreachable")) {
+        const operator = obj.get("operator").?.string;
+        const status = obj.get("result").?.object.get("status").?.string;
+        const line_start = obj.get("span").?.object.get("line_start").?.integer;
+        if (std.mem.eql(u8, operator, "arithmetic_add_sub")) {
+            saw_add_sub = true;
+            try expectEqualStrings("calc.zig", obj.get("file").?.string);
+            try expectEqual(@as(i64, 13), line_start);
+            try expectEqualStrings("+", obj.get("original").?.string);
+            try expectEqualStrings("killed", status);
+        } else if (std.mem.eql(u8, operator, "arithmetic_mul_div")) {
+            saw_mul_div = true;
+            try expectEqualStrings("calc.zig", obj.get("file").?.string);
+            try expectEqual(@as(i64, 17), line_start);
+            try expectEqualStrings("*", obj.get("original").?.string);
+            try expectEqualStrings("survived", status);
+        } else if (std.mem.eql(u8, operator, "error_catch_unreachable")) {
             saw_error_catch = true;
-            try expectEqualStrings("survived", obj.get("result").?.object.get("status").?.string);
+            try expectEqual(@as(i64, 21), line_start);
+            try expectEqualStrings("survived", status);
             try expectEqualStrings("0", obj.get("original").?.string);
         }
     }
+    try expect(saw_add_sub);
+    try expect(saw_mul_div);
     try expect(saw_error_catch);
+}
+
+test "zentinel init writes its config at zentinel.config_default_path, not a private duplicate (S9)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    const exe_path = try exePath(a);
+    // `init` in an empty project writes the starter config into the cwd root.
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "init" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => {
+            std.debug.print("integration(S9): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            return error.BinaryCrashed;
+        },
+    }
+
+    // The adapter must write the config to the SAME path the core resolves it
+    // from by default -- the single source of truth `zentinel.config_default_path`
+    // (root.zig) -- not a private duplicate literal in cli.zig (S9). Locating the
+    // written file through the exported constant is what binds `init`'s write path
+    // to that source of truth: if cli.zig carried an unlinked copy and the core
+    // constant were renamed, `init` would write somewhere the rest of the system
+    // never looks, and this access would fail with FileNotFound.
+    try tmp.dir.access(io, zentinel.config_default_path, .{});
+}
+
+test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel/workspaces (L8)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try copyFixtureFile(io, tmp.dir, "calc.zig", a);
+    try copyFixtureFile(io, tmp.dir, "zentinel.toml", a);
+
+    const exe_path = try exePath(a);
+    const result = std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--config", "zentinel.toml", "run", "--report", "json" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    }) catch |err| {
+        std.debug.print("integration(L8): spawning {s} failed: {s}\n", .{ exe_path, @errorName(err) });
+        return err;
+    };
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => {
+            std.debug.print("integration(L8): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            return error.BinaryCrashed;
+        },
+    }
+
+    // setupWorkspace materialized .zig-cache/zentinel/workspaces/{run_id}/{m_id}
+    // (via createDirPath) for each of the fixture's 3 mutants. mutantRunSpecsFn's
+    // defer deleted each per-mutant leaf, but before L8 nothing removed the
+    // {run_id} container, so every invocation leaked exactly one stale `run_<hex>`
+    // dir under the controlled cache namespace. After a successful run the
+    // workspaces dir must therefore contain NO `run_*` child.
+    var ws = tmp.dir.openDir(io, ".zig-cache/zentinel/workspaces", .{ .iterate = true }) catch |err| switch (err) {
+        // No workspaces dir at all also means nothing leaked.
+        error.FileNotFound => return,
+        else => return err,
+    };
+    defer ws.close(io);
+    var it = ws.iterate();
+    while (try it.next(io)) |entry| {
+        if (std.mem.startsWith(u8, entry.name, "run_")) {
+            std.debug.print("integration(L8): leaked per-run workspace dir: {s}\n", .{entry.name});
+            try expect(false);
+        }
+    }
 }
 
 test "project.root moves discovery and command execution into the configured root" {
@@ -393,6 +509,62 @@ test "the built binary accepts a valid absolute root for config loading" {
         .exited => |code| try expectEqual(@as(u8, 0), code),
         else => return error.BinaryCrashed,
     }
+}
+
+test "cache.directory governs where cache.json is written, not report.output_dir (M5)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.createDirPath(io, "proj/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zentinel.toml", .data =
+        \\[project]
+        \\name = "cachedir"
+        \\
+        \\[mutators]
+        \\enabled = ["arithmetic_add_sub"]
+        \\
+        \\[test]
+        \\commands = ["zig test src/calc.zig"]
+        \\
+        \\[cache]
+        \\directory = "zig-out/custom-cache"
+        \\
+    });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/src/calc.zig", .data =
+        \\pub fn add(a: i32, b: i32) i32 {
+        \\    return a + b;
+        \\}
+        \\
+        \\test "add" {
+        \\    try std.testing.expectEqual(@as(i32, 3), add(1, 2));
+        \\}
+        \\
+        \\const std = @import("std");
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const root_abs = try absTmpPath(a, tmp, "proj");
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--root", root_abs, "run", "--report", "json" },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+
+    // cache.json lands under the configured cache.directory...
+    const in_cache_dir = try tmpPath(a, tmp, "proj/zig-out/custom-cache/cache.json");
+    try std.Io.Dir.cwd().access(io, in_cache_dir, .{});
+    // ...and NOT in the default report output dir (zig-out/zentinel).
+    const in_report_dir = try tmpPath(a, tmp, "proj/zig-out/zentinel/cache.json");
+    try std.testing.expectError(error.FileNotFound, std.Io.Dir.cwd().access(io, in_report_dir, .{}));
 }
 
 test "the built binary rejects explicit config symlink escapes through the adapter" {

@@ -100,6 +100,160 @@ test "each mutant gets a dedicated workspace with nested local cache and output"
     try expect(!std.mem.eql(u8, c1, c2));
 }
 
+test "every per-mutant workspaceRoot nests under the run's workspaceRunBase, scoped per run (L8)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // The cli removes one run's whole container with a single
+    // deleteTree(workspaceRunBase(run_id)); that only reclaims the leaked
+    // per-mutant leaves if EVERY workspaceRoot for the run is nested under it.
+    const base = try wp.workspaceRunBase(a, "run_xxxxxxxxxxxxxxxxxxx0");
+    try expectEqualStrings(".zig-cache/zentinel/workspaces/run_xxxxxxxxxxxxxxxxxxx0", base);
+
+    const prefix = try std.fmt.allocPrint(a, "{s}/", .{base});
+    const r1 = try wp.workspaceRoot(a, "run_xxxxxxxxxxxxxxxxxxx0", "m_aaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const r2 = try wp.workspaceRoot(a, "run_xxxxxxxxxxxxxxxxxxx0", "m_bbbbbbbbbbbbbbbbbbbbbbbbbb");
+    try expect(std.mem.startsWith(u8, r1, prefix));
+    try expect(std.mem.startsWith(u8, r2, prefix));
+
+    // The base is per-run: deleting one run's container cannot touch another's.
+    const other = try wp.workspaceRunBase(a, "run_yyyyyyyyyyyyyyyyyyy1");
+    try expect(!std.mem.eql(u8, base, other));
+    try expect(!std.mem.startsWith(u8, r1, other));
+}
+
+// --- Tree copy skips DESCENT into excluded dirs (H3, L7) -------------------
+
+fn excludeNothing(path: []const u8) bool {
+    _ = path;
+    return false;
+}
+
+fn fileExists(io: std.Io, dir: std.Io.Dir, sub_path: []const u8) bool {
+    dir.access(io, sub_path, .{}) catch return false;
+    return true;
+}
+
+test "copyProjectTree copies real files but never descends into .zig-cache/zig-out/.git (H3)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    // A project (`proj`) with real source at the root and nested, plus the three
+    // excluded trees. A parallel run continually creates/deletes per-mutant
+    // workspaces under `.zig-cache/zentinel/workspaces`, so a walker that descends
+    // there races sibling teardown (spurious `invalid`) and re-walks every other
+    // worker's copy (O(N^2)). The destination (`out`) is a sibling, never inside
+    // the walked tree.
+    try tmp.dir.createDirPath(io, "proj/src");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/keep.zig", .data = "pub const x = 1;\n" });
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/src/nested.zig", .data = "pub const y = 2;\n" });
+    try tmp.dir.createDirPath(io, "proj/.zig-cache/zentinel/workspaces/run/m_other");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/.zig-cache/zentinel/workspaces/run/m_other/sibling.zig", .data = "pub const z = 3;\n" });
+    try tmp.dir.createDirPath(io, "proj/zig-out/bin");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-out/bin/artifact.zig", .data = "pub const w = 4;\n" });
+    try tmp.dir.createDirPath(io, "proj/.git");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/.git/config", .data = "[core]\n" });
+
+    var src = try tmp.dir.openDir(io, "proj", .{ .iterate = true });
+    defer src.close(io);
+    try tmp.dir.createDirPath(io, "out");
+    var dst = try tmp.dir.openDir(io, "out", .{});
+    defer dst.close(io);
+
+    // The file-copy filter excludes NOTHING here, so the ONLY thing that can keep
+    // an excluded-dir file out of the copy is the walker refusing to descend.
+    try wp.copyProjectTree(io, a, src, dst, excludeNothing);
+
+    // Real project files are copied -- descent into non-excluded dirs still works.
+    try expect(fileExists(io, dst, "keep.zig"));
+    try expect(fileExists(io, dst, "src/nested.zig"));
+    // The excluded subtrees are never entered, so their files are absent even
+    // though `excludeNothing` would have permitted copying them.
+    try expect(!fileExists(io, dst, ".zig-cache/zentinel/workspaces/run/m_other/sibling.zig"));
+    try expect(!fileExists(io, dst, "zig-out/bin/artifact.zig"));
+    try expect(!fileExists(io, dst, ".git/config"));
+}
+
+test "copyProjectTree copies a sibling dir that only prefix-collides with an excluded dir (M2)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    // `zig-outputs/` only PREFIX-collides with the excluded `zig-out`; its first
+    // path segment differs, so discovery yields its sources and they must be
+    // copied. The raw-prefix copyExcluded wrongly dropped such files, then the
+    // patched write of a mutant in that dir failed (missing parent) and the mutant
+    // was misclassified `invalid` (M2). The genuinely-excluded `zig-out/` is still
+    // skipped.
+    try tmp.dir.createDirPath(io, "proj/zig-outputs");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-outputs/foo.zig", .data = "pub const x = 1;\n" });
+    try tmp.dir.createDirPath(io, "proj/zig-out/bin");
+    try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-out/bin/real.zig", .data = "pub const y = 2;\n" });
+
+    var src = try tmp.dir.openDir(io, "proj", .{ .iterate = true });
+    defer src.close(io);
+    try tmp.dir.createDirPath(io, "out");
+    var dst = try tmp.dir.openDir(io, "out", .{});
+    defer dst.close(io);
+
+    try wp.copyProjectTree(io, a, src, dst, wp.excludedCopyPath);
+
+    try expect(fileExists(io, dst, "zig-outputs/foo.zig")); // prefix-collision sibling IS copied
+    try expect(!fileExists(io, dst, "zig-out/bin/real.zig")); // the real excluded dir is NOT
+}
+
+test "excludedCopyPath matches the whole first path segment, not a raw prefix (M2)" {
+    // Genuinely excluded: the first path segment equals an excluded dir name.
+    try expect(wp.excludedCopyPath("zig-out/bin/app"));
+    try expect(wp.excludedCopyPath(".zig-cache/o/x.zig"));
+    try expect(wp.excludedCopyPath(".git/config"));
+    // Prefix-colliding siblings are NOT excluded.
+    try expect(!wp.excludedCopyPath("zig-outputs/foo.zig"));
+    try expect(!wp.excludedCopyPath(".github/workflows/ci.zig"));
+    try expect(!wp.excludedCopyPath(".gitlab/ci/gen.zig"));
+    try expect(!wp.excludedCopyPath("src/zig-out-helper.zig"));
+}
+
+test "createMutantWorkspace unwinds the partial workspace dir when setup fails mid-way (L9)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    // A minimal project so copyProjectTree (which runs before the failure) succeeds.
+    try tmp.dir.writeFile(io, .{ .sub_path = "main.zig", .data = "pub const x = 1;\n" });
+
+    var cleanup_failures = std.atomic.Value(u32).init(0);
+    const run_id = "run_l9000000000000000000";
+    const mutant_id = "m_l9aaaaaaaaaaaaaaaaaaaaaa";
+
+    // mutant_file `../escape.zig` escapes the workspace dir, so createMutantWorkspace
+    // fails at the post-copy containment check -- AFTER createDirPath + copyProjectTree
+    // already materialized .zig-cache/zentinel/workspaces/{run_id}/{mutant_id}. The
+    // failure-path errdefer must remove that partial dir; before L9 only the fd was
+    // closed, orphaning it (and the caller's success-only cleanup defer never fired).
+    const result = wp.createMutantWorkspace(io, a, tmp.dir, run_id, mutant_id, "../escape.zig", "x", &cleanup_failures);
+    try std.testing.expectError(error.WorkspaceCreateFailed, result);
+
+    // The partial per-mutant workspace leaf must NOT survive the failed setup.
+    const rel = try wp.workspaceRoot(a, run_id, mutant_id);
+    try expect(!fileExists(io, tmp.dir, rel));
+    // The unwind deleteTree succeeded, so no cleanup failure was counted.
+    try expectEqual(@as(u32, 0), cleanup_failures.load(.monotonic));
+}
+
 // --- Every item runs even when some fail (visible per-index propagation) ----
 
 const FailCtx = struct { status: []u8, fail_at: usize };
