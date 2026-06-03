@@ -6,7 +6,7 @@
   `expectedAstTag`/`resolveNode`/`mutationFor`); the CLI path is `src/cli.zig` `runListMutants`;
   tests are `test/zir_backend_test.zig` and `test/cli_backend_experiment_test.zig`.
 
-**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below).
+**Progress:** ZIR campaign 7/7 done — ZIR/AST achieve full real-tree parity over `src/` (ZIR-7 max-matching closed the resolver gap to 0; ZIR-6 oracle sweep keeps it honest). One open follow-up in a new track: **SEM-1** (compiler-oracle semantic filter, the alternative to an AIR backend — see "Beyond ZIR" below). SEM-1 is split into 1a (measurement spike — **done**, `c800e53`), 1b (TCE equivalence/dedup filter — todo, 1a evidence indicates descope), 1c (compile-as-classifier — todo, the primary win).
 
 ---
 
@@ -132,7 +132,9 @@
 > post-Sema IR, use the real compiler as a black-box oracle over candidates from **any**
 > backend. The semantic payoff is a *filter/classifier* stage, not a new candidate generator.
 
-- [ ] `todo` **SEM-1** · commit `—` · Compiler-oracle semantic filter (TCE-first)
+**SEM-1** `wip` · Compiler-oracle semantic filter (TCE-first) — split into 1a (measurement spike,
+done), 1b (TCE equivalence/dedup filter), 1c (compile-as-classifier). Parent stays `wip` until 1b/1c
+resolve.
   - **Goal:** a post-generation filter stage that classifies/excludes candidates using the
     pinned compiler as a black box — no IR introspection. Two parts:
     **(a) Trivial Compiler Equivalence (TCE):** compile original + each mutant to a normalized
@@ -148,17 +150,6 @@
     and is published technique (Trivial Compiler Equivalence, Papadakis/Jia/Harman, ICSE 2015).
     (b) makes Sema the type oracle; the runner already compiles per mutant, so marginal cost is low.
     Works for the default AST backend too, not just ZIR.
-  - **Acceptance:** (a) a constructed equivalent mutant (e.g. a swap the optimizer normalizes
-    away, or on a comptime-false/dead branch) is excluded with reason "provably equivalent (TCE)";
-    a constructed duplicate pair collapses to one; a genuinely-killable mutant is **kept**
-    (identical artifact ⇒ exclude, differing ⇒ keep — never the reverse). (b) a non-compiling
-    mutant is classified by the compiler's verdict; agreement with the heuristic on compiling
-    mutants is unchanged. The stage is opt-in and changes scores only by removing
-    guaranteed-equivalent/duplicate survivors.
-  - **Proof:** red→green tests — (i) an equivalent mutant excluded, (ii) a duplicate pair deduped,
-    (iii) a non-equivalent mutant retained, (iv) a non-compiling mutant empirically classified.
-    Corroborate by measuring, over `src/`, how many candidates TCE marks equivalent/duplicate
-    (the payoff number, like the ZIR-7 gap measurement).
   - **Files:** new `src/semantic_filter.zig` + wiring in `src/cli.zig` `runListMutants` (and the
     run path); `test/semantic_filter_test.zig`; a `docs/` note (supersedes the AIR-backend plan).
     Reuses the pinned toolchain + the 3a-style version guard.
@@ -166,6 +157,57 @@
     to a sampled/opt-in audit and keep (b) as the primary win. If `-femit-llvm-ir` isn't stable
     across Zig backends, use `-femit-asm`; if neither artifact is deterministic enough for reliable
     equivalence, descope (a) with the measured flakiness and keep (b).
+
+- [x] `done` **SEM-1a** · commit `c800e53` · TCE measurement spike (evidence to scope 1b)
+  - **Goal:** over a sample of real `src/` mutants, compile original vs mutant, diff the normalized
+    artifact, and report TWO numbers — how many TCE marks provably-equivalent/duplicate, and the
+    per-mutant compile cost. No production code (`scripts/sem1a_tce_spike.py`).
+  - **Method (what the spike learned about the artifact):** the linked Mach-O binary embeds a
+    **per-link random `LC_UUID`**, so two builds of *identical* source differ — a binary diff marks
+    everything non-equivalent and catches nothing (verified). The usable oracle is the **whole-program
+    pre-link LLVM IR** (`zig build-exe -fstrip -femit-llvm-ir -fno-emit-bin` with FIXED global+local
+    cache dirs): `-fstrip` drops debug-info paths, fixed caches drop the embedded cache path in
+    `!DIFile`, and the result is **byte-deterministic for identical source** → IR-identity is a sound
+    TCE oracle. `-femit-llvm-ir` worked fine on 0.16 aarch64-macos (no `-femit-asm` fallback needed).
+  - **Result — payoff ≈ 0, and a soundness landmine:** over **80** sampled mutants (six stable
+    mutators, Debug): **0 confirmed genuine equivalents, 0 duplicates**; per-mutant IR emit **≈ 1.0s**
+    warm. The naive exe (`main`) root flagged 13/80 "equivalent", but re-checking each under a
+    force-codegen root showed **12/13 were killable mutants in code not reachable from `main`** (their
+    patch can't move the exe IR) and **1/13 was a struct method `refAllDecls` does not force-emit** —
+    i.e. **every** IR-identical verdict was an *un-codegen'd* site, not a real equivalence. Mechanism:
+    in **Debug** (the runner's mode) the optimizer does ~nothing, so TCE's classic wins (`x*1→x`,
+    folded/dead branches) essentially don't arise; the only "equivalents" are structurally-dead code,
+    which the existing deterministic `equivalent_risks` + `equivalentToCanonical` no-op skip already
+    cover. **Soundness:** because lazy codegen silently omits code, any TCE filter built on a
+    standalone compile that does not guarantee the mutated site is codegen'd-and-reached would
+    **exclude killable mutants** — violating the SOUND-DIRECTION INVARIANT. A sound TCE oracle must
+    diff the artifact of the **test binary the runner already builds** (where code-under-test is
+    reached via its tests), not a separate standalone compile.
+  - **1c-relevant distribution (free, from the same listing):** of 1844 `src/` candidates, **166 are
+    heuristic `may_fail`** (the guesses 1c would replace with the compiler's actual verdict); all 80
+    sampled compiled (0 compile errors). The runner already compiles each mutant, so 1c's marginal
+    cost is ~0.
+  - **Files:** `scripts/sem1a_tce_spike.py` (reproducible spike).
+
+- [ ] `todo` **SEM-1b** · commit `—` · TCE equivalence/dedup filter — scope per 1a evidence
+  - **1a says:** payoff ≈ 0% (0 genuine equiv / 0 dup in 80 Debug mutants), cost ~1s/mutant, and any
+    standalone-compile oracle is **unsound** (omits killable mutants via lazy codegen). The cheap
+    equivalent-mutant wins are already deterministic (`equivalent_risks`, `equivalentToCanonical`).
+  - **Decision to make next iteration:** strongly indicated → `descoped` (near-zero payoff in the
+    Debug pipeline + high soundness bar). If kept, it MUST diff the runner's own test-binary artifact
+    (pre-link IR, fixed caches, `-fstrip`) — never a fresh standalone compile — and be opt-in/sampled.
+  - **Sound-direction invariant:** identical-artifact ⇒ exclude, differing ⇒ keep, never the reverse;
+    a genuinely-killable mutant must be retained (assert with a test).
+  - **Files:** `src/semantic_filter.zig`, `test/semantic_filter_test.zig`.
+
+- [ ] `todo` **SEM-1c** · commit `—` · Compile-as-classifier (replace heuristic `expected_compile`)
+  - **Goal:** replace the heuristic `expected_compile` *prediction* with the compiler's actual
+    verdict (compiles / errors) for each mutant, so a non-compiling mutant is classified empirically.
+    1a's primary win: 166/1844 candidates are heuristic `may_fail`; the runner already compiles per
+    mutant, so marginal cost ≈ 0.
+  - **Proof:** red→green — a named non-compiling mutant is classified by the compiler's verdict
+    (not the guess); agreement with the heuristic on a named compiling mutant is unchanged.
+  - **Files:** `src/semantic_filter.zig` (or `src/mutant_runner.zig` wiring), `test/...`.
 
 ---
 
