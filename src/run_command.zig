@@ -83,6 +83,10 @@ pub const MutantRunner = struct {
     ctx: *anyopaque,
     runFn: *const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult,
     runSpecsFn: ?*const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const command.Spec, mode: report.Mode) mutant_runner.MutationResult = null,
+    /// Optional production adapter that runs a mutant across multiple build modes
+    /// in a single reused workspace (#5). When null, `runModes` falls back to a
+    /// per-mode `runSpecs` loop. `out.len == modes.len`.
+    runModesFn: ?*const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, specs: []const command.Spec, reverify_specs: []const command.Spec, modes: []const report.Mode, out: []report.ResultStatus) void = null,
 
     pub fn run(self: MutantRunner, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
         return self.runFn(self.ctx, m, source, commands, mode);
@@ -91,6 +95,35 @@ pub const MutantRunner = struct {
     pub fn runSpecs(self: MutantRunner, m: mutant.Mutant, source: []const u8, specs: []const command.Spec, originals: []const []const u8, mode: report.Mode) mutant_runner.MutationResult {
         if (self.runSpecsFn) |f| return f(self.ctx, m, source, specs, mode);
         return self.runFn(self.ctx, m, source, originals, mode);
+    }
+
+    /// Run one mutant across `modes`, reusing a SINGLE materialized workspace for
+    /// all of them (the patched source is build-mode-independent), and writing each
+    /// mode's status into `out[k]`. For a mode whose narrowed run survives, a
+    /// non-empty `reverify_specs` is re-run in the same workspace to confirm the
+    /// verdict against the configured suite (mirrors Phase B.5 per mode, L27). The
+    /// production adapter (`runModesFn`) materializes the workspace once (#5); when
+    /// absent (test executors), the fallback runs each mode through `runSpecs`,
+    /// which is behaviorally identical but re-materializes per call.
+    pub fn runModes(
+        self: MutantRunner,
+        m: mutant.Mutant,
+        source: []const u8,
+        specs: []const command.Spec,
+        originals: []const []const u8,
+        reverify_specs: []const command.Spec,
+        reverify_originals: []const []const u8,
+        modes: []const report.Mode,
+        out: []report.ResultStatus,
+    ) void {
+        if (self.runModesFn) |f| return f(self.ctx, m, source, specs, reverify_specs, modes, out);
+        for (modes, 0..) |mode, k| {
+            const narrowed = self.runSpecs(m, source, specs, originals, mode);
+            out[k] = if (narrowed.status == .survived and reverify_specs.len > 0)
+                self.runSpecs(m, source, reverify_specs, reverify_originals, mode).status
+            else
+                narrowed.status;
+        }
     }
 };
 
@@ -121,6 +154,68 @@ fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
     const pc: *ParallelCtx = @ptrCast(@alignCast(ctx));
     const job = pc.jobs[index];
     pc.results[index] = pc.mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, pc.mode);
+}
+
+/// Shared state for the parallel Phase B.5 reverification. Each worker writes only
+/// its disjoint `out[index]`; the raw-arena merge runs serially in the caller so
+/// the (non-thread-safe) arena is never touched off the worker threads (#6).
+const ReverifyCtx = struct {
+    jobs: []const Job,
+    results: []const mutant_runner.MutationResult,
+    out: []?mutant_runner.MutationResult,
+    reverify_specs: []const command.Spec,
+    cfg_test_commands: []const []const u8,
+    mutant_executor: MutantRunner,
+    mode: report.Mode,
+};
+
+/// Worker-pool task: reverify one narrowed survivor against the configured suite.
+/// Non-survivors, and survivors whose selection did not narrow, are no-ops.
+fn reverifyOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
+    _ = slot;
+    const rc: *ReverifyCtx = @ptrCast(@alignCast(ctx));
+    if (rc.results[index].status != .survived) return;
+    if (!test_selection.needsConfiguredReverification(rc.jobs[index].commands, rc.cfg_test_commands)) return;
+    rc.out[index] = rc.mutant_executor.runSpecs(rc.jobs[index].candidate, rc.jobs[index].source, rc.reverify_specs, rc.cfg_test_commands, rc.mode);
+}
+
+/// Shared state for the parallel mode matrix. Each worker handles one mutant
+/// across every NON-primary mode in a single reused workspace (#5), writing its
+/// per-mode statuses into the disjoint `out[index*np ..][0..np]` window (#6).
+const ModeMatrixCtx = struct {
+    jobs: []const Job,
+    non_primary: []const report.Mode,
+    reverify_specs: []const command.Spec,
+    cfg_test_commands: []const []const u8,
+    mutant_executor: MutantRunner,
+    out: []report.ResultStatus,
+    np: usize,
+};
+
+/// Worker-pool task: run one mutant's non-primary modes (with per-mode configured
+/// reverification when the selection narrowed) in a single materialized workspace.
+fn modeMatrixOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
+    _ = slot;
+    const mm: *ModeMatrixCtx = @ptrCast(@alignCast(ctx));
+    const job = mm.jobs[index];
+    const needs_reverify = test_selection.needsConfiguredReverification(job.commands, mm.cfg_test_commands);
+    const slot_out = mm.out[index * mm.np ..][0..mm.np];
+    mm.mutant_executor.runModes(
+        job.candidate,
+        job.source,
+        job.command_specs,
+        job.commands,
+        if (needs_reverify) mm.reverify_specs else &.{},
+        if (needs_reverify) mm.cfg_test_commands else &.{},
+        mm.non_primary,
+        slot_out,
+    );
+}
+
+/// Index of `m` within `modes`; 0 if absent (callers only query members).
+fn modeIndex(modes: []const report.Mode, m: report.Mode) usize {
+    for (modes, 0..) |x, i| if (x == m) return i;
+    return 0;
 }
 
 /// Normalize the configured `run.jobs` (validated `>= 1` by the config parser)
@@ -328,37 +423,64 @@ pub fn run(
     // ONCE and share the read-only slice across every surviving mutant rather than
     // re-parsing per survivor (L4).
     const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
-    for (jobs, 0..) |job, ji| {
-        if (results[ji].status != .survived) continue;
-        if (!test_selection.needsConfiguredReverification(job.commands, cfg.test_commands)) continue;
-        const reverify = mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, mode);
-        results[ji] = try mergeReverification(arena, results[ji], reverify);
+    // Phase B.5 (parallel): the subprocess reverification dominates wall time, so
+    // run each narrowed survivor's configured suite across the worker pool, then
+    // merge serially -- the merge touches the non-thread-safe arena, the runs do
+    // not (#6). Disjoint `reverify_out` slots, so no synchronization is needed.
+    const reverify_out = try arena.alloc(?mutant_runner.MutationResult, jobs.len);
+    @memset(reverify_out, null);
+    var rvctx = ReverifyCtx{
+        .jobs = jobs,
+        .results = results,
+        .out = reverify_out,
+        .reverify_specs = reverify_specs,
+        .cfg_test_commands = cfg.test_commands,
+        .mutant_executor = mutant_executor,
+        .mode = mode,
+    };
+    worker_pool.run(requested_jobs, jobs.len, &rvctx, reverifyOneMutant);
+    for (reverify_out, 0..) |maybe, ji| {
+        if (maybe) |reverify| results[ji] = try mergeReverification(arena, results[ji], reverify);
     }
 
     // Mode matrix: when more than one mode is run, record each mode's per-mutant
-    // status. The primary mode reuses the parallel results above; additional
-    // modes run serially and deterministically (matrix output, not the report's
-    // primary status). `mode_grid[mode_index][job_index]` holds the status.
+    // status. The primary mode reuses the Phase B results (no re-run). The
+    // non-primary modes run in parallel OVER MUTANTS (#6), each mutant
+    // materializing a single workspace reused across its modes (#5).
+    // `mode_grid[mode_index][job_index]` holds the status.
     var mode_grid: [][]report.ResultStatus = &.{};
     if (multi_mode) {
+        var np_list: std.ArrayList(report.Mode) = .empty;
+        for (matrix_modes) |m| {
+            if (m != mode) try np_list.append(arena, m);
+        }
+        const non_primary = try np_list.toOwnedSlice(arena);
+        const np = non_primary.len;
+
+        // Disjoint per-mutant output window (row-major by job), preallocated so the
+        // parallel tasks never allocate from the arena.
+        const mm_out = try arena.alloc(report.ResultStatus, jobs.len * np);
+        var mmctx = ModeMatrixCtx{
+            .jobs = jobs,
+            .non_primary = non_primary,
+            .reverify_specs = reverify_specs,
+            .cfg_test_commands = cfg.test_commands,
+            .mutant_executor = mutant_executor,
+            .out = mm_out,
+            .np = np,
+        };
+        if (np > 0) worker_pool.run(requested_jobs, jobs.len, &mmctx, modeMatrixOneMutant);
+
+        // Assemble the grid serially: primary column from Phase B results, each
+        // non-primary column scattered from the per-mutant windows.
         const grid = try arena.alloc([]report.ResultStatus, matrix_modes.len);
         for (matrix_modes, 0..) |m, mi| {
             const col = try arena.alloc(report.ResultStatus, jobs.len);
             if (m == mode) {
                 for (results, 0..) |r, ji| col[ji] = r.status;
             } else {
-                for (jobs, 0..) |job, ji| {
-                    const narrowed = mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, m);
-                    // Re-verify a narrowed `survived` against the configured suite
-                    // for THIS mode, mirroring Phase B.5. Without it a non-primary
-                    // column can record `survived` for a mutant the configured suite
-                    // kills in that mode -- understating kills and manufacturing a
-                    // spurious mode-dependent signal vs the reverified primary (L27).
-                    col[ji] = if (narrowed.status == .survived and test_selection.needsConfiguredReverification(job.commands, cfg.test_commands))
-                        mutant_executor.runSpecs(job.candidate, job.source, reverify_specs, cfg.test_commands, m).status
-                    else
-                        narrowed.status;
-                }
+                const k = modeIndex(non_primary, m);
+                for (0..jobs.len) |ji| col[ji] = mm_out[ji * np + k];
             }
             grid[mi] = col;
         }
@@ -384,8 +506,13 @@ pub fn run(
         try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, mode_matrix, job.selection));
 
         // Compute the deterministic result-cache key (metadata only; reuse stays
-        // disabled in Phase 1). A disabled cache skips result keys entirely.
-        if (!no_cache) {
+        // disabled in Phase 1). A disabled cache skips result keys entirely. Only
+        // deterministic outcomes get a key: a timeout / compiler_crash / invalid
+        // result is transient (host load, an FS race, a flaky compiler) and shares
+        // a byte-identical key with a clean run of the same mutant, so emitting one
+        // would let a future reuse pass serve that transient verdict as a real hit,
+        // hiding a kill or survivor (#9).
+        if (!no_cache and cacheableOutcome(result.status)) {
             const key = try cache.computeKey(arena, .{
                 .mutant_id = job.candidate.id,
                 .zentinel_version = obs.zentinel_version,
@@ -422,6 +549,17 @@ pub fn run(
             .mutants = mutants,
         },
         .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), no_cache, obs.zig_cache_namespace),
+    };
+}
+
+/// Whether a mutant's outcome is deterministic enough to key a reusable cache
+/// entry. Transient outcomes (a timeout, a compiler crash, an invalid-workspace
+/// failure, or a skip) can differ between two runs of the same mutant, so they
+/// must never be stored under the run-invariant key (#9).
+fn cacheableOutcome(status: report.ResultStatus) bool {
+    return switch (status) {
+        .killed, .survived, .compile_error => true,
+        .compiler_crash, .timeout, .skipped, .invalid => false,
     };
 }
 

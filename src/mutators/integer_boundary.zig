@@ -43,12 +43,13 @@ pub fn collect(
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const node_tags = tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, tree.source);
     for (node_tags, 0..) |tag, i| {
         if (!isComparison(tag)) continue;
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
         const operands = tree.nodeData(node).node_and_node;
-        try emitForOperand(collector, parsed, file, test_ranges, node_tags, operands[0]);
-        try emitForOperand(collector, parsed, file, test_ranges, node_tags, operands[1]);
+        try emitForOperand(collector, parsed, file, test_ranges, node_tags, operands[0], li);
+        try emitForOperand(collector, parsed, file, test_ranges, node_tags, operands[1], li);
     }
 }
 
@@ -59,6 +60,7 @@ fn emitForOperand(
     test_ranges: []const ast_backend.ByteRange,
     node_tags: []const std.zig.Ast.Node.Tag,
     operand: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const idx = @intFromEnum(operand);
     if (idx >= node_tags.len or node_tags[idx] != .number_literal) return;
@@ -70,8 +72,8 @@ fn emitForOperand(
     if (!isPlainDecimal(text)) return;
     const value = std.fmt.parseInt(i128, text, 10) catch return;
     const end = start + @as(u32, @intCast(text.len));
-    const start_pos = source_map.locate(tree.source, start) orelse return;
-    const end_pos = source_map.locate(tree.source, end) orelse return;
+    const start_pos = li.locate(start) orelse return;
+    const end_pos = li.locate(end) orelse return;
     const span: mutant.Span = .{
         .byte_start = start,
         .byte_end = end,

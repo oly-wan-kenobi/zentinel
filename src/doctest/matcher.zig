@@ -47,20 +47,49 @@ fn exactText(expected: []const u8, actual: []const u8) bool {
 
 fn containsText(expected: []const u8, actual: []const u8) bool {
     var cursor: usize = 0;
+    var checked = false;
     var it = std.mem.splitScalar(u8, expected, '\n');
     while (it.next()) |raw| {
         const line = std.mem.trim(u8, raw, " \t\r");
         if (line.len == 0) continue;
+        checked = true;
         const idx = std.mem.indexOfPos(u8, actual, cursor, line) orelse return false;
         cursor = idx + line.len;
     }
+    // An expectation with no non-empty lines asserts nothing. Treating it as a
+    // trivially-satisfied containment would let an empty `text output contains`
+    // block silently pass against ANY command output, hiding a real regression.
+    // Instead require empty (trimmed) actual, matching exact-mode's empty case.
+    if (!checked) return std.mem.trim(u8, actual, " \t\r\n").len == 0;
     return true;
 }
 
 fn diagnosticText(arena: std.mem.Allocator, expected: []const u8, actual: []const u8) std.mem.Allocator.Error!bool {
     const e = try replaceLineCol(arena, expected);
     const a = try replaceLineCol(arena, actual);
+    // A diagnostic expectation that reduces to only positional skeletons (`:N`)
+    // and punctuation asserts nothing distinguishing: bare containment would then
+    // match any output that merely carries a line:col reference. Require the
+    // expectation to carry substantive (alphanumeric) content; otherwise it may
+    // only match an equally insubstantial actual.
+    if (!hasSubstance(e)) return !hasSubstance(a) and containsText(e, a);
     return containsText(e, a);
+}
+
+/// True if `s`, after dropping `:N` line/column placeholders (emitted by
+/// `replaceLineCol`), still contains an alphanumeric byte -- i.e. it asserts more
+/// than a bare source position.
+fn hasSubstance(s: []const u8) bool {
+    var i: usize = 0;
+    while (i < s.len) {
+        if (s[i] == ':' and i + 1 < s.len and s[i + 1] == 'N') {
+            i += 2;
+            continue;
+        }
+        if (std.ascii.isAlphanumeric(s[i])) return true;
+        i += 1;
+    }
+    return false;
 }
 
 /// Collapse `:<digits>` runs (line/column references) to `:N` so diagnostic

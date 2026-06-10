@@ -557,6 +557,34 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
         try out.append(arena, text[i]);
         i += 1;
     }
+    // Captured process output can contain invalid UTF-8 (truncated multibyte
+    // sequences, or raw binary from a crash/panic). Left verbatim it would make
+    // report.json non-UTF-8 (RFC 8259 8.1) and the JUnit <system-out>/<system-err>
+    // text non-well-formed, so a strict CI parser rejects the whole suite. Replace
+    // any invalid byte with U+FFFD so every report format stays valid (#7).
+    return sanitizeUtf8(arena, try out.toOwnedSlice(arena));
+}
+
+/// Replace every byte that is not part of a valid UTF-8 sequence with U+FFFD,
+/// leaving valid text (the common case) untouched and unallocated.
+fn sanitizeUtf8(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
+    if (std.unicode.utf8ValidateSlice(text)) return text;
+    var out: std.ArrayList(u8) = .empty;
+    var i: usize = 0;
+    while (i < text.len) {
+        const len = std.unicode.utf8ByteSequenceLength(text[i]) catch {
+            try out.appendSlice(arena, "\u{FFFD}");
+            i += 1;
+            continue;
+        };
+        if (i + len > text.len or !std.unicode.utf8ValidateSlice(text[i..][0..len])) {
+            try out.appendSlice(arena, "\u{FFFD}");
+            i += 1;
+            continue;
+        }
+        try out.appendSlice(arena, text[i..][0..len]);
+        i += len;
+    }
     return out.toOwnedSlice(arena);
 }
 

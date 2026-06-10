@@ -254,6 +254,27 @@ fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !
     return zentinel.worker_pool.createMutantWorkspace(rt.io, rt.gpa, rt.root_dir, rt.run_id, m.id, m.file, patched, &rt.cleanup_failures);
 }
 
+/// Number of times to attempt the per-mutant workspace copy before giving up.
+const workspace_setup_attempts: usize = 3;
+
+/// Materialize the workspace, retrying a transient failure a few times. The
+/// per-mutant whole-tree copy can hit transient FS pressure (EMFILE/ENFILE from
+/// many concurrent workers, a racing external process); the failed attempt
+/// already unwinds its partial dir, so a retry starts clean. Between attempts we
+/// yield so sibling workers can finish/close their handles. Only after the
+/// attempts are exhausted does the caller classify the mutant `invalid` -- without
+/// this a momentary FS hiccup silently drops a would-be survivor (#8).
+fn setupWorkspaceRetrying(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
+    var attempt: usize = 0;
+    while (true) : (attempt += 1) {
+        return setupWorkspace(rt, m, patched) catch |err| {
+            if (attempt + 1 >= workspace_setup_attempts) return err;
+            std.Thread.yield() catch {};
+            continue;
+        };
+    }
+}
+
 fn mutantRunFn(
     ctx: *anyopaque,
     m: zentinel.mutant.Mutant,
@@ -288,7 +309,7 @@ fn mutantRunSpecsFn(
     const patched = zentinel.sandbox.apply(rt.gpa, source, m) catch {
         return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
     };
-    const ws = setupWorkspace(rt, m, patched) catch {
+    const ws = setupWorkspaceRetrying(rt, m, patched) catch {
         return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
     };
     defer {
@@ -300,6 +321,50 @@ fn mutantRunSpecsFn(
     var wctx = WorkspaceCtx{ .rt = rt, .dir = ws.dir };
     const executor = zentinel.runner.Executor{ .ctx = &wctx, .runFn = workspaceRunFn };
     return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch @panic("out of memory");
+}
+
+/// Run one mutant across `modes` in a SINGLE materialized workspace (#5): the
+/// patched source is build-mode-independent, so the workspace (and its copied
+/// tree) is created once and every mode -- plus an optional per-mode configured
+/// reverification -- executes against it, instead of re-copying the project tree
+/// per mode. Mirrors `mutantRunSpecsFn`'s validate/create/cleanup contract; called
+/// once per mutant under the worker pool, so workspaces stay content-addressed and
+/// isolated exactly as in Phase B. `out.len == modes.len`.
+fn mutantRunModesFn(
+    ctx: *anyopaque,
+    m: zentinel.mutant.Mutant,
+    source: []const u8,
+    specs: []const zentinel.command.Spec,
+    reverify_specs: []const zentinel.command.Spec,
+    modes: []const zentinel.report.Mode,
+    out: []zentinel.report.ResultStatus,
+) void {
+    const rt: *RunCtx = @ptrCast(@alignCast(ctx));
+    const disabled = zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn };
+    const patched = zentinel.sandbox.apply(rt.gpa, source, m) catch {
+        // Invalid patch: the runner re-validates and classifies each mode invalid.
+        for (modes, 0..) |mode, k| out[k] = (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, disabled, mode) catch @panic("out of memory")).status;
+        return;
+    };
+    const ws = setupWorkspaceRetrying(rt, m, patched) catch {
+        for (modes, 0..) |mode, k| out[k] = (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, specs, rt.root_label, disabled, mode) catch @panic("out of memory")).status;
+        return;
+    };
+    defer {
+        ws.dir.close(rt.io);
+        rt.root_dir.deleteTree(rt.io, ws.rel) catch {
+            _ = rt.cleanup_failures.fetchAdd(1, .monotonic);
+        };
+    }
+    var wctx = WorkspaceCtx{ .rt = rt, .dir = ws.dir };
+    const executor = zentinel.runner.Executor{ .ctx = &wctx, .runFn = workspaceRunFn };
+    for (modes, 0..) |mode, k| {
+        const narrowed = zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, executor, mode) catch @panic("out of memory");
+        out[k] = if (narrowed.status == .survived and reverify_specs.len > 0)
+            (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, reverify_specs, rt.root_label, executor, mode) catch @panic("out of memory")).status
+        else
+            narrowed.status;
+    }
 }
 
 /// Build the run observation metadata (run id, ISO timestamp, config hash).
@@ -506,7 +571,7 @@ fn runRun(
         .cleanup_failures = std.atomic.Value(u32).init(0),
     };
     const baseline_executor = zentinel.runner.Executor{ .ctx = &rt, .runFn = baselineRunFn };
-    const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn };
+    const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn, .runModesFn = mutantRunModesFn };
 
     const outcome = zentinel.run_command.run(gpa, cfg, files.items, options, baseline_executor, mutant_executor, obs) catch |err| switch (err) {
         error.OutputOutsideRoot => {

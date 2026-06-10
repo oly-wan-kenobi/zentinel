@@ -58,6 +58,7 @@ pub fn collect(
     test_ranges: []const ast_backend.ByteRange,
 ) std.mem.Allocator.Error!void {
     const node_tags = parsed.tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, parsed.tree.source);
     for (node_tags, 0..) |tag, i| {
         const swap = swapFor(tag) orelse continue;
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
@@ -72,8 +73,8 @@ pub fn collect(
         }
         const op_text = parsed.tree.tokenSlice(op_tok);
         const op_end = op_start + @as(u32, @intCast(op_text.len));
-        const start_pos = source_map.locate(parsed.tree.source, op_start) orelse continue;
-        const end_pos = source_map.locate(parsed.tree.source, op_end) orelse continue;
+        const start_pos = li.locate(op_start) orelse continue;
+        const end_pos = li.locate(op_end) orelse continue;
         try collector.add(.{
             .id = "",
             .backend = .ast,

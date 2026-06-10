@@ -335,6 +335,31 @@ test "value-shaped secrets are redacted from AI context even without a label" {
     try expectError(error.RedactionFailed, redaction.redact(a, github, &bad));
 }
 
+test "additional credential shapes (OpenAI, Slack, Google) are redacted by value (deep-review #11)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const patterns = [_][]const u8{ "(?i)api[_-]?key", "(?i)token" };
+
+    const openai = "sk-proj-abcdEFGH0123456789ijklMNOPqrstUVWX";
+    const openai_classic = "sk-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345";
+    const slack = "xoxb-1234567890-ABCDEFGHIJKLMNOP";
+    const google = "AIzaSyA1234567890abcdefGHIJKLMNOPQRSTUV";
+
+    const text = try std.fmt.allocPrint(a, "leak openai={s} classic={s} slack={s} google={s}", .{ openai, openai_classic, slack, google });
+    const r = try redaction.redact(a, text, &patterns);
+    try expect(std.mem.indexOf(u8, r.text, openai) == null);
+    try expect(std.mem.indexOf(u8, r.text, openai_classic) == null);
+    try expect(std.mem.indexOf(u8, r.text, slack) == null);
+    try expect(std.mem.indexOf(u8, r.text, google) == null);
+    try expect(r.builtin_matched);
+    try expect(std.mem.indexOf(u8, r.text, "leak openai=") != null);
+
+    // A short `sk-` fragment that is not key-shaped must be left untouched.
+    const benign = try redaction.redact(a, "use sk-12 today", &patterns);
+    try expectEqualStrings("use sk-12 today", benign.text);
+}
+
 // --- Config (AI provider + redaction defaults) ------------------------------
 
 test "omitted ai.redact_patterns expands to the default secret patterns" {

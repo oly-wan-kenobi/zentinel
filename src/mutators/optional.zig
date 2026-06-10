@@ -30,12 +30,13 @@ pub fn collect(
     test_ranges: []const ast_backend.ByteRange,
 ) std.mem.Allocator.Error!void {
     const node_tags = parsed.tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, parsed.tree.source);
     for (node_tags, 0..) |tag, i| {
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
         switch (tag) {
-            .@"orelse" => try collectOrelse(collector, parsed, file, test_ranges, node),
-            .equal_equal => try collectNullCheck(collector, parsed, file, test_ranges, node, "!="),
-            .bang_equal => try collectNullCheck(collector, parsed, file, test_ranges, node, "=="),
+            .@"orelse" => try collectOrelse(collector, parsed, file, test_ranges, node, li),
+            .equal_equal => try collectNullCheck(collector, parsed, file, test_ranges, node, "!=", li),
+            .bang_equal => try collectNullCheck(collector, parsed, file, test_ranges, node, "==", li),
             else => {},
         }
     }
@@ -50,6 +51,7 @@ fn collectOrelse(
     file: []const u8,
     test_ranges: []const ast_backend.ByteRange,
     node: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const rhs = tree.nodeData(node).node_and_node[1]; // fallback expression
@@ -63,8 +65,8 @@ fn collectOrelse(
     // An existing `orelse unreachable` (any spelling, e.g. `(unreachable)`) is a
     // forbidden context: re-mutating it would emit a pure-formatting no-op (L6).
     if (mutant.equivalentToCanonical(original, "unreachable")) return;
-    const start_pos = source_map.locate(tree.source, start) orelse return;
-    const end_pos = source_map.locate(tree.source, end) orelse return;
+    const start_pos = li.locate(start) orelse return;
+    const end_pos = li.locate(end) orelse return;
     try collector.add(.{
         .id = "",
         .backend = .ast,
@@ -103,6 +105,7 @@ fn collectNullCheck(
     test_ranges: []const ast_backend.ByteRange,
     node: std.zig.Ast.Node.Index,
     replacement: []const u8,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const op_tok = tree.nodeMainToken(node);
@@ -113,8 +116,8 @@ fn collectNullCheck(
     if (!right_is_null and !left_is_null) return;
     const op_text = tree.tokenSlice(op_tok);
     const op_end = op_start + @as(u32, @intCast(op_text.len));
-    const start_pos = source_map.locate(tree.source, op_start) orelse return;
-    const end_pos = source_map.locate(tree.source, op_end) orelse return;
+    const start_pos = li.locate(op_start) orelse return;
+    const end_pos = li.locate(op_end) orelse return;
     try collector.add(.{
         .id = "",
         .backend = .ast,

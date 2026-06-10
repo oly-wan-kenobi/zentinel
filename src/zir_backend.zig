@@ -423,6 +423,7 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
         });
     }
     const matching = try matchInstructions(arena, tree, is_base, recognized.items, node_count);
+    const li = try source_map.LineIndex.init(arena, tree.source);
 
     for (recognized.items, 0..) |_, ri| {
         const n = matching.match_inst[ri] orelse {
@@ -458,8 +459,8 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
         }
         const op_text = tree.tokenSlice(op_tok);
         const op_end = op_start + @as(u32, @intCast(op_text.len));
-        const start_pos = source_map.locate(tree.source, op_start) orelse continue;
-        const end_pos = source_map.locate(tree.source, op_end) orelse continue;
+        const start_pos = li.locate(op_start) orelse continue;
+        const end_pos = li.locate(op_end) orelse continue;
         // The one refinement ZIR adds over the AST recognizers: a site inside a
         // comptime block gets a comptime-aware `expected_compile` (strict evaluation),
         // not the AST's runtime-context bucket.

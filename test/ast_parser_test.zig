@@ -40,6 +40,25 @@ test "source map rejects out-of-range offsets and positions (F-008 guardrail)" {
     try expect(source_map.byteOf(src, .{ .line = 1, .column = 9 }) == null); // column beyond line
 }
 
+test "LineIndex.locate is byte-for-byte equivalent to locate over every offset (deep-review #10b)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const samples = [_][]const u8{ valid_src, "", "\n", "no newline", "a\nbb\nccc\n", "\n\n\nx", "trailing\n", "\r\nwin\r\n" };
+    for (samples) |src| {
+        const li = try source_map.LineIndex.init(a, src);
+        var i: usize = 0;
+        while (i <= src.len) : (i += 1) {
+            const want = source_map.locate(src, i).?;
+            const got = li.locate(i).?;
+            try expectEqual(want.line, got.line);
+            try expectEqual(want.column, got.column);
+        }
+        // Out-of-range parity with the scalar locate.
+        try expect(li.locate(src.len + 1) == null);
+    }
+}
+
 test "parses valid Zig with no diagnostics and a non-empty node set" {
     var parsed = try ast_backend.parse(std.testing.allocator, "test/fixtures/ast_parser/valid.zig", valid_src);
     defer parsed.deinit();

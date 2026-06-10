@@ -135,6 +135,35 @@ test "diagnostic matching normalizes line/col then matches by containment" {
     try expect(!try matcher.match(a, .diagnostic, "error: expected type 'void'", "error: expected type 'u32'"));
 }
 
+test "empty or whitespace-only contains expectation does not vacuously pass (deep-review #1)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    // An expectation that asserts nothing must not match arbitrary output.
+    try expect(!try matcher.match(a, .contains, "", "totally unrelated output"));
+    try expect(!try matcher.match(a, .contains, "  \n\t \n", "anything here"));
+    // It still matches genuinely-empty output, consistent with exact mode.
+    try expect(try matcher.match(a, .contains, "", ""));
+    try expect(try matcher.match(a, .contains, "  \n", "   \n"));
+    // A real substring expectation is unaffected.
+    try expect(try matcher.match(a, .contains, "hello", "well hello there"));
+    try expect(!try matcher.match(a, .contains, "hello", "goodbye"));
+}
+
+test "empty or position-only diagnostic expectation does not over-match (deep-review #2)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    // A bare line/col skeleton asserts nothing distinguishing; it must not match
+    // an unrelated diagnostic that merely carries a position.
+    try expect(!try matcher.match(a, .diagnostic, ":5", "foo.zig:9 error: boom"));
+    try expect(!try matcher.match(a, .diagnostic, "  :5:9 ", "bar.zig:1:2 warning: x"));
+    try expect(!try matcher.match(a, .diagnostic, "", "foo.zig:9 error: boom"));
+    // A message-bearing diagnostic expectation still matches regardless of line/col.
+    try expect(try matcher.match(a, .diagnostic, "error: undefined identifier", "x.zig:7:3: error: undefined identifier"));
+    try expect(try matcher.match(a, .diagnostic, "a.zig:5: error: oops", "a.zig:99: error: oops"));
+}
+
 // ----- snapshot orchestration -----
 
 test "snapshot mismatch yields a ZNTL_DOCTEST_SNAPSHOT_MISMATCH diagnostic" {

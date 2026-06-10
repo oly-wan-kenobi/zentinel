@@ -131,6 +131,48 @@ test "doctest failure AI context redacts command evidence fields" {
     try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
 }
 
+test "doctest AI context redacts diagnostics[].code (deep-review #3)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+    const code_secret = "sk-ant-api03-CODEFIELDabcdefghijklmnop";
+    const case = parseValue(arena,
+        \\{
+        \\  "id": "dt_secret00000000000000000002",
+        \\  "file": "docs/SECRET.md",
+        \\  "line_start": 1,
+        \\  "line_end": 4,
+        \\  "source_ref": "docs/SECRET.md:1:case",
+        \\  "block_refs": ["docs/SECRET.md:1:case"],
+        \\  "kind": "cli",
+        \\  "status": "failed",
+        \\  "result": { "snapshot": null, "failure_summary": "boom" },
+        \\  "diagnostics": [
+        \\    { "code": "sk-ant-api03-CODEFIELDabcdefghijklmnop", "message": "m", "file": null, "line": null, "column": null }
+        \\  ]
+        \\}
+    );
+    const ctx = try dc.buildContextValue(arena, .explain_doctest_failure, .stub, .{ .case = case }, stubSettings());
+    try expectEqual(dc.ContextViolation.ok, dc.validateContext(ctx));
+    const bytes = try std.json.Stringify.valueAlloc(arena, ctx, .{ .whitespace = .indent_2 });
+    try expect(std.mem.indexOf(u8, bytes, code_secret) == null);
+    try expect(std.mem.indexOf(u8, bytes, "[REDACTED]") != null);
+}
+
+test "validateContext gates doctest.kind against the schema enum, failing closed (deep-review #3)" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const v = parseValue(arena_state.allocator(),
+        \\{ "schema_version":"zentinel.ai.doctest.context.v1","flow":"explain_doctest_failure",
+        \\  "created_by":"zentinel","provider_mode":"stub",
+        \\  "project":{"name":"p","root_label":"<project>","zig_version":"0.16.0","zentinel_version":"0.0.0"},
+        \\  "doctest":{"id":null,"file":"docs/x.md","line_start":null,"line_end":null,"source_ref":null,"block_refs":[],"kind":"sk-ant-LEAKVIAKIND012345","status":"failed"},
+        \\  "evidence":{"kind":"case_failure"},
+        \\  "privacy":{"remote_allowed":false,"source_context_policy":"minimal","redactions_applied":[]} }
+    );
+    try expectEqual(dc.ContextViolation.bad_enum, dc.validateContext(v));
+}
+
 test "review_snapshot AI context redacts snapshot refs, not only excerpts" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();

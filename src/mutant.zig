@@ -264,16 +264,21 @@ pub fn assignId(arena: std.mem.Allocator, m: *Mutant) std.mem.Allocator.Error!vo
 pub fn sortAndDedupe(arena: std.mem.Allocator, mutants: []const Mutant) std.mem.Allocator.Error![]Mutant {
     const copy = try arena.dupe(Mutant, mutants);
     sort(copy);
+    // Hash-set dedupe instead of a nested scan of the kept list: cross-operator
+    // physical-edit duplicates are not guaranteed adjacent after the sort (operator
+    // sorts between byte_end and replacement), so an adjacent-only pass is unsound,
+    // and the old growing-list scan was O(K^2) in the candidate count. Iterating
+    // `copy` in canonical order keeps the first occurrence as the representative.
+    var seen_id = std.StringHashMap(void).init(arena);
+    defer seen_id.deinit();
+    var seen_edit = std.StringHashMap(void).init(arena);
+    defer seen_edit.deinit();
     var out: std.ArrayList(Mutant) = .empty;
     for (copy) |m| {
-        var duplicate = false;
-        for (out.items) |prior| {
-            if (std.mem.eql(u8, m.id, prior.id) or samePhysicalEdit(m, prior)) {
-                duplicate = true;
-                break;
-            }
-        }
-        if (duplicate) continue;
+        const edit_key = try std.fmt.allocPrint(arena, "{s}\x00{d}\x00{d}\x00{s}\x00{s}", .{ m.file, m.span.byte_start, m.span.byte_end, m.original, m.replacement });
+        if (seen_id.contains(m.id) or seen_edit.contains(edit_key)) continue;
+        try seen_id.put(m.id, {});
+        try seen_edit.put(edit_key, {});
         try out.append(arena, m);
     }
     return out.toOwnedSlice(arena);

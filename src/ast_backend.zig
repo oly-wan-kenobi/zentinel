@@ -222,6 +222,7 @@ pub fn testDecls(parsed: Parsed, arena: std.mem.Allocator) std.mem.Allocator.Err
     var out: std.ArrayList(TestDecl) = .empty;
     const node_tags = parsed.tree.nodes.items(.tag);
     const token_tags = parsed.tree.tokens.items(.tag);
+    const li = try source_map.LineIndex.init(arena, parsed.tree.source);
     for (node_tags, 0..) |tag, i| {
         if (tag != .test_decl) continue;
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
@@ -233,7 +234,7 @@ pub fn testDecls(parsed: Parsed, arena: std.mem.Allocator) std.mem.Allocator.Err
             else => "", // anonymous `test { ... }`
         } else "";
         const start = parsed.tree.tokenStart(test_tok);
-        const pos = source_map.locate(parsed.tree.source, start) orelse source_map.Position{ .line = 1, .column = 1 };
+        const pos = li.locate(start) orelse source_map.Position{ .line = 1, .column = 1 };
         try out.append(arena, .{ .name = try arena.dupe(u8, name), .line = pos.line, .byte_start = start });
     }
     return out.toOwnedSlice(arena);

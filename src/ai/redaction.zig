@@ -290,6 +290,42 @@ fn matchAnthropic(text: []const u8, start: usize) ?usize {
     return if (n >= 8) body + n else null;
 }
 
+/// An OpenAI-style key: `sk-` and >= 20 token-body bytes. Broader than
+/// `matchAnthropic` (which keys on `sk-ant-`) so `sk-`, `sk-proj-`, and other
+/// OpenAI shapes are scrubbed too; the longest-match rule in `matchSecretValue`
+/// keeps overlap with the Anthropic matcher harmless.
+fn matchOpenai(text: []const u8, start: usize) ?usize {
+    const pfx = "sk-";
+    if (!std.mem.startsWith(u8, text[start..], pfx)) return null;
+    const body = start + pfx.len;
+    const n = runLen(text, body, isTokenBody);
+    return if (n >= 20) body + n else null;
+}
+
+const slack_prefixes = [_][]const u8{ "xoxb-", "xoxp-", "xoxa-", "xoxr-", "xoxs-", "xoxe-", "xapp-" };
+
+/// A Slack token: an `xox?-`/`xapp-` prefix and >= 10 token-body bytes.
+fn matchSlack(text: []const u8, start: usize) ?usize {
+    for (slack_prefixes) |pfx| {
+        if (std.mem.startsWith(u8, text[start..], pfx)) {
+            const body = start + pfx.len;
+            const n = runLen(text, body, isTokenBody);
+            if (n >= 10) return body + n;
+        }
+    }
+    return null;
+}
+
+/// A Google API key: `AIza` and >= 30 token-body bytes (the real shape is 39
+/// chars total).
+fn matchGoogleApiKey(text: []const u8, start: usize) ?usize {
+    const pfx = "AIza";
+    if (!std.mem.startsWith(u8, text[start..], pfx)) return null;
+    const body = start + pfx.len;
+    const n = runLen(text, body, isTokenBody);
+    return if (n >= 30) body + n else null;
+}
+
 /// A JSON Web Token: `eyJ`-prefixed header `.` payload `.` signature, each a
 /// non-empty base64url run.
 fn matchJwt(text: []const u8, start: usize) ?usize {
@@ -319,7 +355,7 @@ fn matchPem(text: []const u8, start: usize) ?usize {
 /// index of the longest match, or null when none match.
 fn matchSecretValue(text: []const u8, start: usize) ?usize {
     var best: ?usize = null;
-    inline for (.{ matchGithub, matchAws, matchAnthropic, matchJwt, matchPem }) |m| {
+    inline for (.{ matchGithub, matchAws, matchAnthropic, matchOpenai, matchSlack, matchGoogleApiKey, matchJwt, matchPem }) |m| {
         if (m(text, start)) |end| {
             if (best == null or end > best.?) best = end;
         }

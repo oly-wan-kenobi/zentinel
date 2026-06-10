@@ -35,11 +35,12 @@ pub fn collect(
     test_ranges: []const ast_backend.ByteRange,
 ) std.mem.Allocator.Error!void {
     const node_tags = parsed.tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, parsed.tree.source);
     for (node_tags, 0..) |tag, i| {
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
         switch (tag) {
-            .@"catch" => try collectCatch(collector, parsed, file, test_ranges, node),
-            .@"errdefer" => try collectErrdefer(collector, parsed, file, test_ranges, node),
+            .@"catch" => try collectCatch(collector, parsed, file, test_ranges, node, li),
+            .@"errdefer" => try collectErrdefer(collector, parsed, file, test_ranges, node, li),
             else => {},
         }
     }
@@ -53,6 +54,7 @@ fn collectCatch(
     file: []const u8,
     test_ranges: []const ast_backend.ByteRange,
     node: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const handler = tree.nodeData(node).node_and_node[1]; // catch right-hand side
@@ -72,8 +74,8 @@ fn collectCatch(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const original = tree.source[start..end];
     if (mutant.equivalentToCanonical(original, "unreachable")) return; // already catch unreachable (any spelling)
-    const start_pos = source_map.locate(tree.source, start) orelse return;
-    const end_pos = source_map.locate(tree.source, end) orelse return;
+    const start_pos = li.locate(start) orelse return;
+    const end_pos = li.locate(end) orelse return;
     try collector.add(.{
         .id = "",
         .backend = .ast,
@@ -100,6 +102,7 @@ fn collectErrdefer(
     file: []const u8,
     test_ranges: []const ast_backend.ByteRange,
     node: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const kw = tree.nodeMainToken(node); // the `errdefer` keyword
@@ -120,8 +123,8 @@ fn collectErrdefer(
     const original = tree.source[start..end];
     const replacement = "errdefer {}";
     if (mutant.equivalentToCanonical(original, replacement)) return; // already an empty errdefer (any spelling)
-    const start_pos = source_map.locate(tree.source, start) orelse return;
-    const end_pos = source_map.locate(tree.source, end) orelse return;
+    const start_pos = li.locate(start) orelse return;
+    const end_pos = li.locate(end) orelse return;
     try collector.add(.{
         .id = "",
         .backend = .ast,

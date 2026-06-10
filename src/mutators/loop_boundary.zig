@@ -55,12 +55,13 @@ pub fn collect(
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const node_tags = tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, tree.source);
     for (node_tags, 0..) |tag, i| {
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
         switch (tag) {
-            .while_simple => try whileCond(collector, parsed, file, test_ranges, node_tags, tree.nodeData(node).node_and_node[0]),
-            .while_cont, .@"while" => try whileCond(collector, parsed, file, test_ranges, node_tags, tree.nodeData(node).node_and_extra[0]),
-            .for_range => try rangeEnd(collector, parsed, file, test_ranges, node_tags, node),
+            .while_simple => try whileCond(collector, parsed, file, test_ranges, node_tags, tree.nodeData(node).node_and_node[0], li),
+            .while_cont, .@"while" => try whileCond(collector, parsed, file, test_ranges, node_tags, tree.nodeData(node).node_and_extra[0], li),
+            .for_range => try rangeEnd(collector, parsed, file, test_ranges, node_tags, node, li),
             else => {},
         }
     }
@@ -75,6 +76,7 @@ fn whileCond(
     test_ranges: []const ast_backend.ByteRange,
     node_tags: []const std.zig.Ast.Node.Tag,
     cond: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const ci = @intFromEnum(cond);
     if (ci >= node_tags.len) return;
@@ -85,8 +87,8 @@ fn whileCond(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const text = tree.tokenSlice(op_tok);
     const end = start + @as(u32, @intCast(text.len));
-    const sp = source_map.locate(tree.source, start) orelse return;
-    const ep = source_map.locate(tree.source, end) orelse return;
+    const sp = li.locate(start) orelse return;
+    const ep = li.locate(end) orelse return;
     try collector.add(.{
         .id = "",
         .backend = .ast,
@@ -113,6 +115,7 @@ fn rangeEnd(
     test_ranges: []const ast_backend.ByteRange,
     node_tags: []const std.zig.Ast.Node.Tag,
     node: std.zig.Ast.Node.Index,
+    li: source_map.LineIndex,
 ) std.mem.Allocator.Error!void {
     const tree = parsed.tree;
     const end_node = (tree.nodeData(node).node_and_opt_node[1]).unwrap() orelse return; // open range `a..`
@@ -125,8 +128,8 @@ fn rangeEnd(
     if (!isPlainDecimal(text)) return;
     const value = std.fmt.parseInt(i128, text, 10) catch return;
     const end = start + @as(u32, @intCast(text.len));
-    const sp = source_map.locate(tree.source, start) orelse return;
-    const ep = source_map.locate(tree.source, end) orelse return;
+    const sp = li.locate(start) orelse return;
+    const ep = li.locate(end) orelse return;
     const span: mutant.Span = .{ .byte_start = start, .byte_end = end, .line_start = sp.line, .column_start = sp.column, .line_end = ep.line, .column_end = ep.column };
     // Guard the range-end arithmetic against i128 overflow exactly as
     // integer_boundary does: a +/-1 boundary unrepresentable in i128 is skipped

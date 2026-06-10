@@ -144,6 +144,25 @@ test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerp
     );
 }
 
+test "normalizeExcerpt replaces invalid UTF-8 so report output stays valid (deep-review #7)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // A lone high byte / truncated multibyte / surrogate sequence in captured
+    // output must not survive into the excerpt, or report.json is not valid UTF-8
+    // (RFC 8259 8.1) and the JUnit <system-out> text is not well-formed XML.
+    const dirty = "panic: \xff\xfe bad \xed\xa0\x80 end";
+    const clean = try report.normalizeExcerpt(a, dirty);
+    try expect(std.unicode.utf8ValidateSlice(clean));
+    try expect(std.mem.indexOf(u8, clean, "panic:") != null);
+    try expect(std.mem.indexOf(u8, clean, "bad") != null);
+    try expect(std.mem.indexOf(u8, clean, "end") != null);
+
+    // Valid UTF-8, including multibyte text, passes through untouched.
+    try expectEqualStrings("café ☕ works", try report.normalizeExcerpt(a, "café ☕ works"));
+}
+
 test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme:// URIs (L28)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

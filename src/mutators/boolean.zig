@@ -71,6 +71,7 @@ pub fn collect(
     // per-literal skip check below is O(1) amortized instead of O(n) per literal.
     const field_name_nodes = try containerFieldNameNodes(collector.allocator, parsed.tree);
     const node_tags = parsed.tree.nodes.items(.tag);
+    const li = try source_map.LineIndex.init(collector.allocator, parsed.tree.source);
     for (node_tags, 0..) |tag, i| {
         if (tag != .identifier) continue;
         const node: std.zig.Ast.Node.Index = @enumFromInt(@as(u32, @intCast(i)));
@@ -84,8 +85,8 @@ pub fn collect(
         // not a real boolean swap (L23).
         if (nodeInList(field_name_nodes, node)) continue;
         const end = start + @as(u32, @intCast(text.len));
-        const start_pos = source_map.locate(parsed.tree.source, start) orelse continue;
-        const end_pos = source_map.locate(parsed.tree.source, end) orelse continue;
+        const start_pos = li.locate(start) orelse continue;
+        const end_pos = li.locate(end) orelse continue;
         try collector.add(.{
             .id = "",
             .backend = .ast,

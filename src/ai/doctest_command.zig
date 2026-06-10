@@ -368,6 +368,9 @@ fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []cons
     // (the validator only prefix-checks it), so scrub it like file/source_ref so a
     // path/secret in its suffix cannot reach the provider via doctest.id (S1).
     if (meta.id) |id| meta.id = try context.redactField(arena, id, patterns, log);
+    // `status` is a free-string schema field sourced from the report; scrub it too
+    // (kind is enum-gated by validateContext, so it needs no redaction) (#3).
+    meta.status = try context.redactField(arena, meta.status, patterns, log);
     return meta;
 }
 
@@ -414,7 +417,10 @@ fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value, patterns: []c
     const items = arr(get(case, "diagnostics")) orelse return &.{};
     const buf = try arena.alloc(Diagnostic, items.len);
     for (items, 0..) |it, idx| buf[idx] = .{
-        .code = s(get(it, "code")),
+        // `code` is a free-form report string under an untrusted --input-report
+        // and has no schema maxLength, so scrub it like message/file rather than
+        // let a secret reach the provider verbatim (deep-review #3).
+        .code = try context.redactField(arena, s(get(it, "code")), patterns, log),
         .message = try context.redactField(arena, s(get(it, "message")), patterns, log),
         .file = if (optStr(get(it, "file"))) |f| try context.redactField(arena, f, patterns, log) else null,
         .line = try optU32(get(it, "line")),
@@ -478,7 +484,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const snapshot = getO(result, "snapshot");
             const command_ev = try readCommand(arena, get(case, "command"), patterns, &log);
             const ev = CaseFailureEvidence{
-                .status = sOr(get(case, "status"), "failed"),
+                .status = try context.redactField(arena, sOr(get(case, "status"), "failed"), patterns, &log),
                 .command = command_ev,
                 .expected_excerpt = try redactOpt(arena, getO(snapshot, "expected_excerpt"), patterns, &log),
                 .actual_excerpt = try redactOpt(arena, getO(snapshot, "actual_excerpt"), patterns, &log),
@@ -502,13 +508,13 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
             const case = input.case orelse return error.DoctestCaseNotFound;
             const snap = present(getO(get(case, "result"), "snapshot")) orelse return error.DoctestCaseNotFound;
             const ev = SnapshotDiffEvidence{
-                .case_status = sOr(get(case, "status"), "failed"),
+                .case_status = try context.redactField(arena, sOr(get(case, "status"), "failed"), patterns, &log),
                 .snapshot = .{
                     .expected_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "expected_excerpt")), patterns, context.excerpt_limit, &log),
                     .actual_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "actual_excerpt")), patterns, context.excerpt_limit, &log),
                     .normalized_expected_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_expected_excerpt")), patterns, context.excerpt_limit, &log),
                     .normalized_actual_excerpt = try context.redactAndCapLogged(arena, s(get(snap, "normalized_actual_excerpt")), patterns, context.excerpt_limit, &log),
-                    .match_mode = sOr(get(snap, "match_mode"), "exact"),
+                    .match_mode = try context.redactField(arena, sOr(get(snap, "match_mode"), "exact"), patterns, &log),
                     .expected_block_ref = if (optStr(get(snap, "expected_block_ref"))) |ref| try context.redactField(arena, ref, patterns, &log) else null,
                     .actual_ref = try context.redactField(arena, sOr(get(snap, "actual_ref"), "stdout"), patterns, &log),
                     .matched = switch (get(snap, "matched") orelse std.json.Value{ .bool = false }) {
@@ -603,6 +609,9 @@ pub const ContextViolation = enum {
 
 const doctest_flows = [_][]const u8{ "explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests" };
 const evidence_kinds = [_][]const u8{ "case_failure", "docs_target", "snapshot_diff", "missing_doctests" };
+/// `doctest.kind` is a schema enum; gate it like the mutation context gates its
+/// enum fields so an unredacted free string there fails closed (deep-review #3).
+const doctest_kinds = [_][]const u8{ "zig_compile_pass", "zig_test", "zig_compile_fail", "cli", "config", "config_fail", "mutation", "docs_target" };
 
 fn requireKeys(obj: std.json.ObjectMap, keys: []const []const u8) bool {
     for (keys) |k| if (obj.get(k) == null) return false;
@@ -641,6 +650,7 @@ pub fn validateContext(value: std.json.Value) ContextViolation {
     if (!requireKeys(project, &.{ "name", "root_label", "zig_version", "zentinel_version" })) return .missing_field;
     const doctest = objOf(obj.get("doctest").?) orelse return .not_object;
     if (!requireKeys(doctest, &.{ "id", "file", "line_start", "line_end", "source_ref", "block_refs", "kind", "status" })) return .missing_field;
+    if (!enumOk(doctest, "kind", &doctest_kinds)) return .bad_enum;
     const privacy = objOf(obj.get("privacy").?) orelse return .not_object;
     if (!requireKeys(privacy, &.{ "remote_allowed", "source_context_policy", "redactions_applied" })) return .missing_field;
     return .ok;
