@@ -3,3 +3,4 @@ zig-out/
 .zigars-cache/
 .claude/
 .DS_Store
+artifacts/
