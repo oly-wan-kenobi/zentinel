@@ -186,7 +186,7 @@ test "--case selects by durable id and by anchor-line source ref; expectation li
     try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = exp_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
 }
 
-test "the `unordered` json block tag wires through to the json_unordered matcher mode (M6)" {
+test "the `unordered` json block tag wires through to the json_unordered matcher mode" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -223,7 +223,7 @@ test "the `unordered` json block tag wires through to the json_unordered matcher
     try expectEqual(matcher.Mode.json_unordered, dc.matchModeFor(json_block.?));
 }
 
-test "--case with an out-of-range numeric ref yields CaseNotFound, not an overflow panic (M4)" {
+test "--case with an out-of-range numeric ref yields CaseNotFound, not an overflow panic" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -232,7 +232,7 @@ test "--case with an out-of-range numeric ref yields CaseNotFound, not an overfl
     // A line number past maxInt(u32): the hand-rolled `n = n*10 + d` accumulator
     // overflowed, aborting the whole process with `panic: integer overflow`
     // (Debug/ReleaseSafe) or wrapping to a wrong line (ReleaseFast). A malformed
-    // or typo'd `--case` ref must deterministically resolve to nothing (M4).
+    // or typo'd `--case` ref must deterministically resolve to nothing.
     const overflow_ref = "test/fixtures/doctest/cli/select.md:99999999999";
     try std.testing.expectError(error.CaseNotFound, dc.run(a, .{ .file = "x", .case_ref = overflow_ref }, "test/fixtures/doctest/cli/select.md", src, obs("zentinel doctest"), deps()));
 }
@@ -262,13 +262,13 @@ test "property: repeated runs are equivalent except normalized observation metad
     try expectEqualStrings(j1, j2);
 }
 
-test "property: --no-color is accepted as a pure no-op and never changes doctest output (L20)" {
+test "property: --no-color is accepted as a pure no-op and never changes doctest output" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
     // --no-color must parse WITHOUT error (it is accepted for CLI uniformity), and
     // since doctest renderers emit no ANSI color it stores nothing -- so the run
-    // with the flag yields byte-identical output to the run without it (L20).
+    // with the flag yields byte-identical output to the run without it.
     const with = try dc.parseArgs(&.{ "--file", "x", "--no-color" });
     const without = try dc.parseArgs(&.{ "--file", "x" });
     const colored = try runFile(a, "test/fixtures/doctest/cli/fail.md", with);
@@ -281,16 +281,16 @@ test "doctest parseArgs rejects unsupported subcommands and unknown options" {
     try std.testing.expectError(error.UnknownOption, dc.parseArgs(&.{"--mutate"}));
     try std.testing.expectError(error.InvalidFormat, dc.parseArgs(&.{ "--format", "yaml" }));
     // --no-color is accepted (no error), parsed alongside the real options, and
-    // stores nothing -- it is a pure no-op (L20).
+    // stores nothing -- it is a pure no-op.
     const ok = try dc.parseArgs(&.{ "--file", "docs/CLI_SPEC.md", "--format", "json", "--no-color" });
     try expectEqual(dc.Format.json, ok.format);
     try expectEqualStrings("docs/CLI_SPEC.md", ok.file.?);
 }
 
-test "doctest route: a named AI subcommand wins over a later --mutate flag (L22)" {
+test "doctest route: a named AI subcommand wins over a later --mutate flag" {
     // A recognized subcommand in the first slot routes to its AI flow even when
     // `--mutate` appears later -- otherwise the flag scan hijacks dispatch and
-    // rejects e.g. `suggest` as a bogus mutate option instead of running it (L22).
+    // rejects e.g. `suggest` as a bogus mutate option instead of running it.
     try expectEqual(dc.Route.suggest, dc.route(&.{ "suggest", "docs/CLI_SPEC.md", "--mutate" }));
     try expectEqual(dc.Route.explain, dc.route(&.{ "explain", "doc.md:1", "--mutate" }));
     try expectEqual(dc.Route.review_snapshot, dc.route(&.{ "review-snapshot", "doc.md:1", "--mutate" }));

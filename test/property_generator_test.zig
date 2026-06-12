@@ -40,8 +40,8 @@ test "same seed emits the same generated case sequence" {
 // The Generator's draw helpers (intRange/boolean/bytes) are public API but had no
 // caller or test; intRange also carried a latent overflow -- `hi - lo + 1` and the
 // i64 @intCast of the modulo panic for a range spanning more than half the i64
-// domain. These pin the bounds (including the full i64 width) and determinism (L39).
-test "Generator.intRange stays in bounds for normal, point, and full-width ranges (L39)" {
+// domain. These pin the bounds (including the full i64 width) and determinism.
+test "Generator.intRange stays in bounds for normal, point, and full-width ranges" {
     // Normal range: every draw is within [lo, hi], including negative lo.
     var g = gen.Generator.init(0x123456789ABCDEF);
     var i: usize = 0;
@@ -65,7 +65,7 @@ test "Generator.intRange stays in bounds for normal, point, and full-width range
     }
 }
 
-test "Generator.boolean and bytes are deterministic and exercise their range (L39)" {
+test "Generator.boolean and bytes are deterministic and exercise their range" {
     // boolean(): both values occur over many draws (not a stuck stream).
     var g = gen.Generator.init(0xABCDEF);
     var seen_true = false;
@@ -284,14 +284,14 @@ const failed_unsupported_shrink =
     \\}
 ;
 
-test "failed property shrink status: not_triggered is rejected, unsupported is accepted (L38)" {
+test "failed property shrink status: not_triggered is rejected, unsupported is accepted" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // not_triggered on a failed property WITH a counterexample is the only path to
     // report.zig:172 -- it must be rejected as failed_without_shrink. Previously no
-    // fixture reached this branch, so deleting it passed CI (L38).
+    // fixture reached this branch, so deleting it passed CI.
     try std.testing.expectEqual(prep.Violation.failed_without_shrink, prep.validate(try parse(a, failed_not_triggered_shrink)));
 
     // `unsupported` is a legitimate failed shrink status; dropping it from
@@ -327,7 +327,7 @@ test "a not-property-required skip report is accepted" {
 // 4. Top-of-funnel structural guards each return their SPECIFIC violation. All
 //    committed invalid fixtures carry a valid schema_version/scope/task_class/
 //    status, so these first-line checks had no negative test and could be deleted
-//    or weakened with CI staying green (L3).
+//    or weakened with CI staying green.
 // ---------------------------------------------------------------------------
 const bad_result_report =
     \\{
@@ -350,7 +350,7 @@ const bad_result_report =
     \\}
 ;
 
-test "property report validator rejects each structural malformation with its specific violation (L3)" {
+test "property report validator rejects each structural malformation with its specific violation" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -471,10 +471,10 @@ const failed_without_shrink_report =
     \\}
 ;
 
-// The validator has no `zentinel` runtime consumer (L13), so this test is the
+// The validator has no `zentinel` runtime consumer, so this test is the
 // SOLE guard for these rejection branches -- none had a specific-tag assertion
 // before, so a regression that swapped or dropped any of them was invisible.
-test "property report validator pins per-property and non-object rejection tags (L13)" {
+test "property report validator pins per-property and non-object rejection tags" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -492,9 +492,9 @@ test "property report validator pins per-property and non-object rejection tags 
     try std.testing.expectEqual(prep.Violation.failed_without_shrink, prep.validate(try parse(a, failed_without_shrink_report)));
 }
 
-// The full fixture suite shipped by task 044: every valid report must be
+// The full fixture suite: every valid report must be
 // accepted and every invalid one rejected. This keeps the validator anchored to
-// the frozen contract rather than only the three cases the task spec calls out.
+// the frozen contract rather than a handful of hand-picked cases.
 const valid_fixtures = [_][]const u8{
     "failed_with_counterexample.json",
     "id_determinism_pass.json",
@@ -504,7 +504,7 @@ const valid_fixtures = [_][]const u8{
 };
 
 // Each invalid fixture is pinned to the EXACT violation it must trigger, not just
-// `!= .ok`. Before L13 this loop asserted only rejection, so the validator (which
+// `!= .ok`. Previously this loop asserted only rejection, so the validator (which
 // has no product consumer) could regress to returning the WRONG tag -- or a
 // fixture could drift to trip a different branch -- with the suite staying green.
 const invalid_fixtures = [_]struct { name: []const u8, want: prep.Violation }{
@@ -517,19 +517,6 @@ const invalid_fixtures = [_]struct { name: []const u8, want: prep.Violation }{
     .{ .name = "missing_shrinking_status.json", .want = .bad_shrinking },
     .{ .name = "status_mismatch.json", .want = .status_mismatch },
 };
-
-// The property evidence task 062 itself emits must satisfy the contract it
-// implements — this is the integration point between generated property
-// evidence and the pipeline verification artifacts.
-test "the task 062 property artifact is contract-valid" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    const bytes = try readFile(a, "artifacts/pipeline/062/property/report.json");
-    const value = try parse(a, bytes);
-    try std.testing.expectEqual(prep.Violation.ok, prep.validate(value));
-}
 
 test "every valid property fixture is accepted and every invalid one rejected" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);

@@ -67,7 +67,6 @@ INTERNAL
 | `ZNTL_DOCTEST_UNSUPPORTED_TAG` | Doctest | Executable doctest fence uses an unsupported tag. |
 | `ZNTL_DOCTEST_COMMAND_REJECTED` | Doctest | CLI doctest command is not allowed by doctest policy. |
 | `ZNTL_DOCTEST_SNAPSHOT_MISMATCH` | Doctest | Actual doctest output did not match expected output. |
-| `ZNTL_TASK_STATE_INVALID` | Task system | Queue/status metadata is inconsistent. |
 | `ZNTL_INTERNAL_INVARIANT` | Internal | zentinel violated an internal invariant. |
 
 ## Diagnostic Shape

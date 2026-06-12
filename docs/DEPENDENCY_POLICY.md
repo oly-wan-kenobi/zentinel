@@ -1,6 +1,6 @@
 # Dependency Policy
 
-zentinel should minimize dependencies until the core is stable. Every dependency affects reproducibility, bootstrap complexity, and autonomous-agent ambiguity.
+zentinel should minimize dependencies until the core is stable. Every dependency affects reproducibility and bootstrap complexity.
 
 ## Default Policy
 

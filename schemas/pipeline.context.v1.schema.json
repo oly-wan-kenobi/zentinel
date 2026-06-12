@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zentinel.dev/schemas/pipeline.context.v1.schema.json",
   "title": "zentinel pipeline context packet v1",
-  "description": "The single durable input handed to a fresh stateless subagent before it performs a pipeline role. A packet is self-contained: it names the task, the role, the files the role may and may not touch, the docs and prior artifacts it needs, the constraints and verification expectations it must honor, and the conditions under which it must stop. See docs/AGENT_CONTEXT_PACKETS.md for the per-role profiles, size strategy, and stale-context handling that govern how these fields are populated.",
+  "description": "The single durable input handed to a fresh stateless subagent before it performs a pipeline role. A packet is self-contained: it names the task, the role, the files the role may and may not touch, the docs and prior artifacts it needs, the constraints and verification expectations it must honor, and the conditions under which it must stop.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -41,7 +41,7 @@
       "required": ["id", "title", "file"],
       "properties": {
         "id": {
-          "description": "Three-digit task id matching tasks/queue.json (for example 043).",
+          "description": "Three-digit task id (for example 043).",
           "type": "string",
           "pattern": "^[0-9]{3}$"
         },

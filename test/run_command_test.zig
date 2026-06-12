@@ -116,7 +116,7 @@ fn mutantRunner(env: *Env) rc.MutantRunner {
     return .{ .ctx = env, .runFn = mutantRunFn };
 }
 
-// --- Safety-mode matrix harness (task 058) ---------------------------------
+// --- Safety-mode matrix harness ---------------------------------
 
 const mode_matrix_cfg =
     \\[project]
@@ -197,17 +197,17 @@ fn configuredKillsRunFn(ctx: *anyopaque, m: mutant.Mutant, source: []const u8, c
     return mutant_runner.run(env.arena, m, source, .created, commands, env.cwd, ex, mode) catch @panic("mutant run failed");
 }
 
-test "non-primary mode-matrix columns re-verify narrowed survivors against the configured suite (L27)" {
+test "non-primary mode-matrix columns re-verify narrowed survivors against the configured suite" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // reverify_src has a same-file test, so selection narrows to `zig test <file>`.
     // The narrowed run misses the mutant (survives) but the configured `zig build
-    // test` suite kills it. Before L27 only the PRIMARY (Debug) column re-verified,
+    // test` suite kills it. Previously only the PRIMARY (Debug) column re-verified,
     // so the non-primary (ReleaseFast) column recorded the narrowed `survived` and
     // isModeDependent flipped true purely from the selection asymmetry. Now every
-    // column re-verifies, so both record `killed` and there is no mode effect (L27).
+    // column re-verifies, so both record `killed` and there is no mode effect.
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
     const mr = rc.MutantRunner{ .ctx = &env, .runFn = configuredKillsRunFn };
@@ -320,7 +320,7 @@ const reverify_src =
     \\}
 ;
 
-test "configured reverification specs are parsed once per run, not once per surviving mutant (L4)" {
+test "configured reverification specs are parsed once per run, not once per surviving mutant" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -339,7 +339,7 @@ test "configured reverification specs are parsed once per run, not once per surv
     try expectEqual(@as(usize, 1), rc.configured_specs_parse_count);
 }
 
-test "selection specs are built once per file, not once per mutant (L5)" {
+test "selection specs are built once per file, not once per mutant" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -357,14 +357,14 @@ test "selection specs are built once per file, not once per mutant (L5)" {
     try expectEqual(@as(usize, 1), rc.selection_specs_build_count);
 }
 
-test "the source index is built once per run, not scanned once per mutant (L18)" {
+test "the source index is built once per run, not scanned once per mutant" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // Two mutants over one source file: the path->source index is built ONCE for
     // the whole run, so each mutant's source lookup is an O(1) map get rather than
-    // a fresh linear scan of `files` per candidate (the old O(M*F) behavior) (L18).
+    // a fresh linear scan of `files` per candidate (the old O(M*F) behavior).
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
@@ -375,14 +375,14 @@ test "the source index is built once per run, not scanned once per mutant (L18)"
     try expectEqual(@as(usize, 1), rc.source_index_builds);
 }
 
-test "each file's result-cache source hash is computed once per file, not once per mutant (S3)" {
+test "each file's result-cache source hash is computed once per file, not once per mutant" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // Two mutants over one source file: the SHA-256 source hash is a pure function
     // of the file bytes (identical for both mutants), so Phase C computes it ONCE for
-    // the file and reuses it, rather than re-hashing the whole file per mutant (S3).
+    // the file and reuses it, rather than re-hashing the whole file per mutant.
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
@@ -393,7 +393,7 @@ test "each file's result-cache source hash is computed once per file, not once p
     try expectEqual(@as(usize, 1), rc.source_hash_count);
 }
 
-test "each source file's AST is parsed once per run, not re-parsed for same-file selection (L30)" {
+test "each source file's AST is parsed once per run, not re-parsed for same-file selection" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -401,7 +401,7 @@ test "each source file's AST is parsed once per run, not re-parsed for same-file
     // One source file, two mutants, default same_file_then_package selection (the
     // file has a same-file test, so selection narrows). generateCandidates parses
     // the file to find candidates; the same-file selection must reuse that parse
-    // via the per-file table instead of parsing the file a second time (L30).
+    // via the per-file table instead of parsing the file a second time.
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
@@ -414,7 +414,7 @@ test "each source file's AST is parsed once per run, not re-parsed for same-file
     try expectEqual(@as(usize, 1), rc.ast_parse_count);
 }
 
-test "the enabled-operator set is scanned once per run, not once per raw candidate (S10)" {
+test "the enabled-operator set is scanned once per run, not once per raw candidate" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -423,7 +423,7 @@ test "the enabled-operator set is scanned once per run, not once per raw candida
     // both enabled in cfg_toml. The prior code called enabled() once per raw
     // candidate, re-scanning cfg.mutators_enabled each time (O(M*E)). The membership
     // structure is now built once per run and reused for an O(1) check, so the scan
-    // count must be 1 regardless of candidate count -- not 2 (one per candidate) (S10).
+    // count must be 1 regardless of candidate count -- not 2 (one per candidate).
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
@@ -703,7 +703,7 @@ test "parseArgs rejects unknown options and missing values instead of ignoring t
     try expectError(error.InvalidReportFormat, rc.parseArgs(&.{ "--report", "yaml" }));
 }
 
-test "parseArgs rejects an unknown --operator name instead of silently matching nothing (L31)" {
+test "parseArgs rejects an unknown --operator name instead of silently matching nothing" {
     // A mistyped operator must be a usage error, not a clean run over 0 mutants.
     try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
     try expectError(error.UnknownOperator, rc.parseArgs(&.{ "--operator", "arithmetic_add" })); // truncated real name
@@ -741,7 +741,7 @@ test "--verbose and --quiet parse as run options without affecting report data" 
     try expect(quiet.quiet);
     try expect(!quiet.verbose);
 
-    // Passing both is a usage error, not a silent quiet-wins (L44); order does not
+    // Passing both is a usage error, not a silent quiet-wins; order does not
     // matter.
     try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--verbose", "--quiet" }));
     try expectError(error.ConflictingOptions, rc.parseArgs(&.{ "--quiet", "--verbose" }));
@@ -804,7 +804,7 @@ const cfg_cache_off =
     \\
 ;
 
-test "cache.enabled = false in config disables the result cache like --no-cache (M5)" {
+test "cache.enabled = false in config disables the result cache like --no-cache" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -813,7 +813,7 @@ test "cache.enabled = false in config disables the result cache like --no-cache 
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
 
     // No --no-cache flag; the disable comes purely from the config field, which
-    // was previously parsed and then ignored (M5).
+    // was previously parsed and then ignored.
     const outcome = try rc.run(a, loadCfg(a, cfg_cache_off), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
     try expectEqual(report.CacheMode.disabled, outcome.cache.mode);
     try expect(!outcome.cache.enabled);
@@ -871,7 +871,7 @@ test "snapshot: baseline timeout" {
     try checkSnapshot(a, "test/snapshots/run_command_baseline_timeout.json", json);
 }
 
-// --- `run --backend` is list-mutants-only (task 114) -----------------------
+// --- `run --backend` is list-mutants-only -----------------------
 
 fn readDoc(a: std.mem.Allocator, path: []const u8) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));

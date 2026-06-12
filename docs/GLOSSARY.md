@@ -1,12 +1,12 @@
 # Glossary
 
-This document defines canonical zentinel terminology. Agents must use these terms in docs, task files, reports, comments, and handoff artifacts instead of inventing synonyms.
+This document defines canonical zentinel terminology. Use these terms in docs, reports, and comments instead of inventing synonyms.
 
 ## How This Document Works
 
 Terms are lowercase unless they name a concrete backend, command, schema, status, or file.
 
-When a new concept becomes part of the public contract, add it here before using it broadly in specs or task handoffs. Do not create a synonym when an existing term is close enough.
+When a new concept becomes part of the public contract, add it here before using it broadly in specs. Do not create a synonym when an existing term is close enough.
 
 ## Terms
 
@@ -40,7 +40,7 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Doctest case ID**: A durable deterministic ID for one extracted doctest case, formatted with the `dt_` prefix. It is derived from stable case content and grouping metadata, not from display-only line numbers. Duplicate unlabeled identical cases in one file are invalid instead of receiving hidden occurrence-based IDs.
 
-**Doctest case ref**: A CLI selector for one doctest case. It may be a durable doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:label]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, not secondary expectation blocks, and are not durable handoff identifiers.
+**Doctest case ref**: A CLI selector for one doctest case. It may be a durable doctest case ID or a source ref such as `docs/CLI_SPEC.md:47[:label]` resolved against the current extraction or selected doctest report. Source refs resolve only against the case anchor line, not secondary expectation blocks, and are not durable identifiers.
 
 **Doctest mutation case ID**: A durable deterministic ID for one mutation-aware doctest report entry, formatted with the `dm_` prefix. It identifies killed, survived, skipped, invalid, compile-error, compiler-crash, and timeout documentation mutants and is separate from the original ordinary `dt_...` doctest case ID and the survivor-only `ds_...` ref.
 
@@ -53,8 +53,6 @@ When a new concept becomes part of the public contract, add it here before using
 **Fixture**: A small Zig project or source file designed to exercise one behavior or mutator contract.
 
 **Functional core**: Deterministic logic expressed as small modules and explicit data transformations, with side effects pushed to boundary adapters.
-
-**Gap registry**: A committed machine-readable file under `tests/coverage-gaps/` that maps docs requirements to tests or documents uncovered work.
 
 **Invalid mutant**: A zentinel bug where a backend or mutator emits malformed source, an out-of-range span, or a candidate that violates its documented contract.
 
@@ -72,7 +70,7 @@ When a new concept becomes part of the public contract, add it here before using
 
 **Port or adapter**: A boundary module that connects the deterministic core to CLI/editor/CI presentation, filesystem or process side effects, sandbox/cache/report I/O, or advisory AI providers.
 
-**Preview mutator**: A mutator documented in `docs/MUTATOR_SPEC.md` but not enabled by default. Preview mutators are not part of end-to-end minimum-product completion unless a future task explicitly names the operator.
+**Preview mutator**: A mutator documented in `docs/MUTATOR_SPEC.md` but not enabled by default. Preview mutators are not part of end-to-end minimum-product completion until explicitly stabilized.
 
 **Protected dogfood scope**: The subset of zentinel dogfood runs whose invalid mutants, nondeterminism, or survivor regressions block completion once dogfood gating exists.
 
@@ -85,8 +83,6 @@ When a new concept becomes part of the public contract, add it here before using
 **Stable backend**: A backend enabled for normal CI use and public reports. The AST backend is the stable default.
 
 **Survived**: A mutant result where selected tests passed after the mutant was applied.
-
-**Task system**: The queue and status files under `tasks/` plus `scripts/validate_task_system.py`.
 
 **Timeout**: A deterministic result where a command exceeded the configured timeout.
 

@@ -41,7 +41,7 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             i += 1;
             if (i >= args.len) return error.MissingValue;
             // Reject an unknown operator up front so a mistyped name is a usage
-            // error, not a silent 0-mutant preview with exit 0 (L31).
+            // error, not a silent 0-mutant preview with exit 0.
             if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--format")) {
@@ -87,7 +87,7 @@ pub fn generate(
         try comparison.collect(&collector, parsed, f.path, test_ranges);
         try logical.collect(&collector, parsed, f.path, test_ranges);
         try boolean.collect(&collector, parsed, f.path, test_ranges);
-        // Phase-2 stable collectors (task 109): kept in lockstep with the run
+        // Phase-2 stable collectors: kept in lockstep with the run
         // command's generator so `list-mutants` previews exactly the operators a
         // run will emit.
         try optional.collect(&collector, parsed, f.path, test_ranges);

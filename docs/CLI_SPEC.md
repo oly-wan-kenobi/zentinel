@@ -53,15 +53,13 @@ zentinel embeds the `std.zig.Ast` parser, so mutant *generation* never shells ou
 --no-color
 ```
 
-Global options parse before command dispatch only after their owner task is implemented. Before then, a known future global option must fail with exit code `2` and `ZNTL_CLI_INVALID_OPTION`; unknown options also fail with exit code `2`.
+Global options parse before command dispatch. Unknown options fail with exit code `2` and `ZNTL_CLI_INVALID_OPTION`.
 
-Ownership:
-
-| Option | Owner task | Applies to | Notes |
-| --- | --- | --- | --- |
-| `--no-color` | `tasks/001-cli-shell.md` | all terminal output | Needed for stable help and error snapshots. |
-| `--config <path>` | `tasks/005-version-policy.md` | `check`; reused by `run`, `list-mutants`, and `doctest` as those commands land | Shared parser only; command-specific behavior is added by each command task. |
-| `--root <path>` | `tasks/005-version-policy.md` | `check`; reused by later project commands | Normalizes project-relative paths before command dispatch. |
+| Option | Applies to | Notes |
+| --- | --- | --- |
+| `--no-color` | all terminal output | Needed for stable help and error snapshots. |
+| `--config <path>` | `check`, `run`, `list-mutants`, `doctest` | Shared parser; command-specific behavior belongs to each command. |
+| `--root <path>` | `check` and other project commands | Normalizes project-relative paths before command dispatch. |
 
 `--verbose` and `--quiet` are **not** global options: they are command-local to `zentinel run` (parsed after the subcommand, e.g. `zentinel run --verbose`) and select the text-report verbosity only. They must not change deterministic JSON fields or hide errors/required evidence. See the `run` section below.
 
@@ -123,9 +121,7 @@ zentinel 0.0.0
 zig 0.16.0
 ```
 
-Task `001` owns only policy-label `zentinel version` output. Until task `005` is complete, task `001` treats version output as policy-only and prints the configured zentinel version and Zig policy label but must not invoke `zig version` or own compatibility diagnostics.
-
-Task `005` adds real Zig discovery to `zentinel version` and `zentinel check`. After task `005`, `zentinel version` reports discovered Zig status as environment information, while `zentinel check` treats unsupported or missing Zig as a fatal environment validation failure.
+`zentinel version` reports discovered Zig status as environment information, while `zentinel check` treats unsupported or missing Zig as a fatal environment validation failure.
 
 When Zig is missing, `zentinel version` exits `0`, prints zentinel version on stdout, and reports `ZNTL_ZIG_NOT_FOUND` on stderr because Zig is not required to print the tool version. When Zig is unsupported, `zentinel version` still exits `0`, prints zentinel version on stdout, and reports `ZNTL_ZIG_UNSUPPORTED_VERSION` with detected and required versions on stderr.
 
@@ -181,7 +177,7 @@ Useful options:
 
 Experimental backends require explicit opt-in.
 
-`list-mutants --backend zir` is owned by task `056` and `--backend ast` remains the stable path owned by the initial `list-mutants` work. (The `air` backend was retired: AIR-level mutation mapping is infeasible without Zig's `Sema` stage.)
+`list-mutants --backend zir` selects the experimental ZIR backend; `--backend ast` remains the stable path. (The `air` backend was retired: AIR-level mutation mapping is infeasible without Zig's `Sema` stage.)
 
 `--backend` is **`list-mutants`-only**. `--backend zir` does **real ZIR lowering for every binary-operator mutation** (task 056, Phases 1-3): it lowers each source file to ZIR via `std.zig.AstGen` and recognizes `equality_swap`/`comparison_boundary` (from `cmp_*`), `logical_and_or` (from `bool_br_and`/`bool_br_or`), and `arithmetic_add_sub`/`arithmetic_mul_div` (from `add`/`sub`/`mul`/`div`) sites, in exact differential parity with the AST recognizers; every other operator and every AstGen-injected operator is an out-of-report diagnostic, never a mutant. The remaining operators are AST-only **by principle**: literal mutations (`boolean_literal`, `integer_literal_boundary`) lower to operand refs (no instruction), and control-flow ones (`error_catch_unreachable`, `optional_orelse_unreachable`, `errdefer_remove`, `loop_boundary`) desugar into multi-instruction patterns the AST node recognizes more cleanly. ZIR is `experimental`, opt-in, and affects only the `list-mutants` listing — never `run`.
 
@@ -209,22 +205,21 @@ Useful options:
 
 `run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR backend never participates in a run.
 
-## Run Option Ownership
+## Run Options
 
-`zentinel run` option implementation is intentionally split across tasks. A documented option must not be silently ignored before its owner task lands; command dispatch must reject not-yet-owned run options deterministically with exit code `2`.
+A documented option must not be silently ignored; command dispatch must reject unsupported run options deterministically with exit code `2`.
 
-| Option | Owner task | Notes |
-| --- | --- | --- |
-| `--config <path>` | `tasks/016-minimal-run-command.md` | Reuses the shared config-path parser introduced by task `005`. |
-| `--operator <name>` | `tasks/016-minimal-run-command.md` | Filters Phase 1 candidates to one documented operator. |
-| `--mutant <id>` | `tasks/016-minimal-run-command.md` | Runs one durable mutant ID after candidate generation. |
-| `--fail-on-survivors` | `tasks/016-minimal-run-command.md` | Changes the run command exit code to `1` when survivors are present; JUnit survivor-failure rendering is expanded by task `018`. |
-| `--report <text|json>` | `tasks/016-minimal-run-command.md` | Phase 1 run output supports text and canonical JSON. |
-| `--report <jsonl|junit>` | `tasks/018-report-renderers.md` | Report-renderer task adds streaming JSONL and JUnit. |
-| `--output <path>` | `tasks/016-minimal-run-command.md` | Writes the **canonical JSON** report to the configured or explicit output path (this is the durable machine artifact that `--input-report` consumers read back). `--report` selects only the **stdout** rendering; it does not change the format written to `--output`. So `--output ci.json --report junit` writes canonical JSON to `ci.json` and prints JUnit to stdout. |
-| `--no-cache` | `tasks/021-cache-key-design.md` | Disables zentinel result-cache reads and writes for the invocation; Zig build-cache isolation remains governed by runner and worker tasks. |
-| `--jobs <n>` | `tasks/050-parallel-worker-pool.md` | Overrides normalized `run.jobs` for the invocation. |
-| `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | `tasks/058-safety-mode-matrix.md` | Overrides configured `zig.modes` for a single-mode run. |
+| Option | Notes |
+| --- | --- |
+| `--config <path>` | Reuses the shared config-path parser. |
+| `--operator <name>` | Filters candidates to one documented operator. |
+| `--mutant <id>` | Runs one durable mutant ID after candidate generation. |
+| `--fail-on-survivors` | Changes the run command exit code to `1` when survivors are present. |
+| `--report <text|json|jsonl|junit>` | Selects the stdout report rendering. |
+| `--output <path>` | Writes the **canonical JSON** report to the configured or explicit output path (this is the durable machine artifact that `--input-report` consumers read back). `--report` selects only the **stdout** rendering; it does not change the format written to `--output`. So `--output ci.json --report junit` writes canonical JSON to `ci.json` and prints JUnit to stdout. |
+| `--no-cache` | Disables zentinel result-cache reads and writes for the invocation; Zig build-cache isolation is handled by the runner and worker pool. |
+| `--jobs <n>` | Overrides normalized `run.jobs` for the invocation. |
+| `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | Overrides configured `zig.modes` for a single-mode run. |
 
 Default text output emphasizes survivors and diagnostics, not percentages.
 
@@ -264,7 +259,7 @@ For doctest AI commands, `--input-report <path>` points to a deterministic docte
 
 `<case-ref>` accepts either a durable doctest case ID such as `dt_01hr7p6h0v2fj3drdzt9k2a0xe` or a source ref such as `docs/CLI_SPEC.md:47[:help-output]` resolved against the current extraction or selected doctest report. Doctest source-ref examples are illustrative; executable fixtures must derive source refs from current extraction metadata instead of copying hard-coded line numbers from this document. Source refs resolve only against the case anchor line, which is the first executable or producer block in the grouped case. Lines that point only at secondary expectation blocks must fail with `ZNTL_DOCTEST_CASE_NOT_FOUND` instead of guessing the producer. Source refs are selectors, not durable references, and must not be persisted in handoffs, reports, or AI context as canonical IDs.
 
-Doctest AI subcommands are user-facing CLI commands because autonomous agents can invoke and test CLI surfaces reliably. `zentinel doctest explain <case-ref>` explains a failing doctest case from the selected doctest report. `zentinel doctest suggest <doc-path>` suggests executable examples for one project-relative docs path. `zentinel doctest review-snapshot <case-ref>` summarizes normalized expected/actual snapshot differences from exact `case.result.snapshot` evidence for one report case. `zentinel doctest suggest-missing [--file <doc-path>]` suggests public docs that need executable examples. `zentinel doctest explain-survivor <survivor-ref>` explains a mutation-aware doctest survivor after task `067` implements that deferred flow. None of these commands edit documentation, snapshots, or deterministic doctest reports.
+Doctest AI subcommands are user-facing CLI commands. `zentinel doctest explain <case-ref>` explains a failing doctest case from the selected doctest report. `zentinel doctest suggest <doc-path>` suggests executable examples for one project-relative docs path. `zentinel doctest review-snapshot <case-ref>` summarizes normalized expected/actual snapshot differences from exact `case.result.snapshot` evidence for one report case. `zentinel doctest suggest-missing [--file <doc-path>]` suggests public docs that need executable examples. `zentinel doctest explain-survivor <survivor-ref>` explains a mutation-aware doctest survivor. None of these commands edit documentation, snapshots, or deterministic doctest reports.
 
 If AI is disabled, commands fail with a clear message:
 

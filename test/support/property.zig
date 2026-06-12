@@ -1,7 +1,7 @@
 // Test support: run a structural property over a deterministic seeded stream and
-// record the evidence a property report must carry (docs/PROPERTY_TEST_POLICY.md,
-// task 062). This is the harness tests use to drive the seeded generator; it is
-// not product code and lives only under test/.
+// record the evidence a property report must carry. This is the harness tests
+// use to drive the seeded generator; it is not product code and lives only
+// under test/.
 const std = @import("std");
 const gen = @import("zentinel").property.generator;
 

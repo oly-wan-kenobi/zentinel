@@ -11,8 +11,8 @@ pub const version = "0.0.0";
 pub const zig_version = @import("zig_version.zig");
 
 /// Pinned supported Zig version, owned by the single version-policy module
-/// `zig_version`. `zentinel version` prints it as a policy label; task 005 adds
-/// real `zig version` discovery compared against this pin by `version` and `check`.
+/// `zig_version`. `zentinel version` prints it as a policy label; `version` and
+/// `check` compare real `zig version` discovery against this pin.
 pub const supported_zig_version = zig_version.supported_version;
 
 /// Config parsing and validation (deterministic core).
@@ -28,8 +28,7 @@ pub const check_command = @import("check_command.zig");
 /// Shared mutant model + durable `m_...` identity algorithm (deterministic core).
 pub const mutant = @import("mutant.zig");
 
-/// Safety/optimization mode matrix model + classification (deterministic core,
-/// task 058).
+/// Safety/optimization mode matrix model + classification (deterministic core).
 pub const safety_modes = @import("safety_modes.zig");
 
 /// Deterministic seeded property-test generator + structural validator for the
@@ -52,7 +51,7 @@ pub const ast_backend = @import("ast_backend.zig");
 
 /// Experimental ZIR backend prototype (docs/ZIR_BACKEND.md). Opt-in only;
 /// re-tags exactly-mapped AST candidates as experimental and records unsupported
-/// operators as out-of-report diagnostics (task 056).
+/// operators as out-of-report diagnostics.
 pub const zir_backend = @import("zir_backend.zig");
 
 // The experimental AIR backend was retired: meaningful AIR-level mutation
@@ -127,7 +126,7 @@ pub const doctest = struct {
 };
 
 /// AI provider plumbing, context construction, and privacy redaction. AI is
-/// advisory-only and never influences deterministic-core decisions (task 053).
+/// advisory-only and never influences deterministic-core decisions.
 pub const ai = struct {
     pub const provider = @import("ai/provider.zig");
     pub const context = @import("ai/context.zig");
@@ -154,7 +153,7 @@ pub const report_junit = @import("report_junit.zig");
 /// and inject extra array elements (e.g. `zig test", "evil` -> two commands), and
 /// a control byte (newline/tab/...) would malform the file. Such a value is
 /// unrepresentable; `dispatchInit` rejects it rather than write an injected or
-/// broken config (L21). Backslash is read literally by the reader, so it is safe.
+/// broken config. Backslash is read literally by the reader, so it is safe.
 pub fn testCommandEmbeddable(value: []const u8) bool {
     for (value) |c| {
         if (c == '"' or c < 0x20 or c == 0x7f) return false;
@@ -166,7 +165,7 @@ pub fn testCommandEmbeddable(value: []const u8) bool {
 /// baseline test command for config-aware `init --test-command`. Precondition:
 /// `dispatchInit` has rejected any value that is not `testCommandEmbeddable`, so
 /// the raw substitution stays a single quoted array element and is injection-safe
-/// (L21).
+///.
 pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
     const cmd = test_command orelse return default_config;
     const needle = "commands = [\"zig build test\"]";
@@ -342,7 +341,7 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
     // `check`/`list-mutants`/`run`/`doctest` and the AI commands are real routed
     // commands handled by `route`; they never reach this frozen fallback, so
     // dispatch no longer carries a vestigial "not implemented" roadmap list. Any
-    // command that does reach here is genuinely unknown (task 116).
+    // command that does reach here is genuinely unknown.
     return .{ .exit_code = 2, .error_code = .cli_unknown_command, .detail = cmd };
 }
 
@@ -359,7 +358,7 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
             if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
             // Reject values that cannot be embedded in zentinel's escape-free TOML:
             // a `"` would inject extra commands, a control byte would malform the
-            // file (L21). Caught here so no "created zentinel.toml" is printed.
+            // file. Caught here so no "created zentinel.toml" is printed.
             if (!testCommandEmbeddable(rest[i])) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
             test_command = rest[i];
         } else if (eq(arg, "--backend")) {
@@ -387,7 +386,7 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
 pub const config_default_path = "zentinel.toml";
 
 /// Parsed global options shared across project commands (docs/CLI_SPEC.md).
-/// Owned by task 005 for `check`; reused by later project commands.
+/// Shared by `check` and the other project commands.
 pub const Globals = struct {
     config_path: []const u8 = config_default_path,
     config_explicit: bool = false,
@@ -407,7 +406,7 @@ pub fn resolveConfigPathForRoot(arena: std.mem.Allocator, globals: Globals) Conf
 
 /// The single stable cleanup-warning diagnostic format, shared by the allocating
 /// `cleanupWarningText` and the streaming `emitCleanupWarningIfNeeded` so the two
-/// surfaces cannot drift apart (L17).
+/// surfaces cannot drift apart.
 const cleanup_warning_fmt = "warning: failed to remove {d} mutation workspace(s)\n";
 
 /// Stable cleanup warning surface shared by the CLI adapter and tests.
@@ -417,7 +416,7 @@ pub fn cleanupWarningText(arena: std.mem.Allocator, count: u32) std.mem.Allocato
 
 /// Adapter-visible cleanup warning emission. A zero count is intentionally silent;
 /// a non-zero count streams `cleanup_warning_fmt` directly. It needs no allocator
-/// -- the prior signature accepted one only to discard it via `_ = arena;` (L17).
+/// -- the prior signature accepted one only to discard it via `_ = arena;`.
 pub fn emitCleanupWarningIfNeeded(count: u32, stderr: *std.Io.Writer) !void {
     if (count == 0) return;
     try stderr.print(cleanup_warning_fmt, .{count});

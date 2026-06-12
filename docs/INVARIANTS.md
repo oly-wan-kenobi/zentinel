@@ -1,6 +1,6 @@
 # Invariants
 
-This document is the authoritative list of properties that must hold across zentinel's deterministic core, task system, reports, and AI boundaries.
+This document is the authoritative list of properties that must hold across zentinel's deterministic core, reports, and AI boundaries.
 
 ## How This Document Works
 
@@ -33,7 +33,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 **I-001.** A mutant result is determined only by deterministic command evidence.
 - *Rationale.* Kill, survive, compile-error, compiler-crash, timeout, and invalid status must be reproducible and auditable.
 - *Status.* documented.
-- *Enforcement.* `docs/ARCHITECTURE.md`, `docs/MUTATOR_SPEC.md`, `docs/TDD_POLICY.md`, and future runner tests.
+- *Enforcement.* `docs/ARCHITECTURE.md`, `docs/MUTATOR_SPEC.md`, and runner tests.
 - *Failure mode.* AI or heuristics override actual test evidence, making reports untrustworthy.
 
 **I-002.** The same repository content, config, Zig version, backend, safety mode, and command produce the same candidate set and stable mutant IDs.
@@ -69,7 +69,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 **I-022.** Deterministic core modules do not import side-effect or advisory adapters.
 - *Rationale.* Mutation semantics, stable IDs, source mapping, classification, and canonical ordering must stay independent of process execution, filesystem state, report rendering, and AI provider behavior.
 - *Status.* enforced for source files with layer declarations once `src/` exists.
-- *Enforcement.* ADR-0008, `docs/INTERNAL_API_CONTRACTS.md`, `docs/DISCIPLINE.md`, and `scripts/validate_task_system.py` architecture boundary checks.
+- *Enforcement.* ADR-0008 and the layer rules in `docs/INTERNAL_API_CONTRACTS.md`.
 - *Failure mode.* Boundary adapters acquire domain authority, making deterministic behavior harder to audit and easier for agents to change accidentally.
 
 ## Mutation and Sandbox
@@ -127,7 +127,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 **I-014.** Public machine-readable artifacts emit the documented schema version exactly.
 - *Rationale.* Agents and integrations need stable parse contracts.
 - *Status.* documented, enforced for registry presence.
-- *Enforcement.* `docs/SCHEMA_REGISTRY.md`, JSON schemas, and `scripts/validate_task_system.py`.
+- *Enforcement.* `docs/SCHEMA_REGISTRY.md` and the JSON schemas under `schemas/`.
 - *Failure mode.* A report or handoff cannot be safely consumed by future agents.
 
 **I-015.** Snapshot outputs normalize absolute paths, durations, timestamps, and nondeterministic ordering.
@@ -142,28 +142,12 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Enforcement.* Doctest parser and extraction tests.
 - *Failure mode.* Documentation test reports change without doc changes.
 
-## Task System and Agent Workflow
-
-**I-017.** At most one task is active pending completion at any time.
-- *Rationale.* Sequential autonomous work needs one clear owner and scope.
-- *Status.* enforced.
-- *Enforcement.* `scripts/validate_task_system.py`.
-- *Failure mode.* Two agents make conflicting scope and status changes.
-
-**I-018.** Queue Markdown, queue JSON, status Markdown, and status JSON stay synchronized.
-- *Rationale.* Humans and machines must see the same task state.
-- *Status.* enforced.
-- *Enforcement.* `scripts/validate_task_system.py`.
-- *Failure mode.* Agents execute the wrong task or modify forbidden files.
+## Development Workflow
 
 **I-019.** Behavior changes start with failing evidence before implementation.
-- *Rationale.* Tests specify intended behavior and keep agents from validating their own assumptions after the fact.
+- *Rationale.* Tests specify intended behavior; a regression test must fail before the fix that makes it pass.
 - *Status.* documented.
-- *Enforcement.* Task files, handoffs, and reviewer/verifier checks. Current machine checks verify required evidence fields and role handoffs, but do not independently prove chronology until pipeline artifact validation covers role timestamps. Mechanical chronology proof starts at task `063` when pipeline artifact validation can check role timestamps.
+- *Enforcement.* Code review.
 - *Failure mode.* Implementation and tests encode the same unreviewed mistake.
 
-**I-020.** Follow-up implementation work is captured as concrete task metadata, not prose-only notes.
-- *Rationale.* Autonomous agents need actionable queue entries.
-- *Status.* enforced.
-- *Enforcement.* `scripts/validate_task_system.py` rejects prose-only follow-up bullets unless they explicitly state no predefined follow-up exists, and validates referenced task files.
-- *Failure mode.* Required work is lost between sessions.
+(I-017, I-018, and I-020 covered a retired internal task-tracking workflow and are intentionally absent; invariant numbers are stable and never reused.)

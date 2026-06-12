@@ -122,7 +122,7 @@ fn findByOperator(mutants: []const mutant.Mutant, operator: []const u8) ?mutant.
     return null;
 }
 
-// Regression for adversarial audit finding F-1 (task 117): a stable operator's
+// Regression for adversarial audit finding F-1: a stable operator's
 // `Mutant.original` must outlive the parsed tree. This drives the real pipeline
 // (parse -> collect -> finish -> `parsed.deinit()` -> `sandbox.apply`), exactly
 // like `run_command.generateCandidates`'s `defer parsed.deinit()`, but with a
@@ -179,7 +179,7 @@ test "F-1: stable-operator Mutant.original survives parse teardown" {
 // below covers them all -- not just the 3 in F-1. The real-binary integration
 // test cannot guard this (its arena's `free` is a no-op rewind that neither frees
 // nor poisons), so this GPA-backed test is the actual regression guard for a
-// revert of the Collector.add() dup across all operators (L2).
+// revert of the Collector.add() dup across all operators.
 const teardown_all_source =
     \\fn risky(flag: bool) !u8 {
     \\    if (flag) return error.Boom;
@@ -210,7 +210,7 @@ const teardown_all_source =
     \\}
 ;
 
-test "L2: every stable source-slice operator's Mutant.original survives parse teardown" {
+test "every stable source-slice operator's Mutant.original survives parse teardown" {
     var collector_arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer collector_arena.deinit();
     const ca = collector_arena.allocator();
@@ -247,7 +247,7 @@ test "L2: every stable source-slice operator's Mutant.original survives parse te
     };
     for (required_ops) |op| {
         if (findByOperator(mutants, op) == null) {
-            std.debug.print("L2: no candidate emitted for operator {s}\n", .{op});
+            std.debug.print("no candidate emitted for operator {s}\n", .{op});
             return error.MissingCandidate;
         }
     }

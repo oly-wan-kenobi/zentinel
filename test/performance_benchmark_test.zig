@@ -190,7 +190,7 @@ test "cache diagnostics serialize under diagnostics.cache and keep the report sc
 // verified by scripts/check_perf_budgets.py (a cross-directory @embedFile of the
 // doc is disallowed by the Zig package boundary).
 
-test "benchmark.sh describes its committed deterministic snapshot, not a timing trend (L46)" {
+test "benchmark.sh describes its committed deterministic snapshot, not a timing trend" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -200,7 +200,7 @@ test "benchmark.sh describes its committed deterministic snapshot, not a timing 
     // The script prints the committed, byte-pinned benchmark snapshot (the suite's
     // reference EQUIVALENCE result, validated by the benchmark_snapshot test above),
     // not a live wall-clock measurement -- so it must not claim to feed a
-    // performance "trend comparison" (L46).
+    // performance "trend comparison".
     try expect(std.mem.indexOf(u8, sh, "trend comparison") == null);
     // It still names what it actually does: runs the deterministic suite that pins
     // the snapshot.

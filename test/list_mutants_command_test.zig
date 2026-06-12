@@ -133,7 +133,7 @@ test "parseArgs reads documented options and rejects the rest" {
     try expectError(error.UnknownOption, lm.parseArgs(&.{"--nope"}));
     try expectError(error.MissingValue, lm.parseArgs(&.{"--operator"}));
     try expectError(error.InvalidFormat, lm.parseArgs(&.{ "--format", "yaml" }));
-    // An unknown --operator name is a usage error, not a clean 0-mutant preview (L31).
+    // An unknown --operator name is a usage error, not a clean 0-mutant preview.
     try expectError(error.UnknownOperator, lm.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
 }
 
@@ -159,7 +159,7 @@ test "snapshot: json listing uses shared mutant fields" {
     try checkSnapshot(a, "test/snapshots/list_mutants_basic.json", json);
 }
 
-// --- Phase-2 operator wiring (task 109) ------------------------------------
+// --- Phase-2 operator wiring ------------------------------------
 //
 // The optional/error_path/integer_boundary/loop_boundary collectors are
 // implemented but were never called by the generators, so enabling their (stable)
@@ -222,7 +222,7 @@ test "config rejects enabling a preview operator that has no collector" {
 
     // optional_orelse_default is a preview operator with no collector; enabling it
     // would load successfully and silently emit zero mutants, so config must
-    // reject it instead (task 109). Stable operators still load.
+    // reject it instead. Stable operators still load.
     var diag: config.Diagnostic = .{};
     try expectError(error.Invalid, config.load(a, "[mutators]\nenabled = [\"optional_orelse_default\"]\n", &diag));
 

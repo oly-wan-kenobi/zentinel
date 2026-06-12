@@ -1,7 +1,7 @@
 // Layer: deterministic_core
 //
-// Safety/optimization mode matrix (docs/ZIG_SEMANTICS.md, docs/REPORT_FORMAT.md,
-// task 058). Models the four Zig build modes explicitly, their canonical order,
+// Safety/optimization mode matrix (docs/ZIG_SEMANTICS.md, docs/REPORT_FORMAT.md).
+// Models the four Zig build modes explicitly, their canonical order,
 // the `--mode` override resolution, and the deterministic classification that
 // distinguishes a safety-mode effect (a mutant whose status differs across modes,
 // e.g. killed by a Debug safety check but surviving in ReleaseFast where the check
@@ -35,7 +35,7 @@ pub fn buildFlag(mode: Mode) []const u8 {
 
 /// Return `argv` with the optimize flag for `mode` appended, so a mutant is
 /// actually evaluated under that mode -- the mode must reach the spawned process
-/// as a real argv element, not merely a `result.mode` label (H5). The flag form
+/// as a real argv element, not merely a `result.mode` label. The flag form
 /// is command-specific and verified against pinned Zig 0.16:
 ///   - `zig test ...`  takes `-O<mode>`            (e.g. `-OReleaseFast`)
 ///   - `zig build ...` takes `-Doptimize=<mode>`   (`zig build` REJECTS `-O<mode>`)

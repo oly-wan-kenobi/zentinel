@@ -124,7 +124,7 @@ test "loop boundaries inside test bodies are excluded" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "an i128-max for-range end skips the overflowing +1 boundary instead of panicking (H1)" {
+test "an i128-max for-range end skips the overflowing +1 boundary instead of panicking" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

@@ -8,7 +8,7 @@
 // original-text check before replacement is I-008.
 //
 // Filesystem workspace creation (ZNTL_SANDBOX_CREATE_FAILED, F-010) is a
-// side_effect_adapter concern owned by the mutant runner (task 015), which
+// side_effect_adapter concern owned by the mutant runner, which
 // combines this sandbox with the runner to create and run per-mutant
 // filesystem workspaces. This module stays pure so it remains testable through
 // the deterministic-core module hub.

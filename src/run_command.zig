@@ -49,8 +49,8 @@ pub const Options = struct {
     /// overrides normalized `run.jobs`. Chooses only concurrency, never report
     /// ordering or mutation semantics; `null` falls back to `run.jobs`.
     jobs: ?usize = null,
-    /// Single-invocation safety/optimization mode override (`--mode <...>`,
-    /// task 058). When set it replaces the configured `zig.modes` for this run and
+    /// Single-invocation safety/optimization mode override (`--mode <...>`).
+    /// When set it replaces the configured `zig.modes` for this run and
     /// yields a single-mode report; `null` uses the configured modes.
     mode_override: ?report.Mode = null,
 };
@@ -84,7 +84,7 @@ pub const MutantRunner = struct {
     runFn: *const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const []const u8, mode: report.Mode) mutant_runner.MutationResult,
     runSpecsFn: ?*const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, commands: []const command.Spec, mode: report.Mode) mutant_runner.MutationResult = null,
     /// Optional production adapter that runs a mutant across multiple build modes
-    /// in a single reused workspace (#5). When null, `runModes` falls back to a
+    /// in a single reused workspace. When null, `runModes` falls back to a
     /// per-mode `runSpecs` loop. `out.len == modes.len`.
     runModesFn: ?*const fn (ctx: *anyopaque, m: mutant.Mutant, source: []const u8, specs: []const command.Spec, reverify_specs: []const command.Spec, modes: []const report.Mode, out: []report.ResultStatus) void = null,
 
@@ -101,8 +101,8 @@ pub const MutantRunner = struct {
     /// all of them (the patched source is build-mode-independent), and writing each
     /// mode's status into `out[k]`. For a mode whose narrowed run survives, a
     /// non-empty `reverify_specs` is re-run in the same workspace to confirm the
-    /// verdict against the configured suite (mirrors Phase B.5 per mode, L27). The
-    /// production adapter (`runModesFn`) materializes the workspace once (#5); when
+    /// verdict against the configured suite (mirrors Phase B.5 per mode). The
+    /// production adapter (`runModesFn`) materializes the workspace once; when
     /// absent (test executors), the fallback runs each mode through `runSpecs`,
     /// which is behaviorally identical but re-materializes per call.
     pub fn runModes(
@@ -158,7 +158,7 @@ fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
 
 /// Shared state for the parallel Phase B.5 reverification. Each worker writes only
 /// its disjoint `out[index]`; the raw-arena merge runs serially in the caller so
-/// the (non-thread-safe) arena is never touched off the worker threads (#6).
+/// the (non-thread-safe) arena is never touched off the worker threads.
 const ReverifyCtx = struct {
     jobs: []const Job,
     results: []const mutant_runner.MutationResult,
@@ -180,8 +180,8 @@ fn reverifyOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
 }
 
 /// Shared state for the parallel mode matrix. Each worker handles one mutant
-/// across every NON-primary mode in a single reused workspace (#5), writing its
-/// per-mode statuses into the disjoint `out[index*np ..][0..np]` window (#6).
+/// across every NON-primary mode in a single reused workspace, writing its
+/// per-mode statuses into the disjoint `out[index*np ..][0..np]` window.
 const ModeMatrixCtx = struct {
     jobs: []const Job,
     non_primary: []const report.Mode,
@@ -264,7 +264,7 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             if (i >= args.len) return error.MissingValue;
             // Reject an unknown operator up front; otherwise the filter matches no
             // candidate and the run reports 0 mutants with a clean exit 0, masking a
-            // mistyped name in CI (L31).
+            // mistyped name in CI.
             if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--mutant")) {
@@ -303,14 +303,14 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             // The experimental ZIR/AIR backends re-tag the AST candidate set and
             // are reachable only from `list-mutants`; `run` always uses the stable
             // AST backend, so `run --backend` is an explicit usage error rather
-            // than a silently ignored no-op (task 114).
+            // than a silently ignored no-op.
             return error.BackendNotInRun;
         } else {
             return error.UnknownOption;
         }
     }
     // --verbose and --quiet select opposite verbosities; accepting both would let
-    // quiet silently win and discard the requested verbose output (L44).
+    // quiet silently win and discard the requested verbose output.
     if (opts.verbose and opts.quiet) return error.ConflictingOptions;
     return opts;
 }
@@ -331,10 +331,10 @@ pub fn run(
     }
 
     // `cache.enabled = false` disables the result cache exactly like `--no-cache`,
-    // so the config field is honored rather than parsed-and-ignored (M5).
+    // so the config field is honored rather than parsed-and-ignored.
     const no_cache = options.no_cache or !cfg.cache_enabled;
 
-    // Safety/optimization mode matrix (task 058). `mode` is the primary mode
+    // Safety/optimization mode matrix. `mode` is the primary mode
     // reflected in `result.mode`; `matrix_modes` is the full set run for the
     // additive `result.mode_matrix` (just the override, or the configured modes).
     const mode = safety_modes.primaryMode(cfg.zig_modes, options.mode_override);
@@ -361,7 +361,7 @@ pub fn run(
     }
 
     // Generate candidates over the discovered files, then filter. The single parse
-    // per file also yields each file's same-file tests, reused by selection (L30).
+    // per file also yields each file's same-file tests, reused by selection.
     const generated = try generateCandidates(arena, cfg, files, options);
     const candidates = generated.mutants;
 
@@ -374,11 +374,11 @@ pub fn run(
     var file_cache: std.ArrayList(FileSelection) = .empty;
     // The resolution + selection specs are a pure function of the file (and the
     // run-constant config), so memoize them per file instead of recomputing for
-    // every mutant from the same source (L5).
+    // every mutant from the same source.
     var spec_cache: std.ArrayList(FileSpec) = .empty;
     var job_list: std.ArrayList(Job) = .empty;
     // Index sources by path ONCE so the per-mutant lookup below is O(1), not a
-    // linear scan of `files` per candidate (O(M*F)) (L18).
+    // linear scan of `files` per candidate (O(M*F)).
     var source_index = try buildSourceIndex(arena, files);
     for (candidates) |candidate| {
         const source = source_index.get(candidate.file) orelse return error.SourceFileMissing;
@@ -421,12 +421,12 @@ pub fn run(
     // matrix reads it.
     // `cfg.test_commands` is constant for the whole run, so parse it into specs
     // ONCE and share the read-only slice across every surviving mutant rather than
-    // re-parsing per survivor (L4).
+    // re-parsing per survivor.
     const reverify_specs = try commandSpecsForConfigured(arena, cfg.test_commands);
     // Phase B.5 (parallel): the subprocess reverification dominates wall time, so
     // run each narrowed survivor's configured suite across the worker pool, then
     // merge serially -- the merge touches the non-thread-safe arena, the runs do
-    // not (#6). Disjoint `reverify_out` slots, so no synchronization is needed.
+    // not. Disjoint `reverify_out` slots, so no synchronization is needed.
     const reverify_out = try arena.alloc(?mutant_runner.MutationResult, jobs.len);
     @memset(reverify_out, null);
     var rvctx = ReverifyCtx{
@@ -445,8 +445,8 @@ pub fn run(
 
     // Mode matrix: when more than one mode is run, record each mode's per-mutant
     // status. The primary mode reuses the Phase B results (no re-run). The
-    // non-primary modes run in parallel OVER MUTANTS (#6), each mutant
-    // materializing a single workspace reused across its modes (#5).
+    // non-primary modes run in parallel OVER MUTANTS, each mutant
+    // materializing a single workspace reused across its modes.
     // `mode_grid[mode_index][job_index]` holds the status.
     var mode_grid: [][]report.ResultStatus = &.{};
     if (multi_mode) {
@@ -494,7 +494,7 @@ pub fn run(
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
     const project_hash = try projectHash(arena, files);
     // Hash each unique file's source ONCE; the result-cache key below reuses it per
-    // mutant instead of re-hashing the same bytes O(M) times (S3).
+    // mutant instead of re-hashing the same bytes O(M) times.
     const source_hashes = try buildSourceHashIndex(arena, files);
     for (jobs, results, 0..) |job, result, ji| {
         const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
@@ -511,7 +511,7 @@ pub fn run(
         // result is transient (host load, an FS race, a flaky compiler) and shares
         // a byte-identical key with a clean run of the same mutant, so emitting one
         // would let a future reuse pass serve that transient verdict as a real hit,
-        // hiding a kill or survivor (#9).
+        // hiding a kill or survivor.
         if (!no_cache and cacheableOutcome(result.status)) {
             const key = try cache.computeKey(arena, .{
                 .mutant_id = job.candidate.id,
@@ -555,7 +555,7 @@ pub fn run(
 /// Whether a mutant's outcome is deterministic enough to key a reusable cache
 /// entry. Transient outcomes (a timeout, a compiler crash, an invalid-workspace
 /// failure, or a skip) can differ between two runs of the same mutant, so they
-/// must never be stored under the run-invariant key (#9).
+/// must never be stored under the run-invariant key.
 fn cacheableOutcome(status: report.ResultStatus) bool {
     return switch (status) {
         .killed, .survived, .compile_error => true,
@@ -581,7 +581,7 @@ fn baseRun(obs: Observation, status: report.RunStatus) report.Run {
 /// Test-only counter: how many times the per-run source index (path -> bytes) is
 /// built. Every file is indexed ONCE so the Phase A per-mutant source lookup is
 /// O(1) (`index.get`), not a linear scan of `files` per candidate (O(M*F)); a
-/// regression that rebuilt or scanned per mutant would push this above 1 (L18).
+/// regression that rebuilt or scanned per mutant would push this above 1.
 pub var source_index_builds: usize = 0;
 
 /// Index source bytes by project-relative path. First occurrence wins, matching
@@ -600,12 +600,12 @@ fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem
 /// Test-only counter: how many times a source file's SHA-256 result-cache hash is
 /// computed. The hash is a pure function of the file bytes, identical for every
 /// mutant from that file, so it is computed ONCE per unique file and reused in the
-/// Phase C per-mutant loop; recomputing per mutant would push this to O(M) (S3).
+/// Phase C per-mutant loop; recomputing per mutant would push this to O(M).
 pub var source_hash_count: usize = 0;
 
 /// Index each unique file's source-cache hash (path -> hex SHA-256) ONCE, so the
 /// Phase C result-cache key lookup is O(1) per mutant instead of an O(M) re-hash of
-/// the same bytes (S3). First occurrence wins, mirroring buildSourceIndex.
+/// the same bytes. First occurrence wins, mirroring buildSourceIndex.
 fn buildSourceHashIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
     var index = std.StringHashMap([]const u8).init(arena);
     for (files) |f| {
@@ -700,7 +700,7 @@ const FileSelection = struct {
 };
 
 /// Per-file memo of the resolved selection and its parsed command specs, shared
-/// by every mutant from that file (L5). All fields are arena-owned, read-only.
+/// by every mutant from that file. All fields are arena-owned, read-only.
 const FileSpec = struct {
     file: []const u8,
     resolution: test_selection.Resolution,
@@ -709,7 +709,7 @@ const FileSpec = struct {
 
 /// Test-only counter: how many times the configured commands were parsed into
 /// specs. They are constant across the Phase B.5 survivor reverification loop, so
-/// this must be 1 per run, not 1 per surviving mutant (L4).
+/// this must be 1 per run, not 1 per surviving mutant.
 pub var configured_specs_parse_count: usize = 0;
 
 fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const u8) std.mem.Allocator.Error![]const command.Spec {
@@ -730,7 +730,7 @@ fn commandSpecsForConfigured(arena: std.mem.Allocator, commands: []const []const
 
 /// Test-only counter: how many times the per-file selection specs were built.
 /// The selection commands are identical for every mutant from the same source
-/// file, so this must be 1 per unique file, not 1 per mutant (L5).
+/// file, so this must be 1 per unique file, not 1 per mutant.
 pub var selection_specs_build_count: usize = 0;
 
 fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const u8, file: []const u8) std.mem.Allocator.Error![]const command.Spec {
@@ -755,7 +755,7 @@ fn commandSpecsForSelection(arena: std.mem.Allocator, commands: []const []const 
 /// Test-only counter: how many times a source file's AST is parsed during a run.
 /// Each file is parsed once in `generateCandidates`; the same-file selection then
 /// reuses that parse via the per-file table rather than parsing a second time, so
-/// this must be 1 per unique file, not 2 (L30).
+/// this must be 1 per unique file, not 2.
 pub var ast_parse_count: usize = 0;
 
 /// Compute (and cache) the selection inputs for `file`. When the strategy uses
@@ -782,7 +782,7 @@ fn selectionForFile(
     const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
     if (same_file_enabled) {
         // Reuse the parse from generateCandidates: this file's same-file tests were
-        // computed there and memoized, so selection never re-parses the file (L30).
+        // computed there and memoized, so selection never re-parses the file.
         same_file_tests = same_file_tests_by_file.get(file) orelse &.{};
     }
 
@@ -822,12 +822,12 @@ fn runPreflight(arena: std.mem.Allocator, executor: runner.Executor, original: [
 /// built (a single linear pass over cfg.mutators_enabled) during candidate
 /// generation. The enabled set is constant for a run, so this must be 1 per run,
 /// not 1 per raw candidate -- the prior `enabled()` helper re-scanned the list
-/// for every candidate, an O(M*E) filter (S10).
+/// for every candidate, an O(M*E) filter.
 pub var enabled_operator_scan_count: usize = 0;
 
 /// Build the enabled-operator membership set with one linear pass over
 /// cfg.mutators_enabled, so the per-candidate enable check is an O(1) hash lookup
-/// rather than an O(E) scan repeated for every raw candidate (O(M*E)) (S10).
+/// rather than an O(E) scan repeated for every raw candidate (O(M*E)).
 fn enabledOperatorSet(arena: std.mem.Allocator, cfg: config.Config) std.mem.Allocator.Error!std.StringHashMap(void) {
     enabled_operator_scan_count += 1;
     var set = std.StringHashMap(void).init(arena);
@@ -836,7 +836,7 @@ fn enabledOperatorSet(arena: std.mem.Allocator, cfg: config.Config) std.mem.Allo
 }
 
 /// The mutant candidates plus the same-file tests discovered during the single
-/// per-file parse, so the same-file selection never re-parses a file (L30).
+/// per-file parse, so the same-file selection never re-parses a file.
 const GeneratedCandidates = struct {
     mutants: []mutant.Mutant,
     same_file_tests: std.StringHashMap([]const report.SelectedTest),
@@ -845,7 +845,7 @@ const GeneratedCandidates = struct {
 /// Recognize Phase 1+2 AST candidates over every file (keeping only those whose
 /// operator is enabled in config and that match the optional CLI filters) and, from
 /// the same parse, record each file's same-file tests so selection need not
-/// re-parse the file (L30).
+/// re-parse the file.
 fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []const FileSource, options: Options) RunError!GeneratedCandidates {
     var collector = ast_backend.Collector.init(arena);
     var same_file_tests = std.StringHashMap([]const report.SelectedTest).init(arena);
@@ -856,13 +856,13 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         if (!parsed.ok()) return error.BackendParseError;
         const test_ranges = try ast_backend.testDeclRanges(parsed, arena);
         // Discover same-file tests from THIS parse so selectionForFile reuses them
-        // instead of parsing the file a second time (L30).
+        // instead of parsing the file a second time.
         try same_file_tests.put(f.path, try test_selection.sameFileTests(arena, parsed, f.path));
         try arithmetic.collect(&collector, parsed, f.path, test_ranges);
         try comparison.collect(&collector, parsed, f.path, test_ranges);
         try logical.collect(&collector, parsed, f.path, test_ranges);
         try boolean.collect(&collector, parsed, f.path, test_ranges);
-        // Phase-2 stable collectors (task 109): without these the optional,
+        // Phase-2 stable collectors: without these the optional,
         // error-path, integer-boundary, and loop-boundary operators load in config
         // but never emit a mutant, silently under-reporting coverage.
         try optional.collect(&collector, parsed, f.path, test_ranges);
@@ -874,7 +874,7 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
     const all = try collector.finishRaw();
 
     // Build the enabled-operator set once per run; each candidate's enable check
-    // is then an O(1) lookup instead of an O(E) linear scan per candidate (S10).
+    // is then an O(1) lookup instead of an O(E) linear scan per candidate.
     const enabled_ops = try enabledOperatorSet(arena, cfg);
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {

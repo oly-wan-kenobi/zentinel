@@ -18,7 +18,7 @@ pub const CommandStatus = enum { passed, failed, timeout, compiler_crash, skippe
 pub const FailureKind = enum { none, compile_error, test_failure, compiler_crash, timeout, skipped };
 pub const ResultStatus = enum { killed, survived, compile_error, compiler_crash, timeout, skipped, invalid };
 // Backend/stability/compile-expectation enums are owned by the shared mutant
-// model so the report consumes one source of truth (task 007).
+// model so the report consumes one source of truth.
 pub const BackendStability = mutant.BackendStability;
 pub const OperatorStability = mutant.OperatorStability;
 pub const Backend = mutant.Backend;
@@ -104,7 +104,7 @@ pub const Summary = struct {
     invalid: u64 = 0,
 };
 
-/// Source span, owned by the shared mutant model (task 007).
+/// Source span, owned by the shared mutant model.
 pub const Span = mutant.Span;
 
 pub const SelectedTest = struct {
@@ -114,7 +114,7 @@ pub const SelectedTest = struct {
 };
 
 /// One mode's outcome for a mutant in the safety/optimization mode matrix
-/// (task 058). An additive `zentinel.report.v1` extension carried only inside the
+///. An additive `zentinel.report.v1` extension carried only inside the
 /// optional `Result.mode_matrix`; it never replaces `result.mode`.
 pub const ModeResult = struct {
     mode: Mode,
@@ -129,7 +129,7 @@ pub const Result = struct {
     duration_ms: u64,
     evidence: Evidence,
     skip_reason: ?[]const u8,
-    /// Optional safety/optimization mode matrix (task 058). Null (and omitted
+    /// Optional safety/optimization mode matrix. Null (and omitted
     /// from JSON) for single-mode runs, so existing single-mode reports are
     /// byte-identical; populated only when more than one mode is run.
     mode_matrix: ?[]const ModeResult = null,
@@ -210,7 +210,7 @@ pub const Report = struct {
 /// Serialize a report as deterministic, pretty-printed canonical JSON. This is
 /// the single report serializer: the CLI writes the returned buffer with
 /// `writeFile` (atomic, symlink-safe), so there is no streaming variant to drift
-/// out of sync with it (L15).
+/// out of sync with it.
 pub fn toJson(arena: std.mem.Allocator, report: Report) std.mem.Allocator.Error![]u8 {
     return std.json.Stringify.valueAlloc(arena, report, .{ .whitespace = .indent_2 });
 }
@@ -388,7 +388,7 @@ fn invalidSummaryOk(failure_summary: []const u8) bool {
 /// (`YYYY-MM-DDThh:mm:ssZ`), the canonical form of `run.started_at`. Negative
 /// inputs clamp to the epoch and sub-second milliseconds are truncated. Pure and
 /// deterministic: the wall-clock read stays in the CLI, so the run observation and
-/// the doctest run share this one formatter instead of duplicating it (L41).
+/// the doctest run share this one formatter instead of duplicating it.
 pub fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) std.mem.Allocator.Error![]const u8 {
     const secs: u64 = @intCast(@max(0, @divTrunc(ms, 1000)));
     const es = std.time.epoch.EpochSeconds{ .secs = secs };
@@ -488,7 +488,7 @@ fn replaceKeyStringValue(arena: std.mem.Allocator, text: []const u8, key: []cons
 /// `0x<addr>` and `<path>` so a killed mutant's stderr can no longer make the
 /// report non-deterministic. An absolute path is recognized whether it starts the
 /// line, follows whitespace/quote/bracket, or is glued to a `=`/`:`/`>`/`,` or a
-/// `scheme://` prefix (L28). Surrounding prose is preserved (excerpts are
+/// `scheme://` prefix. Surrounding prose is preserved (excerpts are
 /// normalized, never dropped). Returns an arena-owned copy; the input is unchanged.
 pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
     var out: std.ArrayList(u8) = .empty;
@@ -510,15 +510,15 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
         // `2>/abs`) or embeds it in a `scheme://` URI; the old positive-set boundary
         // (whitespace/quote/bracket only) left those verbatim, leaking the absolute
         // developer path into the committed report and breaking cross-machine
-        // determinism (L28). This mirrors redaction.normalizeAbsolutePaths (M8) so
+        // determinism. This mirrors redaction.normalizeAbsolutePaths so
         // the two normalizers stay consistent.
         const prev_is_colon = i > 0 and text[i - 1] == ':';
         const at_boundary = i == 0 or !isExcerptPathByte(text[i - 1]) or prev_is_colon;
         // A `//`-led run is a Zig comment marker (`//`, `///`, `//!`), not an
         // absolute path; excluding it keeps source-line comments in committed
-        // excerpts intact instead of collapsing them to `<path>` (M3) -- EXCEPT when
+        // excerpts intact instead of collapsing them to `<path>` -- EXCEPT when
         // the `//` is glued to a preceding `:` as a `scheme://` separator, where it
-        // introduces a URI path to redact (L28).
+        // introduces a URI path to redact.
         const comment_marker = i + 1 < text.len and text[i + 1] == '/' and !prev_is_colon;
         if (text[i] == '/' and at_boundary and !comment_marker) {
             var end = i + 1;
@@ -561,7 +561,7 @@ pub fn normalizeExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allo
     // sequences, or raw binary from a crash/panic). Left verbatim it would make
     // report.json non-UTF-8 (RFC 8259 8.1) and the JUnit <system-out>/<system-err>
     // text non-well-formed, so a strict CI parser rejects the whole suite. Replace
-    // any invalid byte with U+FFFD so every report format stays valid (#7).
+    // any invalid byte with U+FFFD so every report format stays valid.
     return sanitizeUtf8(arena, try out.toOwnedSlice(arena));
 }
 
@@ -609,7 +609,7 @@ fn excerptSpaceContinuesPath(text: []const u8, space_index: usize) bool {
 }
 /// True for a byte that can appear inside an absolute-path token. A `/` is treated
 /// as starting a path only when the preceding byte is NOT one of these (or is a
-/// `:`), mirroring redaction.isPathByte (M8) so excerpt and AI-context path
+/// `:`), mirroring redaction.isPathByte so excerpt and AI-context path
 /// normalization agree on token boundaries.
 fn isExcerptPathByte(c: u8) bool {
     return std.ascii.isAlphanumeric(c) or c == '/' or c == '\\' or c == ':' or c == '.' or c == '_' or c == '-';
@@ -631,7 +631,7 @@ fn trimPathPunctuation(text: []const u8, start: usize, end_in: usize) usize {
     return end;
 }
 
-// --- Performance equivalence + benchmark output (tasks/052) -----------------
+// --- Performance equivalence + benchmark output ------------------------------
 
 fn summaryEqual(a: Summary, b: Summary) bool {
     return a.total == b.total and a.killed == b.killed and a.survived == b.survived and

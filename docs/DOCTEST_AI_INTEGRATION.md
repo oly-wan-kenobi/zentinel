@@ -4,13 +4,13 @@ AI can make doctest failures and documentation survivors easier to understand. I
 
 ## Allowed AI Flows
 
-| Flow | User-facing CLI command | Owner |
-| --- | --- | --- |
-| `explain_doctest_failure` | `zentinel doctest explain <case-ref>` | task `055` |
-| `suggest_doctest` | `zentinel doctest suggest <doc-path>` | task `055` |
-| `review_snapshot` | `zentinel doctest review-snapshot <case-ref>` | task `055` |
-| `suggest_missing_doctests` | `zentinel doctest suggest-missing [--file <doc-path>]` | task `055` |
-| `explain_doctest_survivor` | `zentinel doctest explain-survivor <survivor-ref>` | task `067`, after task `061` defines stable doctest mutation report fields |
+| Flow | User-facing CLI command |
+| --- | --- |
+| `explain_doctest_failure` | `zentinel doctest explain <case-ref>` |
+| `suggest_doctest` | `zentinel doctest suggest <doc-path>` |
+| `review_snapshot` | `zentinel doctest review-snapshot <case-ref>` |
+| `suggest_missing_doctests` | `zentinel doctest suggest-missing [--file <doc-path>]` |
+| `explain_doctest_survivor` | `zentinel doctest explain-survivor <survivor-ref>` |
 
 ## CLI Surface
 
@@ -30,7 +30,7 @@ zentinel doctest explain-survivor <survivor-ref> [--input-report <path>] [--ai-p
 
 `review-snapshot` resolves `<case-ref>` like `explain` and requires the selected report. It is valid only for a case whose report entry contains exact `case.result.snapshot` evidence. It returns `zentinel.ai.doctest.snapshot_review.response.v1` and must not approve or apply snapshot updates.
 
-`explain-survivor` resolves `<survivor-ref>` against a mutation-aware doctest report produced by `zentinel doctest --mutate`. As of task `113`, `doctest --mutate` persists that stable report (the fields task `061` defines) to the default `zig-out/zentinel/doctest/report.json` path, so `explain-survivor` resolves a real survivor end-to-end without `--input-report` — the path is no longer a dead-end that always returned `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`. It resolves only a non-null `case.mutation.survivor_ref` (`ds_...`) on a `survived` documentation mutant and never resolves killed, skipped, invalid, compile-error, compiler-crash, or timeout mutants. It returns an advisory `zentinel.ai.explain.response.v1` and never changes a survivor's status, the report, snapshots, or documentation. Missing reports use `ZNTL_AI_REPORT_NOT_FOUND` and unresolved refs use `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
+`explain-survivor` resolves `<survivor-ref>` against a mutation-aware doctest report produced by `zentinel doctest --mutate`. `doctest --mutate` persists that stable report to the default `zig-out/zentinel/doctest/report.json` path, so `explain-survivor` resolves a real survivor end-to-end without `--input-report`. It resolves only a non-null `case.mutation.survivor_ref` (`ds_...`) on a `survived` documentation mutant and never resolves killed, skipped, invalid, compile-error, compiler-crash, or timeout mutants. It returns an advisory `zentinel.ai.explain.response.v1` and never changes a survivor's status, the report, snapshots, or documentation. Missing reports use `ZNTL_AI_REPORT_NOT_FOUND` and unresolved refs use `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 
 An unresolved `<survivor-ref>` fails with `ZNTL_DOCTEST_SURVIVOR_NOT_FOUND`.
 
@@ -50,7 +50,7 @@ AI must not:
 
 ## AI Context Shape
 
-Doctest AI context extends the existing advisory pattern. `zentinel.ai.doctest.context.v1` is introduced by task `055` for the non-survivor flows `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, and `suggest_missing_doctests`. Task `067` later extends the same v1 schema with the deferred `explain_doctest_survivor` branch after task `061` defines stable mutation-aware doctest report fields. The schema file must not accept schema-version-only placeholders.
+Doctest AI context extends the existing advisory pattern. `zentinel.ai.doctest.context.v1` covers the non-survivor flows `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, and `suggest_missing_doctests`, plus the `explain_doctest_survivor` branch over stable mutation-aware doctest report fields. The schema file must not accept schema-version-only placeholders.
 
 ```json
 {
@@ -104,7 +104,7 @@ Required top-level fields:
 | Field | Rule |
 | --- | --- |
 | `schema_version` | Constant `zentinel.ai.doctest.context.v1`. |
-| `flow` | For task `055`, one of `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, or `suggest_missing_doctests`. Task `067` adds `explain_doctest_survivor`; task `055` must reject that flow. |
+| `flow` | One of `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, `suggest_missing_doctests`, or `explain_doctest_survivor`. |
 | `created_by` | Constant `zentinel`. |
 | `provider_mode` | `disabled`, `stub`, `local`, or `remote`. |
 | `project` | Same privacy-filtered project summary shape as mutation AI context. |
@@ -138,7 +138,7 @@ For `explain_doctest_survivor`, the top-level `doctest` object is the selected m
 | `kind` | Constant `docs_target`. |
 | `status` | Constant `not_applicable`. |
 
-`evidence` variants use an exact `kind` discriminant. Task `055` owns the first four variants. Task `067` owns the deferred `doctest_survivor` variant and must add it only after task `061` stabilizes mutation-aware report fields.
+`evidence` variants use an exact `kind` discriminant.
 
 | Flow | Evidence `kind` | Evidence required |
 | --- | --- | --- |
@@ -156,7 +156,7 @@ Closed evidence object rules:
 | `docs_target` | `kind`, `target_file`, `heading_context`, `docs_metadata`, `report_summary` | `report_summary` is `null` when no report context is supplied. |
 | `snapshot_diff` | `kind`, `case_status`, `snapshot` | None. `snapshot` is copied exactly from `case.result.snapshot`. |
 | `missing_doctests` | `kind`, `docs`, `candidates` | `candidate.line_hint` may be `null`. |
-| `doctest_survivor` | `kind`, `survivor_ref`, `source_case` (`doctest_case_id`, `file`, `source_ref`), `mutation_case` (`case_id`, `mutant_id`, `operator`, `mutated_diff`, `backend_stability`, `runner_evidence`) | Implemented by task `067` as an additive variant of the task `055` schema. `source_case` is the original ordinary doctest; `mutation_case` and `runner_evidence` are copied from the survived `case.mutation` entry of a `zentinel doctest --mutate` report. |
+| `doctest_survivor` | `kind`, `survivor_ref`, `source_case` (`doctest_case_id`, `file`, `source_ref`), `mutation_case` (`case_id`, `mutant_id`, `operator`, `mutated_diff`, `backend_stability`, `runner_evidence`) | An additive variant of the same schema. `source_case` is the original ordinary doctest; `mutation_case` and `runner_evidence` are copied from the survived `case.mutation` entry of a `zentinel doctest --mutate` report. |
 
 `docs_metadata` is a closed object with:
 

@@ -136,7 +136,7 @@ test "integer literals inside test bodies are excluded" {
     try expectEqualStrings("5", c[0].original);
 }
 
-test "an i128-max comparison literal skips the overflowing +1 boundary instead of panicking (H1)" {
+test "an i128-max comparison literal skips the overflowing +1 boundary instead of panicking" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

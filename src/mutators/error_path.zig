@@ -65,7 +65,7 @@ fn collectCatch(
     // capture -> `catch |err| unreachable` -> `error: unused capture`, a
     // guaranteed compile_error that can never be killed. When a capture is present
     // (the token after `catch` is `|`), start the span at that `|` so the whole
-    // `|err| handler` is replaced, producing the valid `catch unreachable` (M1).
+    // `|err| handler` is replaced, producing the valid `catch unreachable`.
     const has_capture = catch_tok + 1 < token_tags.len and token_tags[catch_tok + 1] == .pipe;
     const first = if (has_capture) catch_tok + 1 else tree.firstToken(handler);
     const last = tree.lastToken(handler);
@@ -112,7 +112,7 @@ fn collectErrdefer(
     // `errdefer alloc.destroy(p);`). Swallow that `;` into the span so replacing
     // the whole statement with `errdefer {}` does not orphan it into `errdefer {};`
     // -- a syntactically invalid statement ("expected statement, found ';'") and
-    // thus a guaranteed compile_error mutant that can never be killed (H2). A
+    // thus a guaranteed compile_error mutant that can never be killed. A
     // block body (`errdefer { ... }`) ends at `}` with no trailing `;`, so it is
     // left untouched.
     const token_tags = tree.tokens.items(.tag);

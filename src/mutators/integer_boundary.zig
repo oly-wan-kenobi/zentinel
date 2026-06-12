@@ -86,7 +86,7 @@ fn emitForOperand(
     // unrepresentable in i128 (the literal sitting at i128's own max/min) is not a
     // meaningful mutant, so skip just that boundary. Computing it unchecked would
     // be a checked illegal behavior -> `panic: integer overflow` that a `catch`
-    // cannot intercept, aborting the whole in-process candidate pass (H1).
+    // cannot intercept, aborting the whole in-process candidate pass.
     if (std.math.add(i128, value, 1)) |plus| {
         try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
     } else |_| {}

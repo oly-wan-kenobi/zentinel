@@ -28,19 +28,19 @@ These docs require doctests after support exists:
 - `docs/DOCTEST_AI_INTEGRATION.md`
 - `docs/DOCTEST_SPEC.md`
 
-## Agent Rules
+## Authoring Rules
 
-Agents adding public examples must:
+Anyone adding public examples must:
 
 - use supported block formats
 - keep examples deterministic
 - include expected output when behavior matters
 - avoid hidden setup in prose
-- update doctests in the same task as public behavior changes
+- update doctests in the same change as public behavior changes
 
 ## Verification
 
-Doctest Agent runs:
+Verification runs:
 
 ```bash
 zentinel doctest
@@ -62,12 +62,12 @@ Doctest cases use the block formats in `docs/DOCTEST_BLOCK_FORMATS.md` and the c
 ## Snapshot Update Rules
 
 - Snapshot updates are never automatic in a default `zentinel doctest` run.
-- A changed expected block (`snapshot` status `updated`) requires recorded approval: the Doctest Agent records the semantic diff and the Verifier approves it before the evidence is accepted.
+- A changed expected block (`snapshot` status `updated`) requires recorded approval: the semantic diff is recorded and reviewed before the evidence is accepted.
 - A `mismatch` snapshot is a failing case and blocks completion.
 
 ## Doctest Evidence Handoff
 
-The Doctest Agent records evidence in `artifacts/pipeline/<task-id>/doctest/report.json`. Task `045` defines this pipeline contract and ships example artifacts; the durable JSON Schema reuses `zentinel.doctest.report.v1` from `docs/DOCTEST_SPEC.md` for the product run, while the pipeline handoff record below stays a documented contract until the verification pipeline lands.
+Doctest evidence is recorded as a machine-readable report. The durable JSON Schema reuses `zentinel.doctest.report.v1` from `docs/DOCTEST_SPEC.md` for the product run; the evidence record below is a documented contract validated by the fixtures under `test/fixtures/pipeline/doctest_policy/`.
 
 ```json
 {
@@ -99,8 +99,8 @@ Evidence rules:
 - A case with `snapshot` `updated` requires `snapshot_update_approved` to be `true`.
 - `mutation_aware` evidence is required only after `zentinel doctest --mutate` is stabilized for the changed mutator documentation scope.
 
-Doctest results feed the final verifier report (`docs/VERIFICATION_PIPELINE.md`): the Doctests stage status mirrors this evidence `status`, and a failing or unreviewed snapshot blocks the verifier.
+A failing doctest case or an unreviewed snapshot update blocks acceptance of the change that introduced it.
 
 ## Public Docs Coverage
 
-Task `066` makes the selected public contract docs executable through `zentinel doctest`: `docs/CLI_SPEC.md` (CLI), `docs/CONFIG_SPEC.md` (config), `docs/REPORT_FORMAT.md` (report JSON), and `docs/DOCTEST_AI_INTEGRATION.md` (doctest AI JSON). JSON examples are validated as supported subsets (`json expected subset`) rather than full schema validation, so the documented `schema_version` and key fields cannot silently drift. Coverage fixtures live under `test/fixtures/doctest/public_docs/`, and the verifier records a `public_docs_doctest` stage whose `artifact` references the doctest report so public-docs executability is auditable from the final verifier artifact.
+The selected public contract docs are executable through `zentinel doctest`: `docs/CLI_SPEC.md` (CLI), `docs/CONFIG_SPEC.md` (config), `docs/REPORT_FORMAT.md` (report JSON), and `docs/DOCTEST_AI_INTEGRATION.md` (doctest AI JSON). JSON examples are validated as supported subsets (`json expected subset`) rather than full schema validation, so the documented `schema_version` and key fields cannot silently drift. Coverage fixtures live under `test/fixtures/doctest/public_docs/`, so public-docs executability is auditable from the recorded doctest report.

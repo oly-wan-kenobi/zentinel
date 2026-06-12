@@ -1,4 +1,4 @@
-//! Fixture system for zentinel mutation tests (task 004).
+//! Fixture system for zentinel mutation tests.
 //!
 //! Test-support loader (not a `src/` architecture layer) that enumerates
 //! fixture projects under `test/fixtures/projects` and reads their

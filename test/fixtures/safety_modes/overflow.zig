@@ -1,4 +1,4 @@
-//! Debug-vs-ReleaseFast fixture (task 058).
+//! Debug-vs-ReleaseFast fixture.
 //!
 //! A `comparison_boundary` mutation that turns `acc < 255` into `acc <= 255`
 //! makes `next(255)` evaluate `255 + 1`, which overflows `u8`. Under Debug and

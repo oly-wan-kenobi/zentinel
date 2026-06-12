@@ -45,7 +45,7 @@ test "minimal config parses" {
     try expectEqual(@as(usize, 1), cfg.test_commands.len);
 }
 
-test "full default config (task 001 init output) parses with expected fields" {
+test "full default config (init output) parses with expected fields" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
@@ -57,7 +57,7 @@ test "full default config (task 001 init output) parses with expected fields" {
     try expectEqual(@as(usize, 2), cfg.report_formats.len);
 }
 
-test "report.formats validates each element against the known formats (M5)" {
+test "report.formats validates each element against the known formats" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
 
@@ -103,7 +103,7 @@ test "unsupported TOML syntax fails with parse_error" {
     try expect(diag.code == .parse_error);
 }
 
-test "explicit empty zig.modes is rejected, like empty test.commands (L45)" {
+test "explicit empty zig.modes is rejected, like empty test.commands" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -127,7 +127,7 @@ test "explicit empty zig.modes is rejected, like empty test.commands (L45)" {
     try expectEqual(@as(usize, 2), multi.zig_modes.len);
 }
 
-test "duplicate keys in the same section are rejected, not silently first-wins (L37)" {
+test "duplicate keys in the same section are rejected, not silently first-wins" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -154,7 +154,7 @@ test "duplicate keys in the same section are rejected, not silently first-wins (
     try expectEqual(@as(usize, 2), doc.entries.len);
 }
 
-test "double-quoted strings decode TOML basic escape sequences (S12)" {
+test "double-quoted strings decode TOML basic escape sequences" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -174,7 +174,7 @@ test "double-quoted strings decode TOML basic escape sequences (S12)" {
     var diag: zentinel.config_toml.Diagnostic = .{};
     const doc = try zentinel.config_toml.parse(a, src, &diag);
     try expectEqual(@as(usize, 5), doc.entries.len);
-    // `\\` decodes to a single backslash (was kept as two literal backslashes before S12).
+    // `\\` decodes to a single backslash (previously kept as two literal backslashes).
     try expectEqualStrings("p\\q", doc.entries[0].value.string);
     // `\"` embeds a quote (the prior loop terminated the string early at the first \").
     try expectEqualStrings("say \"hi\"", doc.entries[1].value.string);
@@ -185,7 +185,7 @@ test "double-quoted strings decode TOML basic escape sequences (S12)" {
     try expectEqualStrings("nochange", doc.entries[4].value.string);
 }
 
-test "an unknown string escape is a parse error, not silently kept (S12)" {
+test "an unknown string escape is a parse error, not silently kept" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -230,7 +230,7 @@ test "invalid Zig mode is rejected" {
     try expect(diag.code == .invalid_value);
 }
 
-test "multiple Zig modes are accepted by the safety-mode matrix (task 058)" {
+test "multiple Zig modes are accepted by the safety-mode matrix" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     // Task 058 lifts the pre-058 single-mode restriction: more than one
@@ -329,7 +329,7 @@ test "path normalization converts backslashes to forward slashes" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
-    // A literal backslash in a TOML basic string is written `\\` (S12); the parser
+    // A literal backslash in a TOML basic string is written `\\`; the parser
     // decodes that to one backslash, which normalizePath then converts to `/`.
     // (The Zig `\\\\` literal below is two source backslashes = the TOML `\\` escape.)
     const cfg = try load(arena.allocator(), "[cache]\ndirectory = \"build\\\\cache\"\n", &diag);
@@ -354,7 +354,7 @@ test "default init output equals the static template" {
     try expectEqualStrings(zentinel.default_config, text);
 }
 
-test "impact_graph selection is accepted after task 051" {
+test "impact_graph selection is accepted" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
@@ -388,7 +388,7 @@ test "an unknown selection strategy is still rejected" {
     try expectEqualStrings("selection", diag.key);
 }
 
-// --- Symlink-safe output containment (task 119, audit F-3) ------------------
+// --- Symlink-safe output containment (audit F-3) ------------------
 //
 // `config.isOutsideRoot` is string-only: it rejects absolute paths and `..`
 // segments but never resolves symlinks, so an in-tree symlink that leaves the

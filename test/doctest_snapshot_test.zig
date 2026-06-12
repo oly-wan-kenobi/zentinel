@@ -135,7 +135,7 @@ test "diagnostic matching normalizes line/col then matches by containment" {
     try expect(!try matcher.match(a, .diagnostic, "error: expected type 'void'", "error: expected type 'u32'"));
 }
 
-test "empty or whitespace-only contains expectation does not vacuously pass (deep-review #1)" {
+test "empty or whitespace-only contains expectation does not vacuously pass" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -150,7 +150,7 @@ test "empty or whitespace-only contains expectation does not vacuously pass (dee
     try expect(!try matcher.match(a, .contains, "hello", "goodbye"));
 }
 
-test "empty or position-only diagnostic expectation does not over-match (deep-review #2)" {
+test "empty or position-only diagnostic expectation does not over-match" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

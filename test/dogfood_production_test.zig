@@ -89,7 +89,6 @@ test "scripts/ci.sh is the canonical entrypoint running the required determinist
     try expect(std.mem.indexOf(u8, ci, "zig fmt --check") != null);
     try expect(std.mem.indexOf(u8, ci, "zig build") != null);
     try expect(std.mem.indexOf(u8, ci, "zig build test") != null);
-    try expect(std.mem.indexOf(u8, ci, "scripts/validate_task_system.py") != null);
     // Advisory dogfood stage is wired.
     try expect(std.mem.indexOf(u8, ci, "dogfood") != null);
     // Network-independent: the deterministic entrypoint never requires a remote
@@ -99,57 +98,13 @@ test "scripts/ci.sh is the canonical entrypoint running the required determinist
     try expect(std.mem.indexOf(u8, ci, "--list") != null);
 }
 
-test "validate_task_system resolve_zig_import resolves .zig imports relative to the importer (L48)" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    const vts = try readFile(a, "scripts/validate_task_system.py");
-    // A Zig @import for a .zig file is always relative to the importing file's
-    // directory; no src/**/*.zig uses @import("src/..."), so the project-root-relative
-    // `src/` special case was dead. It is removed, leaving one resolution path (L48).
-    try expect(std.mem.indexOf(u8, vts, "imported.startswith(\"src/\")") == null);
-    try expect(std.mem.indexOf(u8, vts, "importer.parent / imported") != null);
-}
-
-test "validate_task_system requires allowed_files/forbidden_files to be non-empty, not vacuously-true (S13)" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    const vts = try readFile(a, "scripts/validate_task_system.py");
-    // `all()` is vacuously True on [], so the "non-empty string array" guard for
-    // allowed_files/forbidden_files silently accepted `[]` -- granting the task an
-    // unconstrained scope (the scope checks only fire when the lists are non-empty).
-    // The guard now requires a positive length before the all() check (S13). Verified
-    // out-of-band: the predicate returns False for [] (was True) and is unchanged for
-    // ["x"], [""], ["a","b"].
-    try expect(std.mem.indexOf(u8, vts, "len(value) > 0 and all(isinstance(item, str)") != null);
-}
-
-test "validate_task_system requires completion_evidence files_changed to be non-empty (S14)" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    const vts = try readFile(a, "scripts/validate_task_system.py");
-    // files_changed is the scope-critical completion-evidence field:
-    // validate_completion_scope_evidence iterates it, so an empty list -- accepted by
-    // the vacuous all() check -- silently bypasses the scope audit. A dedicated
-    // non-empty guard now closes that hole (S14). Verified out-of-band: perturbing a
-    // real status.json entry to files_changed=[] raises "files_changed must be a
-    // non-empty string array"; the real data does not.
-    try expect(std.mem.indexOf(u8, vts, "len(entry.get(\"files_changed\", [])) > 0") != null);
-    try expect(std.mem.indexOf(u8, vts, "files_changed must be a non-empty string array") != null);
-}
-
-test "CLI_SPEC enumerates the external-Zig command grouping and it matches cli.zig (S15)" {
+test "CLI_SPEC enumerates the external-Zig command grouping and it matches cli.zig" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // Doc: CLI_SPEC now has the authoritative "External Zig binary requirement"
-    // enumeration that names which commands need the external zig binary (S15).
+    // enumeration that names which commands need the external zig binary.
     const spec = try readFile(a, "docs/CLI_SPEC.md");
     try expect(std.mem.indexOf(u8, spec, "External Zig binary requirement") != null);
     try expect(std.mem.indexOf(u8, spec, "list-mutants") != null);
@@ -168,43 +123,7 @@ test "CLI_SPEC enumerates the external-Zig command grouping and it matches cli.z
     try expect(std.mem.indexOf(u8, fnBody(cli, "fn runListMutants("), "fatalStatusLine") == null);
 }
 
-test "MUTATION_GATE_POLICY retry table covers all FAILURE_RECOVERY task classes incl. Architecture (S16)" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    // MUTATION_GATE_POLICY.md claims parity with FAILURE_RECOVERY.md but combined
-    // high-risk/compiler-internal into one row and omitted the Architecture class
-    // entirely (S16). It now lists every class with the documented limit.
-    const gate = try readFile(a, "docs/MUTATION_GATE_POLICY.md");
-    try expect(std.mem.indexOf(u8, gate, "high-risk: 3 cycles") != null);
-    try expect(std.mem.indexOf(u8, gate, "compiler-internal: 3 cycles") != null);
-    try expect(std.mem.indexOf(u8, gate, "architecture: 1 cycle") != null);
-    // The stale combined row that hid the divergence is gone.
-    try expect(std.mem.indexOf(u8, gate, "high-risk or compiler-internal") == null);
-
-    // Cross-link to ground truth: the validator's authoritative architecture limit (1)
-    // and FAILURE_RECOVERY.md's Architecture row -- so the three cannot silently drift.
-    const vts = try readFile(a, "scripts/validate_task_system.py");
-    try expect(std.mem.indexOf(u8, vts, "\"architecture\": 1") != null);
-    const fr = try readFile(a, "docs/FAILURE_RECOVERY.md");
-    try expect(std.mem.indexOf(u8, fr, "Architecture") != null);
-}
-
-test "validate_failure_recovery flags a non-dict invalid fixture instead of skipping it (L49)" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-
-    const vts = try readFile(a, "scripts/validate_task_system.py");
-    // The invalid-fixture self-test loop now fail()s on a non-dict file (a
-    // fixture-authoring error), mirroring the valid loop, instead of a silent
-    // `continue` that hid the bad fixture (L49). This message exists only for the
-    // invalid loop; the valid loop's says "valid ...".
-    try expect(std.mem.indexOf(u8, vts, "invalid failure-recovery fixture must be a JSON object") != null);
-}
-
-test "build.zig fails loudly instead of silently skipping unit tests when test/ is inaccessible (S4)" {
+test "build.zig fails loudly instead of silently skipping unit tests when test/ is inaccessible" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -212,12 +131,12 @@ test "build.zig fails loudly instead of silently skipping unit tests when test/ 
     const bz = try readFile(a, "build.zig");
     // A missing/unreadable test/ now panics (the silent `catch return` is gone) and
     // discovering zero test/**/*_test.zig files is a hard error, so `zig build test`
-    // can no longer exit 0 having run none of the discovered unit tests (S4).
+    // can no longer exit 0 having run none of the discovered unit tests.
     try expect(std.mem.indexOf(u8, bz, "zig build test cannot discover unit tests") != null);
     try expect(std.mem.indexOf(u8, bz, "no test/**/*_test.zig files discovered") != null);
 }
 
-test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors (L33)" {
+test "advisory_dogfood surfaces dogfood stderr and blames infrastructure, not survivors" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

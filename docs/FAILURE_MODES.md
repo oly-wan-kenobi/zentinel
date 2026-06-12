@@ -1,6 +1,6 @@
 # Failure Modes
 
-This document catalogs concrete failure modes zentinel must classify, report, or recover from. It is the counterpart to `docs/HARNESS.md`: the harness defines where evidence comes from; this file defines the named failures agents and tests should cover.
+This document catalogs concrete failure modes zentinel must classify, report, or recover from. It defines the named failures the implementation and tests should cover.
 
 ## How This Document Works
 
@@ -178,13 +178,6 @@ Each failure mode has:
 - *Code/status.* `ZNTL_DOCTEST_SNAPSHOT_MISMATCH`.
 - *Invariants stressed.* I-015, I-016.
 - *Required test surface.* Doctest snapshot test.
-
-**F-024. Task metadata invalid**
-- *Phase.* Task system.
-- *Expected outcome.* Validator fails and agents repair task metadata, Markdown status prose, or stale schema-registry claims before implementation work.
-- *Code/status.* `ZNTL_TASK_STATE_INVALID`.
-- *Invariants stressed.* I-017, I-018, I-020.
-- *Required test surface.* `scripts/validate_task_system.py` self-checks and CI invocation.
 
 **F-025. Nondeterministic repeated report**
 - *Phase.* Verification.

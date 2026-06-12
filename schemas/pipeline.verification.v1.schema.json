@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zentinel.dev/schemas/pipeline.verification.v1.schema.json",
   "title": "zentinel pipeline verification record v1",
-  "description": "The final verifier's durable record of whether a task has enough evidence to move from active to complete. Written to artifacts/pipeline/<task-id>/verification/report.json. Task 041 created the baseline; task 046 refined it with the final verifier fields below without weakening the baseline (no new required fields). See docs/VERIFICATION_PIPELINE.md for the required stage order, fail-fast rules, and completion decision.",
+  "description": "The final verifier's durable record of whether a change has enough evidence to be accepted. Records the required stage order, fail-fast results, and the completion decision.",
   "type": "object",
   "additionalProperties": false,
   "required": [

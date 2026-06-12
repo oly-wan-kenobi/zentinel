@@ -146,7 +146,7 @@ ReleaseFast
 ReleaseSmall
 ```
 
-Before task `058`, config validation must reject more than one `zig.modes` entry with `ZNTL_CONFIG_INVALID_VALUE`. The parser may preserve the list shape for forward compatibility, but normalized runnable config remains single-mode until the safety-mode matrix task owns multi-mode execution and reporting.
+Multiple `zig.modes` entries are accepted and drive the safety-mode matrix. An explicit empty `modes = []` is rejected with `ZNTL_CONFIG_INVALID_VALUE` (omitting `modes` keeps the `Debug` default).
 
 ## Backend Section
 
@@ -162,7 +162,7 @@ ast
 zir
 ```
 
-`zir` is rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag. The experimental CLI backend flag is `list-mutants --backend zir` and is owned by task `056`. (The `air` backend was retired: AIR-level mutation mapping is infeasible without Zig's `Sema` stage.)
+`zir` is rejected unless explicitly listed in `experimental` or selected by an experimental CLI flag. The experimental CLI backend flag is `list-mutants --backend zir`. (The `air` backend was retired: AIR-level mutation mapping is infeasible without Zig's `Sema` stage.)
 
 ## Mutators Section
 
@@ -191,9 +191,9 @@ Expansion must be deterministic and tested.
 
 Command strings are parsed by zentinel into argv without invoking a shell. The shared parser belongs to the deterministic core module `src/command.zig`; `zentinel check` validates with it, and the runner executes exactly the argv shape it returns.
 
-Before task `005`, config parsing validates that `test.commands` is a non-empty list of non-empty strings. Full command grammar validation begins when task `005` introduces `src/command.zig`. Task `002` must preserve command strings after shape validation rather than implementing a second parser.
+Config parsing validates that `test.commands` is a non-empty list of non-empty strings; full command grammar validation lives in `src/command.zig`. Command strings are preserved after shape validation rather than re-parsed by a second parser.
 
-Before task `051`, `impact_graph` is rejected until task `051` completes; config validation must fail `test.selection = "impact_graph"` with `ZNTL_CONFIG_INVALID_VALUE` rather than silently downgrading to `same_file_then_package`.
+`impact_graph` is an accepted `test.selection` strategy; see `docs/TEST_SELECTION.md` for its deterministic impact-set semantics.
 
 The shared command parser accepts this grammar:
 
@@ -242,7 +242,7 @@ Rejected shell metacharacters are invalid even when quoted or escaped. The goal 
 | --- | --- | --- | --- |
 | `jobs` | integer | `1` | Maximum zentinel worker count for mutation execution. |
 
-`jobs = 1` is the deterministic serial default. Values greater than `1` request bounded parallel mutation execution once task `050` implements the worker pool. Before task `050`, `zentinel run` must reject `run.jobs > 1` instead of silently ignoring the worker count. The command-line `--jobs <n>` option overrides normalized `run.jobs` only for the current invocation after task `050`.
+`jobs = 1` is the deterministic serial default. Values greater than `1` request bounded parallel mutation execution on the worker pool. The command-line `--jobs <n>` option overrides normalized `run.jobs` only for the current invocation.
 
 Config validation must reject non-positive worker counts with `ZNTL_CONFIG_INVALID_VALUE`.
 

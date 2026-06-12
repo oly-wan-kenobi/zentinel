@@ -201,7 +201,7 @@ test "unsupported CLI command is rejected with ZNTL_DOCTEST_COMMAND_REJECTED" {
     try expectEqualStrings(runner.command_rejected_code, r2.diagnostics[0].code);
 }
 
-test "a per-case workspace-creation failure isolates that case as invalid, not a run-wide abort (L12)" {
+test "a per-case workspace-creation failure isolates that case as invalid, not a run-wide abort" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -209,7 +209,7 @@ test "a per-case workspace-creation failure isolates that case as invalid, not a
     // A transient/environmental workspace-create failure for ONE Zig case must
     // isolate to that case (status .invalid + a workspace diagnostic), symmetric
     // with the mutation path (mutant_runner folds create_failed into an `invalid`
-    // mutant). Before L12, runZig propagated WorkspaceCreateFailed with `try`, so
+    // mutant). Previously runZig propagated WorkspaceCreateFailed with `try`, so
     // the first failing case aborted the whole doctest run (exit 4, no report),
     // discarding every other case's verdict.
     var exec = MockExec{ .out = outcome(0, false, false) };

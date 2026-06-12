@@ -124,13 +124,13 @@ test "AST remains the default backend and never routes through the experimental 
     try expect(!zir.backendOptedIn(cfg, "zir"));
 }
 
-// --- CLI experimental-backend diagnostic note rendering (L26) ---------------
+// --- CLI experimental-backend diagnostic note rendering ---------------
 //
 // The `list-mutants --backend zir` CLI surfaces unsupported-operator diagnostics
-// as stderr `note[...]` lines (the documented behavior, L25). This pins the exact
-// bytes so a wiring/format regression fails here (L26).
+// as stderr `note[...]` lines (the documented behavior). This pins the exact
+// bytes so a wiring/format regression fails here.
 
-test "zir backend renders the exact stderr note line for an unsupported diagnostic (L26)" {
+test "zir backend renders the exact stderr note line for an unsupported diagnostic" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const a = arena_state.allocator();

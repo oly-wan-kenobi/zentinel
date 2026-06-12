@@ -100,7 +100,7 @@ test "each mutant gets a dedicated workspace with nested local cache and output"
     try expect(!std.mem.eql(u8, c1, c2));
 }
 
-test "every per-mutant workspaceRoot nests under the run's workspaceRunBase, scoped per run (L8)" {
+test "every per-mutant workspaceRoot nests under the run's workspaceRunBase, scoped per run" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -123,7 +123,7 @@ test "every per-mutant workspaceRoot nests under the run's workspaceRunBase, sco
     try expect(!std.mem.startsWith(u8, r1, other));
 }
 
-// --- Tree copy skips DESCENT into excluded dirs (H3, L7) -------------------
+// --- Tree copy skips DESCENT into excluded dirs -------------------
 
 fn excludeNothing(path: []const u8) bool {
     _ = path;
@@ -135,7 +135,7 @@ fn fileExists(io: std.Io, dir: std.Io.Dir, sub_path: []const u8) bool {
     return true;
 }
 
-test "copyProjectTree copies real files but never descends into .zig-cache/zig-out/.git (H3)" {
+test "copyProjectTree copies real files but never descends into .zig-cache/zig-out/.git" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -180,7 +180,7 @@ test "copyProjectTree copies real files but never descends into .zig-cache/zig-o
     try expect(!fileExists(io, dst, ".git/config"));
 }
 
-test "copyProjectTree copies a sibling dir that only prefix-collides with an excluded dir (M2)" {
+test "copyProjectTree copies a sibling dir that only prefix-collides with an excluded dir" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -193,7 +193,7 @@ test "copyProjectTree copies a sibling dir that only prefix-collides with an exc
     // path segment differs, so discovery yields its sources and they must be
     // copied. The raw-prefix copyExcluded wrongly dropped such files, then the
     // patched write of a mutant in that dir failed (missing parent) and the mutant
-    // was misclassified `invalid` (M2). The genuinely-excluded `zig-out/` is still
+    // was misclassified `invalid`. The genuinely-excluded `zig-out/` is still
     // skipped.
     try tmp.dir.createDirPath(io, "proj/zig-outputs");
     try tmp.dir.writeFile(io, .{ .sub_path = "proj/zig-outputs/foo.zig", .data = "pub const x = 1;\n" });
@@ -212,7 +212,7 @@ test "copyProjectTree copies a sibling dir that only prefix-collides with an exc
     try expect(!fileExists(io, dst, "zig-out/bin/real.zig")); // the real excluded dir is NOT
 }
 
-test "excludedCopyPath matches the whole first path segment, not a raw prefix (M2)" {
+test "excludedCopyPath matches the whole first path segment, not a raw prefix" {
     // Genuinely excluded: the first path segment equals an excluded dir name.
     try expect(wp.excludedCopyPath("zig-out/bin/app"));
     try expect(wp.excludedCopyPath(".zig-cache/o/x.zig"));
@@ -224,7 +224,7 @@ test "excludedCopyPath matches the whole first path segment, not a raw prefix (M
     try expect(!wp.excludedCopyPath("src/zig-out-helper.zig"));
 }
 
-test "createMutantWorkspace unwinds the partial workspace dir when setup fails mid-way (L9)" {
+test "createMutantWorkspace unwinds the partial workspace dir when setup fails mid-way" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -242,7 +242,7 @@ test "createMutantWorkspace unwinds the partial workspace dir when setup fails m
     // mutant_file `../escape.zig` escapes the workspace dir, so createMutantWorkspace
     // fails at the post-copy containment check -- AFTER createDirPath + copyProjectTree
     // already materialized .zig-cache/zentinel/workspaces/{run_id}/{mutant_id}. The
-    // failure-path errdefer must remove that partial dir; before L9 only the fd was
+    // failure-path errdefer must remove that partial dir; previously only the fd was
     // closed, orphaning it (and the caller's success-only cleanup defer never fired).
     const result = wp.createMutantWorkspace(io, a, tmp.dir, run_id, mutant_id, "../escape.zig", "x", &cleanup_failures);
     try std.testing.expectError(error.WorkspaceCreateFailed, result);

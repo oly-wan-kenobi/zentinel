@@ -217,7 +217,7 @@ test "validateResponse explain accepts mutation and doctest classifications" {
         \\  "confidence": "medium", "summary": "boundary untested", "evidence_refs": [], "next_action": "add a test" }
     );
     try expectEqual(command.ResponseViolation.ok, command.validateResponse(.explain, mutation));
-    // task 055 reuses this schema; a doctest classification must validate here too.
+    // The doctest AI commands reuse this schema; a doctest classification must validate here too.
     const doctest = parseValue(arena,
         \\{ "schema_version": "zentinel.ai.explain.response.v1", "classification": "doctest_output_mismatch",
         \\  "confidence": "low", "summary": "snapshot drift", "evidence_refs": [], "next_action": "re-run doctest" }

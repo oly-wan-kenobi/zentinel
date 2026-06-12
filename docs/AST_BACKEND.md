@@ -40,9 +40,9 @@ The backend must keep parsing and mutation generation separate:
 
 The parser layer is built on Zig's standard-library parser (`std.zig.Ast`) for the pinned Zig `0.16.0`, not a hand-rolled parser. Because `std.zig.Ast` node tags and accessors change across Zig releases, the exact API surface is a pinned contract, not an assumption:
 
-- The AST parser spike (task `008`) must verify the `std.zig.Ast` API against an installed Zig `0.16.0` and record the exact entry points it uses: the parse function, the node tag enumeration, token/source-location accessors, and any node-data accessors needed for span extraction.
+- The `std.zig.Ast` API surface is verified against an installed Zig `0.16.0`, recording the exact entry points used: the parse function, the node tag enumeration, token/source-location accessors, and any node-data accessors needed for span extraction.
 - The parser adapter wraps these entry points behind zentinel's own interface so a future Zig pin change is isolated to one module.
-- If the pinned `std.zig.Ast` API is unavailable or does not provide what a recognizer needs, the work blocks per `docs/AUTONOMOUS_AGENT_PROTOCOL.md` (Pinned Zig `0.16.0` API uncertainty) instead of guessing or silently degrading source mapping.
+- If the pinned `std.zig.Ast` API is unavailable or does not provide what a recognizer needs, the work stops and the limitation is recorded explicitly instead of guessing or silently degrading source mapping.
 
 ## Source Mapping Strategy
 

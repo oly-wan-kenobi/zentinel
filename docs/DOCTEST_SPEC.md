@@ -348,7 +348,7 @@ The derivation must not include display order, wall-clock time, absolute paths, 
 
 ## Doctest Reports
 
-`zentinel.doctest.report.v1` is the exact schema target for task `035`. JSON doctest reports must be deterministic, use project-relative paths, and normalize observation metadata in snapshots.
+`zentinel.doctest.report.v1` is the exact schema target. JSON doctest reports must be deterministic, use project-relative paths, and normalize observation metadata in snapshots.
 
 Minimal valid JSON shape:
 
@@ -470,7 +470,7 @@ Failure report rules:
 
 ## Mutation-Aware Doctest Reports
 
-Task `061` owns the stable `zentinel doctest --mutate` report extension. It must update `schemas/doctest.report.v1.schema.json` and report fixtures from the exact contract in this section before emitting mutation-aware reports outside the experimental fixture path.
+The stable `zentinel doctest --mutate` report extension keeps `schemas/doctest.report.v1.schema.json` and the report fixtures synchronized with the exact contract in this section.
 
 Normal `zentinel doctest` reports use the ordinary doctest statuses listed above. Mutation-aware entries use `case.kind = "mutation"` and a shared mutation-result status:
 

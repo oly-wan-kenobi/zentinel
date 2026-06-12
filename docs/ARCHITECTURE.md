@@ -104,7 +104,7 @@ Forbidden:
 - mark a mutant killed or survived
 - suppress a mutant automatically
 - decide that a mutant is equivalent
-- modify source or tests without an explicit developer or agent task
+- modify source or tests without an explicit developer request
 - change cache keys, report evidence, or pass/fail semantics
 
 ## Shared Data Model

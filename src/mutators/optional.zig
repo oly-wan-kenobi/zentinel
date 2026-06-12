@@ -63,7 +63,7 @@ fn collectOrelse(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const original = tree.source[start..end];
     // An existing `orelse unreachable` (any spelling, e.g. `(unreachable)`) is a
-    // forbidden context: re-mutating it would emit a pure-formatting no-op (L6).
+    // forbidden context: re-mutating it would emit a pure-formatting no-op.
     if (mutant.equivalentToCanonical(original, "unreachable")) return;
     const start_pos = li.locate(start) orelse return;
     const end_pos = li.locate(end) orelse return;

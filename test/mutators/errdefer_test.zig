@@ -33,7 +33,7 @@ test "errdefer statement -> errdefer {} candidate, classified may_fail" {
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("errdefer_remove", c[0].operator);
     // The span includes the statement-terminating `;`, so applying `errdefer {}`
-    // replaces the whole statement and cannot orphan a `;` into `errdefer {};` (H2).
+    // replaces the whole statement and cannot orphan a `;` into `errdefer {};`.
     try expectEqualStrings("errdefer alloc.destroy(p);", c[0].original);
     try expectEqualStrings("errdefer {}", c[0].replacement);
     // Removing the cleanup can leave a variable used only there unused -> may_fail.
@@ -61,7 +61,7 @@ test "an existing errdefer {} is not mutated" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "a non-canonically-spaced empty errdefer is not mutated (L6)" {
+test "a non-canonically-spaced empty errdefer is not mutated" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -70,7 +70,7 @@ test "a non-canonically-spaced empty errdefer is not mutated (L6)" {
     // post-mutation `errdefer {}`; emitting a mutant only rewrites whitespace, a
     // pure no-op that Zig cannot distinguish -- a guaranteed-equivalent survivor.
     // The exact-string guard let these through; the whitespace-insensitive one
-    // skips them (L6).
+    // skips them.
     inline for (.{
         "pub fn f(alloc: std.mem.Allocator) !*i32 {\n    const p = try alloc.create(i32);\n    errdefer  {}\n    p.* = 1;\n    return p;\n}\nconst std = @import(\"std\");",
         "pub fn f(alloc: std.mem.Allocator) !*i32 {\n    const p = try alloc.create(i32);\n    errdefer{}\n    p.* = 1;\n    return p;\n}\nconst std = @import(\"std\");",
@@ -150,7 +150,7 @@ test "survivor fixture: success-only errdefer yields a candidate" {
     try expectEqualStrings("errdefer alloc.destroy(p);", c[0].original);
 }
 
-test "the applied errdefer_remove mutant is syntactically valid -- no dangling semicolon (H2)" {
+test "the applied errdefer_remove mutant is syntactically valid -- no dangling semicolon" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -160,7 +160,7 @@ test "the applied errdefer_remove mutant is syntactically valid -- no dangling s
     // expression -- NOT the statement-terminating `;`. Replacing only that span
     // with `errdefer {}` left the `;` orphaned -> `errdefer {};`, which fails to
     // parse ("expected statement, found ';'"), so every such mutant was a
-    // guaranteed compile_error that can never be killed (H2).
+    // guaranteed compile_error that can never be killed.
     const src =
         \\pub fn f(alloc: std.mem.Allocator) !*i32 {
         \\    const p = try alloc.create(i32);

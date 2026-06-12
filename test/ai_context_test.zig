@@ -335,7 +335,7 @@ test "value-shaped secrets are redacted from AI context even without a label" {
     try expectError(error.RedactionFailed, redaction.redact(a, github, &bad));
 }
 
-test "additional credential shapes (OpenAI, Slack, Google) are redacted by value (deep-review #11)" {
+test "additional credential shapes (OpenAI, Slack, Google) are redacted by value" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -417,7 +417,7 @@ test "the stub provider is deterministic and disabled mode yields no advisory" {
     try expectError(error.RemoteNotAllowed, provider.run(a, .remote, false, req));
 }
 
-// --- Path normalization + field redaction primitives (task 120, audit F-4) --
+// --- Path normalization + field redaction primitives (audit F-4) --
 
 test "normalizeAbsolutePaths replaces absolute paths but preserves relative paths and division" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
@@ -461,7 +461,7 @@ test "normalizeAbsolutePaths handles paths with spaces and Windows absolute path
     try expectEqualStrings("panic at <path>", windows.text);
 }
 
-test "normalizeAbsolutePaths preserves Zig // and /// comment markers (M3)" {
+test "normalizeAbsolutePaths preserves Zig // and /// comment markers" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -469,7 +469,7 @@ test "normalizeAbsolutePaths preserves Zig // and /// comment markers (M3)" {
     // A `//`-led run is a Zig comment, not an absolute path (a real absolute path
     // has a non-empty first segment, `/a/...`). Collapsing `//` to `<path>` would
     // corrupt the mutated code shown to the AI AND falsely flip `changed`, which
-    // injects a bogus `absolute_path` entry into privacy.redactions_applied (M3).
+    // injects a bogus `absolute_path` entry into privacy.redactions_applied.
     const line = try redaction.normalizeAbsolutePaths(a, "// boundary off-by-one");
     try expect(!line.changed);
     try expectEqualStrings("// boundary off-by-one", line.text);
@@ -485,7 +485,7 @@ test "normalizeAbsolutePaths preserves Zig // and /// comment markers (M3)" {
     try expectEqualStrings("const x = 1; // see <path>", mixed.text);
 }
 
-test "normalizeAbsolutePaths redacts colon/scheme-prefixed absolute paths (M8)" {
+test "normalizeAbsolutePaths redacts colon/scheme-prefixed absolute paths" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

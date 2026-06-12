@@ -141,9 +141,9 @@ Benchmark output must be machine-readable and stable enough for trend comparison
 
 ## Budget Authority
 
-Task `052` is the first task that may set numeric CI smoke budgets. Before task `052` is complete, references to a runtime budget mean "budget not established yet" and must not be guessed by agents.
+The numeric CI smoke budgets below are the established budgets; `scripts/check_perf_budgets.py` verifies this document still records them.
 
-Task `052` must write concrete initial budgets for:
+Concrete initial budgets exist for:
 
 - fixture dogfood runtime
 - selected production dogfood runtime

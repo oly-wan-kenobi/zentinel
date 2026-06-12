@@ -63,7 +63,7 @@ This guarantee covers the recorded mutant verdict and the derived survivor count
 
 ## Impact Graph
 
-Before task `051`, `impact_graph` is not available and must be rejected by config validation. Agents must not accept it as an alias for `same_file_then_package` or silently fall back to all tests.
+`impact_graph` is not an alias for `same_file_then_package` and must not silently fall back to all tests; its impact set is deterministic and recorded.
 
 The future impact graph may use:
 

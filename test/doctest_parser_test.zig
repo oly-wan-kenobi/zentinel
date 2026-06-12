@@ -160,18 +160,18 @@ test "info-string variants classify language, kind, and match mode" {
     try expectEqual(block.Kind.after, p.blocks[5].kind);
 }
 
-test "JSON-only match modes (subset/unordered) on a non-JSON block are unsupported tags, not silent exact (S11)" {
+test "JSON-only match modes (subset/unordered) on a non-JSON block are unsupported tags, not silent exact" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
-    // `subset` and `unordered` are JSON-only match modes. Before S11 the parser
+    // `subset` and `unordered` are JSON-only match modes. Previously the parser
     // accepted them on a text block silently (match_mode = .subset/.unordered) and
     // matchModeFor then downgraded them to exact matching with no diagnostic. The
     // parser must instead emit doctest_unsupported_tag and refuse each block as a
     // doctest, so the author gets a clear error rather than a confusing false
-    // mismatch. A JSON block with the same tag stays valid (see the info-string and
-    // M6 tests).
+    // mismatch. A JSON block with the same tag stays valid (see the info-string
+    // tests).
     const src =
         "```text output subset\nhi\n```\n" ++ // opens at line 1
         "```text output unordered\nhi\n```\n"; // opens at line 4

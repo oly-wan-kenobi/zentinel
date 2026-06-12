@@ -102,7 +102,7 @@ pub const Settings = struct {
     zig_version: []const u8 = "0.16.0",
     zentinel_version: []const u8 = "0.0.0",
     /// Configured source-context window (`ai.source_context_lines`): lines before/
-    /// after the mutation declared in the AI context. Default matches config (L43).
+    /// after the mutation declared in the AI context. Default matches config.
     source_context_lines: u32 = 4,
 };
 
@@ -266,7 +266,7 @@ fn readSpan(v: ?std.json.Value) Failure!context.Span {
         // byte_start/byte_end are u64: any non-negative i64 fits, so the existing
         // clamp cannot panic or wrap. The narrowed u32 line/column fields are
         // bounds-checked because an out-of-range report value would otherwise
-        // panic the @intCast (task 107).
+        // panic the @intCast.
         .byte_start = @intCast(@max(0, i64v(getO(v, "byte_start")))),
         .byte_end = @intCast(@max(0, i64v(getO(v, "byte_end")))),
         .line_start = try reportU32(getO(v, "line_start")),
@@ -367,7 +367,7 @@ fn commandsFromResult(
     // A non-running mutant (invalid/skipped) legitimately executed no command, so
     // a real report serializes `"commands": []`. Return an empty command set so
     // explain/suggest can still describe why the mutant did not run, instead of
-    // misreporting a present, resolved report as AiReportNotFound (L1). A RUNNING
+    // misreporting a present, resolved report as AiReportNotFound. A RUNNING
     // status (survived/killed/...) with no structured command evidence remains a
     // malformed report and is still rejected.
     const result_status = s(get(result, "status"));
@@ -440,7 +440,7 @@ fn buildContext(
     const m_replacement = try context.redactField(arena, s(get(mutant, "replacement")), patterns, &log);
     // The mutant id and operator are free-form report strings under full control
     // of an untrusted `--input-report`, so they pass through the same redaction as
-    // every other field rather than reaching the provider verbatim (M9). A
+    // every other field rather than reaching the provider verbatim. A
     // legitimate id/operator carries no path or secret, so it is unchanged.
     const m_id = try context.redactField(arena, s(get(mutant, "id")), patterns, &log);
     const m_operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &log);
@@ -465,7 +465,7 @@ fn buildContext(
     // The selection strategy is a free-form string on the read side of an untrusted
     // `--input-report` (parsed as a raw JSON string, not the typed Strategy enum),
     // so it passes through the same logged redaction as every other field rather
-    // than reaching the provider verbatim (L29). A legitimate strategy carries no
+    // than reaching the provider verbatim. A legitimate strategy carries no
     // path or secret, so it is unchanged. Computed here (not inline in the literal)
     // so its redactions land in `log` before privacy.redactions_applied reads it.
     const selection_reason = try context.redactField(arena, sOr(getO(selection, "strategy"), "same_file_then_package"), patterns, &log);
@@ -512,7 +512,7 @@ fn buildContext(
         .source_context = .{
             // The configured window (ai.source_context_lines) is declared so the
             // provider knows the requested before/after budget; the policy stays
-            // "none" so the source snippet itself is still withheld (L43).
+            // "none" so the source snippet itself is still withheld.
             .policy = "none",
             .language = "zig",
             .before_lines = settings.source_context_lines,
@@ -672,7 +672,7 @@ fn categoryWord(classification: []const u8) []const u8 {
 fn stubMutantResponse(arena: std.mem.Allocator, flow: Flow, mutant: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     // Redact every report field the stub echoes into its advisory text -- file,
     // operator, and id -- so the rendered output (stdout) never leaks an absolute
-    // path or secret-looking token from an untrusted report (F-4, M9). A
+    // path or secret-looking token from an untrusted report. A
     // legitimate operator carries no path/secret, so classification is unchanged.
     var sink = context.RedactionLog.init(arena);
     const operator = try context.redactField(arena, s(get(mutant, "operator")), patterns, &sink);
@@ -718,7 +718,7 @@ fn stubReview(arena: std.mem.Allocator, report: std.json.Value, patterns: []cons
     // The report is untrusted (--input-report). Redact every id echoed into the
     // rendered clusters: the `m_` prefix validator does not exclude a path- or
     // secret-shaped id, so an unredacted id would leak to stdout/JSON -- the same
-    // leak stubMutantResponse guards against (F-4, M9).
+    // leak stubMutantResponse guards against.
     var log = context.RedactionLog.init(arena);
     var n: usize = 0;
     for (mutants) |m| {
@@ -950,7 +950,7 @@ pub const Format = enum { text, json };
 /// The AI CLI options shared by `zentinel ai <cmd>`, `zentinel doctest suggest`,
 /// and `zentinel doctest review-survivors`: `--ai-provider`, `--input-report`,
 /// and `--format`. Parsed in one place so the three command loops cannot drift
-/// (L16); each command still owns its positional args and command-specific flags
+///; each command still owns its positional args and command-specific flags
 /// (e.g. doctest's `--file`).
 pub const SharedOptions = struct {
     provider_override: ?Mode = null,
@@ -972,7 +972,7 @@ pub const SharedOptionResult = union(enum) {
 /// Parse the shared AI option at `args[i.*]` into `out`, advancing `i` past any
 /// consumed value. Returns `.not_shared` (leaving `i` untouched) when the arg is
 /// not one of the three shared options. The error strings are owned here so all
-/// three command loops report them identically (L16).
+/// three command loops report them identically.
 pub fn parseSharedOption(args: []const []const u8, i: *usize, out: *SharedOptions) SharedOptionResult {
     const a = args[i.*];
     if (std.mem.eql(u8, a, "--ai-provider")) {
@@ -1053,7 +1053,7 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
         const prompt = buildPromptValue(arena, input.flow, mode, mutant, report, input.settings) catch |err| switch (err) {
             error.OutOfMemory => return error.OutOfMemory,
             // An out-of-range or non-integer report integer is an invalid report,
-            // not a bad model response (task 107).
+            // not a bad model response.
             error.AiReportNotFound => return error.AiReportNotFound,
             else => return error.AiResponseInvalid,
         };

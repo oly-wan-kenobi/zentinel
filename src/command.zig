@@ -2,7 +2,7 @@
 //
 // Shared, shell-free command-string parser (docs/CONFIG_SPEC.md, docs/INTERNAL_API_CONTRACTS.md).
 // Turns a configured command string into a deterministic argv array without
-// invoking a shell. `zentinel check` validates with it; the runner (task 014)
+// invoking a shell. `zentinel check` validates with it; the runner
 // must execute exactly the argv this returns and must not fork a second parser.
 // Pure: allocates only into the caller-provided arena.
 const std = @import("std");

@@ -196,7 +196,7 @@ test "junit status mapping per result status" {
     try expect(contains(bf, "name=\"baseline\""));
 }
 
-test "junit renderer replaces XML-illegal control chars from captured evidence (M11)" {
+test "junit renderer replaces XML-illegal control chars from captured evidence" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -204,7 +204,7 @@ test "junit renderer replaces XML-illegal control chars from captured evidence (
     // Captured stderr with ANSI-colored compiler output (ESC \x1b) and a BEL
     // (\x07): both are forbidden by XML 1.0, so emitting them verbatim makes a
     // strict CI parser reject the whole testsuite. The renderer must sanitize them
-    // while keeping the surrounding text (M11).
+    // while keeping the surrounding text.
     var m = mutant(1, .survived, "src/x.zig", false);
     m.result.evidence = .{ .stdout_excerpt = "", .stderr_excerpt = "error: \x1b[31mboom\x1b[0m\ttab\x07", .failure_summary = "" };
     const ms = [_]report.Mutant{m};
@@ -276,12 +276,12 @@ test "summary counts are derived from mutants, not trusted" {
     try expectEqual(report.Violation.summary_count_mismatch, report.validate(bad));
 }
 
-test "summarize pins every per-status count so a non-kill arm cannot be miscounted as killed (M10)" {
+test "summarize pins every per-status count so a non-kill arm cannot be miscounted as killed" {
     // One mutant per ResultStatus: each status must increment exactly its own
     // bucket. The five non-kill terminal statuses (compile_error/compiler_crash/
     // timeout/skipped/invalid) must stay OUT of killed/survived (I-010), so a
     // regression like `.compile_error => s.killed += 1` -- which validate() cannot
-    // catch, being recomputed from the same summarize -- fails here (M10).
+    // catch, being recomputed from the same summarize -- fails here.
     const m = [_]report.Mutant{
         mutant(1, .killed, "src/a.zig", false),
         mutant(2, .survived, "src/b.zig", false),

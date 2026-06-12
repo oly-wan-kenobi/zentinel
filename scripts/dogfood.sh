@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 1 dogfood: run zentinel over the mutation fixtures (tasks/022).
+# Stage 1 dogfood: run zentinel over the mutation fixtures.
 #
 # Documented command:
 #   scripts/dogfood.sh

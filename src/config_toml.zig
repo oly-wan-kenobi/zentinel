@@ -97,7 +97,7 @@ const Parser = struct {
         // zero-copy slice of the source. As soon as a backslash appears, switch to a
         // decoded arena copy so the TOML basic escapes (\\ \" \n \t \r) are honored
         // rather than passed through verbatim -- the prior loop kept "a\\b" as two
-        // backslashes and terminated early on \" (S12).
+        // backslashes and terminated early on \".
         while (!self.atEnd()) {
             const c = self.peek();
             if (c == '"') {
@@ -115,7 +115,7 @@ const Parser = struct {
     /// Decode a basic string containing at least one escape. `start` is the first
     /// content byte; `self.i` points at the first backslash. Only the TOML 1.0 basic
     /// escapes are recognized; an unknown escape is a parse error, never silently
-    /// kept (S12).
+    /// kept.
     fn readStringEscaped(self: *Parser, start: usize) ParseError![]const u8 {
         var buf: std.ArrayList(u8) = .empty;
         try buf.appendSlice(self.arena, self.src[start..self.i]); // bytes before the first escape
@@ -229,7 +229,7 @@ pub fn parse(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Pa
         if (p.atEnd() or p.peek() != '=') return p.fail("expected '=' after key");
         // TOML forbids defining a key twice in the same table, and resolution is
         // first-wins, so a duplicate would silently drop the later value the author
-        // wrote. Reject it with a parse error at the redefinition line (L37).
+        // wrote. Reject it with a parse error at the redefinition line.
         for (entries.items) |e| {
             if (std.mem.eql(u8, e.section, section) and std.mem.eql(u8, e.key, key)) {
                 return p.fail("duplicate key");

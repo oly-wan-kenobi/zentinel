@@ -154,7 +154,7 @@ fn stripWrappingParens(s: []const u8) []const u8 {
 /// mutators use this to skip re-mutating non-canonically-spelled source (e.g.
 /// `errdefer  {}`, `catch (unreachable)`, `orelse (unreachable)`) that would
 /// otherwise emit a pure-formatting no-op -- a guaranteed-equivalent survivor
-/// that pollutes the surviving set and depresses the mutation score (L6).
+/// that pollutes the surviving set and depresses the mutation score.
 pub fn equivalentToCanonical(original: []const u8, canonical: []const u8) bool {
     return eqlIgnoringWhitespace(stripWrappingParens(original), canonical);
 }

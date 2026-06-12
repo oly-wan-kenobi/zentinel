@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Benchmark smoke entrypoint (tasks/052). Verifies the documented CI smoke budgets
+# Benchmark smoke entrypoint. Verifies the documented CI smoke budgets
 # are present (check_perf_budgets.py), runs the deterministic performance benchmark
 # suite (`zig build test`), and prints the committed, normalized benchmark snapshot
 # (zentinel.benchmark.v1). The benchmark is deterministic by design -- a mock

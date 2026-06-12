@@ -251,7 +251,7 @@ If generated-command preflight fails, times out, or crashes the compiler, the ge
 
 report v1 has no backend-specific diagnostics namespace. Experimental ZIR inventories, source-mapping notes, and compiler-internal diagnostics must remain out-of-report artifacts until a future schema task adds a closed namespaced field.
 
-The `mode` field is single-valued until safety-mode matrix work lands; mode-matrix reporting is owned by task `058`. Task `058` may add optional `result.mode_matrix` fields only as an additive change: mode-matrix reporting remains an additive `zentinel.report.v1` extension and must preserve existing `result.mode` semantics. If those semantics must change, the work requires a new report schema version.
+The `result.mode` field is single-valued; mode-matrix reporting adds optional `result.mode_matrix` fields only as an additive `zentinel.report.v1` extension and preserves existing `result.mode` semantics. If those semantics must change, the work requires a new report schema version.
 
 `operator_stability` describes the mutator operator. Valid values are `stable`, `preview`, and `experimental` as defined by `docs/MUTATOR_SPEC.md`. Preview operators may appear only when explicitly enabled by config or task scope; they are never part of the default stable minimum product.
 

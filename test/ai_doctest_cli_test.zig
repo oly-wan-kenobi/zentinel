@@ -61,9 +61,9 @@ test "doctest AI --ai-provider disabled is ZNTL_AI_DISABLED" {
     try expectError(error.AiDisabled, dc.run(arena, input, .json));
 }
 
-// --- required positional is a usage error, not a downstream AI failure (L32) ---
+// --- required positional is a usage error, not a downstream AI failure ---
 
-test "doctest AI subcommands reject a missing required positional as a usage error (L32)" {
+test "doctest AI subcommands reject a missing required positional as a usage error" {
     // suggest needs <doc-path>; explain and review-snapshot need <case-ref>. A
     // missing positional must surface this exact CLI usage detail (rendered as
     // ZNTL_CLI_INVALID_OPTION) instead of being forwarded as a null ref the engine

@@ -167,7 +167,8 @@ test "workspace creation failure is classified invalid (F-010)" {
 
 /// An executor mock that records the exact argv it was handed, so a test can
 /// assert that the optimize mode actually reaches the spawned command (the
-/// existing `Mock` discards argv, which is why the H5 gap was invisible to tests).
+/// existing `Mock` discards argv, which is why a dropped optimize-mode flag was
+/// invisible to tests).
 const ArgvCaptureMock = struct {
     result: runner.RawOutcome,
     last_argv: []const []const u8 = &.{},
@@ -186,7 +187,7 @@ fn containsArg(argv: []const []const u8, needle: []const u8) bool {
     return false;
 }
 
-test "the optimize mode reaches the executor as a real argv element, not just a label (H5)" {
+test "the optimize mode reaches the executor as a real argv element, not just a label" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -194,7 +195,7 @@ test "the optimize mode reaches the executor as a real argv element, not just a 
 
     // A ReleaseFast run of a generated `zig test <file>` command: the spawned argv
     // must carry `-OReleaseFast`, otherwise every `--mode` silently runs Debug and
-    // `result.mode` is an untruthful label (H5).
+    // `result.mode` is an untruthful label.
     var mock = ArgvCaptureMock{ .result = outcome(0, false, false) };
     const res = try mutant_runner.run(a, plusMutant(src, "+"), src, .created, &.{"zig test target.zig"}, "<project>", mock.exec(), .ReleaseFast);
     try expectEqual(report.Mode.ReleaseFast, res.mode);

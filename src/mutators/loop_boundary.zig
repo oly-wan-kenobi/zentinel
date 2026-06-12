@@ -134,7 +134,7 @@ fn rangeEnd(
     // Guard the range-end arithmetic against i128 overflow exactly as
     // integer_boundary does: a +/-1 boundary unrepresentable in i128 is skipped
     // rather than computed, since the unchecked add/sub would panic in-process and
-    // abort the whole candidate-generation pass on a legal source literal (H1).
+    // abort the whole candidate-generation pass on a legal source literal.
     if (std.math.add(i128, value, 1)) |plus| {
         try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
     } else |_| {}

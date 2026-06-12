@@ -1,6 +1,6 @@
 # Non-Goals
 
-This document records what zentinel will not do. It exists so agents do not spend task scope re-arguing rejected directions.
+This document records what zentinel will not do, so rejected directions are not re-argued from scratch.
 
 ## Tags
 
@@ -17,7 +17,7 @@ This document records what zentinel will not do. It exists so agents do not spen
 - **A multi-language mutation framework. [never]** zentinel is Zig-native. Other languages are separate products.
 - **An AI correctness judge. [never]** AI may explain evidence. It may not decide killed, survived, compile_error, compiler_crash, invalid, skipped, or equivalent.
 - **Zig versions other than the pinned supported version. [never]** zentinel targets only Zig `0.16.0` for this version unless a future ADR changes the pin.
-- **Preview mutator implementation in the minimum complete product. [not v1]** Preview mutators are documented design targets and fixture/doc backlog candidates, not part of end-to-end v1 implementation unless a future task explicitly names the operator.
+- **Preview mutator implementation in the minimum complete product. [not v1]** Preview mutators are documented design targets and fixture/doc backlog candidates, not part of end-to-end v1 implementation until explicitly stabilized.
 - **An always-online service. [never]** The deterministic core must work offline and in CI without remote AI providers.
 
 ## Mutation Non-Goals
@@ -33,12 +33,10 @@ This document records what zentinel will not do. It exists so agents do not spen
 - **Multiple stable backend defaults. [never]** AST remains the stable default until explicitly superseded.
 - **Remote provider tests in default CI. [never]** Default AI tests use deterministic stub providers.
 - **Unpinned dependencies for core behavior. [never]** Dependency changes must follow `docs/DEPENDENCY_POLICY.md`.
-- **Silent broad refactors during task execution. [never]** Task scope and allowed files bound the change.
+- **Silent broad refactors bundled into unrelated changes. [never]** A change is bounded by its stated scope.
 - **Arbitrary global mutation score gates. [never]** Dogfood gating focuses on deterministic regressions, invalid mutants, and protected survivor changes.
 
 ## Process Non-Goals
 
 - **Implementation before failing evidence. [never]** Behavior changes start with failing tests, fixtures, snapshots, or contract cases.
-- **Prose-only follow-ups. [never]** Follow-up work must become concrete task metadata when it affects implementation.
-- **Human coordination between every task. [never]** The task system must let agents continue sequentially unless a product, security, or compatibility decision is genuinely unresolved.
-- **Chat history as durable state. [never]** Queue, status, docs, artifacts, and reports are the durable record.
+- **Chat history as durable state. [never]** Docs, tests, and reports are the durable record.

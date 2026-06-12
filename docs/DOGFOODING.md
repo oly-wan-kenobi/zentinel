@@ -48,7 +48,7 @@ Selection criteria:
 
 - deterministic pure behavior
 - focused unit tests already exist
-- mutation run fits the budget documented in `docs/PERFORMANCE_STRATEGY.md` once task `052` has established that budget
+- mutation run fits the budget documented in `docs/PERFORMANCE_STRATEGY.md`
 
 Avoid mutating:
 
@@ -137,35 +137,11 @@ Dogfood reports should answer:
 
 Dogfood reports should not center on a single percentage.
 
-Final dogfood reports are archived under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.
+## Initial Production Dogfood
 
-## Initial Production Dogfood (task 059)
+The initial advisory production dogfood runs zentinel over a small set of selected internal modules using `test/fixtures/dogfood/production/config.toml` (`scripts/dogfood-production.sh`). It is advisory only: survivors are reviewed, not score-driven, and only infrastructure or deterministic-core errors fail it. Repeated runs are deterministic — the committed reference reports `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json` differ only in run id, timestamps, and durations and normalize to identical bytes. No invalid mutants may appear in protected production scope.
 
-The initial advisory production dogfood runs zentinel over a small set of selected internal modules using `test/fixtures/dogfood/production/config.toml` (`scripts/dogfood-production.sh`). It is advisory only: survivors are reviewed, not score-driven, and only infrastructure or deterministic-core errors fail it. Repeated runs are deterministic — the committed reference reports `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json` differ only in run id, timestamps, and durations and normalize to identical bytes. No invalid mutants may appear in protected production scope. This initial dogfood is wired through the canonical `scripts/ci.sh` entrypoint and is not the final release dogfood gate; task `085` is the final release dogfood gate, after doctest mutation, property infrastructure, pipeline artifact CI, recovery validation, public-doc doctests, and doctest survivor AI are complete.
-
-Task `085` implements that final gate as the `release_dogfood_gate` stage in `scripts/ci.sh` (`scripts/release_dogfood_gate.py`). It validates a release-evidence manifest that records the fixture, internal-module, public-doc-doctest, mutation-aware-doctest, doctest-survivor-AI, pipeline-artifact, and failure-recovery sub-gates; requires archived deterministic dogfood reports under `artifacts/pipeline/085/dogfood/` whose repeated `run1`/`run2` pair normalizes identically; allows no invalid mutants in protected scope; and requires every protected-scope survivor to be fixed by a test or recorded with deterministic equivalent-risk review evidence. The release-evidence contract and its valid/invalid fixtures live under `test/fixtures/release/`, and `test/release_dogfood_gate_test.zig` is the executable check that the gate cannot pass without archived deterministic dogfood evidence.
-
-The gate verifies behavior rather than self-authored claims (task `110`). It does not trust the manifest's `normalized_equal` boolean: it **recomputes** the repeated-run comparison from the archived `run_a`/`run_b` reports using the same normalization as `src/report.zig` (run id, `started_at`, and every `duration_ms` dropped), so a manifest asserting determinism whose reports are not actually normalized-equal is rejected. Every `verified_by` entry and every protected-survivor `evidence` must be a real on-disk artifact — a fabricated path or prose "evidence" is rejected — and the script-type `verified_by` checks (`*.py`/`*.sh`) are actually executed for the real manifest, while `.zig` `verified_by` entries must be real `test/**/*_test.zig` entrypoints executed by the `unit_tests` CI stage. `test/fixtures/release/invalid/fabricated_evidence.json` is the executable proof that a manifest with a bogus `verified_by` path, a false `normalized_equal` claim, and prose survivor evidence is rejected.
-
-## Pipeline Dogfooding
-
-The AI-agent pipeline must dogfood zentinel's verification model as soon as the supporting features exist.
-
-Required pipeline artifacts for dogfood tasks:
-
-- task context packet
-- test author result
-- test reviewer result
-- implementation reviewer result
-- mutation gate report
-- survivor triage report when survivors exist
-- property-test report when invariants are involved
-- doctest report when public docs are changed
-- final verifier report
-
-After task `043`, the mutation gate (`docs/MUTATION_GATE_POLICY.md`) is mandatory for dogfood tasks that change mutators, source mapping, runner behavior, or test selection; such tasks may not skip it with `pre-gate unavailable`.
-
-Dogfood failures follow `docs/FAILURE_RECOVERY.md`. Agents must not treat a dogfood survivor as a vague quality note; it must become one of:
+A dogfood survivor is never a vague quality note; it must become one of:
 
 - a failing test task
 - a documented equivalent-risk review
@@ -173,7 +149,7 @@ Dogfood failures follow `docs/FAILURE_RECOVERY.md`. Agents must not treat a dogf
 - a test-selection bug task
 - a doc example strengthening task
 
-Pipeline dogfooding should preserve the same UX goal as product dogfooding: reports should be diagnostic, compiler-native, actionable, fast, and trustworthy.
+Dogfooding should preserve the same UX goal as product use: reports should be diagnostic, compiler-native, actionable, fast, and trustworthy.
 
 ## AI in Dogfooding
 

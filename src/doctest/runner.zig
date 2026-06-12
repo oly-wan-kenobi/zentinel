@@ -26,7 +26,7 @@ pub const command_rejected_code = "ZNTL_DOCTEST_COMMAND_REJECTED";
 /// environmental: disk full, restrictive permissions, a pre-existing non-dir at
 /// the content-addressed workspace path). The failure isolates to the one case as
 /// `.invalid` rather than aborting the whole run -- symmetric with the mutation
-/// path, which folds a workspace `create_failed` into an `invalid` mutant (L12).
+/// path, which folds a workspace `create_failed` into an `invalid` mutant.
 pub const workspace_failed_code = "ZNTL_DOCTEST_WORKSPACE_FAILED";
 
 /// Ordinary doctest statuses (docs/DOCTEST_SPEC.md). `expected_compile_error` is
@@ -77,7 +77,7 @@ pub const Context = struct {
 };
 
 /// runCase never propagates a workspace-creation failure: runZig isolates it as
-/// an `.invalid` case (L12), so the only run-wide error a case can raise is OOM.
+/// an `.invalid` case, so the only run-wide error a case can raise is OOM.
 pub const RunError = std.mem.Allocator.Error;
 
 /// 1 if any case has a status other than passed/skipped/expected_compile_error,
@@ -155,7 +155,7 @@ fn runZig(ctx: Context, c: case.Case, content: []const u8, mode: ZigMode) RunErr
     // A per-case workspace-creation failure isolates to THIS case as `.invalid`
     // (symmetric with the mutation path, where mutant_runner folds a workspace
     // create_failed into an `invalid` mutant), never aborting the whole run --
-    // which would discard every other case's verdict and emit no report (L12).
+    // which would discard every other case's verdict and emit no report.
     // OutOfMemory is a genuine run-wide error and still propagates.
     ctx.provider.materialize(plan) catch |err| switch (err) {
         error.OutOfMemory => return error.OutOfMemory,

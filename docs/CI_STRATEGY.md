@@ -27,14 +27,13 @@ Hosted provider workflow files such as `.github/workflows/*.yml` are out of scop
 Every CI run must include:
 
 ```bash
-python3 scripts/validate_task_system.py
 zig version
 zig build test
 ```
 
 When implementation provides lint or format checks, `scripts/ci.sh` should run them without modifying files.
 
-`scripts/ci.sh` runs the verification stages defined in `docs/VERIFICATION_PIPELINE.md` that are available for the current phase, in the same required order, and must not require remote AI providers.
+`scripts/ci.sh` runs the required deterministic stages in a fixed order and must not require remote AI providers.
 
 ## Mutation Fixture Job
 
@@ -65,45 +64,20 @@ Artifacts:
 - text summary
 - cache diagnostics when enabled
 
-Final release dogfood archives live under `artifacts/pipeline/<task-id>/dogfood/`; `zig-out` paths are runtime output paths, not canonical archives.
-
 Advisory dogfood should fail only on infrastructure or deterministic core errors, not ordinary survivors.
 
 ## Canonical Entrypoint
 
-`scripts/ci.sh` is the canonical in-repository CI entrypoint (task `059`). It runs the required deterministic stages in order and is network-independent (no remote AI providers):
+`scripts/ci.sh` is the canonical in-repository CI entrypoint. It runs the required deterministic stages in order and is network-independent (no remote AI providers):
 
 1. `format_check` — `zig fmt --check src test build.zig`
 2. `build` — `zig build`
 3. `unit_tests` — `zig build test` (this includes the real-binary integration test `test/integration_run_test.zig`, which builds `zentinel` and runs it over the committed fixture project `test/fixtures/integration/sample`, asserting the report's killed/survived counts so the real `src/cli.zig` I/O adapters — process execution, per-mutant workspace tree-copy, and JSON report writing — are exercised, not only the mock-executor unit tests)
-4. `task_system_validation` — `python3 scripts/validate_task_system.py`
-5. `pipeline_artifact_validation` — `python3 scripts/check_pipeline_artifacts.py`
-6. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
-7. `release_dogfood_gate` — `python3 scripts/release_dogfood_gate.py` (final release dogfood gate, task `085`)
+4. `advisory_dogfood` — `scripts/dogfood.sh` (advisory; survivors are reviewed, not a failure)
 
 `scripts/ci.sh --list` prints the stage names in order without running them.
 
-### Final Release Dogfood Gate
-
-Stage `release_dogfood_gate` (task `085`) is the final release gate that runs before task `060` release acceptance, after the late hardening and advisory tasks (`061`, `062`, `064`, `065`, `066`, `067`) have landed. `scripts/release_dogfood_gate.py` validates the release-evidence manifest `test/fixtures/release/valid/release_evidence.json` and self-tests against `test/fixtures/release/{valid,invalid}`. The gate passes only when:
-
-- every required sub-gate passed with archived or test-verified evidence: `fixture_dogfood`, `internal_module_dogfood`, `public_docs_doctest`, `mutation_aware_doctest`, `doctest_survivor_ai`, `pipeline_artifact_validation`, and `failure_recovery_validation`;
-- the archived deterministic dogfood reports under `artifacts/pipeline/085/dogfood/` exist and the repeated `run1`/`run2` pair normalizes to identical bytes;
-- the protected scope has no invalid mutants; and
-- every protected-scope survivor is resolved (fixed by a test or recorded with deterministic equivalent-risk review evidence under `artifacts/pipeline/085/dogfood/`).
-
-The check is deterministic and network-free; diagnostics use project-relative paths. `zig-out` runtime outputs are not the canonical archive.
-
-### Pipeline Artifact Validation
-
-Stage `pipeline_artifact_validation` (task `064`) makes committed pipeline evidence auditable in CI across fresh agent sessions. `scripts/check_pipeline_artifacts.py` reuses the project-owned subset validator in `scripts/validate_task_system.py` to:
-
-- validate the committed `artifacts/pipeline/<task-id>/` tree (handoffs, `locks/active-task-lock.json`, and `context/` packets) against the baseline pipeline schemas, and
-- self-test that check against `test/fixtures/pipeline/ci_artifacts/`, where `valid/` must pass and every `invalid/<case>/` must be rejected.
-
-The check is deterministic and network-free. Diagnostics use project-relative paths (for example `artifacts/pipeline/064/locks/active-task-lock.json: active lock task_id ...`) and are emitted in sorted order so CI output is stable for snapshots. A schema or task-scope violation in any committed pipeline artifact exits non-zero and blocks CI. Modes: `--real-tree` validates only the committed tree; `--self-test` validates only the fixtures; the default runs both.
-
-Required CI artifact outputs: every post-`041` task contributes a `verification/report.json` (`zentinel.pipeline.verification.v1`) under `artifacts/pipeline/<task-id>/`, plus any role handoffs, active lock, and context packets it produces; this stage is the gate that keeps those metadata artifacts schema-valid and task-scoped. Selected initial production-source dogfood is opt-in via `scripts/dogfood-production.sh` (config `test/fixtures/dogfood/production/config.toml`); its deterministic reference reports live at `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json`, which normalize to the same bytes across repeated runs. Task `059` is the initial advisory dogfood CI and is not the final release dogfood gate; task `085` is the final release dogfood gate.
+Selected production-source dogfood is opt-in via `scripts/dogfood-production.sh` (config `test/fixtures/dogfood/production/config.toml`); its deterministic reference reports live at `test/fixtures/dogfood/production/run1.report.json` and `run2.report.json`, which normalize to the same bytes across repeated runs.
 
 ## Gating Policy
 

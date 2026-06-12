@@ -78,7 +78,7 @@ fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.
     // ALL stable AST collectors, matching the real pipeline (run_command.zig,
     // list_mutants_command.zig). Wiring only the Phase-1 four would make
     // validateDoc falsely report any documented Phase-2 before/after example as
-    // drift -- "not produced by any stable mutator" -- even though it is (L24).
+    // drift -- "not produced by any stable mutator" -- even though it is.
     try arithmetic.collect(&collector, parsed, doctest_file, test_ranges);
     try comparison.collect(&collector, parsed, doctest_file, test_ranges);
     try logical.collect(&collector, parsed, doctest_file, test_ranges);
@@ -202,6 +202,6 @@ pub fn lineOfRef(ref: []const u8) u32 {
     // an out-of-range or overlong numeric ref resolves to line 0 (which matches no
     // real 1-based anchor) rather than a `panic: integer overflow` (Debug/ReleaseSafe)
     // or a wrapped, wrong line (ReleaseFast). This third copy is brought to parity with
-    // the already-hardened lineOfRef in src/doctest_command.zig (M4 / S17).
+    // the already-hardened lineOfRef in src/doctest_command.zig.
     return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
 }

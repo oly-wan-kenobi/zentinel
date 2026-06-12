@@ -40,7 +40,7 @@ test "source map rejects out-of-range offsets and positions (F-008 guardrail)" {
     try expect(source_map.byteOf(src, .{ .line = 1, .column = 9 }) == null); // column beyond line
 }
 
-test "LineIndex.locate is byte-for-byte equivalent to locate over every offset (deep-review #10b)" {
+test "LineIndex.locate is byte-for-byte equivalent to locate over every offset" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

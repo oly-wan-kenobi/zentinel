@@ -1,6 +1,6 @@
 # Style
 
-This document defines zentinel style rules for code, docs, tests, reports, and task artifacts. Discipline rules live in `docs/DISCIPLINE.md`; style rules keep the repository consistent enough for sequential agents to extend.
+This document defines zentinel style rules for code, docs, tests, and reports. Style rules keep the repository consistent and predictable to extend.
 
 ## How This Document Works
 

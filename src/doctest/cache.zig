@@ -44,7 +44,7 @@ pub fn buildMetadata(
 ) std.mem.Allocator.Error!cache.DoctestMetadata {
     var keys: std.ArrayList(cache.DoctestCaseKey) = .empty;
     // Index blocks by start line ONCE so the per-case / per-expectation-ref block
-    // lookups below are O(1), not an O(B) scan per ref -- O(C*(1+R)*B) overall (L19).
+    // lookups below are O(1), not an O(B) scan per ref -- O(C*(1+R)*B) overall.
     const block_index = try buildBlockIndex(arena, blocks);
     for (cases) |c| {
         const content_hash = try hashBlock(arena, block_index, c.anchor_line);
@@ -91,7 +91,7 @@ fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.
 /// Test-only counter: how many times the per-document block index (line_start ->
 /// Block) is built. Every block is indexed ONCE so each case's block lookups are
 /// O(1) map gets, not O(B) scans per expectation ref -- a regression that rebuilt
-/// per case (or scanned per ref) would push this above 1 (L19).
+/// per case (or scanned per ref) would push this above 1.
 pub var block_index_builds: usize = 0;
 
 /// Index blocks by their starting line. First occurrence wins, matching the prior

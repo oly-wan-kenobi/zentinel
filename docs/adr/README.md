@@ -33,9 +33,9 @@ This directory contains zentinel Architecture Decision Records (ADRs). ADRs capt
 | ADR-0001 | [Support latest stable Zig only](0001-latest-stable-zig-only.md) | Superseded by ADR-0007 | 2026-05-19 |
 | ADR-0002 | [AST backend is the stable default](0002-ast-backend-stable-default.md) | Accepted | 2026-05-19 |
 | ADR-0003 | [AI is advisory only](0003-ai-advisory-only.md) | Accepted | 2026-05-19 |
-| ADR-0004 | [Sequential task system is the autonomous work authority](0004-sequential-task-system.md) | Accepted | 2026-05-19 |
 | ADR-0005 | [Public artifacts are schema-versioned](0005-schema-versioned-artifacts.md) | Accepted | 2026-05-19 |
-| ADR-0006 | [Docs-to-tests gap registries are regression-oriented](0006-docs-to-tests-gap-registries.md) | Accepted | 2026-05-19 |
 | ADR-0007 | [Pin Zig 0.16.0 for this zentinel version](0007-pin-zig-0-16-0.md) | Accepted | 2026-05-20 |
 | ADR-0008 | [Deterministic pipeline core with ports at side-effect boundaries](0008-deterministic-pipeline-core.md) | Accepted | 2026-05-23 |
 | ADR-0009 | [Library root.zig is the deterministic-core module-export hub](0009-root-module-export-hub.md) | Accepted | 2026-05-29 |
+
+ADR-0004 and ADR-0006 concerned a retired internal development workflow and were removed with it; ADR numbers are stable and never reused.

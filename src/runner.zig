@@ -35,7 +35,7 @@ pub const env_allowlist = [_][]const u8{ "PATH", "HOME", "TMPDIR", "ZIG_GLOBAL_C
 /// a host-set absolute value would be forwarded and collapse every parallel worker's
 /// local cache into one shared directory -- violating docs/PERFORMANCE_STRATEGY.md
 /// and docs/SANDBOX_SECURITY.md ("No two workers may write the same local cache")
-/// (L10). Pure: it transforms one map into a new owned map and never spawns a process.
+///. Pure: it transforms one map into a new owned map and never spawns a process.
 pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ.Map) std.mem.Allocator.Error!std.process.Environ.Map {
     var out = std.process.Environ.Map.init(gpa);
     errdefer out.deinit();
@@ -46,7 +46,7 @@ pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ
     try out.put("LANG", "C");
     // Override any forwarded ZIG_LOCAL_CACHE_DIR with the cwd-relative per-workspace
     // cache (worker_pool.cacheDirIn, the canonical workspace cache-path builder), so
-    // each worker's own workspace owns its `.zig-cache` independent of host env (L10).
+    // each worker's own workspace owns its `.zig-cache` independent of host env.
     try out.put("ZIG_LOCAL_CACHE_DIR", try worker_pool.cacheDirIn(gpa, "."));
     return out;
 }
@@ -119,7 +119,7 @@ fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.
 /// neither test-runner completion summary below is present.
 ///
 /// The summary takes one of two forms, and the classifier must recognize BOTH
-/// (H4) -- the default configured command is `zig build test`, not direct
+/// -- the default configured command is `zig build test`, not direct
 /// `zig test`:
 ///   - direct `zig test <file>`: the per-binary runner prints
 ///     `N passed; M skipped; K failed.` -> substring `passed;`.
@@ -149,7 +149,7 @@ fn outputContains(stdout: []const u8, stderr: []const u8, marker: []const u8) bo
 /// may legitimately print a `path:line:col: error:` line in its asserted output
 /// (parser/lint/diagnostic tests), and under `zig build test` -- the default
 /// command -- that is exactly the genuine KILL that was previously mis-bucketed as
-/// compile_error, deflating the score (H4). Absent any runner summary, a Zig
+/// compile_error, deflating the score. Absent any runner summary, a Zig
 /// compile diagnostic means compile_error; absent both (for example a custom
 /// non-Zig command) the result conservatively stays a test failure, preserving the
 /// prior classification.

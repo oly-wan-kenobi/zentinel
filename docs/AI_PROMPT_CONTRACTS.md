@@ -20,10 +20,10 @@ The `context` object in a prompt request is an embedded registered context paylo
 | Flow family | Context schema |
 | --- | --- |
 | `explain`, `suggest`, `review_tests` | `zentinel.ai.context.v1` |
-| `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, `suggest_missing_doctests` | `zentinel.ai.doctest.context.v1` created by task `055` |
-| `explain_doctest_survivor` | `zentinel.ai.doctest.context.v1` extended by task `067` after task `061` stabilizes mutation-aware report fields |
+| `explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, `suggest_missing_doctests` | `zentinel.ai.doctest.context.v1` |
+| `explain_doctest_survivor` | `zentinel.ai.doctest.context.v1` (mutation-aware survivor branch) |
 
-Task `054` owns mutation prompt requests and must require embedded `zentinel.ai.context.v1` payloads to validate against `schemas/ai.context.v1.schema.json`. Task `055` owns the non-survivor doctest prompt requests (`explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, and `suggest_missing_doctests`) and may update `schemas/ai.prompt.v1.schema.json` so those doctest flows validate embedded `zentinel.ai.doctest.context.v1` payloads against `schemas/ai.doctest.context.v1.schema.json`. Task `055` must reject `explain_doctest_survivor` prompt requests. Task `067` owns the deferred `explain_doctest_survivor` prompt after task `061` defines mutation-aware doctest report fields, and only task `067` may add that flow to prompt-schema validation.
+Mutation prompt requests require embedded `zentinel.ai.context.v1` payloads to validate against `schemas/ai.context.v1.schema.json`. Doctest prompt requests (`explain_doctest_failure`, `suggest_doctest`, `review_snapshot`, `suggest_missing_doctests`, and `explain_doctest_survivor`) validate embedded `zentinel.ai.doctest.context.v1` payloads against `schemas/ai.doctest.context.v1.schema.json`.
 
 Do not replace any registered context with a schema-version-only placeholder in fixtures, snapshots, or provider tests. A writer must not emit a prompt using a context schema until the matching schema file exists and validation passes.
 
@@ -39,7 +39,7 @@ suggest_missing_doctests -> zentinel.ai.doctest.suggest.response.v1
 explain_doctest_survivor -> zentinel.ai.explain.response.v1
 ```
 
-Task `055` owns the first four mappings and must snapshot them with the stub provider. Task `067` owns the survivor mapping after task `061` provides mutation-aware doctest report evidence.
+Each mapping is snapshotted with the stub provider; the survivor mapping is grounded in mutation-aware doctest report evidence.
 
 ## Common Request
 

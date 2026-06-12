@@ -1,4 +1,4 @@
-//! Real-binary end-to-end integration test (task 111).
+//! Real-binary end-to-end integration test.
 //!
 //! Unlike the mock-executor unit tests, this spawns the actual built `zentinel`
 //! binary against a committed fixture project, so the real presentation-adapter
@@ -88,21 +88,21 @@ test "the built binary mutates a real fixture project and reports one killed and
     // The real run produced the fixture's two arithmetic mutants plus the
     // error-path mutant: add's is killed by the same-file test; mul's and
     // parsePositive's error_catch_unreachable mutant survive (no test exercises
-    // them). `invalid` must be zero: before task 117 the error_catch_unreachable
+    // them). `invalid` must be zero: previously the error_catch_unreachable
     // mutant's `original` borrowed the parsed tree's source and dangled past the
     // per-file `defer parsed.deinit()`. This is an END-TO-END smoke check that the
     // Collector.add() dup is wired through the real binary -- NOT the byte-level
     // teardown guard: the binary uses an ArenaAllocator whose `free` is a no-op
     // rewind that neither frees nor poisons `owned_source` (so no "0xAA" here).
     // The actual revert-catching guard is the GPA-backed teardown test in
-    // test/sandbox_test.zig (F-1 plus the all-stable-operator case) (L2).
+    // test/sandbox_test.zig (F-1 plus the all-stable-operator case).
     try expectEqual(@as(i64, 3), summary.get("total").?.integer);
     try expectEqual(@as(i64, 1), summary.get("killed").?.integer);
     try expectEqual(@as(i64, 2), summary.get("survived").?.integer);
     try expectEqual(@as(i64, 0), summary.get("invalid").?.integer);
 
     // Bind the EXACT per-mutant kill/survive mapping, not just the fungible
-    // aggregate counts (S7): killed==1/survived==2 is invariant under an
+    // aggregate counts: killed==1/survived==2 is invariant under an
     // add<->mul classification swap (add's mutant wrongly surviving while mul's is
     // wrongly killed leaves both totals unchanged), so only the per-mutant
     // (operator, span line, status) assertions below actually pin kill-detection
@@ -111,7 +111,7 @@ test "the built binary mutates a real fixture project and reports one killed and
     // (original `*`) SURVIVES (no test exercises it); parsePositive's
     // error_catch_unreachable at calc.zig:21 SURVIVES and its `original` is the
     // real handler text (`0`), not freed memory, never dropped to `invalid`
-    // (task 117 acceptance criterion 4).
+    // (regression coverage for the dangling-original fix).
     const mutants = parsed.object.get("mutants").?.array;
     var saw_add_sub = false;
     var saw_mul_div = false;
@@ -145,7 +145,7 @@ test "the built binary mutates a real fixture project and reports one killed and
     try expect(saw_error_catch);
 }
 
-test "zentinel init writes its config at zentinel.config_default_path, not a private duplicate (S9)" {
+test "zentinel init writes its config at zentinel.config_default_path, not a private duplicate" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -165,14 +165,14 @@ test "zentinel init writes its config at zentinel.config_default_path, not a pri
     switch (result.term) {
         .exited => |code| try expectEqual(@as(u8, 0), code),
         else => {
-            std.debug.print("integration(S9): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            std.debug.print("integration: binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
             return error.BinaryCrashed;
         },
     }
 
     // The adapter must write the config to the SAME path the core resolves it
     // from by default -- the single source of truth `zentinel.config_default_path`
-    // (root.zig) -- not a private duplicate literal in cli.zig (S9). Locating the
+    // (root.zig) -- not a private duplicate literal in cli.zig. Locating the
     // written file through the exported constant is what binds `init`'s write path
     // to that source of truth: if cli.zig carried an unlinked copy and the core
     // constant were renamed, `init` would write somewhere the rest of the system
@@ -180,7 +180,7 @@ test "zentinel init writes its config at zentinel.config_default_path, not a pri
     try tmp.dir.access(io, zentinel.config_default_path, .{});
 }
 
-test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel/workspaces (L8)" {
+test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel/workspaces" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -198,20 +198,20 @@ test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel
         .stdout_limit = read_limit,
         .stderr_limit = read_limit,
     }) catch |err| {
-        std.debug.print("integration(L8): spawning {s} failed: {s}\n", .{ exe_path, @errorName(err) });
+        std.debug.print("integration: spawning {s} failed: {s}\n", .{ exe_path, @errorName(err) });
         return err;
     };
     switch (result.term) {
         .exited => |code| try expectEqual(@as(u8, 0), code),
         else => {
-            std.debug.print("integration(L8): binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            std.debug.print("integration: binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
             return error.BinaryCrashed;
         },
     }
 
     // setupWorkspace materialized .zig-cache/zentinel/workspaces/{run_id}/{m_id}
     // (via createDirPath) for each of the fixture's 3 mutants. mutantRunSpecsFn's
-    // defer deleted each per-mutant leaf, but before L8 nothing removed the
+    // defer deleted each per-mutant leaf, but previously nothing removed the
     // {run_id} container, so every invocation leaked exactly one stale `run_<hex>`
     // dir under the controlled cache namespace. After a successful run the
     // workspaces dir must therefore contain NO `run_*` child.
@@ -224,7 +224,7 @@ test "a successful run leaves no per-run workspace dir under .zig-cache/zentinel
     var it = ws.iterate();
     while (try it.next(io)) |entry| {
         if (std.mem.startsWith(u8, entry.name, "run_")) {
-            std.debug.print("integration(L8): leaked per-run workspace dir: {s}\n", .{entry.name});
+            std.debug.print("integration: leaked per-run workspace dir: {s}\n", .{entry.name});
             try expect(false);
         }
     }
@@ -511,7 +511,7 @@ test "the built binary accepts a valid absolute root for config loading" {
     }
 }
 
-test "cache.directory governs where cache.json is written, not report.output_dir (M5)" {
+test "cache.directory governs where cache.json is written, not report.output_dir" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();

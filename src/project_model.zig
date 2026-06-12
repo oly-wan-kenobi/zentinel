@@ -11,7 +11,7 @@ const std = @import("std");
 /// of characters within a single path segment; `**` matches zero or more whole
 /// path segments. Matches segment-by-segment over the raw strings without
 /// materializing segments into a fixed buffer, so a legitimately-includable file
-/// nested arbitrarily deep is never silently dropped from discovery (L11).
+/// nested arbitrarily deep is never silently dropped from discovery.
 pub fn matchGlob(pattern: []const u8, path: []const u8) bool {
     return matchSegments(pattern, path);
 }
@@ -33,7 +33,7 @@ fn restSegments(s: []const u8) ?[]const u8 {
 /// Match the `/`-segmented pattern `pat` against the `/`-segmented `path`, where
 /// `null` means "no segments remain". Equivalent to the prior segment-array
 /// recursion (`pat[1..]` / `path[i..]`) but with the path encoded as the remaining
-/// substring, so there is no 64-segment ceiling (L11).
+/// substring, so there is no 64-segment ceiling.
 fn matchSegments(pat: ?[]const u8, path: ?[]const u8) bool {
     const p = pat orelse return path == null; // no pattern left -> match iff no path left
     const head = firstSegment(p);

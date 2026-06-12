@@ -90,8 +90,8 @@ test "explain-survivor with an unresolved survivor ref is ZNTL_DOCTEST_SURVIVOR_
     try expectEqualStrings("ZNTL_DOCTEST_SURVIVOR_NOT_FOUND", dc.failureToken(error.DoctestSurvivorNotFound));
 }
 
-// 4. schema extension without weakening the 055 variants.
-test "ai.doctest.context.v1 schema adds the survivor flow and evidence without weakening task 055" {
+// 4. schema extension without weakening the existing variants.
+test "ai.doctest.context.v1 schema adds the survivor flow and evidence without weakening the explain/suggest variants" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -190,7 +190,7 @@ test "survivor AI context redacts runner command evidence and skip reason" {
     try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
 }
 
-test "survivor AI context redacts the id/operator fields, not just file/source_ref (S1)" {
+test "survivor AI context redacts the id/operator fields, not just file/source_ref" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -199,7 +199,7 @@ test "survivor AI context redacts the id/operator fields, not just file/source_r
     // file/source_ref are clean, so any path/secret that survives into the serialized
     // context comes specifically from the id/operator fields -- survivor_ref, case_id
     // (case.id, which also flows to doctest.id), mutant_id, operator, doctest_case_id --
-    // whose validator prefix checks (ds_/dm_/m_/dt_) leave the suffix free (S1).
+    // whose validator prefix checks (ds_/dm_/m_/dt_) leave the suffix free.
     const case = parseValue(arena,
         \\{
         \\  "id": "dm_x /Users/victim/case.pem",
@@ -348,7 +348,7 @@ test "survivor stub output uses the doctest survivor classification label" {
     try expect(contains(out.body, "next action:"));
 }
 
-// 9. End-to-end (task 113): the report the mutation-aware doctest path PRODUCES
+// 9. End-to-end: the report the mutation-aware doctest path PRODUCES
 //    is resolvable by explain-survivor. Before this task, `doctest --mutate`
 //    produced the experimental report (no ds_ refs) to stdout only and persisted
 //    nothing, so explain-survivor against the default path was a dead-end. Now

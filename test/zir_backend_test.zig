@@ -180,9 +180,9 @@ test "fromTree also lowers arithmetic (+,-,*,/) in parity with the AST recognize
     }
 }
 
-// --- ZIR-1: comptime-context-aware expected_compile --------------------------
+// --- Comptime-context-aware expected_compile ---------------------------------
 
-test "fromTree downgrades expected_compile for a comparison inside a comptime block; the runtime one stays .compiles (ZIR-1)" {
+test "fromTree downgrades expected_compile for a comparison inside a comptime block; the runtime one stays .compiles" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -192,7 +192,7 @@ test "fromTree downgrades expected_compile for a comparison inside a comptime bl
     // runtime fn (line 2) and one inside a `comptime { ... }` block (line 6). Distinct
     // operators are used on purpose so each maps to its own AST node -- two identical
     // operators would collide in the resolver's innermost-base heuristic (a separate,
-    // pre-existing limitation that ZIR-3 hardens), which is orthogonal to this test.
+    // pre-existing limitation hardened elsewhere), which is orthogonal to this test.
     const src =
         "pub fn rt(a: i32, b: i32) bool {\n" ++ // line 1
         "    return a < b;\n" ++ // line 2 -- runtime comparison (`<`)
@@ -219,7 +219,7 @@ test "fromTree downgrades expected_compile for a comparison inside a comptime bl
             comptime_seen = true;
             try expectEqualStrings(">", c.original);
             // Inside `comptime { ... }` the swap is comptime-evaluated: strict, so
-            // .compiles is downgraded to .may_fail. (Red before ZIR-1: was .compiles.)
+            // .compiles is downgraded to .may_fail (previously stayed .compiles).
             try expectEqual(mutant.ExpectedCompile.may_fail, c.expected_compile);
         } else {
             return error.UnexpectedCandidate;
@@ -229,9 +229,9 @@ test "fromTree downgrades expected_compile for a comparison inside a comptime bl
     try expect(comptime_seen);
 }
 
-// --- ZIR-2: differential oracle (ZIR vs AST) ---------------------------------
+// --- Differential oracle (ZIR vs AST) ----------------------------------------
 
-test "differentialOracle: an agreeing file has no divergence; dropping one AST site flags exactly that (operator, span) as zir_only (ZIR-2)" {
+test "differentialOracle: an agreeing file has no divergence; dropping one AST site flags exactly that (operator, span) as zir_only" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -266,9 +266,9 @@ test "differentialOracle: an agreeing file has no divergence; dropping one AST s
     try expect(flagged);
 }
 
-// --- ZIR-3 / 3a: version guard -----------------------------------------------
+// --- Version guard ------------------------------------------------------------
 
-test "listFromTrees declines on a non-pinned toolchain and accepts Zig 0.16.0 (ZIR-3 / 3a)" {
+test "listFromTrees declines on a non-pinned toolchain and accepts Zig 0.16.0" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -299,9 +299,9 @@ test "listFromTrees declines on a non-pinned toolchain and accepts Zig 0.16.0 (Z
     try expect(saw_cmp);
 }
 
-// --- ZIR-5: claim-aware resolution recovers same-offset collisions -----------
+// --- Claim-aware resolution recovers same-offset collisions -------------------
 
-test "fromTree resolves a same-operator collision to BOTH sites (claim-aware), with no anomaly (ZIR-5)" {
+test "fromTree resolves a same-operator collision to BOTH sites (claim-aware), with no anomaly" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -337,9 +337,9 @@ test "fromTree resolves a same-operator collision to BOTH sites (claim-aware), w
     }
 }
 
-// --- ZIR-6: differential-oracle CI sweep over the real source tree -----------
+// --- Differential-oracle CI sweep over the real source tree -------------------
 
-test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator site the AST backend misses (ZIR-6)" {
+test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator site the AST backend misses" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -375,7 +375,7 @@ test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator
     // divergence would be an AST-mutator bug or Zig-version drift. Always holds.
     try expectEqual(@as(usize, 0), zir_only);
 
-    // Full parity: ZIR-7's maximum matching recovers every binary-operator site over
+    // Full parity: maximum bipartite matching recovers every binary-operator site over
     // src/, so the ZIR set equals the AST set (ast_only == 0). Asserted exactly -- any
     // regression that drops a site (a resolver change, or Zig-version drift) fails here.
     try expectEqual(@as(usize, 0), ast_only);

@@ -165,7 +165,7 @@ fn escapeImpl(arena: std.mem.Allocator, s: []const u8, attr: bool) std.mem.Alloc
         // illegal in XML 1.0; captured Zig output is routinely ANSI-colored, so
         // emitting them verbatim would make a strict CI parser reject the whole
         // testsuite. Replace each with `?` so the JUnit XML is always well-formed
-        // (M11).
+        //.
         0x00...0x08, 0x0b, 0x0c, 0x0e...0x1f, 0x7f => try buf.append(arena, '?'),
         else => try buf.append(arena, c),
     };

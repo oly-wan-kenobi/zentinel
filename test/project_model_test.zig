@@ -17,7 +17,7 @@ test "glob matching supports * within a segment and ** across segments" {
     try expect(!pm.matchGlob("test/**", "src/x.zig"));
 }
 
-test "matchGlob matches a path deeper than the old 64-segment cap (L11)" {
+test "matchGlob matches a path deeper than the old 64-segment cap" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -25,7 +25,7 @@ test "matchGlob matches a path deeper than the old 64-segment cap (L11)" {
     // "src/" + 70×"d/" + "deep.zig" = 72 path segments, beyond the old fixed
     // [64][]const u8 split buffer. splitSegments overflowed -> null -> matchGlob
     // returned false, so discover silently dropped this includable .zig file from
-    // the mutation set with no diagnostic (false coverage) (L11).
+    // the mutation set with no diagnostic (false coverage).
     var buf: std.ArrayList(u8) = .empty;
     try buf.appendSlice(a, "src/");
     var i: usize = 0;

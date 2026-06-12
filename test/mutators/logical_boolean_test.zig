@@ -61,7 +61,7 @@ test "boolean literals emit true<->false swaps" {
     try expectEqual(mutant.ExpectedCompile.compiles, c[0].expected_compile);
 }
 
-test "boolean_literal skips enum field declarations named true/false (L23)" {
+test "boolean_literal skips enum field declarations named true/false" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -71,7 +71,7 @@ test "boolean_literal skips enum field declarations named true/false (L23)" {
     // emit `enum { false, false }` -- a guaranteed `duplicate enum member name`
     // compile_error and a spec-Forbidden (field names) context. Only the genuine
     // boolean VALUE `return true` in b() may be mutated, so exactly ONE candidate
-    // is emitted, not three (L23).
+    // is emitted, not three.
     var parsed = try ast_backend.parse(std.testing.allocator, "e.zig",
         \\const E = enum { true, false };
         \\pub fn use() E {

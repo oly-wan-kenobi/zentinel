@@ -66,7 +66,7 @@ pub const Config = struct {
 const Stability = enum { stable, preview };
 const OperatorInfo = struct { name: []const u8, phase: u8, stability: Stability };
 
-// Operator registry mirrors docs/MUTATOR_SPEC.md (and tests/coverage-gaps/mutators.v1.json).
+// Operator registry mirrors docs/MUTATOR_SPEC.md.
 const operators = [_]OperatorInfo{
     .{ .name = "arithmetic_add_sub", .phase = 1, .stability = .stable },
     .{ .name = "arithmetic_mul_div", .phase = 1, .stability = .stable },
@@ -149,7 +149,7 @@ fn findOperator(name: []const u8) ?OperatorInfo {
 
 /// True if `name` is a registered mutation operator (the canonical registry that
 /// mirrors docs/MUTATOR_SPEC.md). Exposed so CLI parsers can reject an unknown
-/// `--operator` value up front instead of silently matching no candidate (L31).
+/// `--operator` value up front instead of silently matching no candidate.
 pub fn isKnownOperator(name: []const u8) bool {
     return findOperator(name) != null;
 }
@@ -301,7 +301,7 @@ fn expandMutators(arena: std.mem.Allocator, enabled: []const []const u8, diag: *
         } else if (findOperator(item)) |op| {
             // A `preview` operator has no collector wired into the pipeline, so
             // enabling it would silently emit zero mutants. Reject it instead so
-            // every operator that loads can actually emit (task 109).
+            // every operator that loads can actually emit.
             if (op.stability != .stable) {
                 return fail(diag, .invalid_value, "mutators", "enabled", "operator is preview-only and not yet emitted; only stable operators can be enabled");
             }
@@ -348,7 +348,7 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     }
     // An explicit `modes = []` is meaningless intent that the matrix would silently
     // redirect to Debug; reject it (omitting `modes` keeps the Debug default),
-    // matching how empty `test.commands` is handled below (L45).
+    // matching how empty `test.commands` is handled below.
     if (zig_modes.len == 0) return fail(diag, .invalid_value, "zig", "modes", "modes must not be empty");
 
     // [backend]
@@ -377,7 +377,7 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         if (c.len == 0) return fail(diag, .invalid_value, "test", "commands", "test command must not be empty");
     }
     const test_selection = try look.getString("test", "selection", "same_file_then_package", diag);
-    // `impact_graph` is accepted from task 051 onward (docs/TEST_SELECTION.md);
+    // `impact_graph` is an accepted strategy (docs/TEST_SELECTION.md);
     // any other unrecognized strategy is still rejected outright, never silently
     // downgraded to same_file_then_package or all.
     if (!inList(&known_selections, test_selection)) {

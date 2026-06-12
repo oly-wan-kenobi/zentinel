@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://zentinel.dev/schemas/pipeline.escalation.v1.schema.json",
   "title": "zentinel pipeline escalation record v1",
-  "description": "A record that an active task escalated to deeper review, a prerequisite task, or a user decision. Written under artifacts/pipeline/<task-id>/. Task 041 created the baseline; task 049 refined it with the complexity class, final outcome, and monotonic required-gate evidence without weakening the baseline (no new required fields). See docs/PIPELINE_ESCALATION_POLICY.md for the classes, triggers, reviewers, and outcomes.",
+  "description": "A record that an active task escalated to deeper review, a prerequisite task, or a user decision. Carries the complexity class, final outcome, and monotonic required-gate evidence.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -26,7 +26,7 @@
       "pattern": "^[0-9]{3}$"
     },
     "trigger": {
-      "description": "The escalation trigger from docs/PIPELINE_ESCALATION_POLICY.md (for example survivor_after_retry_limit, compiler_internal_risk, public_contract_ambiguity).",
+      "description": "The escalation trigger (for example survivor_after_retry_limit, compiler_internal_risk, public_contract_ambiguity).",
       "type": "string",
       "minLength": 1
     },
@@ -50,7 +50,7 @@
       "type": "string"
     },
     "user_input_required": {
-      "description": "True only at the AskUserQuestion boundary in docs/PIPELINE_ESCALATION_POLICY.md.",
+      "description": "True only when the escalation requires an explicit user decision.",
       "type": "boolean"
     },
     "task_class": {
@@ -58,7 +58,7 @@
       "enum": ["low_risk", "normal", "high_risk", "compiler_internal", "architecture"]
     },
     "outcome": {
-      "description": "The single terminal escalation outcome from docs/PIPELINE_ESCALATION_POLICY.md.",
+      "description": "The single terminal escalation outcome.",
       "enum": [
         "retry_same_task",
         "return_to_test_author",

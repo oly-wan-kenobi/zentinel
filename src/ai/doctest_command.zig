@@ -9,7 +9,7 @@
 // suggestion / snapshot-review / explain responses with safety checks. Doctest AI
 // is advisory only: it never decides pass/fail, never updates documentation,
 // snapshots, or expected output, and never sets a deterministic doctest field. The
-// deferred `explain_doctest_survivor` flow (task 067) and `doctest_survivor`
+// deferred `explain_doctest_survivor` flow and `doctest_survivor`
 // evidence are rejected here. Provider/option/redaction plumbing is reused from
 // the mutation AI command engine (src/ai/command.zig).
 const std = @import("std");
@@ -55,7 +55,7 @@ pub fn flowName(flow: Flow) []const u8 {
 /// `<doc-path>`; `explain` and `review-snapshot` need `<case-ref>`;
 /// `suggest-missing` takes its target via `--file`, so it requires no positional.
 /// Surfacing this as a usage error keeps a missing argument from being forwarded as
-/// a null doc/case ref that the engine reports as an opaque DOC/CASE_NOT_FOUND (L32).
+/// a null doc/case ref that the engine reports as an opaque DOC/CASE_NOT_FOUND.
 pub fn missingPositional(flow: Flow, positional: ?[]const u8) ?[]const u8 {
     if (positional != null) return null;
     return switch (flow) {
@@ -150,7 +150,7 @@ fn requiredBool(v: ?std.json.Value) command.Failure!bool {
 /// non-integer must become a clean invalid-report failure rather than a panicking
 /// `@intCast` (abort in Debug/ReleaseSafe) or a silent wrap (ReleaseFast). Absent,
 /// null, and negative values map to "no value" (null), preserving the prior
-/// optional-field semantics (task 107).
+/// optional-field semantics.
 fn optU32(v: ?std.json.Value) command.Failure!?u32 {
     const x = present(v) orelse return null;
     switch (x) {
@@ -366,10 +366,10 @@ fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []cons
     if (meta.source_ref) |sr| meta.source_ref = try context.redactField(arena, sr, patterns, log);
     // The doctest id is a free-form report string under an untrusted --input-report
     // (the validator only prefix-checks it), so scrub it like file/source_ref so a
-    // path/secret in its suffix cannot reach the provider via doctest.id (S1).
+    // path/secret in its suffix cannot reach the provider via doctest.id.
     if (meta.id) |id| meta.id = try context.redactField(arena, id, patterns, log);
     // `status` is a free-string schema field sourced from the report; scrub it too
-    // (kind is enum-gated by validateContext, so it needs no redaction) (#3).
+    // (kind is enum-gated by validateContext, so it needs no redaction).
     meta.status = try context.redactField(arena, meta.status, patterns, log);
     return meta;
 }
@@ -419,7 +419,7 @@ fn readDiagnostics(arena: std.mem.Allocator, case: std.json.Value, patterns: []c
     for (items, 0..) |it, idx| buf[idx] = .{
         // `code` is a free-form report string under an untrusted --input-report
         // and has no schema maxLength, so scrub it like message/file rather than
-        // let a secret reach the provider verbatim (deep-review #3).
+        // let a secret reach the provider verbatim.
         .code = try context.redactField(arena, s(get(it, "code")), patterns, log),
         .message = try context.redactField(arena, s(get(it, "message")), patterns, log),
         .file = if (optStr(get(it, "file"))) |f| try context.redactField(arena, f, patterns, log) else null,
@@ -610,7 +610,7 @@ pub const ContextViolation = enum {
 const doctest_flows = [_][]const u8{ "explain_doctest_failure", "suggest_doctest", "review_snapshot", "suggest_missing_doctests" };
 const evidence_kinds = [_][]const u8{ "case_failure", "docs_target", "snapshot_diff", "missing_doctests" };
 /// `doctest.kind` is a schema enum; gate it like the mutation context gates its
-/// enum fields so an unredacted free string there fails closed (deep-review #3).
+/// enum fields so an unredacted free string there fails closed.
 const doctest_kinds = [_][]const u8{ "zig_compile_pass", "zig_test", "zig_compile_fail", "cli", "config", "config_fail", "mutation", "docs_target" };
 
 fn requireKeys(obj: std.json.ObjectMap, keys: []const []const u8) bool {
@@ -630,7 +630,7 @@ fn enumOk(obj: std.json.ObjectMap, key: []const u8, set: []const []const u8) boo
 }
 
 /// Structural validator for `zentinel.ai.doctest.context.v1`. Rejects the deferred
-/// survivor flow (task 067) and a `doctest_survivor` evidence kind.
+/// survivor flow and a `doctest_survivor` evidence kind.
 pub fn validateContext(value: std.json.Value) ContextViolation {
     const obj = objOf(value) orelse return .not_object;
     if (!requireKeys(obj, &.{ "schema_version", "flow", "created_by", "provider_mode", "project", "doctest", "evidence", "privacy" })) return .missing_field;
@@ -965,7 +965,7 @@ pub fn run(arena: std.mem.Allocator, input: Input, format: Format) RunError!Outc
     // Build, validate the doctest context and prompt envelope before "sending".
     const ctx = buildContextValue(arena, input.flow, mode, ctx_input, input.settings) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
-        // An out-of-range or non-integer report integer is an invalid report (task 107).
+        // An out-of-range or non-integer report integer is an invalid report.
         error.AiReportNotFound => return error.AiReportNotFound,
         else => return error.AiResponseInvalid,
     };
@@ -1003,7 +1003,7 @@ fn renderText(arena: std.mem.Allocator, response: Response) ![]u8 {
 }
 
 // ===========================================================================
-// Survivor flow (task 067): advisory explanation for a mutation-aware doctest
+// Survivor flow: advisory explanation for a mutation-aware doctest
 // survivor. This is a SEPARATE path from the four task-055 non-survivor flows.
 // `validateContext`/`validatePrompt`/`run`/`Flow` are intentionally unchanged
 // and still treat `explain_doctest_survivor` as their out-of-scope flow; the
@@ -1121,7 +1121,8 @@ pub fn buildSurvivorContextValue(arena: std.mem.Allocator, mode: Mode, case: std
     // routed through the same path-normalize + secret-scrub pass as .file/.source_ref,
     // so a path or secret smuggled in survivor_ref / doctest_case_id / case_id /
     // mutant_id / operator (whose validator prefix checks leave the suffix free) cannot
-    // reach the provider, and redactions_applied stays truthful (S1, mirroring M9).
+    // reach the provider, and redactions_applied stays truthful (mirroring the
+    // same guard in the mutation AI flows).
     const ev = SurvivorEvidence{
         .survivor_ref = try context.redactField(arena, s(get(mutation, "survivor_ref")), patterns, &log),
         .source_case = .{
@@ -1265,7 +1266,7 @@ pub fn runSurvivor(arena: std.mem.Allocator, input: SurvivorInput, format: Forma
 
     const ctx = buildSurvivorContextValue(arena, mode, case, input.settings) catch |e| switch (e) {
         error.OutOfMemory => return error.OutOfMemory,
-        // An out-of-range or non-integer report integer is an invalid report (task 107).
+        // An out-of-range or non-integer report integer is an invalid report.
         error.AiReportNotFound => return error.AiReportNotFound,
         else => return error.AiResponseInvalid,
     };

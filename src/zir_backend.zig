@@ -7,21 +7,20 @@
 // comparison, short-circuit logical, and arithmetic -- from the instructions ZIR
 // emits, mapping each back to its exact AST node and tagging it `backend = .zir`,
 // `backend_stability = .experimental`. There is one code path: the legacy relabel
-// adapter has been retired (ZIR-4). Operators ZIR does not represent as a single
+// adapter has been retired. Operators ZIR does not represent as a single
 // instruction (literal and control-flow rewrites) are NOT emitted as mutants; they
 // become out-of-report backend diagnostics so they never affect mutation score,
 // survivor counts, or report v1 fields. Post-Sema (AIR) semantic analysis is out of
 // scope here: report v1 stays closed. At CLI runtime the unsupported evidence is
 // surfaced as stderr `note[...]` lines (src/cli.zig); the schema-versioned
-// on-disk artifact (`diagnosticsToJson` -> zentinel.experimental_backend_diagnostics.v1,
-// intended under artifacts/pipeline/<task-id>/experimental-backend-diagnostics/)
-// is defined and tested but its pipeline write is not yet implemented (L25).
+// diagnostics artifact (`diagnosticsToJson` -> zentinel.experimental_backend_diagnostics.v1)
+// is defined and tested but writing it to disk is not yet implemented.
 // Targets pinned Zig 0.16.0; the version-coupled `src_node` decoding is guarded by
 // `toolchainSupported` -- `listFromTrees` declines (error.UnsupportedZigVersion) on
-// any other toolchain (3a). `fromTree` resolves instructions to distinct AST nodes by
-// maximum bipartite matching (`matchInstructions`, ZIR-7), so it recovers every site
+// any other toolchain. `fromTree` resolves instructions to distinct AST nodes by
+// maximum bipartite matching (`matchInstructions`), so it recovers every site
 // over `src/` (ZIR == AST); `differentialOracle` cross-checks ZIR against the AST
-// recognizers and the ZIR-6 test sweeps it over the tree to keep that parity honest.
+// recognizers and a test sweeps it over the tree to keep that parity honest.
 const std = @import("std");
 const mutant = @import("mutant.zig");
 const config = @import("config.zig");
@@ -68,7 +67,7 @@ pub const Divergence = struct {
     side: DivergenceSide,
 };
 
-// --- Real ZIR lowering (task 056) -------------------------------------------
+// --- Real ZIR lowering -------------------------------------------
 //
 // `fromTree` lowers the source to ZIR via `std.zig.AstGen` and recognizes
 // binary-operator mutation sites from the instructions ZIR emits -- `cmp_*`,
@@ -177,7 +176,7 @@ const BipartiteMatcher = struct {
 };
 
 /// Resolve every recognized instruction to a DISTINCT source AST node via maximum
-/// bipartite matching (ZIR-7), maximizing the source sites recovered. An edge
+/// bipartite matching, maximizing the source sites recovered. An edge
 /// (instruction, node) exists when `node`'s tag is the instruction's `want` and
 /// `node - off` is a declaration base. This dominates the greedy claim-aware pass:
 /// where greedy could strand a site by taking a higher-base node a later instruction
@@ -411,7 +410,7 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
 
     // Resolve recognized instructions to DISTINCT source nodes via maximum bipartite
-    // matching (ZIR-7), then emit a candidate per matched node. Maximizing the matching
+    // matching, then emit a candidate per matched node. Maximizing the matching
     // recovers same-/cross-offset collision sites the greedy heuristic stranded.
     var recognized: std.ArrayList(RecognizedInst) = .empty;
     for (inst_tags, 0..) |t, i| {
@@ -432,8 +431,9 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             // operator has source nodes) -- its node is already mutated via another
             // instruction, so no site is lost; drop it silently. An instruction with NO
             // candidate node is AstGen-injected (for-bounds / switch range) and is the only
-            // case worth an out-of-report diagnostic. (Completeness is now guarded at the
-            // suite level by the ZIR-2 oracle / ZIR-6 sweep, which assert ZIR == AST.)
+            // case worth an out-of-report diagnostic. (Completeness is guarded at the
+            // suite level by the differential oracle and its full-tree sweep, which
+            // assert ZIR == AST.)
             if (!matching.had_candidates[ri]) {
                 try diagnostics.append(arena, .{
                     .file = file,
@@ -656,9 +656,8 @@ pub fn differentialOracle(
 }
 
 /// The out-of-report diagnostics artifact (a separate schema, never report v1).
-/// Intended for a task-scoped on-disk file under
-/// artifacts/pipeline/<task-id>/experimental-backend-diagnostics/, but that write
-/// is not yet implemented -- the serializer below is ready and tested for it (L25).
+/// Intended for a future on-disk diagnostics file; that write is not yet
+/// implemented -- the serializer below is ready and tested for it.
 const DiagnosticsArtifact = struct {
     schema_version: []const u8 = "zentinel.experimental_backend_diagnostics.v1",
     backend: []const u8 = "zir",
@@ -670,7 +669,7 @@ const DiagnosticsArtifact = struct {
 /// Serialize the unsupported-operator diagnostics to deterministic JSON for the
 /// out-of-report task-scoped artifact. Ready and byte-pinned by tests, but NOT
 /// yet wired to an on-disk write: at CLI runtime these diagnostics are surfaced
-/// as stderr `note[...]` lines, not this artifact (L25).
+/// as stderr `note[...]` lines, not this artifact.
 pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnostic) std.mem.Allocator.Error![]u8 {
     const artifact = DiagnosticsArtifact{ .unsupported = diagnostics };
     return std.json.Stringify.valueAlloc(arena, artifact, .{ .whitespace = .indent_2 });
@@ -679,7 +678,7 @@ pub fn diagnosticsToJson(arena: std.mem.Allocator, diagnostics: []const Diagnost
 /// The human-facing stderr `note[...]` line for one out-of-report diagnostic --
 /// the CLI surface for unsupported operators. Kept here (not inline in cli.zig)
 /// so the note format is directly testable rather than only reachable end-to-end
-/// through the binary (L26).
+/// through the binary.
 pub fn renderDiagnosticNote(arena: std.mem.Allocator, d: Diagnostic) std.mem.Allocator.Error![]u8 {
     return std.fmt.allocPrint(arena, "note[{s}]: {s} at {s}:{d}..{d} ({s})\n", .{ d.code, d.operator, d.file, d.span_start, d.span_end, d.reason });
 }

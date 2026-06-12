@@ -56,7 +56,7 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         } else if (std.mem.eql(u8, a, "--no-color")) {
             // Accepted for CLI uniformity (root.zig accepts `--no-color` globally
             // too), but a pure no-op: doctest renderers never emit ANSI color, so
-            // there is nothing to suppress and nothing to store (L20). Threading a
+            // there is nothing to suppress and nothing to store. Threading a
             // dead flag into renderText would only re-create an unused parameter.
         } else if (std.mem.startsWith(u8, a, "--")) {
             return error.UnknownOption;
@@ -76,7 +76,7 @@ pub const Route = enum { mutate, explain, suggest, review_snapshot, suggest_miss
 /// Decide the doctest dispatch for `args`. A recognized named subcommand in the
 /// FIRST positional slot wins BEFORE the `--mutate` flag scan, so e.g.
 /// `doctest suggest --mutate` runs the suggest flow rather than being hijacked by
-/// `--mutate` appearing later and rejected as a bogus mutate option (L22).
+/// `--mutate` appearing later and rejected as a bogus mutate option.
 pub fn route(args: []const []const u8) Route {
     if (args.len > 0 and !std.mem.startsWith(u8, args[0], "-")) {
         const sub = args[0];
@@ -115,7 +115,7 @@ pub const Output = struct {
 };
 
 // A per-case workspace-creation failure is isolated as an `.invalid` case by the
-// runner (L12), so it never reaches here; the only errors that abort the whole
+// runner, so it never reaches here; the only errors that abort the whole
 // run are an unresolved `--case` selector and OOM.
 pub const RunError = error{CaseNotFound} || std.mem.Allocator.Error;
 
@@ -347,7 +347,7 @@ fn lineOfRef(ref: []const u8) u32 {
     // an out-of-range or overlong numeric ref must resolve to line 0 (which matches
     // no real 1-based anchor -> CaseNotFound) rather than overflow into a
     // `panic: integer overflow` (Debug/ReleaseSafe) or a wrapped, wrong line
-    // (ReleaseFast). Mirrors the already-hardened src/ai/doctest_command.zig (M4).
+    // (ReleaseFast). Mirrors the already-hardened src/ai/doctest_command.zig.
     return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
 }
 

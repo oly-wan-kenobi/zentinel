@@ -70,7 +70,7 @@ test "repeated runs whose excerpts differ only in addresses and absolute paths n
     // the killed mutant's stderr carries a different ASLR address and a different
     // absolute source path, plus different run id / timestamp / durations.
     // The two stderr strings differ ONLY in an ASLR pointer address and an
-    // absolute source path (the two pieces task 108 normalizes); everything else
+    // absolute source path (the two pieces the report normalizes); everything else
     // is identical, matching the audit repro.
     var env1 = RunEnv{
         .arena = a,
@@ -126,14 +126,14 @@ test "normalizeExcerpt replaces hex addresses and absolute paths but keeps other
     try expectEqualStrings("panic at <path>", windows);
 }
 
-test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerpts (M3)" {
+test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerpts" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // A `//`-led run is a Zig comment marker, not an absolute path. Committed
     // report excerpts that quote source lines must keep the comment intact rather
-    // than collapsing it to `<path>` (M3).
+    // than collapsing it to `<path>`.
     try expectEqualStrings("// boundary off-by-one", try report.normalizeExcerpt(a, "// boundary off-by-one"));
     try expectEqualStrings("/// doc comment", try report.normalizeExcerpt(a, "/// doc comment"));
 
@@ -144,7 +144,7 @@ test "normalizeExcerpt preserves Zig // and /// comment markers in stderr excerp
     );
 }
 
-test "normalizeExcerpt replaces invalid UTF-8 so report output stays valid (deep-review #7)" {
+test "normalizeExcerpt replaces invalid UTF-8 so report output stays valid" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -163,7 +163,7 @@ test "normalizeExcerpt replaces invalid UTF-8 so report output stays valid (deep
     try expectEqualStrings("café ☕ works", try report.normalizeExcerpt(a, "café ☕ works"));
 }
 
-test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme:// URIs (L28)" {
+test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme:// URIs" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -173,7 +173,7 @@ test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme://
     // or `>` (`key=/abs`, `note:/abs`, redirection `2>/abs`) or embeds it in a
     // `scheme://` URI. Each of these must collapse to `<path>` so the absolute
     // developer path never lands in the committed report and the excerpt bytes are
-    // identical across machines (L28).
+    // identical across machines.
     try expectEqualStrings("root=<path>", try report.normalizeExcerpt(a, "root=/Users/dev/secret/leak.zig"));
     try expectEqualStrings("note:<path>", try report.normalizeExcerpt(a, "note:/home/ci/build/x.zig"));
     try expectEqualStrings("wrote><path>", try report.normalizeExcerpt(a, "wrote>/Users/dev/out/leak.zig"));
@@ -192,13 +192,13 @@ test "normalizeExcerpt redacts absolute paths after `=`/`:`/`>` and in scheme://
     try expectEqualStrings("x=/tmp", try report.normalizeExcerpt(a, "x=/tmp"));
 }
 
-test "report.isoTimestamp formats epoch-ms as second-precision UTC ISO-8601 (L41)" {
+test "report.isoTimestamp formats epoch-ms as second-precision UTC ISO-8601" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // The single formatter now shared by the run observation (run.started_at) and
-    // the doctest run, replacing two byte-identical inline blocks in cli.zig (L41).
+    // the doctest run, replacing two byte-identical inline blocks in cli.zig.
     try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, 0));
     try expectEqualStrings("2001-09-09T01:46:40Z", try report.isoTimestamp(a, 1_000_000_000_000));
     // Sub-second milliseconds truncate down to the whole second.

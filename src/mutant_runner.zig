@@ -175,7 +175,7 @@ pub fn runSpecs(
         }
         // The optimize mode must reach the spawned process as an actual argv
         // element (not just the `result.mode` label), so a `--mode`/matrix run
-        // genuinely evaluates the mutant under that mode (H5). The same adjusted
+        // genuinely evaluates the mutant under that mode. The same adjusted
         // argv is recorded so the report is truthful about what actually ran.
         const argv = try safety_modes.argvForMode(arena, spec.argv, mode);
         const raw = executor.run(argv);

@@ -293,7 +293,7 @@ test "snapshot: selection metadata has exactly the documented fields" {
     try expectEqualStrings(existing, json);
 }
 
-// --- Soundness: narrowed-selection survivors re-verified (task 106) ----------
+// --- Soundness: narrowed-selection survivors re-verified ----------
 //
 // The default `same_file_then_package` strategy may run `zig test <file>` instead
 // of the configured `zig build test`. That generated command is weaker: a mutant
@@ -396,7 +396,7 @@ test "a same-file survivor the configured suite kills is reported killed, not su
     try expectEqualStrings("zig test src/range.zig", m.test_selection.commands[0]);
 
     // ...but the configured suite kills the mutant, so the sound verdict is
-    // `killed`, never `survived` (task 106 soundness guarantee). Without
+    // `killed`, never `survived` (the re-verification soundness guarantee). Without
     // re-verification the narrowed `zig test src/range.zig` passes and the mutant
     // is falsely reported `survived`.
     try expectEqual(report.ResultStatus.killed, m.result.status);

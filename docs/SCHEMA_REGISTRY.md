@@ -1,6 +1,6 @@
 # Schema Registry
 
-zentinel uses machine-readable schemas to keep reports, AI contracts, and task metadata compatible across autonomous implementation sessions.
+zentinel uses machine-readable schemas to keep reports and AI contracts compatible across versions.
 
 ## Schema Files
 
@@ -13,18 +13,16 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 | AI suggest response v1 | `schemas/ai.suggest.response.v1.schema.json` | AI assistance |
 | AI review-tests response v1 | `schemas/ai.review_tests.response.v1.schema.json` | AI assistance |
 | Doctest report v1 | `schemas/doctest.report.v1.schema.json` | Doctest |
-| Doctest AI context v1 | `schemas/ai.doctest.context.v1.schema.json`; task `055` creates non-survivor flows and task `067` adds the survivor flow | Doctest AI |
+| Doctest AI context v1 | `schemas/ai.doctest.context.v1.schema.json` | Doctest AI |
 | Doctest AI explain response v1 | Reuses `schemas/ai.explain.response.v1.schema.json`; doctest classifications are included in that shared enum | Doctest AI |
 | Doctest AI suggest response v1 | `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |
-| Pipeline handoff v1 | `schemas/pipeline.handoff.v1.schema.json` | Agent pipeline; task `041` creates the baseline |
-| Pipeline active lock v1 | `schemas/pipeline.active_lock.v1.schema.json` | Agent pipeline; task `041` creates the baseline |
-| Pipeline context packet v1 | `schemas/pipeline.context.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `042` refines context semantics |
-| Pipeline stale context v1 | `schemas/pipeline.stale_context.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `042` refines stale-context semantics |
-| Pipeline verification v1 | `schemas/pipeline.verification.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `046` refines verification semantics |
-| Pipeline escalation v1 | `schemas/pipeline.escalation.v1.schema.json` | Agent pipeline; task `041` creates the baseline and task `049` refines escalation semantics |
-| Task queue v1 | `tasks/schema/queue.v1.schema.json` | Task system |
-| Task status v1 | `tasks/schema/status.v1.schema.json` | Task system |
+| Pipeline handoff v1 | `schemas/pipeline.handoff.v1.schema.json` | Pipeline metadata |
+| Pipeline active lock v1 | `schemas/pipeline.active_lock.v1.schema.json` | Pipeline metadata |
+| Pipeline context packet v1 | `schemas/pipeline.context.v1.schema.json` | Pipeline metadata |
+| Pipeline stale context v1 | `schemas/pipeline.stale_context.v1.schema.json` | Pipeline metadata |
+| Pipeline verification v1 | `schemas/pipeline.verification.v1.schema.json` | Pipeline metadata |
+| Pipeline escalation v1 | `schemas/pipeline.escalation.v1.schema.json` | Pipeline metadata |
 
 ## Rules
 
@@ -37,17 +35,9 @@ zentinel uses machine-readable schemas to keep reports, AI contracts, and task m
 
 ## Validation
 
-The task system is validated by:
+Schema validation for reports and AI contracts lives in Zig tests wherever those artifacts are emitted or consumed. Existing schema files are exact implementation targets.
 
-```bash
-python3 scripts/validate_task_system.py
-```
-
-Implementation tasks must add or keep schema validation for reports and AI contracts in Zig tests whenever they emit or consume those artifacts. Existing schema files are exact implementation targets.
-
-Task `tasks/041-handoff-artifacts.md` creates the baseline pipeline handoff, active-lock, context, stale-context, verification, and escalation schema files. Task `tasks/063-pipeline-metadata-validator.md` consumes those baseline files when implementing deterministic validation. Those baseline files define the minimal subset required for deterministic validation; tasks `042`, `046`, and `049` refine role-specific fields and fixtures for context packets, verification records, and escalation records without weakening the baseline validation guarantees.
-
-Pipeline metadata validation is intentionally standard-library-only. Task `tasks/063-pipeline-metadata-validator.md` implements a project-owned schema subset validator for pipeline artifacts: schema version checks, required fields, additional-property policy, enum and const checks, basic string/integer/boolean/null/object/array shapes, and task/path ownership. Full Draft 2020-12 validation, including arbitrary conditional and reference traversal, requires an explicit future dependency decision.
+Pipeline metadata validation is intentionally standard-library-only: a project-owned schema subset validator covers schema version checks, required fields, additional-property policy, enum and const checks, and basic string/integer/boolean/null/object/array shapes. Full Draft 2020-12 validation, including arbitrary conditional and reference traversal, requires an explicit future dependency decision.
 
 ## Version Naming
 
@@ -70,11 +60,9 @@ zentinel.pipeline.context.v1
 zentinel.pipeline.stale_context.v1
 zentinel.pipeline.verification.v1
 zentinel.pipeline.escalation.v1
-zentinel.tasks.queue.v1
-zentinel.tasks.status.v1
 ```
 
-Schema file names mirror those versions after dropping the leading `zentinel.` namespace. Task schemas live under `tasks/schema/` because they validate the task operating system itself.
+Schema file names mirror those versions after dropping the leading `zentinel.` namespace.
 
 ## Compatibility
 

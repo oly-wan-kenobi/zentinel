@@ -10,7 +10,7 @@
 // tuple-like `container_field_*` whose `type_expr` is the `true`/`false`
 // identifier -- mutating it would emit `enum { false, false }`, a guaranteed
 // `duplicate enum member name` compile_error rather than a real boolean swap
-// (L23). Pure: emits candidates through the shared collector.
+//. Pure: emits candidates through the shared collector.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
@@ -34,7 +34,7 @@ fn replacementFor(text: []const u8) ?[]const u8 {
 /// `enum { true, false }` parses as a tuple-like `container_field_*` whose
 /// `type_expr` IS the `true`/`false` identifier; mutating it is forbidden
 /// (MUTATOR_SPEC.md) and yields a guaranteed `duplicate member` compile_error
-/// (L23). Computed ONCE per `collect` so the per-literal skip check is O(1)
+///. Computed ONCE per `collect` so the per-literal skip check is O(1)
 /// amortized rather than rescanning every node for each literal (O(n^2)). These
 /// fields are rare, so the list is usually empty. A boolean value is never a
 /// container-field type expression, so this never lists a real literal.
@@ -82,7 +82,7 @@ pub fn collect(
         if (ast_backend.inTestBody(test_ranges, start)) continue;
         // A `true`/`false` enum field DECLARATION is a forbidden context: mutating
         // the name would emit a guaranteed `duplicate enum member` compile_error,
-        // not a real boolean swap (L23).
+        // not a real boolean swap.
         if (nodeInList(field_name_nodes, node)) continue;
         const end = start + @as(u32, @intCast(text.len));
         const start_pos = li.locate(start) orelse continue;

@@ -67,7 +67,7 @@ pub fn matchModeFromToken(tok: []const u8) ?MatchMode {
     // `unordered` selects order-insensitive JSON array matching (mapped to the
     // matcher's `json_unordered` mode in doctest_command.matchModeFor). Without
     // this entry the documented tag was rejected as unsupported, leaving the
-    // implemented json_unordered match logic unreachable (M6).
+    // implemented json_unordered match logic unreachable.
     if (std.mem.eql(u8, tok, "unordered")) return .unordered;
     // `regex` selects the matcher's pure backtracking regex engine on a text
     // expectation (matchModeFor maps it to matcher.Mode.regex). Without this entry

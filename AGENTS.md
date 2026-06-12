@@ -1,90 +1,38 @@
-# zentinel Agent Instructions
+# AGENTS.md
 
-This repository is designed for autonomous sequential AI-agent implementation. Agents must be able to build zentinel end to end without human planning between tasks.
+zentinel is a mutation testing tool for Zig, written in Zig. It mutates Zig
+source (e.g. `<` → `<=`, `and` → `or`), runs the project's tests against each
+mutant, and reports which mutants survived. The core pipeline is deterministic
+and offline; AI features are advisory-only and disabled by default.
 
-## Required Reading
-
-Before changing files, read:
-
-1. `tasks/QUEUE.md`
-2. `tasks/queue.json`
-3. `tasks/STATUS.md`
-4. `tasks/status.json`
-5. `docs/VISION.md`
-6. `docs/NON_GOALS.md`
-7. `docs/GLOSSARY.md`
-8. `docs/AGENT_GUIDE.md`
-9. `docs/AUTONOMOUS_AGENT_PROTOCOL.md`
-10. `.agents/README.md`
-11. `.agents/ORCHESTRATOR.md`
-12. the active task file
-
-For behavior changes, also read:
-
-- `docs/TDD_POLICY.md`
-- `docs/ARCHITECTURE.md`
-- `docs/INVARIANTS.md`
-- `docs/DISCIPLINE.md`
-- `docs/STYLE.md`
-- the relevant spec document under `docs/`
-
-## Non-Negotiable Rules
-
-- Execute tasks sequentially.
-- Keep exactly one task active.
-- Write failing tests before implementation.
-- Modify only files allowed by the active task, except task-control state updates performed by the Task Queue Manager, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts after task `041` is complete.
-- Preserve deterministic core behavior.
-- Support only pinned Zig `0.16.0` for this zentinel version.
-- Keep AST as the stable default backend.
-- Treat ZIR as experimental only.
-- Never use AI output to determine mutation correctness.
-- Dogfood zentinel as soon as the task system requires it.
-- Cite `docs/INVARIANTS.md`, `docs/DISCIPLINE.md`, `docs/STYLE.md`, or ADR IDs when they govern a non-obvious choice.
-- Develop zentinel with provider-neutral agent contracts under `.agents/`; any MCP-capable agent runtime (for example Codex or Claude) may drive development by following them. Do not commit provider-specific files such as `.claude/` or other runtime command/profile/settings files to the repository.
-
-## Machine-Checkable Workflow
-
-Agents must keep Markdown and JSON task state synchronized:
-
-- `tasks/QUEUE.md` and `tasks/queue.json`
-- `tasks/STATUS.md` and `tasks/status.json`
-- docs-to-tests gap registries under `tests/coverage-gaps/` when changing covered docs contracts
-
-The task-control files are a narrow scope exception. The Task Queue Manager may edit `tasks/QUEUE.md`, `tasks/queue.json`, `tasks/STATUS.md`, and `tasks/status.json`, and may create or rename task markdown files under `tasks/`, only for lifecycle transitions, blocker insertion, queue reordering, or validator-required synchronization. Product implementation roles must not use this exception to change task scope opportunistically.
-
-Gap registry files are a narrow row-scoped exception. When the active task adds, changes, or covers a documented invariant, failure mode, stable mutator, or schema contract, the task may update only the matching row or newly required row in `tests/coverage-gaps/<registry>.v1.json` even when that registry file is not listed in the active task's allowed files. This exception does not authorize unrelated registry cleanup, source changes, docs changes, schema changes, or task-scope expansion.
-
-After task `041` is complete, pipeline roles may create or update only their active task's audit artifacts under `artifacts/pipeline/<active-task-id>/**` even when that path is not listed in the active task's allowed files. This exception is limited to handoffs, reviews, verification evidence, context packets, and other pipeline metadata defined by `docs/PIPELINE_ARTIFACTS.md`; it does not permit product source, docs, tests, schemas, or task-scope changes outside the active task.
-
-Run this before completing any task:
+## Build and Test
 
 ```bash
-python3 scripts/validate_task_system.py
+zig build                          # build the binary (zig-out/bin/zentinel)
+zig build test                     # run the full test suite (must stay green)
+zig fmt --check src test build.zig # formatting gate (CI enforces this)
+scripts/ci.sh                      # full local CI: fmt, build, tests, dogfood
 ```
 
-If the validator fails, fix the task metadata or status files before proceeding.
+Requires Zig 0.16.0 exactly (see docs/ZIG_VERSION_POLICY.md).
 
-## Autonomous Blocker Resolution
+## Orientation
 
-If a task is blocked:
+- `src/` — implementation. Each file declares a `// Layer:` (see
+  docs/INTERNAL_API_CONTRACTS.md); deterministic core must not import adapters.
+- `test/` — tests, auto-discovered as `test/**/*_test.zig`. Fixtures live under
+  `test/fixtures/`.
+- `docs/` — the contract. Start with docs/ARCHITECTURE.md, docs/STYLE.md, and
+  docs/INVARIANTS.md. Specs (CLI_SPEC, CONFIG_SPEC, MUTATOR_SPEC,
+  REPORT_FORMAT, DOCTEST_SPEC, ERROR_CODES) are normative.
+- `schemas/` — versioned JSON schemas for machine-readable artifacts.
 
-1. Do not ask the user unless the choice is irreversible or explicitly requires product judgment.
-2. Add the smallest prerequisite task to the queue using the next unused three-digit task ID and an execution `order` before the blocked task.
-3. Update `tasks/queue.json`, `tasks/QUEUE.md`, `tasks/status.json`, and `tasks/STATUS.md`.
-4. Run `python3 scripts/validate_task_system.py`.
-5. Execute the prerequisite task, then resume.
+## Rules
 
-Use the AskUserQuestion tool, or the environment's equivalent user-input tool, only when the repository contracts do not provide enough information to choose safely.
-
-## Completion Standard
-
-A task is complete only when:
-
-- required tests were added before implementation
-- targeted tests pass
-- broader relevant tests pass
-- task status is updated in Markdown and JSON
-- validator passes
-- no forbidden files were modified, except Task Queue Manager edits to task-control files, row-scoped gap registry updates under `tests/coverage-gaps/<registry>.v1.json`, and task-scoped pipeline artifacts allowed after task `041`
-- follow-up work is captured as tasks, not prose-only notes
+- Specs in `docs/` are the contract: change spec and code together, never let
+  them drift. Some docs contain executable doctest blocks verified in CI.
+- Every bug fix needs a regression test that fails before the fix.
+- Mutation results are determined only by deterministic test evidence — AI must
+  never decide killed/survived/equivalent.
+- Keep output deterministic: stable ordering, stable IDs, normalized paths.
+- Run `zig fmt` before committing; keep `zig build test` at zero failures.

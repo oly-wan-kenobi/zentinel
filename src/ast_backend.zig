@@ -108,7 +108,7 @@ pub fn parse(gpa: std.mem.Allocator, file: []const u8, source: []const u8) !Pars
 pub const Candidate = mutant.Mutant;
 
 /// Collects AST backend candidates and produces a deterministic, deduplicated
-/// candidate set. Recognizers (task 010+) feed candidates through `add`; this
+/// candidate set. Recognizers feed candidates through `add`; this
 /// spike only provides the collection/ordering interface and enables no
 /// operators itself.
 pub const Collector = struct {

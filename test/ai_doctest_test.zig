@@ -131,7 +131,7 @@ test "doctest failure AI context redacts command evidence fields" {
     try expect(std.mem.indexOf(u8, bytes, "<path>") != null);
 }
 
-test "doctest AI context redacts diagnostics[].code (deep-review #3)" {
+test "doctest AI context redacts diagnostics[].code" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -159,7 +159,7 @@ test "doctest AI context redacts diagnostics[].code (deep-review #3)" {
     try expect(std.mem.indexOf(u8, bytes, "[REDACTED]") != null);
 }
 
-test "validateContext gates doctest.kind against the schema enum, failing closed (deep-review #3)" {
+test "validateContext gates doctest.kind against the schema enum, failing closed" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const v = parseValue(arena_state.allocator(),
@@ -274,7 +274,7 @@ test "doctest survivor context rejects partial runner command evidence" {
     try expectError(error.AiReportNotFound, dc.buildSurvivorContextValue(arena, .stub, survivor_case, stubSettings()));
 }
 
-test "validateContext rejects the deferred survivor flow and survivor evidence (task 067)" {
+test "validateContext rejects the deferred survivor flow and survivor evidence" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();

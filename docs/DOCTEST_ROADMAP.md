@@ -21,8 +21,7 @@ Deliver:
 
 - `docs/DOCTEST_BLOCK_FORMATS.md`
 - `docs/DOCTEST_SPEC.md`
-- agent rules requiring executable examples for public features
-- task decomposition for doctest implementation
+- authoring rules requiring executable examples for public features
 
 Exit criteria:
 

@@ -1,7 +1,7 @@
 // Layer: deterministic_core
 //
-// Minimal deterministic seeded generator for structural property tests
-// (docs/PROPERTY_TEST_POLICY.md, task 062). A `Generator` is a pure splitmix64
+// Minimal deterministic seeded generator for structural property tests.
+// A `Generator` is a pure splitmix64
 // stream: the same seed always emits the same sequence, so a recorded failing
 // seed reproduces the same generated cases byte-for-byte. No third-party
 // dependency, no global state, no wall-clock or OS randomness.
@@ -27,7 +27,7 @@ pub const Generator = struct {
     /// and the mapped draw are computed in u64 (via `@bitCast`) so a range spanning
     /// more than half the i64 domain -- up to the full `minInt(i64)..maxInt(i64)` --
     /// can neither overflow the `hi - lo + 1` intermediate nor panic an i64 `@intCast`
-    /// on the modulo result (L39). A wrapped span of 0 means the full u64 domain.
+    /// on the modulo result. A wrapped span of 0 means the full u64 domain.
     pub fn intRange(self: *Generator, lo: i64, hi: i64) i64 {
         std.debug.assert(lo <= hi);
         const lo_u: u64 = @bitCast(lo);

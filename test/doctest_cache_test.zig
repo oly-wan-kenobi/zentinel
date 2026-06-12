@@ -114,7 +114,7 @@ test "doctest cache is metadata-only and does not change extracted cases" {
     }
 }
 
-test "the doctest block index is built once per document, not once per case (L19)" {
+test "the doctest block index is built once per document, not once per case" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -123,7 +123,7 @@ test "the doctest block index is built once per document, not once per case (L19
 
     // The fixture has 4 doctest cases; the block index must be built ONCE for the
     // whole document so each case's block lookup is an O(1) map get rather than a
-    // fresh O(B) scan per expectation ref (the old O(C*(1+R)*B) behavior) (L19).
+    // fresh O(B) scan per expectation ref (the old O(C*(1+R)*B) behavior).
     dcache.block_index_builds = 0;
     const md = try dcache.buildMetadataFromSource(a, path, src, .{ .zig_version = "0.16.0", .config_hash = "sha256:deadbeef" });
     try expect(md.case_keys.len == 4);

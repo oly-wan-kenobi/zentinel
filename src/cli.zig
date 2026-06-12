@@ -5,7 +5,7 @@ const zentinel = @import("zentinel");
 // Derive the adapter's config path from the core's single source of truth
 // (`zentinel.config_default_path`) rather than a private duplicate literal, so
 // `init`'s write path and the config-existence probe can never silently diverge
-// from the path the rest of the system resolves config from (S9).
+// from the path the rest of the system resolves config from.
 const config_path = zentinel.config_default_path;
 const read_limit = std.Io.Limit.limited(1 << 20);
 
@@ -162,7 +162,7 @@ const RunCtx = struct {
     timeout: std.Io.Timeout,
     /// The minimal command environment actually passed to every spawned test
     /// command (docs/SANDBOX_SECURITY.md). This is what makes the report's
-    /// `environment_policy = minimal` label truthful (task 112).
+    /// `environment_policy = minimal` label truthful.
     env: *const std.process.Environ.Map,
     cleanup_failures: std.atomic.Value(u32),
 };
@@ -190,8 +190,8 @@ fn execProcess(rt: *RunCtx, argv: []const []const u8, cwd: std.process.Child.Cwd
         .timeout = rt.timeout,
         // Restrict each test command to the documented minimal allowlist
         // (PATH/HOME/TMPDIR/ZIG caches + LC_ALL=C/LANG=C), so the report's
-        // `environment_policy = minimal` label is truthful (task 112,
-        // docs/SANDBOX_SECURITY.md). Phase 1 still cannot fully OS-sandbox.
+        // `environment_policy = minimal` label is truthful
+        // (docs/SANDBOX_SECURITY.md). Phase 1 still cannot fully OS-sandbox.
         .environ_map = rt.env,
     }) catch |err| {
         const dur = elapsedMs(rt.io, start_ms);
@@ -248,7 +248,7 @@ const Workspace = zentinel.worker_pool.Workspace;
 /// location: copy the project tree (minus caches/VCS), then overwrite the
 /// mutated file with the patched bytes. Isolated by run + content-addressed
 /// mutant id, so the developer working tree is never modified. The workspace
-/// lifecycle (creation + failure-path unwind, L9) lives in worker_pool beside
+/// lifecycle (creation + failure-path unwind) lives in worker_pool beside
 /// the workspace path helpers; on success the caller owns `ws.dir`/`ws.rel`.
 fn setupWorkspace(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
     return zentinel.worker_pool.createMutantWorkspace(rt.io, rt.gpa, rt.root_dir, rt.run_id, m.id, m.file, patched, &rt.cleanup_failures);
@@ -263,7 +263,7 @@ const workspace_setup_attempts: usize = 3;
 /// already unwinds its partial dir, so a retry starts clean. Between attempts we
 /// yield so sibling workers can finish/close their handles. Only after the
 /// attempts are exhausted does the caller classify the mutant `invalid` -- without
-/// this a momentary FS hiccup silently drops a would-be survivor (#8).
+/// this a momentary FS hiccup silently drops a would-be survivor.
 fn setupWorkspaceRetrying(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []const u8) !Workspace {
     var attempt: usize = 0;
     while (true) : (attempt += 1) {
@@ -323,7 +323,7 @@ fn mutantRunSpecsFn(
     return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch @panic("out of memory");
 }
 
-/// Run one mutant across `modes` in a SINGLE materialized workspace (#5): the
+/// Run one mutant across `modes` in a SINGLE materialized workspace: the
 /// patched source is build-mode-independent, so the workspace (and its copied
 /// tree) is created once and every mode -- plus an optional per-mode configured
 /// reverification -- executes against it, instead of re-copying the project tree
@@ -547,7 +547,7 @@ fn runRun(
     }
 
     // Build the minimal command environment once; every test command this run
-    // spawns is restricted to it (docs/SANDBOX_SECURITY.md, task 112).
+    // spawns is restricted to it (docs/SANDBOX_SECURITY.md).
     var minimal_env = try zentinel.runner.minimalEnviron(gpa, parent_env);
     defer minimal_env.deinit();
     var obs = try buildObservation(gpa, io, cfg_bytes, zig_label, "<project>");
@@ -606,7 +606,7 @@ fn runRun(
     // deletes each content-addressed per-mutant leaf, but nothing removed the
     // {run_id} parent, so every invocation leaked one stale `run_<x>` dir under
     // the controlled cache namespace. Best-effort and counted like the per-mutant
-    // cleanup so a failure surfaces in the warning below (L8).
+    // cleanup so a failure surfaces in the warning below.
     {
         const run_base = try zentinel.worker_pool.workspaceRunBase(gpa, rt.run_id);
         rt.root_dir.deleteTree(rt.io, run_base) catch {
@@ -641,7 +641,7 @@ fn runRun(
     // cache write shares the symlink containment guard; an escape is skipped
     // rather than fatal because the cache is best-effort.
     const cache_json = try zentinel.cache.toJson(gpa, outcome.cache);
-    // The cache artifact goes under the configured cache.directory (M5), not the
+    // The cache artifact goes under the configured cache.directory, not the
     // report output dir; the symlink-containment guard and parent-dir creation
     // below keep the write safe and best-effort.
     const cache_path = try std.fmt.allocPrint(gpa, "{s}/cache.json", .{cfg.cache_directory});
@@ -682,7 +682,7 @@ fn runListMutants(
     stderr: *std.Io.Writer,
 ) !u8 {
     // Extract the experimental `--backend <ast|zir>` opt-in here in the
-    // adapter (task 056): the frozen list-mutants parser owns only
+    // adapter: the frozen list-mutants parser owns only
     // `--operator`/`--format` and stays unchanged. Default is the stable AST.
     // (AIR was retired: AIR-level mutation mapping is infeasible without SEMA.)
     var backend: []const u8 = "ast";
@@ -764,11 +764,11 @@ fn runListMutants(
         error.OutOfMemory => return err,
     };
 
-    // Experimental backend opt-in (task 056: zir). The stable AST default is
+    // Experimental backend opt-in (zir). The stable AST default is
     // unchanged; experimental backends are gated by config and emit out-of-report
     // diagnostics for operators with no exact source mapping.
     if (std.mem.eql(u8, backend, "zir")) {
-        // Real ZIR lowering (task 056): each source file is lowered to ZIR and its
+        // Real ZIR lowering: each source file is lowered to ZIR and its
         // comparison mutation sites recognized from the cmp_* instructions; other
         // operators become out-of-report diagnostics. The stable AST default and the
         // `run` path are unaffected.
@@ -879,7 +879,7 @@ fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.
 /// real process/workspace adapters, and emit a deterministic text or JSON
 /// zentinel.doctest.report.v1 report.
 /// Adapter for the advisory AI commands `explain`, `suggest`, and `review-tests`
-/// (task 054). Parses command-local options, reads normalized config and the
+///. Parses command-local options, reads normalized config and the
 /// selected mutation report read-only, then delegates to the deterministic
 /// `ai.command` engine. AI-only failures print their documented `ZNTL_AI_*` code
 /// and never touch a report.
@@ -1014,12 +1014,12 @@ fn aiSettings(
     settings.redact_patterns = cfg.ai_redact_patterns;
     settings.project_name = cfg.project_name;
     // ai.source_context_lines is validated >= 0; clamp to u32 for the context
-    // window so a huge configured value cannot overflow the cast (L43).
+    // window so a huge configured value cannot overflow the cast.
     settings.source_context_lines = @intCast(@min(cfg.ai_source_context_lines, @as(i64, std.math.maxInt(u32))));
     return .{ .settings = settings, .project_root = cfg.project_root };
 }
 
-/// Adapter for the advisory doctest-AI subcommands (task 055). Parses
+/// Adapter for the advisory doctest-AI subcommands. Parses
 /// command-local options, reads config and the selected doctest report or docs
 /// path read-only, then delegates to the deterministic `ai.doctest_command`
 /// engine. Doctest AI is advisory only and never edits docs, snapshots, or
@@ -1044,7 +1044,7 @@ fn runDoctestAi(
     var i: usize = 1; // skip the subcommand token at inv.args[0]
     while (i < inv.args.len) : (i += 1) {
         const a = inv.args[i];
-        // `--file` is doctest-specific; the rest are the shared AI options (L16).
+        // `--file` is doctest-specific; the rest are the shared AI options.
         if (std.mem.eql(u8, a, "--file")) {
             i += 1;
             if (i >= inv.args.len) return aiOptionError(stderr, "--file requires a value");
@@ -1092,7 +1092,7 @@ fn runDoctestAi(
     // review-snapshot) is a CLI usage error, surfaced like the top-level AI commands'
     // `missing <mutant-ref>`/`missing <survivor-ref>` guards instead of being
     // forwarded as a null ref the engine reports as an opaque DOC/CASE_NOT_FOUND
-    // (L32). Checked after config/--config validation so a bad --config still wins.
+    //. Checked after config/--config validation so a bad --config still wins.
     if (zentinel.ai.doctest_command.missingPositional(flow, positional)) |detail| {
         return aiOptionError(stderr, detail);
     }
@@ -1143,7 +1143,7 @@ fn runDoctestAi(
     return out.exit_code;
 }
 
-/// Adapter for `zentinel doctest explain-survivor <survivor-ref>` (task 067).
+/// Adapter for `zentinel doctest explain-survivor <survivor-ref>`.
 /// Reads config and the selected mutation-aware doctest report read-only and
 /// delegates to the deterministic survivor engine. Advisory only: it never
 /// changes a survivor's status, the report, snapshots, or documentation.
@@ -1227,7 +1227,7 @@ fn runDoctest(
 ) !u8 {
     // A recognized named AI subcommand in the first slot dispatches BEFORE the
     // experimental `--mutate` flag scan, so `doctest suggest --mutate` runs the
-    // suggest flow instead of being hijacked by `--mutate` (task 039/055/067, L22).
+    // suggest flow instead of being hijacked by `--mutate`.
     switch (zentinel.doctest_command.route(inv.args)) {
         .mutate => return runDoctestMutate(gpa, io, dir, inv, stdout, stderr, parent_env),
         .explain => return runDoctestAi(gpa, io, dir, inv, .explain_doctest_failure, stdout, stderr),
@@ -1314,7 +1314,7 @@ fn runDoctest(
         },
         // A per-case workspace-creation failure no longer reaches here: the runner
         // isolates it as an `.invalid` case so the run still produces a report
-        // (L12). Only OOM remains as a run-wide internal error.
+        //. Only OOM remains as a run-wide internal error.
         error.OutOfMemory => return err,
     };
 
@@ -1429,8 +1429,8 @@ fn runDoctestMutate(
         return 2;
     }
     const cfg = (try doctestConfigOrDefault(gpa, io, dir, inv.globals, stderr)) orelse return 2;
-    // Opt-in: passing `--mutate` explicitly is the opt-in (task 113 retired the
-    // hardcoded fixtures-only gate, so it now runs over any --file documentation).
+    // Opt-in: passing `--mutate` explicitly is the opt-in (the hardcoded
+    // fixtures-only gate was retired, so it now runs over any --file documentation).
 
     const zig = discoverZig(gpa, io);
     const fatal_zig = try zentinel.zig_version.fatalStatusLine(gpa, zig);
@@ -1464,7 +1464,7 @@ fn runDoctestMutate(
     const sr = zentinel.doctest.mutation_experiment.SnippetRunner{ .ctx = &ctx, .runFn = doctestMutateRunFn, .commandFn = doctestMutateCommandFn };
     // Produce the STABLE mutation-aware report (durable `dm_` ids, `ds_` survivor
     // refs) and PERSIST it to the survivor report path so `doctest
-    // explain-survivor` can resolve a real survivor (task 113).
+    // explain-survivor` can resolve a real survivor.
     const json = try zentinel.doctest.mutation_experiment.mutateReportJson(gpa, doc, source, sr);
     const out_path = zentinel.ai.doctest_command.default_report_path;
     if (zentinel.config.pathEscapesRoot(io, root_dir, out_path)) {

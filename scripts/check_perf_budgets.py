@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Documentation check (tasks/052): prove docs/PERFORMANCE_STRATEGY.md records the
+"""Documentation check: prove docs/PERFORMANCE_STRATEGY.md records the
 concrete initial numeric CI smoke budgets that later dogfood, doctest, and
 benchmark CI tasks depend on. Reads the doc from a path argument (default the
 working tree) so the failing-first state can be captured against an older

@@ -71,7 +71,7 @@ const optional_phase2_doc =
     \\```
 ;
 
-test "a Phase-2 before/after pair (optional_orelse_unreachable) matches, not flagged as drift (L24)" {
+test "a Phase-2 before/after pair (optional_orelse_unreachable) matches, not flagged as drift" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -163,7 +163,7 @@ test "validatePair matches a real transformation and rejects an unproduced one" 
     try expect(!unmatched.matched);
 }
 
-test "lineOfRef parses a normal ref and resolves an overlong ref to 0 instead of overflowing (S17)" {
+test "lineOfRef parses a normal ref and resolves an overlong ref to 0 instead of overflowing" {
     // A normal "file:line[:label]" anchor parses to its 1-based line.
     try expectEqual(@as(u32, 42), md.lineOfRef("docs/x.md:42"));
     try expectEqual(@as(u32, 7), md.lineOfRef("a:7:label"));
@@ -172,7 +172,7 @@ test "lineOfRef parses a normal ref and resolves an overlong ref to 0 instead of
     try expectEqual(@as(u32, 0), md.lineOfRef("x:"));
     // u32 max parses; the very next value (and any longer run) exceeds u32. The prior
     // hand-rolled `n = n*10 + d` accumulator panicked with `integer overflow`
-    // (Debug/ReleaseSafe) on such a ref; the checked parse resolves it to 0 (S17).
+    // (Debug/ReleaseSafe) on such a ref; the checked parse resolves it to 0.
     try expectEqual(@as(u32, 4294967295), md.lineOfRef("x:4294967295"));
     try expectEqual(@as(u32, 0), md.lineOfRef("x:4294967296"));
     try expectEqual(@as(u32, 0), md.lineOfRef("x:999999999999"));

@@ -239,7 +239,7 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
     return null;
 }
 
-// --- Stabilized mutation-aware doctest report (task 061) -------------------
+// --- Stabilized mutation-aware doctest report -------------------
 //
 // The stabilized surface emits `zentinel.doctest.report.v1` mutation entries
 // (`case.kind = "mutation"`) with durable `dm_...` ids, `ds_...` survivor refs
@@ -468,7 +468,7 @@ fn candidatesOrParseError(arena: std.mem.Allocator, source: []const u8) std.mem.
     // (run_command.generateCandidates). Without these the doctest --mutate path
     // silently emitted zero mutants for a snippet whose only mutable construct is
     // an optional/error-path/integer-boundary/loop-boundary form, falsely
-    // reporting a weak documentation example as fully covered (M7).
+    // reporting a weak documentation example as fully covered.
     try optional.collect(&collector, parsed, snippet_file, test_ranges);
     try error_path.collect(&collector, parsed, snippet_file, test_ranges);
     try integer_boundary.collect(&collector, parsed, snippet_file, test_ranges);
@@ -616,7 +616,7 @@ pub fn stableToJson(arena: std.mem.Allocator, r: StableReport) std.mem.Allocator
 
 /// Produce the persistable stable mutation-aware doctest report JSON for one doc:
 /// the report `zentinel doctest --mutate` writes to the survivor report path so
-/// `doctest explain-survivor` can resolve a `ds_` survivor (task 113). The explicit
+/// `doctest explain-survivor` can resolve a `ds_` survivor. The explicit
 /// `--mutate` invocation is the opt-in, so this always runs opted-in.
 pub fn mutateReportJson(arena: std.mem.Allocator, file: []const u8, source: []const u8, snippet_runner: SnippetRunner) std.mem.Allocator.Error![]u8 {
     const r = stableMutationRun(arena, file, source, snippet_runner, true) catch |err| switch (err) {

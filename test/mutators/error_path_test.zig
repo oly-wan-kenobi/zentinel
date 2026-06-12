@@ -86,14 +86,14 @@ test "an existing catch unreachable is not mutated" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "a parenthesized catch unreachable is not re-mutated (L6)" {
+test "a parenthesized catch unreachable is not re-mutated" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
     // `catch (unreachable)` is already semantically `catch unreachable`; mutating
     // it only strips the redundant parens -- a pure no-op equivalent survivor that
-    // the exact-string guard missed (L6).
+    // the exact-string guard missed.
     var parsed = try ast_backend.parse(std.testing.allocator, "c.zig",
         \\pub fn f(e: anyerror!i32) i32 {
         \\    return e catch (unreachable);
@@ -123,12 +123,12 @@ test "a catch with an |err| payload replaces the capture and handler together" {
     try expectEqualStrings("error_catch_unreachable", c[0].operator);
     // The span covers the `|err|` capture AND the handler, so the replacement
     // `unreachable` yields the valid `catch unreachable` rather than orphaning the
-    // capture into `catch |err| unreachable` (an `unused capture` error) (M1).
+    // capture into `catch |err| unreachable` (an `unused capture` error).
     try expectEqualStrings("|err| handle(err)", c[0].original);
     try expectEqualStrings("unreachable", c[0].replacement);
 }
 
-test "survivor fixture: the catch mutant applies and SURVIVES a passing suite (L40)" {
+test "survivor fixture: the catch mutant applies and SURVIVES a passing suite" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -142,7 +142,7 @@ test "survivor fixture: the catch mutant applies and SURVIVES a passing suite (L
     try expectEqualStrings("0", c[0].original);
 
     // Applying the candidate produces the intended `catch unreachable` mutation: a
-    // wrong span or replacement would change these bytes (the gap L40 names).
+    // wrong span or replacement would change these bytes.
     const mutated = try sandbox.apply(a, src, c[0]);
     try expect(std.mem.indexOf(u8, mutated, "catch unreachable") != null);
     try expect(std.mem.indexOf(u8, mutated, "catch 0") == null);
@@ -155,7 +155,7 @@ test "survivor fixture: the catch mutant applies and SURVIVES a passing suite (L
     try expectEqual(report.ResultStatus.survived, res.status);
 }
 
-test "killed fixture: the catch mutant applies and is KILLED by a failing suite (L40)" {
+test "killed fixture: the catch mutant applies and is KILLED by a failing suite" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -195,7 +195,7 @@ fn frontendAccepts(gpa: std.mem.Allocator, mutated: []const u8) !bool {
     return !zir.hasCompileErrors();
 }
 
-test "the applied error_catch_unreachable mutant compiles at a catch-with-capture site (M1)" {
+test "the applied error_catch_unreachable mutant compiles at a catch-with-capture site" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -204,7 +204,7 @@ test "the applied error_catch_unreachable mutant compiles at a catch-with-captur
     // replacing just the handler with `unreachable` orphans the capture ->
     // `catch |err| unreachable` -> `error: unused capture`, a guaranteed
     // compile_error that can never be killed. The span must cover the capture too,
-    // producing the valid `catch unreachable` (M1).
+    // producing the valid `catch unreachable`.
     const src =
         \\pub fn f(e: anyerror!i32) i32 {
         \\    return e catch |err| handle(err);

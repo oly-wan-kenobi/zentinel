@@ -24,7 +24,7 @@ fn stubSettings() command.Settings {
     };
 }
 
-// --- Out-of-range / non-integer report integers (task 107) ------------------
+// --- Out-of-range / non-integer report integers ------------------
 //
 // `--input-report` is untrusted. A report-sourced integer above u32 used to
 // panic the process via an unchecked `@intCast` to u32 (abort / exit 134 in
@@ -172,7 +172,7 @@ test "explain still succeeds on a valid in-range report" {
     try expect(outcome.body.len > 0);
 }
 
-// --- AI context redaction scope (task 120, audit F-4) -----------------------
+// --- AI context redaction scope (audit F-4) -----------------------
 //
 // Redaction was wired only to evidence excerpts; the source-, diff-, and
 // path-bearing context fields (mutant.file/original/replacement/diff) passed
@@ -249,7 +249,7 @@ test "explain context redacts absolute paths and secret tokens in every field (F
     try expect(std.mem.indexOf(u8, json, "secret_value") != null);
 }
 
-test "ai.source_context_lines flows into the context window before_lines/after_lines (L43)" {
+test "ai.source_context_lines flows into the context window before_lines/after_lines" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -278,7 +278,7 @@ test "ai.source_context_lines flows into the context window before_lines/after_l
 
 // A report whose ONLY poisoned fields are the mutant id (an absolute path) and
 // operator (an Anthropic-key-shaped token); every other field is clean, so any
-// surviving secret in the output came specifically through id/operator (M9).
+// surviving secret in the output came specifically through id/operator.
 const id_operator_leak_report =
     \\{
     \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
@@ -313,7 +313,7 @@ const id_operator_leak_report =
     \\}
 ;
 
-test "explain redacts secrets in the report mutant id and operator (M9)" {
+test "explain redacts secrets in the report mutant id and operator" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -346,7 +346,7 @@ test "explain redacts secrets in the report mutant id and operator (M9)" {
 // path glued to an Anthropic-key-shaped secret. On the read side of an untrusted
 // `--input-report`, strategy is parsed as a raw JSON string (not the typed
 // Strategy enum), so any surviving secret in the context.test_context.selection_reason
-// came specifically through that field (L29).
+// came specifically through that field.
 const selection_leak_report =
     \\{
     \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
@@ -382,7 +382,7 @@ const selection_leak_report =
     \\}
 ;
 
-test "explain context redacts secrets in test_selection.strategy (selection_reason) (L29)" {
+test "explain context redacts secrets in test_selection.strategy (selection_reason)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -558,7 +558,7 @@ test "explain rejects partial command result evidence instead of defaulting fiel
     try expectError(error.AiReportNotFound, command.buildPromptValue(a, .explain, .stub, mutant, parsed, stubSettings()));
 }
 
-test "explain on an invalid (empty-commands) mutant builds context instead of reporting report-not-found (L1)" {
+test "explain on an invalid (empty-commands) mutant builds context instead of reporting report-not-found" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -566,7 +566,7 @@ test "explain on an invalid (empty-commands) mutant builds context instead of re
     // An `invalid` mutant legitimately ran no command, so a real report serializes
     // `"commands": []`. The report was found and the ref resolved, so explain must
     // build a context describing why it did not run -- not fail with the
-    // misleading AiReportNotFound (L1).
+    // misleading AiReportNotFound.
     const invalid_mutant_report =
         \\{
         \\  "run": { "zig_version": "0.16.0", "zentinel_version": "0.0.0" },
@@ -787,8 +787,8 @@ fn sharedTag(r: command.SharedOptionResult) std.meta.Tag(command.SharedOptionRes
 // The three AI command loops (runAiCommand / runDoctestAi / runDoctestSurvivorAi)
 // now share this one parser, so its behavior IS their shared-option behavior. Pin
 // every consumed/err/not_shared outcome and the exact error strings so a
-// regression here is caught for all three commands at once (L16).
-test "parseSharedOption parses each shared AI option with exact outcomes and error strings (L16)" {
+// regression here is caught for all three commands at once.
+test "parseSharedOption parses each shared AI option with exact outcomes and error strings" {
     const expectEqualStrings = std.testing.expectEqualStrings;
 
     // --ai-provider <mode>: consumed, sets the mode, advances i onto the value.

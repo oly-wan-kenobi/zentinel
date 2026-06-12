@@ -61,7 +61,7 @@ test "a weak doctest lets the boundary mutant survive" {
     const r = try runFile(a, base ++ "survived.md");
     // `return a >= 0;` yields a comparison_boundary mutant plus two
     // integer_literal_boundary mutants (0 -> 1, 0 -> -1) now that the Phase-2
-    // collectors run in the doctest --mutate path (M7); the weak test kills none.
+    // collectors run in the doctest --mutate path; the weak test kills none.
     try expectEqual(@as(usize, 3), r.cases[0].mutants.len);
     for (r.cases[0].mutants) |m| {
         try expectEqual(report.ResultStatus.survived, m.status);
@@ -70,7 +70,7 @@ test "a weak doctest lets the boundary mutant survive" {
     try expectEqual(@as(u64, 3), r.summary.survived);
 }
 
-test "doctest --mutate generates Phase-2 mutants for an orelse-only snippet (M7)" {
+test "doctest --mutate generates Phase-2 mutants for an orelse-only snippet" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -79,7 +79,7 @@ test "doctest --mutate generates Phase-2 mutants for an orelse-only snippet (M7)
     // `==` lives in the test body and is excluded by test-range filtering). Before
     // the fix candidatesOrParseError ran only the 4 Phase-1 collectors, so this
     // emitted ZERO mutants and a genuinely weak doc example looked fully covered
-    // -- the exact silent under-reporting the feature exists to prevent (M7).
+    // -- the exact silent under-reporting the feature exists to prevent.
     const src =
         \\# doc
         \\

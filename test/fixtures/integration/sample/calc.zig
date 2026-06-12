@@ -1,7 +1,7 @@
-//! Integration fixture (task 111). A real, std-only Zig source the shipped
+//! Integration fixture. A real, std-only Zig source the shipped
 //! binary mutates end-to-end. `add` is covered by a same-file test, so its
 //! arithmetic mutant is killed; `mul` has no test, so its mutant survives.
-//! `parsePositive` is covered only on its success path (task 117), so the
+//! `parsePositive` is covered only on its success path, so the
 //! `error_catch_unreachable` mutant on its untested error path survives -- a
 //! real survivor that the F-1 dangling-`original` defect would have hidden by
 //! misclassifying it `invalid`. This file is intentionally NOT named

@@ -35,7 +35,7 @@ test "buildFlag maps modes to the -O optimize flag" {
     try expectEqualStrings("-OReleaseSmall", safety_modes.buildFlag(.ReleaseSmall));
 }
 
-test "argvForMode appends the command-correct optimize flag, leaving Debug and custom commands untouched (H5)" {
+test "argvForMode appends the command-correct optimize flag, leaving Debug and custom commands untouched" {
     var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena_state.deinit();
     const arena = arena_state.allocator();
@@ -197,10 +197,9 @@ test "run --mode parses a valid mode and rejects an invalid one" {
 
 // The report.v1 schema file gains the optional result.mode_matrix property
 // (not in `required`, additionalProperties stays false) and docs/REPORT_FORMAT.md
-// documents it as an additive zentinel.report.v1 extension; both the schema JSON
-// validity and the documentation phrases are enforced by
-// scripts/validate_task_system.py. The serialization tests above prove the report
-// model represents mode_matrix additively while preserving result.mode.
+// documents it as an additive zentinel.report.v1 extension. The serialization
+// tests above prove the report model represents mode_matrix additively while
+// preserving result.mode.
 
 // --- Debug versus ReleaseFast fixture --------------------------------------
 

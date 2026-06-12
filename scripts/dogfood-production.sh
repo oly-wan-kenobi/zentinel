@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Initial advisory production dogfood (task 059): run zentinel over a small set
+# Initial advisory production dogfood: run zentinel over a small set
 # of selected internal modules, deterministically and advisory-only.
 #
 # Documented command:
@@ -7,8 +7,7 @@
 #
 # Uses test/fixtures/dogfood/production/config.toml (selected src modules,
 # `zig build test`). No network access and no AI. Survivors are reviewed, not a
-# failure. This is NOT the final release dogfood gate; task 085 is the final
-# gate. Reference deterministic reports are committed under
+# failure. Reference deterministic reports are committed under
 # test/fixtures/dogfood/production/run1.report.json and run2.report.json; the
 # runtime report is written under zig-out/zentinel/dogfood-production/.
 set -euo pipefail

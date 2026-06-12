@@ -163,7 +163,7 @@ test "baseline command evidence matches the documented snapshot shape" {
     try expectEqualStrings(command_snapshot, json);
 }
 
-// --- Compile error vs test failure classification (task 118, audit F-2) -----
+// --- Compile error vs test failure classification (audit F-2) -----
 //
 // On pinned Zig 0.16 a `zig test`/`zig build` invocation that fails to compile
 // emits compiler diagnostics (`<path>:<line>:<col>: error: ...`) and never runs
@@ -222,7 +222,7 @@ test "a bare non-zero exit with no compile diagnostic stays test_failure" {
     try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
 }
 
-// --- `zig build test` summary form (H4) ------------------------------------
+// --- `zig build test` summary form ------------------------------------
 //
 // The default configured command is `zig build test`, which uses the `--listen=-`
 // build protocol. Ground-truth capture on pinned Zig 0.16: the per-binary
@@ -274,7 +274,7 @@ const zig_build_test_compile_failure =
     \\Build Summary: 0/3 steps succeeded (1 failed)
 ;
 
-test "a zig build test runtime failure with a diagnostic-shaped assertion stays test_failure (H4)" {
+test "a zig build test runtime failure with a diagnostic-shaped assertion stays test_failure" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -286,7 +286,7 @@ test "a zig build test runtime failure with a diagnostic-shaped assertion stays 
     try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
 }
 
-test "a zig build test runtime panic stays test_failure, not compile_error (H4)" {
+test "a zig build test runtime panic stays test_failure, not compile_error" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -295,7 +295,7 @@ test "a zig build test runtime panic stays test_failure, not compile_error (H4)"
     try expectEqual(report.FailureKind.test_failure, cr.failure_kind);
 }
 
-test "a zig build test compile failure stays compile_error (H4)" {
+test "a zig build test compile failure stays compile_error" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -306,7 +306,7 @@ test "a zig build test compile failure stays compile_error (H4)" {
     try expectEqual(report.FailureKind.compile_error, cr.failure_kind);
 }
 
-// --- Truthful minimal environment (task 112) -------------------------------
+// --- Truthful minimal environment -------------------------------
 //
 // The report labels every command `environment_policy = minimal`; the real
 // executor (src/cli.zig) now actually passes runner.minimalEnviron, so the label
@@ -344,12 +344,12 @@ test "minimalEnviron restricts the command environment to the documented allowli
     // environment does NOT pass through, so `environment_policy = minimal` is true.
     try expect(minimal.get("ZNTL_SECRET") == null);
     // Exactly the allowlisted-present keys (PATH, HOME) plus the two forced locale
-    // keys plus the forced per-workspace local cache (ZIG_LOCAL_CACHE_DIR, L10).
+    // keys plus the forced per-workspace local cache (ZIG_LOCAL_CACHE_DIR).
     try expectEqual(@as(usize, 5), minimal.keys().len);
     try expectEqualStrings("./.zig-cache", minimal.get("ZIG_LOCAL_CACHE_DIR").?);
 }
 
-test "minimalEnviron forces a cwd-relative ZIG_LOCAL_CACHE_DIR, overriding a host absolute value (L10)" {
+test "minimalEnviron forces a cwd-relative ZIG_LOCAL_CACHE_DIR, overriding a host absolute value" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
@@ -362,7 +362,7 @@ test "minimalEnviron forces a cwd-relative ZIG_LOCAL_CACHE_DIR, overriding a hos
     // directory -- violating the documented per-worker isolation contract
     // (docs/SANDBOX_SECURITY.md, docs/PERFORMANCE_STRATEGY.md). The minimal env must
     // OVERRIDE it with the cwd-relative workspace cache so each command's own
-    // working directory (= its per-mutant workspace) owns its `.zig-cache` (L10).
+    // working directory (= its per-mutant workspace) owns its `.zig-cache`.
     try parent.put("ZIG_LOCAL_CACHE_DIR", "/tmp/shared-zig-cache");
 
     var minimal = try runner.minimalEnviron(a, &parent);

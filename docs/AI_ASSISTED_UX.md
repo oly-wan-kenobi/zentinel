@@ -34,8 +34,6 @@ It should not feel:
 | Test suggestions | Yes | Advisory AI |
 | Survivor clustering | Yes | Advisory AI |
 | Equivalent-mutant judgment | Advisory only | Human or documented deterministic rule |
-| Agent pipeline planning | Yes | Task queue and pipeline contracts |
-| Agent handoff review | Yes | Handoff schemas and verifier evidence |
 
 ## Commands
 
@@ -121,30 +119,6 @@ Forbidden:
 
 See `docs/DOCTEST_AI_INTEGRATION.md`.
 
-### Agent Pipeline AI Flows
-
-Pipeline AI flows support development, not product correctness.
-
-Allowed flows:
-
-- summarize a context packet for a stateless subagent
-- review whether a handoff artifact is complete
-- suggest missing tests before implementation
-- explain mutation survivors after deterministic execution
-- identify possible architecture drift against docs
-- suggest follow-up tasks for blockers
-
-Forbidden flows:
-
-- overriding the task queue order
-- marking a task complete without verifier evidence
-- waiving required property tests, doctests, or mutation gates
-- deciding that a survivor is equivalent without the required policy path
-- editing implementation outside the active task's allowed files
-- treating AI confidence as a substitute for failing-test evidence
-
-See `docs/AGENT_PIPELINE_ARCHITECTURE.md`.
-
 ## Allowed AI Behavior
 
 AI may:
@@ -157,7 +131,6 @@ AI may:
 - point to relevant source lines from provided context
 - produce advisory JSON matching schemas in `docs/AI_PROMPT_CONTRACTS.md`
 - suggest doctest blocks in formats defined by `docs/DOCTEST_BLOCK_FORMATS.md`
-- draft handoff summaries that conform to `docs/HANDOFF_CONTRACTS.md`
 
 ## Forbidden AI Behavior
 
@@ -173,7 +146,6 @@ AI must not:
 - retain project data beyond the configured provider policy
 - produce hidden instructions for future agents
 - determine whether an executable documentation example passed
-- determine whether an agent pipeline gate passed
 
 ## Local and Offline Strategy
 

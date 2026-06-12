@@ -1,7 +1,7 @@
 // Layer: deterministic_core
 //
-// Bounded worker pool for parallel mutant execution (docs/PERFORMANCE_STRATEGY.md,
-// tasks/050-parallel-worker-pool.md). The pool maps work-item indices [0, count)
+// Bounded worker pool for parallel mutant execution (docs/PERFORMANCE_STRATEGY.md).
+// The pool maps work-item indices [0, count)
 // to results by INDEX, never by completion order, so the worker count changes
 // only concurrency and never which result belongs to which item. The run command
 // sorts the report into canonical order afterward, so serial and parallel runs
@@ -146,7 +146,7 @@ pub fn run(jobs: usize, count: usize, ctx: *anyopaque, task: Task) void {
 /// run: `.zig-cache/zentinel/workspaces/{run_id}`. setupWorkspace materializes it
 /// (via createDirPath of a nested `workspaceRoot`), but the per-mutant cleanup
 /// only removes the content-addressed leaf, so the caller must deleteTree this
-/// base after the run or it leaks one stale `run_<x>` dir per invocation (L8).
+/// base after the run or it leaks one stale `run_<x>` dir per invocation.
 /// Every `workspaceRoot` for the run is nested under it, so a single deleteTree
 /// reclaims all leaves.
 pub fn workspaceRunBase(arena: std.mem.Allocator, run_id: []const u8) std.mem.Allocator.Error![]const u8 {
@@ -156,7 +156,7 @@ pub fn workspaceRunBase(arena: std.mem.Allocator, run_id: []const u8) std.mem.Al
 /// Dedicated, content-addressed writable workspace root for one mutant run,
 /// isolated by run id and mutant id so two concurrent workers never share a
 /// directory. The developer working tree is never mutated in place. Built as
-/// `{workspaceRunBase}/{mutant_id}` so the run-base deleteTree (L8) reclaims it.
+/// `{workspaceRunBase}/{mutant_id}` so the run-base deleteTree reclaims it.
 pub fn workspaceRoot(arena: std.mem.Allocator, run_id: []const u8, mutant_id: []const u8) std.mem.Allocator.Error![]const u8 {
     const base = try workspaceRunBase(arena, run_id);
     return std.fmt.allocPrint(arena, "{s}/{s}", .{ base, mutant_id });
@@ -167,7 +167,7 @@ pub fn workspaceRoot(arena: std.mem.Allocator, run_id: []const u8, mutant_id: []
 /// Wired into the runner: `runner.minimalEnviron` sets `ZIG_LOCAL_CACHE_DIR =
 /// cacheDirIn(".")` (cwd-relative), so each spawned command's cwd (= its per-mutant
 /// workspace) owns its `.zig-cache` independent of host env -- this is what makes
-/// the per-worker local-cache isolation contract true rather than aspirational (L10).
+/// the per-worker local-cache isolation contract true rather than aspirational.
 pub fn cacheDirIn(arena: std.mem.Allocator, root: []const u8) std.mem.Allocator.Error![]const u8 {
     return std.fmt.allocPrint(arena, "{s}/.zig-cache", .{root});
 }
@@ -199,7 +199,7 @@ fn isExcludedDescentDir(basename: []const u8) bool {
 /// a raw byte prefix), so a sibling like `zig-outputs/foo.zig` (first segment
 /// `zig-outputs`, not `zig-out`) or `.github/workflows/x.zig` is NOT excluded --
 /// the prior `startsWith` check wrongly dropped such discovered sources, which
-/// then failed the patched write and misclassified the mutant `invalid` (M2).
+/// then failed the patched write and misclassified the mutant `invalid`.
 pub fn excludedCopyPath(path: []const u8) bool {
     const first = path[0 .. std.mem.indexOfScalar(u8, path, '/') orelse path.len];
     return isExcludedDescentDir(first);
@@ -211,7 +211,7 @@ pub fn excludedCopyPath(path: []const u8) bool {
 /// workers tearing down their workspaces under `.zig-cache/zentinel/workspaces`
 /// (a transient openDir/copyFile failure there was collapsed into a spurious
 /// `invalid` mutant, hiding survivors) and avoids the O(N^2) re-walk of every
-/// other worker's copied tree (H3, L7).
+/// other worker's copied tree.
 ///
 /// A file whose path matches `copyExcluded` (a raw-prefix legacy filter owned by
 /// the caller) is still skipped, so the copied set is byte-identical to the prior
@@ -230,7 +230,7 @@ pub fn copyProjectTree(
         if (entry.kind == .directory) {
             // Descend only into non-excluded dirs: never enter the cache / build
             // output / VCS trees. This removes the sibling-teardown race and the
-            // O(N^2) re-walk that the prior full `walk()` suffered (H3, L7).
+            // O(N^2) re-walk that the prior full `walk()` suffered.
             if (!isExcludedDescentDir(entry.basename)) try walker.enter(io, entry);
             continue;
         }
@@ -256,7 +256,7 @@ pub const Workspace = struct { rel: []const u8, dir: std.Io.Dir };
 /// `{mutant_id}` dir is left behind; if that removal itself fails, `cleanup_failures`
 /// is bumped so the end-of-run warning stays truthful. Without this unwind the
 /// caller's success-only cleanup defer never fired on the failure path, silently
-/// leaking a partial dir and undercounting cleanup failures (L9).
+/// leaking a partial dir and undercounting cleanup failures.
 pub fn createMutantWorkspace(
     io: std.Io,
     arena: std.mem.Allocator,
@@ -274,7 +274,7 @@ pub fn createMutantWorkspace(
     // materialized {rel}; the caller's deleteTree/cleanup defer is armed only
     // after this returns successfully, so without this a copyProjectTree /
     // containment / writeFile / openDir error would orphan a partial {mutant_id}
-    // dir and leave it uncounted (L9). A failed removal still bumps
+    // dir and leave it uncounted. A failed removal still bumps
     // cleanup_failures so the end-of-run warning stays truthful. errdefers unwind
     // in reverse, so the fd (closed just below) is released before this deleteTree.
     errdefer root_dir.deleteTree(io, rel) catch {
@@ -287,7 +287,7 @@ pub fn createMutantWorkspace(
     if (config.pathEscapesRoot(io, dir, mutant_file)) return error.WorkspaceCreateFailed;
     // Ensure the mutated file's parent dir exists before the patched write:
     // `writeFile` does not create parents, so a missing parent would otherwise
-    // fail the write and misclassify a real mutant as `invalid` (M2).
+    // fail the write and misclassify a real mutant as `invalid`.
     if (std.fs.path.dirname(mutant_file)) |parent| try dir.createDirPath(io, parent);
     try dir.writeFile(io, .{ .sub_path = mutant_file, .data = patched });
     return .{ .rel = rel, .dir = dir };

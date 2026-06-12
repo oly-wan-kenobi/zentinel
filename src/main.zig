@@ -21,7 +21,7 @@ pub fn main(init: std.process.Init) !u8 {
     const cli_args: []const []const u8 = if (arg_slices.len > 1) arg_slices[1..] else arg_slices[0..0];
 
     // The parent environment is threaded into the CLI so the run command can
-    // restrict each test command to the documented minimal allowlist (task 112);
+    // restrict each test command to the documented minimal allowlist;
     // it is the only portable source of the parent env under the Io model.
     const code = try cli.run(arena, io, std.Io.Dir.cwd(), cli_args, stdout, stderr, init.environ_map);
 

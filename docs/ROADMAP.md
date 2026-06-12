@@ -6,7 +6,7 @@ zentinel development is phased so future agents can build independently without 
 
 | Phase | Name | Primary Outcome | Backend |
 | --- | --- | --- | --- |
-| 0 | Foundation | Repo scaffold, CLI shell, config, fixtures, test harness, doctest conventions, agent pipeline contracts. | None |
+| 0 | Foundation | Repo scaffold, CLI shell, config, fixtures, test harness, doctest conventions. | None |
 | 1 | Minimal Mutation Engine | Stable AST/source mutation with first operators, reports, and normal doctest extraction/execution. | AST |
 | 2 | Zig Semantics | Zig-native mutators and executable mutator documentation examples. | AST |
 | 3 | Performance | Parallel execution, caching, fail-fast, test impact analysis, doctest cache. | AST |
@@ -15,21 +15,19 @@ zentinel development is phased so future agents can build independently without 
 | 6 | Safety Mode Intelligence | Compare results across Zig optimization/safety modes, including mode-aware doctests. | AST + optional IR |
 | 7 | Dogfooding Expansion | zentinel mutates and doctests substantial parts of itself in CI. | Stable defaults |
 
-Phase labels describe feature areas. The sequential task queue is the authoritative dependency order, so a phase is not complete until all queued tasks that satisfy that phase's exit criteria are complete. In particular, Phase 1 exit criteria include normal doctest extraction/execution work from the queued doctest lane, even when adjacent mutation-engine tasks have already completed.
+Phase labels describe feature areas, not a strict completion order. In particular, Phase 1 exit criteria include normal doctest extraction/execution work even when adjacent mutation-engine work has already completed.
 
 ## Phase 0: Foundation
 
 Deliver:
 
-- repository structure under tracked implementation, test, script, docs, and task-system paths; `examples/` and `tools/` are added only when a later task owns concrete contents
+- repository structure under tracked implementation, test, script, and docs paths; `examples/` and `tools/` are added only when concrete contents exist
 - `zig build test` wired to project tests
 - CLI shell with `help`, `version`, `init`, `init --force`, config-aware init options, and `check`
 - config loader and validator
 - fixture layout for mutation tests
 - deterministic snapshot testing utilities
-- task and status workflow for sequential AI agents
 - doctest block conventions for future public examples
-- AI-agent pipeline architecture, role contracts, handoff contracts, context packets, verification policy, and failure recovery policy
 
 Exit criteria:
 
@@ -39,7 +37,6 @@ Exit criteria:
 - config examples are validated by tests
 - no mutation execution exists yet
 - doctest conventions are documented but not implemented
-- future agents can identify required pipeline depth and handoff artifacts without asking a human
 
 ## Phase 1: Minimal Mutation Engine
 
@@ -107,8 +104,8 @@ Exit criteria:
 - repeated runs reuse cache safely
 - worker count changes do not change report ordering or IDs
 - performance benchmarks have tracked baselines
-- dogfooding runs in CI within the concrete budget established by task `052`
-- doctest runs fit the same CI determinism and task `052` budget rules
+- dogfooding runs in CI within the concrete budgets in `docs/PERFORMANCE_STRATEGY.md`
+- doctest runs fit the same CI determinism and budget rules
 
 ## Phase 4: AI-Assisted UX
 
@@ -191,7 +188,7 @@ Exit criteria:
 
 ## Release Acceptance
 
-The minimum complete product (`docs/PROJECT_ACCEPTANCE_CRITERIA.md`) is verified by task `060` release acceptance, the final gate after the Phase 7 dogfood hardening (tasks `061`, `062`, `064`, `065`, `066`, `067`, `085`). `scripts/release_acceptance.py` and `test/release_acceptance_test.zig` check the required commands, the 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests, the final dogfood gate evidence under `artifacts/pipeline/085/dogfood/`, network-free CI, advisory-only AI, and the AST-stable-default / experimental-opt-in backend policy from archived deterministic evidence. A release blocker is recorded as a `blocked` acceptance manifest with concrete prerequisite task metadata, never by relaxing these criteria.
+Release acceptance verifies the minimum complete product: the required commands, the 12 stable mutators, text/json/jsonl/junit reports, registered schemas, public-doc doctests, archived deterministic dogfood evidence, network-free CI, advisory-only AI, and the AST-stable-default / experimental-opt-in backend policy. A release blocker is recorded explicitly, never resolved by relaxing these criteria.
 
 ## Doctest Adoption Timeline
 
@@ -206,21 +203,6 @@ Doctests become mandatory in stages:
 | `doctest --mutate` is stable | New stable mutators must pass mutation-aware doctest checks before stabilization. |
 
 See `docs/DOCTEST_ROADMAP.md`.
-
-## Agent Pipeline Roadmap
-
-The pipeline becomes stricter in stages:
-
-| Stage | Required behavior |
-| --- | --- |
-| Pipeline contracts documented | Tasks include allowed files, forbidden files, TDD instructions, verification expectations, and handoff requirements. |
-| Handoff artifacts introduced | After task `041`, each role emits canonical JSON handoff artifacts under `artifacts/pipeline/<task-id>/`, with optional Markdown companion summaries; before task `041`, equivalent handoff fields live in task status or completion summaries. |
-| Context packets introduced | Stateless subagents receive bounded packets containing task specs, relevant docs, prior artifacts, constraints, and verification expectations. |
-| Verification pipeline automated | Unit, property, doctest, mutation, dogfood, snapshot, performance, and task-system checks run in deterministic order. |
-| Mutation gate enforced | Mutation-testable tasks cannot complete until mutation results are classified and survivors are triaged. |
-| Pipeline dogfood stable | zentinel uses its own reports and doctests to validate core development tasks in CI. |
-
-See `docs/AGENT_PIPELINE_ARCHITECTURE.md`.
 
 ## Release Philosophy
 
