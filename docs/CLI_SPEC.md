@@ -61,7 +61,7 @@ Global options parse before command dispatch. Unknown options fail with exit cod
 | `--config <path>` | `check`, `run`, `list-mutants`, `doctest` | Shared parser; command-specific behavior belongs to each command. |
 | `--root <path>` | `check` and other project commands | Normalizes project-relative paths before command dispatch. |
 
-`--verbose` and `--quiet` are **not** global options: they are command-local to `zentinel run` (parsed after the subcommand, e.g. `zentinel run --verbose`) and select the text-report verbosity only. They must not change deterministic JSON fields or hide errors/required evidence. See the `run` section below.
+`--verbose` and `--quiet` are **not** global options: they are command-local to `zentinel run` (parsed after the subcommand, e.g. `zentinel run --verbose`) and select the text-report verbosity; `--quiet` additionally suppresses the per-mutant progress lines on stderr. They must not change deterministic JSON fields or hide errors/required evidence. See the `run` section below.
 
 `--format` is not a global option in v1. It is command-local where documented, such as `zentinel doctest --format <text|json>`. `doctest` output is `text` or `json` only; streaming `jsonl` and `junit` are mutation-run report formats, not doctest formats. Mutation runs use `--report <text|json|jsonl|junit>` to avoid ambiguity.
 
@@ -106,9 +106,17 @@ Doctest subcommands (advisory AI is opt-in):
 Report formats:
   run --report <text|json|jsonl|junit>
   doctest --format <text|json>
+
+Run 'zentinel <command> --help' for command-specific options.
 ```
 
 Help output is snapshot-tested and lists the doctest subcommands and report formats so `--help` agrees with the implemented CLI surface.
+
+## Per-command `--help`
+
+Every command with a documented option surface — `run`, `init`, `check`, `list-mutants`, `doctest`, `explain`, `suggest`, `review-tests`, and `version` — accepts `--help` (or `-h`) after the command name. It prints that command's usage block to stdout and exits `0`. Each block contains a one-line description, a usage line, and the command's options with one-line explanations; option lists mirror the owning parsers exactly, so a flag must exist in the parser before it is documented in help.
+
+A help request anywhere after the command name takes precedence over option parsing, so `zentinel run --report json --help` prints help instead of running and `zentinel run --help` never fails with `ZNTL_CLI_INVALID_OPTION`. Per-command help is deterministic plain text (no ANSI) and is routed before config loading, so it works without a `zentinel.toml`. An unknown command keeps its deterministic `ZNTL_CLI_UNKNOWN_COMMAND` failure even when `--help` follows it.
 
 ## `version`
 
@@ -143,11 +151,21 @@ Options:
 
 ```text
 --force
+--name <name>
 --test-command <command>
 --backend <ast>
 ```
 
 `--force` is part of the initial CLI shell. `--test-command` and `--backend <ast>` are implemented after the config parser exists so their output can be validated against `docs/CONFIG_SPEC.md`. Before task 002, task 001 may reject those two options with `ZNTL_CLI_INVALID_OPTION`.
+
+The generated `[project] name` is inferred rather than hardcoded. Precedence:
+
+1. an explicit `--name <name>`;
+2. the `.name` field of `build.zig.zon` in the project root, recognizing the forms Zig writes (`.name = .foo`, `.name = .@"foo"`, and the legacy `.name = "foo"`); the zon read is best-effort and lexical, never a dependency on zon validity;
+3. the project root directory's basename;
+4. the template default `"example"`, used only when none of the above yields a usable name.
+
+A candidate name is usable only when it can be embedded in zentinel's escape-free TOML: non-empty, no `"`, and no control bytes (the same constraint as `--test-command`). An inferred candidate that fails the constraint falls through to the next source; an explicit `--name` that fails it is rejected with exit code `2` and `ZNTL_CLI_INVALID_OPTION`, and no config is written.
 
 `init` must not enable AI or experimental backends by default.
 
@@ -172,7 +190,7 @@ Useful options:
 ```text
 --backend <ast|zir>
 --operator <name>
---json
+--format <text|json>
 ```
 
 Experimental backends require explicit opt-in.
@@ -201,7 +219,23 @@ Useful options:
 --quiet
 ```
 
-`--verbose` and `--quiet` are command-local to `run` and select the text-report verbosity (`--quiet` prints only the compact summary; `--verbose` lists every mutant). They are mutually exclusive, affect only text rendering, and never change the canonical JSON. They are parsed after the `run` subcommand (`zentinel run --verbose`), not as leading global options.
+`--verbose` and `--quiet` are command-local to `run` and select the text-report verbosity (`--quiet` prints only the compact summary; `--verbose` lists every mutant). They are mutually exclusive, affect only text rendering and stderr progress, and never change the canonical JSON. They are parsed after the `run` subcommand (`zentinel run --verbose`), not as leading global options.
+
+### Run progress
+
+`run` prints one progress line per mutant to **stderr** as each result completes:
+
+```text
+[3/12] killed arithmetic_add_sub src/foo.zig:42
+```
+
+The fields are the completion counter over the total mutant count, the mutant's primary-mode status as classified in the parallel mutant phase, its operator, and its `file:line` location. Progress lines:
+
+- go to stderr only; stdout stays reserved for the selected `--report` rendering, byte-for-byte unchanged by progress;
+- are emitted in completion order — under `--jobs > 1` the counter reflects whichever mutant finished, while report ordering stays deterministic and index-addressed;
+- are suppressed by `--quiet`;
+- are plain text: no ANSI, no spinner, no terminal-width or TTY behavior;
+- are advisory output, never part of any report, exit code, or `--output` artifact.
 
 `run` always uses the stable AST backend and does **not** accept `--backend`: `zentinel run --backend <...>` is rejected deterministically with exit code `2` and a clear message that `--backend` is `list-mutants`-only (it is not a silently ignored no-op). The experimental ZIR backend never participates in a run.
 

@@ -56,6 +56,12 @@ pub fn run(
         .explain => |inv| return runAiCommand(gpa, io, dir, inv, .explain, stdout, stderr),
         .suggest => |inv| return runAiCommand(gpa, io, dir, inv, .suggest, stdout, stderr),
         .review_tests => |inv| return runAiCommand(gpa, io, dir, inv, .review_tests, stdout, stderr),
+        .command_help => |topic| {
+            // `<command> --help`: deterministic usage block on stdout, exit 0,
+            // before any command-local option parsing (docs/CLI_SPEC.md).
+            try stdout.writeAll(zentinel.commandHelpText(topic));
+            return 0;
+        },
     }
 }
 
@@ -89,11 +95,35 @@ fn runPassthrough(
             try stderr.writeAll("error: zentinel.toml must stay within the project root\n");
             return 2;
         }
-        const text = try zentinel.initConfigText(gpa, outcome.init_test_command);
+        const name = inferProjectName(gpa, io, dir, outcome.init_name);
+        const text = try zentinel.initConfigText(gpa, outcome.init_test_command, name);
         try dir.writeFile(io, .{ .sub_path = config_path, .data = text });
     }
 
     return outcome.exit_code;
+}
+
+/// Resolve the `[project] name` for a freshly written init config: an explicit
+/// `--name` wins; otherwise the `.name` field of `build.zig.zon` in the project
+/// root; otherwise the project root directory's basename. Returns null -- which
+/// keeps the template's `"example"` -- when no candidate is embeddable in
+/// zentinel's escape-free TOML. Inference is best-effort: any read failure
+/// falls through to the next source rather than failing `init`.
+fn inferProjectName(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, explicit: ?[]const u8) ?[]const u8 {
+    if (explicit) |name| return name; // dispatchInit already validated embeddability
+    if (dir.readFileAlloc(io, "build.zig.zon", gpa, read_limit) catch null) |zon| {
+        if (zentinel.projectNameFromZon(zon)) |name| {
+            if (zentinel.projectNameEmbeddable(name)) return name;
+        }
+    }
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    // Resolve "." relative to the handle rather than realPath on the handle
+    // itself: the process-cwd handle is the AT_FDCWD pseudo-fd on POSIX, which
+    // has no path of its own.
+    const len = dir.realPathFile(io, ".", &buf) catch return null;
+    const base = std.fs.path.basename(buf[0..len]);
+    if (!zentinel.projectNameEmbeddable(base)) return null;
+    return gpa.dupe(u8, base) catch null;
 }
 
 /// Resolve the config path, writing a clear error and returning null when an
@@ -470,6 +500,34 @@ fn doctestConfigOrDefault(
     };
 }
 
+/// Per-mutant progress sink for `zentinel run` (docs/CLI_SPEC.md): one line per
+/// completed mutant on STDERR only, so stdout stays reserved for the selected
+/// `--report` rendering. Worker threads notify concurrently under `--jobs > 1`,
+/// so writes are serialized with the same spinlock discipline as
+/// worker_pool.LockedAllocator (std.Io.Writer is not thread-safe). Each line is
+/// flushed immediately -- progress that sits in a 4 KiB buffer until process
+/// exit would defeat its purpose.
+const ProgressSink = struct {
+    stderr: *std.Io.Writer,
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+
+    fn notify(ctx: *anyopaque, completed: usize, total: usize, event: zentinel.run_command.ProgressEvent) void {
+        const self: *ProgressSink = @ptrCast(@alignCast(ctx));
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+        defer self.locked.store(false, .release);
+        // Progress is advisory; a write failure must never affect the run.
+        self.stderr.print("[{d}/{d}] {s} {s} {s}:{d}\n", .{
+            completed,
+            total,
+            @tagName(event.status),
+            event.operator,
+            event.file,
+            event.line,
+        }) catch return;
+        self.stderr.flush() catch return;
+    }
+};
+
 /// `zentinel run`: load config, validate Zig, discover eligible source files
 /// from config globs, run the deterministic Phase 1 flow over real executors,
 /// then write the JSON report and a concise survivor-focused summary.
@@ -482,7 +540,7 @@ fn runRun(
     stderr: *std.Io.Writer,
     parent_env: *const std.process.Environ.Map,
 ) !u8 {
-    const options = zentinel.run_command.parseArgs(inv.args) catch |err| {
+    var options = zentinel.run_command.parseArgs(inv.args) catch |err| {
         const detail = switch (err) {
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
@@ -572,6 +630,13 @@ fn runRun(
     };
     const baseline_executor = zentinel.runner.Executor{ .ctx = &rt, .runFn = baselineRunFn };
     const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn, .runModesFn = mutantRunModesFn };
+
+    // Per-mutant progress on stderr as results complete; `--quiet` suppresses
+    // it. The sink outlives the run call and is shared by all worker threads.
+    var progress_sink = ProgressSink{ .stderr = stderr };
+    if (!options.quiet) {
+        options.progress = .{ .ctx = &progress_sink, .notifyFn = ProgressSink.notify };
+    }
 
     const outcome = zentinel.run_command.run(gpa, cfg, files.items, options, baseline_executor, mutant_executor, obs) catch |err| switch (err) {
         error.OutputOutsideRoot => {

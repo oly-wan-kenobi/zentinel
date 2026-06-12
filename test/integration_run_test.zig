@@ -593,3 +593,185 @@ test "the built binary rejects explicit config symlink escapes through the adapt
     }
     try expect(std.mem.indexOf(u8, result.stderr, "--config must stay within the project root") != null);
 }
+
+test "run --help prints the run usage block on stdout and exits 0 without a config" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    // An empty dir: per-command help must work before any config loading.
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "run", "--help" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stdout, "Usage:\n  zentinel [global options] run [options]") != null);
+    try expect(std.mem.indexOf(u8, result.stdout, "--fail-on-survivors") != null);
+    try expect(std.mem.indexOf(u8, result.stdout, "--report <text|json|jsonl|junit>") != null);
+    try expectEqual(@as(usize, 0), result.stderr.len);
+}
+
+test "a run emits per-mutant progress on stderr and keeps the stdout report intact" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try copyFixtureFile(io, tmp.dir, "calc.zig", a);
+    try copyFixtureFile(io, tmp.dir, "zentinel.toml", a);
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--config", "zentinel.toml", "run", "--report", "json" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => {
+            std.debug.print("integration: binary did not exit normally; stderr:\n{s}\n", .{result.stderr});
+            return error.BinaryCrashed;
+        },
+    }
+
+    // One progress line per fixture mutant, on stderr only, in completion order.
+    try expect(std.mem.indexOf(u8, result.stderr, "[1/3] ") != null);
+    try expect(std.mem.indexOf(u8, result.stderr, "[2/3] ") != null);
+    try expect(std.mem.indexOf(u8, result.stderr, "[3/3] ") != null);
+    // Specific outcomes, not counts: the killed add mutant's line carries its
+    // status, operator, and file:line (calc.zig:13, see the fixture).
+    try expect(std.mem.indexOf(u8, result.stderr, "killed arithmetic_add_sub calc.zig:13") != null);
+    try expect(std.mem.indexOf(u8, result.stderr, "survived arithmetic_mul_div calc.zig:17") != null);
+
+    // stdout stays the pure JSON report: progress never leaks into it.
+    try expect(std.mem.indexOf(u8, result.stdout, "[1/3]") == null);
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, result.stdout, .{});
+    try expectEqual(@as(i64, 3), parsed.object.get("summary").?.object.get("total").?.integer);
+}
+
+test "run --quiet suppresses the stderr progress lines" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    try copyFixtureFile(io, tmp.dir, "calc.zig", a);
+    try copyFixtureFile(io, tmp.dir, "zentinel.toml", a);
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "--config", "zentinel.toml", "run", "--quiet", "--report", "json" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    try expect(std.mem.indexOf(u8, result.stderr, "[1/3]") == null);
+    // The report itself is unchanged by --quiet (json rendering is canonical).
+    const parsed = try std.json.parseFromSliceLeaky(std.json.Value, a, result.stdout, .{});
+    try expectEqual(@as(i64, 3), parsed.object.get("summary").?.object.get("total").?.integer);
+}
+
+test "init infers the project name from build.zig.zon" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(io, .{ .sub_path = "build.zig.zon", .data =
+        \\.{
+        \\    .name = .inferred_project,
+        \\    .version = "0.0.1",
+        \\    .fingerprint = 0x1234,
+        \\}
+        \\
+    });
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "init" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    const toml = try tmp.dir.readFileAlloc(io, zentinel.config_default_path, a, read_limit);
+    try expect(std.mem.indexOf(u8, toml, "name = \"inferred_project\"") != null);
+    try expect(std.mem.indexOf(u8, toml, "name = \"example\"") == null);
+}
+
+test "init without build.zig.zon infers the project name from the cwd basename" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "init" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    // The cwd is the tmp dir, so the inferred name is its random basename
+    // (base64-url alphabet: always TOML-embeddable).
+    const expected = try std.fmt.allocPrint(a, "name = \"{s}\"", .{tmp.sub_path[0..]});
+    const toml = try tmp.dir.readFileAlloc(io, zentinel.config_default_path, a, read_limit);
+    try expect(std.mem.indexOf(u8, toml, expected) != null);
+}
+
+test "init --name overrides any inference in the written config" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const io = std.testing.io;
+
+    var tmp = std.testing.tmpDir(.{ .iterate = true });
+    defer tmp.cleanup();
+    try tmp.dir.writeFile(io, .{ .sub_path = "build.zig.zon", .data = ".{ .name = .ignored_zon_name }\n" });
+
+    const exe_path = try exePath(a);
+    const result = try std.process.run(a, io, .{
+        .argv = &.{ exe_path, "init", "--name", "explicit_name" },
+        .cwd = .{ .dir = tmp.dir },
+        .stdout_limit = read_limit,
+        .stderr_limit = read_limit,
+    });
+    switch (result.term) {
+        .exited => |code| try expectEqual(@as(u8, 0), code),
+        else => return error.BinaryCrashed,
+    }
+    const toml = try tmp.dir.readFileAlloc(io, zentinel.config_default_path, a, read_limit);
+    try expect(std.mem.indexOf(u8, toml, "name = \"explicit_name\"") != null);
+    try expect(std.mem.indexOf(u8, toml, "ignored_zon_name") == null);
+}

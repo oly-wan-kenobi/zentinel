@@ -340,7 +340,7 @@ test "config-aware init output parses with the custom test command" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
-    const text = try zentinel.initConfigText(a, "zig build test -Dfoo");
+    const text = try zentinel.initConfigText(a, "zig build test -Dfoo", null);
     var diag: config.Diagnostic = .{};
     const cfg = try load(a, text, &diag);
     try expectEqual(@as(usize, 1), cfg.test_commands.len);
@@ -350,7 +350,7 @@ test "config-aware init output parses with the custom test command" {
 test "default init output equals the static template" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
-    const text = try zentinel.initConfigText(arena.allocator(), null);
+    const text = try zentinel.initConfigText(arena.allocator(), null, null);
     try expectEqualStrings(zentinel.default_config, text);
 }
 

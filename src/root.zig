@@ -161,19 +161,94 @@ pub fn testCommandEmbeddable(value: []const u8) bool {
     return true;
 }
 
-/// Render the deterministic default `zentinel.toml`, optionally substituting the
-/// baseline test command for config-aware `init --test-command`. Precondition:
-/// `dispatchInit` has rejected any value that is not `testCommandEmbeddable`, so
-/// the raw substitution stays a single quoted array element and is injection-safe
-///.
-pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8) ![]const u8 {
-    const cmd = test_command orelse return default_config;
-    const needle = "commands = [\"zig build test\"]";
-    const replacement = try std.fmt.allocPrint(arena, "commands = [\"{s}\"]", .{cmd});
-    const size = std.mem.replacementSize(u8, default_config, needle, replacement);
+/// Whether a project name can be embedded as the `[project] name` value in
+/// zentinel's escape-free TOML. Same byte constraint as `testCommandEmbeddable`
+/// (no `"`, no control bytes), plus non-empty: an empty inferred name would
+/// write a useless `name = ""`.
+pub fn projectNameEmbeddable(name: []const u8) bool {
+    return name.len > 0 and testCommandEmbeddable(name);
+}
+
+fn isZonNameChar(c: u8) bool {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_';
+}
+
+fn skipZonWhitespace(zon: []const u8, start: usize) usize {
+    var j = start;
+    while (j < zon.len) : (j += 1) {
+        switch (zon[j]) {
+            ' ', '\t', '\r', '\n' => {},
+            else => return j,
+        }
+    }
+    return j;
+}
+
+/// The contents of a zon double-quoted string starting at `start` (just past the
+/// opening quote). Values containing escapes are rejected (a verbatim slice
+/// would mis-decode them), as is an empty string.
+fn zonQuotedValue(zon: []const u8, start: usize) ?[]const u8 {
+    const end = std.mem.indexOfScalarPos(u8, zon, start, '"') orelse return null;
+    if (end == start) return null;
+    const value = zon[start..end];
+    if (std.mem.indexOfScalar(u8, value, '\\') != null) return null;
+    return value;
+}
+
+/// Best-effort extraction of the `.name` field value from `build.zig.zon`
+/// bytes, used by `init` to infer the generated `[project] name`. Recognizes
+/// the forms Zig writes: `.name = .foo`, `.name = .@"foo"`, and the legacy
+/// `.name = "foo"`. Purely lexical by design -- inference is a default, never a
+/// dependency on zon validity -- and returns a slice into `zon` or null.
+pub fn projectNameFromZon(zon: []const u8) ?[]const u8 {
+    var search: usize = 0;
+    while (std.mem.indexOfPos(u8, zon, search, ".name")) |idx| {
+        search = idx + ".name".len;
+        var j = search;
+        // `.names`/`.name_x` are different fields, not a match.
+        if (j < zon.len and isZonNameChar(zon[j])) continue;
+        j = skipZonWhitespace(zon, j);
+        if (j >= zon.len or zon[j] != '=') continue;
+        j = skipZonWhitespace(zon, j + 1);
+        if (j >= zon.len) return null;
+        if (zon[j] == '"') return zonQuotedValue(zon, j + 1);
+        if (zon[j] != '.') continue;
+        j += 1;
+        if (j + 1 < zon.len and zon[j] == '@' and zon[j + 1] == '"') return zonQuotedValue(zon, j + 2);
+        const ident_start = j;
+        while (j < zon.len and isZonNameChar(zon[j])) j += 1;
+        if (j > ident_start) return zon[ident_start..j];
+    }
+    return null;
+}
+
+/// Replace exactly the template needle within `haystack` (allocating copy).
+fn replaceAlloc(arena: std.mem.Allocator, haystack: []const u8, needle: []const u8, replacement: []const u8) ![]const u8 {
+    const size = std.mem.replacementSize(u8, haystack, needle, replacement);
     const out = try arena.alloc(u8, size);
-    _ = std.mem.replace(u8, default_config, needle, replacement, out);
+    _ = std.mem.replace(u8, haystack, needle, replacement, out);
     return out;
+}
+
+/// Render the deterministic default `zentinel.toml`, optionally substituting the
+/// baseline test command for config-aware `init --test-command` and the
+/// `[project] name` for `init --name` / adapter-side inference. Precondition:
+/// `dispatchInit` (or the adapter's `projectNameEmbeddable` gate) has rejected
+/// any value the escape-free TOML reader cannot embed, so the raw substitutions
+/// stay single quoted values and are injection-safe.
+pub fn initConfigText(arena: std.mem.Allocator, test_command: ?[]const u8, name_override: ?[]const u8) ![]const u8 {
+    var text: []const u8 = default_config;
+    if (name_override) |name| {
+        if (!std.mem.eql(u8, name, "example")) {
+            const replacement = try std.fmt.allocPrint(arena, "name = \"{s}\"", .{name});
+            text = try replaceAlloc(arena, text, "name = \"example\"", replacement);
+        }
+    }
+    if (test_command) |cmd| {
+        const replacement = try std.fmt.allocPrint(arena, "commands = [\"{s}\"]", .{cmd});
+        text = try replaceAlloc(arena, text, "commands = [\"zig build test\"]", replacement);
+    }
+    return text;
 }
 
 /// Deterministic, snapshot-tested `--help` output. Mirrors test/snapshots/cli_help.txt.
@@ -206,7 +281,170 @@ pub const help_text =
     \\  run --report <text|json|jsonl|junit>
     \\  doctest --format <text|json>
     \\
+    \\Run 'zentinel <command> --help' for command-specific options.
+    \\
 ;
+
+/// Commands that own a per-command `--help` usage block (docs/CLI_SPEC.md).
+/// `route` returns `.command_help` for `<command> --help|-h`; the adapter
+/// prints `commandHelpText` to stdout and exits 0.
+pub const HelpTopic = enum {
+    run,
+    init,
+    check,
+    list_mutants,
+    doctest,
+    explain,
+    suggest,
+    review_tests,
+    version,
+};
+
+/// Shared trailing block for commands that consume the leading global options.
+/// Starts with an empty line because the preceding option list ends without a
+/// trailing newline, so the concatenation yields one separating blank line.
+const global_options_help =
+    \\
+    \\
+    \\Global options (before the command): --config <path>, --root <path>, --no-color
+    \\
+;
+
+/// Shared options block for the advisory AI commands (ai.command.SharedOptions).
+/// Leading empty line for the same concatenation reason as global_options_help.
+const ai_shared_options_help =
+    \\
+    \\Options:
+    \\  --ai-provider <disabled|stub|local|remote>
+    \\                         explicit advisory AI provider opt-in for this invocation
+    \\  --input-report <path>  mutation report to read (default zig-out/zentinel/report.json)
+    \\  --format <text|json>   select the response rendering
+;
+
+pub const run_help_text =
+    \\zentinel run - run mutation testing
+    \\
+    \\Usage:
+    \\  zentinel [global options] run [options]
+    \\
+    \\Options:
+    \\  --operator <name>      run only one documented operator's mutants
+    \\  --mutant <id>          run one durable mutant id
+    \\  --mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>
+    \\                         override configured zig.modes for this invocation
+    \\  --jobs <n>             worker count for parallel mutant execution
+    \\  --fail-on-survivors    exit 1 when survivors are present
+    \\  --report <text|json|jsonl|junit>
+    \\                         select the stdout report rendering
+    \\  --output <path>        write the canonical JSON report to this path
+    \\  --no-cache             disable zentinel result-cache reads and writes
+    \\  --verbose              list every mutant in the text report
+    \\  --quiet                print only the compact summary and suppress progress
+++ global_options_help;
+
+pub const init_help_text =
+    \\zentinel init - create zentinel.toml in the project root
+    \\
+    \\Usage:
+    \\  zentinel init [options]
+    \\
+    \\Options:
+    \\  --force                   overwrite an existing zentinel.toml
+    \\  --name <name>             project name (default: inferred from build.zig.zon or the directory name)
+    \\  --test-command <command>  baseline test command written to [test] commands
+    \\  --backend <ast>           mutation backend (init writes only the stable ast backend)
+    \\
+;
+
+pub const check_help_text =
+    \\zentinel check - validate config and environment
+    \\
+    \\Usage:
+    \\  zentinel [global options] check
+    \\
+    \\Options:
+    \\  (none; check uses only the global options)
+++ global_options_help;
+
+pub const list_mutants_help_text =
+    \\zentinel list-mutants - list generated mutants without running tests
+    \\
+    \\Usage:
+    \\  zentinel [global options] list-mutants [options]
+    \\
+    \\Options:
+    \\  --operator <name>     list only one documented operator's candidates
+    \\  --format <text|json>  select the listing rendering
+    \\  --backend <ast|zir>   candidate backend (zir is experimental and opt-in)
+++ global_options_help;
+
+pub const doctest_help_text =
+    \\zentinel doctest - validate executable documentation
+    \\
+    \\Usage:
+    \\  zentinel [global options] doctest [options]
+    \\
+    \\Options:
+    \\  --file <path>         documentation file (default docs/CLI_SPEC.md)
+    \\  --case <case-ref>     run one extracted doctest case
+    \\  --format <text|json>  select the report rendering
+    \\  --mutate              run the mutation-aware doctest pass (requires --file)
+    \\  --no-color            accepted for CLI uniformity; doctest output has no color
+    \\
+    \\Doctest AI subcommands are listed by 'zentinel --help'.
+++ global_options_help;
+
+pub const explain_help_text =
+    \\zentinel explain - explain one mutant using advisory AI
+    \\
+    \\Usage:
+    \\  zentinel [global options] explain <mutant-ref> [options]
+    \\
+++ ai_shared_options_help ++ global_options_help;
+
+pub const suggest_help_text =
+    \\zentinel suggest - suggest tests for one mutant using advisory AI
+    \\
+    \\Usage:
+    \\  zentinel [global options] suggest <mutant-ref> [options]
+    \\
+++ ai_shared_options_help ++ global_options_help;
+
+pub const review_tests_help_text =
+    \\zentinel review-tests - review survivors using advisory AI
+    \\
+    \\Usage:
+    \\  zentinel [global options] review-tests [options]
+    \\
+++ ai_shared_options_help ++ global_options_help;
+
+pub const version_help_text =
+    \\zentinel version - print version information
+    \\
+    \\Usage:
+    \\  zentinel version
+    \\
+    \\Options:
+    \\  (none)
+    \\
+;
+
+/// Deterministic per-command help block for `<command> --help` (plain text, no
+/// ANSI). Flag lists mirror the owning parsers exactly; a flag must exist in
+/// the parser before it is documented here (docs/CLI_SPEC.md).
+pub fn commandHelpText(topic: HelpTopic) []const u8 {
+    return switch (topic) {
+        .run => run_help_text,
+        .init => init_help_text,
+        .check => check_help_text,
+        .list_mutants => list_mutants_help_text,
+        .doctest => doctest_help_text,
+        .explain => explain_help_text,
+        .suggest => suggest_help_text,
+        .review_tests => review_tests_help_text,
+        .version => version_help_text,
+    };
+}
 
 /// Deterministic `version` output: zentinel version plus pinned Zig policy label.
 pub const version_text = "zentinel " ++ version ++ "\nzig " ++ supported_zig_version ++ "\n";
@@ -295,6 +533,9 @@ pub const Outcome = struct {
     write_config: bool = false,
     /// Baseline test command for config-aware `init --test-command`; null uses the default template.
     init_test_command: ?[]const u8 = null,
+    /// Explicit `init --name` project name; null lets the adapter infer one
+    /// (build.zig.zon `.name`, then the project-root basename, then "example").
+    init_name: ?[]const u8 = null,
 };
 
 fn eq(a: []const u8, b: []const u8) bool {
@@ -348,11 +589,19 @@ pub fn dispatch(args: []const []const u8, config_exists: bool) Outcome {
 fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
     var force = false;
     var test_command: ?[]const u8 = null;
+    var name: ?[]const u8 = null;
     var i: usize = 0;
     while (i < rest.len) : (i += 1) {
         const arg = rest[i];
         if (eq(arg, "--force")) {
             force = true;
+        } else if (eq(arg, "--name")) {
+            i += 1;
+            if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--name" };
+            // Same escape-free-TOML embeddability gate as --test-command: a `"`
+            // or control byte would inject structure or malform the file.
+            if (!projectNameEmbeddable(rest[i])) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--name" };
+            name = rest[i];
         } else if (eq(arg, "--test-command")) {
             i += 1;
             if (i >= rest.len) return .{ .exit_code = 2, .error_code = .cli_invalid_option, .detail = "--test-command" };
@@ -379,7 +628,7 @@ fn dispatchInit(rest: []const []const u8, config_exists: bool) Outcome {
         };
     }
 
-    return .{ .stdout = "created zentinel.toml\n", .write_config = true, .init_test_command = test_command };
+    return .{ .stdout = "created zentinel.toml\n", .write_config = true, .init_test_command = test_command, .init_name = name };
 }
 
 /// Default config file path when `--config` is not given.
@@ -451,7 +700,36 @@ pub const Route = union(enum) {
     explain: RunInvocation,
     suggest: RunInvocation,
     review_tests: RunInvocation,
+    /// `<command> --help|-h`: the adapter prints `commandHelpText(topic)` to
+    /// stdout and exits 0 without parsing the command's other options.
+    command_help: HelpTopic,
 };
+
+/// Map a command token to its per-command help topic; null for commands that
+/// have no documented option surface (and for unknown commands, which keep
+/// their deterministic ZNTL_CLI_UNKNOWN_COMMAND failure even with `--help`).
+fn helpTopicForCommand(cmd: []const u8) ?HelpTopic {
+    if (eq(cmd, "run")) return .run;
+    if (eq(cmd, "init")) return .init;
+    if (eq(cmd, "check")) return .check;
+    if (eq(cmd, "list-mutants")) return .list_mutants;
+    if (eq(cmd, "doctest")) return .doctest;
+    if (eq(cmd, "explain")) return .explain;
+    if (eq(cmd, "suggest")) return .suggest;
+    if (eq(cmd, "review-tests")) return .review_tests;
+    if (eq(cmd, "version")) return .version;
+    return null;
+}
+
+/// Whether the argv tail after the command requests per-command help. A help
+/// request anywhere after the command name wins over option parsing, so
+/// `zentinel run --report json --help` prints help instead of running.
+fn containsHelpOption(rest: []const []const u8) bool {
+    for (rest) |arg| {
+        if (eq(arg, "--help") or eq(arg, "-h")) return true;
+    }
+    return false;
+}
 
 /// Decide how to handle argv. `check` and `version` need environment inputs
 /// (config bytes, discovered Zig) that only the adapter can gather, so routing
@@ -488,6 +766,11 @@ pub fn route(args: []const []const u8) Route {
     if (i >= args.len) return .passthrough; // no command -> dispatch prints help
 
     const cmd = args[i];
+    // Per-command help is routed before any command-local parsing so
+    // `<command> --help` can never fail with ZNTL_CLI_INVALID_OPTION.
+    if (helpTopicForCommand(cmd)) |topic| {
+        if (containsHelpOption(args[i + 1 ..])) return .{ .command_help = topic };
+    }
     if (eq(cmd, "check")) return .{ .check = globals };
     if (eq(cmd, "run")) return .{ .run = .{ .globals = globals, .args = args[i + 1 ..] } };
     if (eq(cmd, "list-mutants")) return .{ .list_mutants = .{ .globals = globals, .args = args[i + 1 ..] } };

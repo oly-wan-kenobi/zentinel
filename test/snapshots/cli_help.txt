@@ -25,3 +25,5 @@ Doctest subcommands (advisory AI is opt-in):
 Report formats:
   run --report <text|json|jsonl|junit>
   doctest --format <text|json>
+
+Run 'zentinel <command> --help' for command-specific options.

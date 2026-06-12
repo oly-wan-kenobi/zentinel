@@ -31,6 +31,24 @@ const safety_modes = @import("safety_modes.zig");
 
 pub const ReportFormat = enum { text, json, jsonl, junit };
 
+/// One completed mutant's progress facts (docs/CLI_SPEC.md `run` progress).
+pub const ProgressEvent = struct {
+    status: report.ResultStatus,
+    operator: []const u8,
+    file: []const u8,
+    line: u32,
+};
+
+/// Adapter-injected per-mutant progress sink. Called once per mutant as its
+/// Phase B result completes -- in completion order, possibly concurrently under
+/// `--jobs > 1` -- so the callback must be thread-safe. Progress is advisory
+/// stderr output only: it never changes report data, ordering, or exit codes
+/// (results stay index-addressed and the report is sorted in Phase C).
+pub const Progress = struct {
+    ctx: *anyopaque,
+    notifyFn: *const fn (ctx: *anyopaque, completed: usize, total: usize, event: ProgressEvent) void,
+};
+
 pub const Options = struct {
     operator_filter: ?[]const u8 = null,
     mutant_filter: ?[]const u8 = null,
@@ -53,6 +71,9 @@ pub const Options = struct {
     /// When set it replaces the configured `zig.modes` for this run and
     /// yields a single-mode report; `null` uses the configured modes.
     mode_override: ?report.Mode = null,
+    /// Adapter-injected per-mutant progress sink (stderr in the binary). Never
+    /// set by `parseArgs`; the adapter leaves it null under `--quiet`.
+    progress: ?Progress = null,
 };
 
 /// Observation metadata supplied by the caller. Normalized in snapshots/tests.
@@ -144,16 +165,32 @@ const ParallelCtx = struct {
     results: []mutant_runner.MutationResult,
     mutant_executor: MutantRunner,
     mode: report.Mode,
+    /// Optional progress sink plus the shared completion counter feeding it.
+    /// The counter is the only cross-worker progress state; each notify call
+    /// gets a unique completed value in [1, jobs.len].
+    progress: ?Progress = null,
+    completed: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
 };
 
 /// Worker-pool task: run one mutant and store its result at the matching index.
 /// The injected runner isolates each mutant in its own content-addressed
 /// workspace, so concurrent workers never share a workspace, cache, or output.
+/// Progress (when injected) is emitted in completion order; the report's
+/// determinism is untouched because results stay index-addressed.
 fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
     _ = slot;
     const pc: *ParallelCtx = @ptrCast(@alignCast(ctx));
     const job = pc.jobs[index];
     pc.results[index] = pc.mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, pc.mode);
+    if (pc.progress) |p| {
+        const done = pc.completed.fetchAdd(1, .monotonic) + 1;
+        p.notifyFn(p.ctx, done, pc.jobs.len, .{
+            .status = pc.results[index].status,
+            .operator = job.candidate.operator,
+            .file = job.candidate.file,
+            .line = job.candidate.span.line_start,
+        });
+    }
 }
 
 /// Shared state for the parallel Phase B.5 reverification. Each worker writes only
@@ -406,7 +443,7 @@ pub fn run(
     // is not thread-safe). Each worker writes a disjoint results slot.
     const results = try arena.alloc(mutant_runner.MutationResult, jobs.len);
     const requested_jobs: usize = if (options.jobs) |j| j else jobsFromConfig(cfg.run_jobs);
-    var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode };
+    var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode, .progress = options.progress };
     worker_pool.run(requested_jobs, jobs.len, &pctx, runOneMutant);
 
     // Phase B.5 (serial): re-verify narrowed-selection survivors against the full

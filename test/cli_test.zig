@@ -243,3 +243,176 @@ test "CLI cleanup warning emission writes only when cleanup failures occur" {
     defer std.testing.allocator.free(text);
     try std.testing.expectEqualStrings(text, out.writer.buffer[0..out.writer.end]);
 }
+
+// --- Per-command --help (docs/CLI_SPEC.md "Per-command `--help`") -----------
+
+test "per-command --help and -h route every option-taking command to its help topic" {
+    const Case = struct { cmd: []const u8, topic: zentinel.HelpTopic };
+    const cases = [_]Case{
+        .{ .cmd = "run", .topic = .run },
+        .{ .cmd = "init", .topic = .init },
+        .{ .cmd = "check", .topic = .check },
+        .{ .cmd = "list-mutants", .topic = .list_mutants },
+        .{ .cmd = "doctest", .topic = .doctest },
+        .{ .cmd = "explain", .topic = .explain },
+        .{ .cmd = "suggest", .topic = .suggest },
+        .{ .cmd = "review-tests", .topic = .review_tests },
+        .{ .cmd = "version", .topic = .version },
+    };
+    for (cases) |case| {
+        const long = zentinel.route(&[_][]const u8{ case.cmd, "--help" });
+        try std.testing.expect(std.meta.activeTag(long) == .command_help);
+        try std.testing.expectEqual(case.topic, long.command_help);
+        const short = zentinel.route(&[_][]const u8{ case.cmd, "-h" });
+        try std.testing.expect(std.meta.activeTag(short) == .command_help);
+        try std.testing.expectEqual(case.topic, short.command_help);
+    }
+}
+
+test "every command help block is a deterministic plain usage block" {
+    for (std.enums.values(zentinel.HelpTopic)) |topic| {
+        const h = zentinel.commandHelpText(topic);
+        try std.testing.expect(std.mem.startsWith(u8, h, "zentinel "));
+        try std.testing.expect(std.mem.indexOf(u8, h, "Usage:\n  zentinel") != null);
+        try std.testing.expect(std.mem.indexOf(u8, h, "Options:") != null);
+        // Plain text only: no ANSI escapes in snapshot-stable help (S-303).
+        try std.testing.expect(std.mem.indexOfScalar(u8, h, 0x1b) == null);
+        try std.testing.expect(std.mem.endsWith(u8, h, "\n"));
+    }
+}
+
+test "run --help documents the parser's run options and not the rejected --backend" {
+    const h = zentinel.commandHelpText(.run);
+    for ([_][]const u8{
+        "--operator <name>",
+        "--mutant <id>",
+        "--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>",
+        "--jobs <n>",
+        "--fail-on-survivors",
+        "--report <text|json|jsonl|junit>",
+        "--output <path>",
+        "--no-cache",
+        "--verbose",
+        "--quiet",
+    }) |flag| {
+        try std.testing.expect(std.mem.indexOf(u8, h, flag) != null);
+    }
+    // run rejects --backend (list-mutants-only), so help must not advertise it.
+    try std.testing.expect(std.mem.indexOf(u8, h, "--backend") == null);
+}
+
+test "init, list-mutants, doctest, and AI help blocks list their owned options" {
+    const init_h = zentinel.commandHelpText(.init);
+    for ([_][]const u8{ "--force", "--name <name>", "--test-command <command>", "--backend <ast>" }) |flag| {
+        try std.testing.expect(std.mem.indexOf(u8, init_h, flag) != null);
+    }
+    const lm = zentinel.commandHelpText(.list_mutants);
+    for ([_][]const u8{ "--operator <name>", "--format <text|json>", "--backend <ast|zir>" }) |flag| {
+        try std.testing.expect(std.mem.indexOf(u8, lm, flag) != null);
+    }
+    const dt = zentinel.commandHelpText(.doctest);
+    for ([_][]const u8{ "--file <path>", "--case <case-ref>", "--format <text|json>", "--mutate" }) |flag| {
+        try std.testing.expect(std.mem.indexOf(u8, dt, flag) != null);
+    }
+    for ([_]zentinel.HelpTopic{ .explain, .suggest, .review_tests }) |topic| {
+        const h = zentinel.commandHelpText(topic);
+        for ([_][]const u8{ "--ai-provider <disabled|stub|local|remote>", "--input-report <path>", "--format <text|json>" }) |flag| {
+            try std.testing.expect(std.mem.indexOf(u8, h, flag) != null);
+        }
+    }
+}
+
+test "a help request after other run options still wins over option parsing" {
+    const r = zentinel.route(&[_][]const u8{ "run", "--report", "json", "--help" });
+    try std.testing.expect(std.meta.activeTag(r) == .command_help);
+    try std.testing.expectEqual(zentinel.HelpTopic.run, r.command_help);
+    // Without a help token the same argv still routes to the run command.
+    const no_help = zentinel.route(&[_][]const u8{ "run", "--report", "json" });
+    try std.testing.expect(std.meta.activeTag(no_help) == .run);
+}
+
+test "an unknown command with --help keeps its deterministic unknown-command failure" {
+    try std.testing.expect(std.meta.activeTag(zentinel.route(&[_][]const u8{ "frobnicate", "--help" })) == .passthrough);
+    const out = dispatch(&[_][]const u8{ "frobnicate", "--help" }, false);
+    try std.testing.expectEqual(@as(u8, 2), out.exit_code);
+    try std.testing.expect(out.error_code == .cli_unknown_command);
+}
+
+test "top-level help points at per-command help" {
+    try std.testing.expect(std.mem.indexOf(
+        u8,
+        zentinel.help_text,
+        "Run 'zentinel <command> --help' for command-specific options.",
+    ) != null);
+}
+
+// --- init project-name inference (docs/CLI_SPEC.md `init`) ------------------
+
+test "init --name overrides the generated project name" {
+    const out = dispatch(&[_][]const u8{ "init", "--name", "myproj" }, false);
+    try std.testing.expectEqual(@as(u8, 0), out.exit_code);
+    try std.testing.expect(out.write_config);
+    try std.testing.expectEqualStrings("myproj", out.init_name.?);
+}
+
+test "init --name rejects values the escape-free TOML cannot embed" {
+    // A `"` would close the TOML basic string and inject structure.
+    const quote = dispatch(&[_][]const u8{ "init", "--name", "a\" b" }, false);
+    try std.testing.expectEqual(@as(u8, 2), quote.exit_code);
+    try std.testing.expect(quote.error_code == .cli_invalid_option);
+    try std.testing.expect(!quote.write_config);
+    // An empty name would write a useless `name = ""`.
+    const empty = dispatch(&[_][]const u8{ "init", "--name", "" }, false);
+    try std.testing.expectEqual(@as(u8, 2), empty.exit_code);
+    try std.testing.expect(!empty.write_config);
+    // A missing value is the usual ZNTL_CLI_INVALID_OPTION usage error.
+    const missing = dispatch(&[_][]const u8{ "init", "--name" }, false);
+    try std.testing.expectEqual(@as(u8, 2), missing.exit_code);
+    try std.testing.expect(missing.error_code == .cli_invalid_option);
+}
+
+test "project name inference recognizes the three build.zig.zon name forms" {
+    const enum_form = ".{\n    .name = .zentinel,\n    .version = \"0.0.0\",\n}\n";
+    try std.testing.expectEqualStrings("zentinel", zentinel.projectNameFromZon(enum_form).?);
+    const quoted_enum_form = ".{ .name = .@\"my-proj\", .version = \"0.0.0\" }";
+    try std.testing.expectEqualStrings("my-proj", zentinel.projectNameFromZon(quoted_enum_form).?);
+    const legacy_string_form = ".{ .name = \"legacy\", .version = \"0.0.0\" }";
+    try std.testing.expectEqualStrings("legacy", zentinel.projectNameFromZon(legacy_string_form).?);
+}
+
+test "project name inference returns null for missing or different fields" {
+    try std.testing.expect(zentinel.projectNameFromZon(".{ .version = \"0.0.0\" }") == null);
+    // `.names` is a different field, not a prefix match.
+    try std.testing.expect(zentinel.projectNameFromZon(".{ .names = .{} }") == null);
+    try std.testing.expect(zentinel.projectNameFromZon("") == null);
+    // An escaped string value cannot be sliced verbatim and is declined.
+    try std.testing.expect(zentinel.projectNameFromZon(".{ .name = \"a\\\"b\" }") == null);
+}
+
+test "projectNameEmbeddable accepts ordinary names and rejects unembeddable bytes" {
+    try std.testing.expect(zentinel.projectNameEmbeddable("my-proj"));
+    try std.testing.expect(zentinel.projectNameEmbeddable("proj_01"));
+    try std.testing.expect(!zentinel.projectNameEmbeddable(""));
+    try std.testing.expect(!zentinel.projectNameEmbeddable("a\"b"));
+    try std.testing.expect(!zentinel.projectNameEmbeddable("a\nb"));
+}
+
+test "initConfigText substitutes the inferred project name and nothing else" {
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const a = arena_state.allocator();
+
+    const text = try zentinel.initConfigText(a, null, "myproj");
+    try std.testing.expect(std.mem.indexOf(u8, text, "name = \"myproj\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "name = \"example\"") == null);
+    try std.testing.expect(std.mem.indexOf(u8, text, "commands = [\"zig build test\"]") != null);
+
+    // Null and the template's own default keep the config byte-identical.
+    try std.testing.expectEqualStrings(zentinel.default_config, try zentinel.initConfigText(a, null, null));
+    try std.testing.expectEqualStrings(zentinel.default_config, try zentinel.initConfigText(a, null, "example"));
+
+    // Name and test-command substitutions compose.
+    const both = try zentinel.initConfigText(a, "zig build test -Dfoo", "myproj");
+    try std.testing.expect(std.mem.indexOf(u8, both, "name = \"myproj\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, both, "commands = [\"zig build test -Dfoo\"]") != null);
+}

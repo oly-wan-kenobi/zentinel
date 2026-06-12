@@ -922,3 +922,112 @@ test "joinCommands is injective: distinct command vectors never collide into one
     const empty1 = try rc.joinCommands(a, &.{""});
     try expect(!std.mem.eql(u8, none, empty1));
 }
+
+// --- Per-mutant progress (docs/CLI_SPEC.md "Run progress") ------------------
+
+const ProgressRecord = struct {
+    completed: usize,
+    total: usize,
+    status: report.ResultStatus,
+    operator: []const u8,
+    file: []const u8,
+    line: u32,
+};
+
+/// Collecting progress sink for tests. Single-threaded here (run.jobs = 1), so
+/// the arena append needs no locking.
+const ProgressCollector = struct {
+    arena: std.mem.Allocator,
+    events: std.ArrayList(ProgressRecord) = .empty,
+
+    fn notify(ctx: *anyopaque, completed: usize, total: usize, ev: rc.ProgressEvent) void {
+        const self: *ProgressCollector = @ptrCast(@alignCast(ctx));
+        self.events.append(self.arena, .{
+            .completed = completed,
+            .total = total,
+            .status = ev.status,
+            .operator = ev.operator,
+            .file = ev.file,
+            .line = ev.line,
+        }) catch @panic("out of memory");
+    }
+};
+
+test "run notifies the progress sink once per mutant with completion counts and concrete facts" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const cfg = loadCfg(a, cfg_toml);
+    // One add and one mul mutation site, both on line 2.
+    const src = "pub fn calc(a: i32, b: i32) i32 {\n    return (a + b) * 2;\n}\n";
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = src }};
+
+    var collector = ProgressCollector{ .arena = a };
+    var options = rc.Options{};
+    options.progress = .{ .ctx = &collector, .notifyFn = ProgressCollector.notify };
+
+    const out = try rc.run(a, cfg, &files, options, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(@as(u64, 2), out.report.summary.total);
+
+    // Exactly one event per mutant; serial completion counts are 1..N in order.
+    try expectEqual(@as(usize, 2), collector.events.items.len);
+    try expectEqual(@as(usize, 1), collector.events.items[0].completed);
+    try expectEqual(@as(usize, 2), collector.events.items[1].completed);
+
+    var saw_add_sub = false;
+    var saw_mul_div = false;
+    for (collector.events.items) |ev| {
+        try expectEqual(@as(usize, 2), ev.total);
+        // The passing mock test command means each mutant survives; the event
+        // carries that concrete Phase B status, not a placeholder.
+        try expectEqual(report.ResultStatus.survived, ev.status);
+        try expectEqualStrings("src/calc.zig", ev.file);
+        try expectEqual(@as(u32, 2), ev.line);
+        if (std.mem.eql(u8, ev.operator, "arithmetic_add_sub")) {
+            try expect(!saw_add_sub);
+            saw_add_sub = true;
+        } else if (std.mem.eql(u8, ev.operator, "arithmetic_mul_div")) {
+            try expect(!saw_mul_div);
+            saw_mul_div = true;
+        } else {
+            return error.TestUnexpectedResult;
+        }
+    }
+    try expect(saw_add_sub);
+    try expect(saw_mul_div);
+}
+
+test "a baseline failure emits no progress events because no mutant runs" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = failure(), .mutant_outcome = pass() };
+    const cfg = loadCfg(a, cfg_toml);
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    var collector = ProgressCollector{ .arena = a };
+    var options = rc.Options{};
+    options.progress = .{ .ctx = &collector, .notifyFn = ProgressCollector.notify };
+
+    const out = try rc.run(a, cfg, &files, options, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(@as(u8, 3), out.exit_code);
+    try expectEqual(@as(usize, 0), collector.events.items.len);
+}
+
+test "a null progress sink (the --quiet wiring) is simply never called" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
+    const cfg = loadCfg(a, cfg_toml);
+    const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = calc_src }};
+
+    // Options default to progress == null; the run must complete identically.
+    const out = try rc.run(a, cfg, &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
+    try expectEqual(@as(u8, 0), out.exit_code);
+    try expectEqual(@as(u64, 1), out.report.summary.total);
+}
