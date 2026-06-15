@@ -1,9 +1,0 @@
-{
-  "schema_version": "zentinel.pipeline.property_report.v1",
-  "task_id": "044",
-  "scope": "property_required",
-  "task_class": "high_risk",
-  "deterministic": true,
-  "status": "passed",
-  "properties": []
-}

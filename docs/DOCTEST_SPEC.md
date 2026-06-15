@@ -2,7 +2,7 @@
 
 Doctests are executable documentation cases extracted from Markdown fenced code blocks. They verify that documented examples compile, run, fail, or match expected output exactly as specified.
 
-When doctests are required in the pipeline, and how their evidence is handed off and feeds the verifier, are defined in `docs/DOCTEST_POLICY.md`; the supported block formats are in `docs/DOCTEST_BLOCK_FORMATS.md`.
+When doctests are required, and how their evidence is recorded, are defined in `docs/DOCTEST_POLICY.md`; the supported block formats are in `docs/DOCTEST_BLOCK_FORMATS.md`.
 
 ## Command Surface
 

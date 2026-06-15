@@ -17,12 +17,6 @@ zentinel uses machine-readable schemas to keep reports and AI contracts compatib
 | Doctest AI explain response v1 | Reuses `schemas/ai.explain.response.v1.schema.json`; doctest classifications are included in that shared enum | Doctest AI |
 | Doctest AI suggest response v1 | `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |
-| Pipeline handoff v1 | `schemas/pipeline.handoff.v1.schema.json` | Pipeline metadata |
-| Pipeline active lock v1 | `schemas/pipeline.active_lock.v1.schema.json` | Pipeline metadata |
-| Pipeline context packet v1 | `schemas/pipeline.context.v1.schema.json` | Pipeline metadata |
-| Pipeline stale context v1 | `schemas/pipeline.stale_context.v1.schema.json` | Pipeline metadata |
-| Pipeline verification v1 | `schemas/pipeline.verification.v1.schema.json` | Pipeline metadata |
-| Pipeline escalation v1 | `schemas/pipeline.escalation.v1.schema.json` | Pipeline metadata |
 
 ## Rules
 
@@ -36,8 +30,6 @@ zentinel uses machine-readable schemas to keep reports and AI contracts compatib
 ## Validation
 
 Schema validation for reports and AI contracts lives in Zig tests wherever those artifacts are emitted or consumed. Existing schema files are exact implementation targets.
-
-Pipeline metadata validation is intentionally standard-library-only: a project-owned schema subset validator covers schema version checks, required fields, additional-property policy, enum and const checks, and basic string/integer/boolean/null/object/array shapes. Full Draft 2020-12 validation, including arbitrary conditional and reference traversal, requires an explicit future dependency decision.
 
 ## Version Naming
 
@@ -54,12 +46,6 @@ zentinel.doctest.report.v1
 zentinel.ai.doctest.context.v1
 zentinel.ai.doctest.suggest.response.v1
 zentinel.ai.doctest.snapshot_review.response.v1
-zentinel.pipeline.handoff.v1
-zentinel.pipeline.active_lock.v1
-zentinel.pipeline.context.v1
-zentinel.pipeline.stale_context.v1
-zentinel.pipeline.verification.v1
-zentinel.pipeline.escalation.v1
 ```
 
 Schema file names mirror those versions after dropping the leading `zentinel.` namespace.

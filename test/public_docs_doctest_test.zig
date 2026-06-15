@@ -6,7 +6,6 @@ const workspace = zentinel.doctest.workspace;
 const proc = zentinel.runner;
 
 const expect = std.testing.expect;
-const expectEqual = std.testing.expectEqual;
 
 // Canned, deterministic command outputs. Public docs execute through the doctest
 // engine with an injected executor; these are the documented outputs the
@@ -154,22 +153,4 @@ test "docs/DOCTEST_AI_INTEGRATION.md has a passing doctest AI JSON doctest" {
     defer arena.deinit();
     const a = arena.allocator();
     try expect(try hasPassingCase(a, "docs/DOCTEST_AI_INTEGRATION.md", .cli, "zentinel doctest suggest"));
-}
-
-// ---------------------------------------------------------------------------
-// Verifier artifacts reference public-docs doctest evidence.
-// ---------------------------------------------------------------------------
-test "verifier artifact references public-docs doctest evidence" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    const bytes = try readFile(a, "test/fixtures/doctest/public_docs/verification.json");
-    const v = try std.json.parseFromSliceLeaky(std.json.Value, a, bytes, .{});
-    const stages = v.object.get("stages").?.array;
-    var found = false;
-    for (stages.items) |s| {
-        const artifact = s.object.get("artifact") orelse continue;
-        if (artifact == .string and std.mem.endsWith(u8, artifact.string, "doctest/report.json")) found = true;
-    }
-    try expect(found);
 }
