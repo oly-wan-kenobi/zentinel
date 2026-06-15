@@ -26,6 +26,23 @@ const MockExec = struct {
     }
 };
 
+// Real-version executor: emits the current `zentinel.version` for `zentinel
+// version`, used only when doctesting the real docs/CLI_SPEC.md so its documented
+// version block is checked against the product version. The synthetic MockExec
+// (and the frozen pass.report.json golden snapshot) stay at "0.0.0".
+const RealVersionExec = struct {
+    fn run(ctx: *anyopaque, argv: []const []const u8) proc.RawOutcome {
+        _ = ctx;
+        const out = struct {
+            fn r(s: []const u8) proc.RawOutcome {
+                return .{ .exit_code = 0, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = s, .stderr = "" };
+            }
+        }.r;
+        if (argv.len >= 2 and std.mem.eql(u8, argv[1], "version")) return out("zentinel " ++ zentinel.version ++ "\nzig 0.16.0\n");
+        return out("");
+    }
+};
+
 const MockProvider = struct {
     fn materialize(ctx: *anyopaque, plan: workspace.Plan) workspace.MaterializeError!void {
         _ = ctx;
@@ -36,6 +53,13 @@ const MockProvider = struct {
 fn deps() dc.Deps {
     return .{
         .executor = .{ .ctx = undefined, .runFn = MockExec.run },
+        .provider = .{ .ctx = undefined, .materializeFn = MockProvider.materialize },
+    };
+}
+
+fn realVersionDeps() dc.Deps {
+    return .{
+        .executor = .{ .ctx = undefined, .runFn = RealVersionExec.run },
         .provider = .{ .ctx = undefined, .materializeFn = MockProvider.materialize },
     };
 }
@@ -60,11 +84,16 @@ fn runFile(a: std.mem.Allocator, path: []const u8, options: dc.Options) !dc.Outp
     return dc.run(a, options, path, src, obs("zentinel doctest"), deps());
 }
 
+fn runFileReal(a: std.mem.Allocator, path: []const u8, options: dc.Options) !dc.Output {
+    const src = try readFixture(a, path);
+    return dc.run(a, options, path, src, obs("zentinel doctest"), realVersionDeps());
+}
+
 test "zentinel doctest --file docs/CLI_SPEC.md finds and passes the version CLI case" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
-    const out = try runFile(a, "docs/CLI_SPEC.md", .{ .file = "docs/CLI_SPEC.md" });
+    const out = try runFileReal(a, "docs/CLI_SPEC.md", .{ .file = "docs/CLI_SPEC.md" });
     var found = false;
     for (out.report.cases) |c| {
         if (c.kind == .cli and c.command != null and std.mem.eql(u8, c.command.?.original, "zentinel version")) {

@@ -5,9 +5,9 @@
 
 ## Context
 
-zentinel emits reports, AI context payloads, AI responses, pipeline handoffs, task queues, task statuses, and future doctest artifacts. These artifacts are consumed by humans, CI, editor integrations, and agents.
+zentinel emits reports, AI context payloads, AI responses, and doctest artifacts. These artifacts are consumed by humans, CI, editor integrations, and agents.
 
-Without explicit schema versions, agents cannot safely decide whether a report, cache entry, or handoff is compatible with the current implementation.
+Without explicit schema versions, agents cannot safely decide whether a report or cache entry is compatible with the current implementation.
 
 ## Decision
 
@@ -19,7 +19,7 @@ Deterministic result fields must not move under advisory namespaces. Advisory AI
 
 - **Rely on loose JSON shape.** Rejected because autonomous agents need compatibility checks.
 - **Use only prose docs.** Rejected because schemas are executable implementation targets.
-- **Version only reports.** Rejected because AI and pipeline artifacts also cross agent/session boundaries.
+- **Version only reports.** Rejected because AI and doctest artifacts also cross agent/session boundaries.
 
 ## Consequences
 

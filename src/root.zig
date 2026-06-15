@@ -5,7 +5,7 @@ const std = @import("std");
 pub const project_name = "zentinel";
 
 /// Initial project version. Deterministic compile-time constant.
-pub const version = "0.0.0";
+pub const version = "0.1.0";
 
 /// Zig version policy and discovery classification (deterministic core).
 pub const zig_version = @import("zig_version.zig");

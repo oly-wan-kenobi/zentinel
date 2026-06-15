@@ -128,7 +128,7 @@ When code, tests, or docs cite an invariant, use the exact number, for example:
 - *Rationale.* Agents and integrations need stable parse contracts.
 - *Status.* documented, enforced for registry presence.
 - *Enforcement.* `docs/SCHEMA_REGISTRY.md` and the JSON schemas under `schemas/`.
-- *Failure mode.* A report or handoff cannot be safely consumed by future agents.
+- *Failure mode.* A report cannot be safely consumed by future agents.
 
 **I-015.** Snapshot outputs normalize absolute paths, durations, timestamps, and nondeterministic ordering.
 - *Rationale.* Snapshots are tests only if they are stable across machines.

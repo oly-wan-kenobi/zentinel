@@ -1,9 +1,11 @@
 # Stage 1 dogfood config: run zentinel over the mutation fixtures.
-# Used with `scripts/dogfood.sh` (see tasks/022). No network, no AI; production
+# Used with `scripts/dogfood.sh`. No network, no AI; production
 # zentinel modules are out of dogfood scope for now.
 [project]
 name = "dogfood"
-root = "."
+# Self-contained: the project root is the mutation fixture, so `zentinel run
+# --config zentinel.dogfood.toml` works from the repo root with no extra flags.
+root = "test/fixtures/dogfood/sample"
 include = ["src/**/*.zig"]
 exclude = [".zig-cache/**", "zig-out/**", "test/**"]
 

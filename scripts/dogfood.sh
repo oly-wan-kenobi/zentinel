@@ -17,8 +17,9 @@ cd "$repo_root"
 
 fixture_root="test/fixtures/dogfood/sample"
 
-# Build the binary, then run the dogfood mutation pass over the fixtures.
+# Build the binary, then run the dogfood mutation pass over the fixtures. The
+# config sets project.root to the fixture, so no --root flag is needed.
 zig build
-./zig-out/bin/zentinel --config zentinel.dogfood.toml --root "$fixture_root" run "$@"
+./zig-out/bin/zentinel --config zentinel.dogfood.toml run "$@"
 
 echo "dogfood report: $fixture_root/zig-out/zentinel-dogfood/report.json"

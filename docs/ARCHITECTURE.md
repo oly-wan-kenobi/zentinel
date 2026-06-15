@@ -149,7 +149,7 @@ replacement
 
 `span_start` and `span_end` are decimal byte offsets into the original source buffer. The derivation must not include display order, wall-clock time, absolute paths, command output, result duration, result status, or AI output. The resulting durable ID matches `^m_[A-Za-z0-9]+$` and is byte-identical across agents, sessions, and machines for the same content. This mirrors the doctest mutation-entry identity in `docs/DOCTEST_SPEC.md`.
 
-The display ID is stable only within one report after canonical sorting. It is useful for terminal output and short CLI selectors against a selected report, but it is not a durable backend identity and must not be stored in handoffs or AI context as the canonical reference.
+The display ID is stable only within one report after canonical sorting. It is useful for terminal output and short CLI selectors against a selected report, but it is not a durable backend identity and must not be stored in AI context as the canonical reference.
 
 `backend_version` is an internal deterministic backend contract string, not a user-facing backend choice. For the stable AST backend under Zig `0.16.0`, `backend_version` is `ast.v1.zig-0.16.0`. ZIR may define an experimental backend version only when its experiment task documents version coupling and mapping semantics.
 

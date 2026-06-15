@@ -58,6 +58,30 @@ fn deps() dc.Deps {
     };
 }
 
+// Real-version executor: emits the current `zentinel.version` for `zentinel
+// version`, so doctesting the real docs/CLI_SPEC.md checks its documented version
+// block against the product version (and fails loudly if the doc drifts on a
+// version bump). Synthetic fixtures keep MockExec's frozen "0.0.0".
+const RealVersionExec = struct {
+    fn run(ctx: *anyopaque, argv: []const []const u8) proc.RawOutcome {
+        _ = ctx;
+        const out = struct {
+            fn r(s: []const u8) proc.RawOutcome {
+                return .{ .exit_code = 0, .timed_out = false, .crashed = false, .duration_ms = 0, .stdout = s, .stderr = "" };
+            }
+        }.r;
+        if (argv.len >= 2 and std.mem.eql(u8, argv[1], "version")) return out("zentinel " ++ zentinel.version ++ "\nzig 0.16.0\n");
+        return out("");
+    }
+};
+
+fn realVersionDeps() dc.Deps {
+    return .{
+        .executor = .{ .ctx = undefined, .runFn = RealVersionExec.run },
+        .provider = .{ .ctx = undefined, .materializeFn = MockProvider.materialize },
+    };
+}
+
 fn obs() dc.Observation {
     return .{
         .run_id = "doctest_run_public",
@@ -73,15 +97,16 @@ fn readFile(a: std.mem.Allocator, path: []const u8) ![]const u8 {
     return std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20));
 }
 
-fn runFile(a: std.mem.Allocator, path: []const u8) !dc.Output {
+fn runFileWith(a: std.mem.Allocator, path: []const u8, d: dc.Deps) !dc.Output {
     const src = try readFile(a, path);
-    return dc.run(a, .{ .file = path }, path, src, obs(), deps());
+    return dc.run(a, .{ .file = path }, path, src, obs(), d);
 }
 
-/// True if `path` produces at least one passing case of `kind` whose command (if
-/// any) contains `needle`.
-fn hasPassingCase(a: std.mem.Allocator, path: []const u8, kind: dreport.CaseKind, needle: []const u8) !bool {
-    const out = try runFile(a, path);
+fn runFile(a: std.mem.Allocator, path: []const u8) !dc.Output {
+    return runFileWith(a, path, deps());
+}
+
+fn scanPassing(out: dc.Output, kind: dreport.CaseKind, needle: []const u8) bool {
     for (out.report.cases) |c| {
         if (c.kind != kind) continue;
         if (c.status != .passed) continue;
@@ -91,6 +116,18 @@ fn hasPassingCase(a: std.mem.Allocator, path: []const u8, kind: dreport.CaseKind
         }
     }
     return false;
+}
+
+/// True if `path` produces at least one passing case of `kind` whose command (if
+/// any) contains `needle`. Uses the synthetic "0.0.0" executor.
+fn hasPassingCase(a: std.mem.Allocator, path: []const u8, kind: dreport.CaseKind, needle: []const u8) !bool {
+    return scanPassing(try runFile(a, path), kind, needle);
+}
+
+/// Like `hasPassingCase` but with the real-version executor, for real docs whose
+/// expected output embeds the current product version (docs/CLI_SPEC.md).
+fn hasPassingCaseReal(a: std.mem.Allocator, path: []const u8, kind: dreport.CaseKind, needle: []const u8) !bool {
+    return scanPassing(try runFileWith(a, path, realVersionDeps()), kind, needle);
 }
 
 // ---------------------------------------------------------------------------
@@ -131,7 +168,8 @@ test "docs/CLI_SPEC.md has a passing CLI doctest" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
-    try expect(try hasPassingCase(a, "docs/CLI_SPEC.md", .cli, "zentinel version"));
+    // Real-version executor: the doc's version block documents the product version.
+    try expect(try hasPassingCaseReal(a, "docs/CLI_SPEC.md", .cli, "zentinel version"));
 }
 
 test "docs/CONFIG_SPEC.md has a passing config doctest" {

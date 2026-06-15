@@ -22,7 +22,7 @@ The canonical in-repository CI entrypoint is:
 scripts/ci.sh
 ```
 
-Hosted provider workflow files such as `.github/workflows/*.yml` are out of scope until a task explicitly allows them. CI tasks wire and document `scripts/ci.sh`; external systems may call that script.
+The hosted GitHub Actions workflow `.github/workflows/ci.yml` installs the pinned Zig version and calls `scripts/ci.sh`; it adds no CI logic of its own. External systems may likewise call that script.
 
 Every CI run must include:
 

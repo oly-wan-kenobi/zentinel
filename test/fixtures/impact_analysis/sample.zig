@@ -1,4 +1,4 @@
-// Impact-analysis fixture (tasks/051): a mutable function plus same-file tests
+// Impact-analysis fixture: a mutable function plus same-file tests
 // in non-alphabetical declaration order, so impact selection ordering is by the
 // deterministic (file, line, name) key rather than source or alphabetical order.
 pub fn add(a: i32, b: i32) i32 {

@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      # Canonical in-repository CI entrypoint: format_check, build, unit_tests,
+      # advisory_dogfood (see docs/CI_STRATEGY.md). Network-independent.
+      - name: Run CI
+        run: scripts/ci.sh

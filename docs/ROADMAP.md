@@ -177,7 +177,7 @@ Deliver:
 - release gating for deterministic core regressions
 - internal survivor triage workflow
 - executable docs in CI for CLI, config, report, mutator, and AI contract examples
-- archived pipeline artifacts for dogfood tasks, mutation gates, doctest reports, property-test reports, and final verification
+- archived deterministic dogfood evidence: mutation reports, doctest reports, and property-test reports
 
 Exit criteria:
 

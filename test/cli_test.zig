@@ -39,7 +39,12 @@ test "help lists the real doctest subcommands and report formats" {
 test "version output is the policy-only composition" {
     const out = dispatch(&[_][]const u8{"version"}, false);
     try std.testing.expectEqual(@as(u8, 0), out.exit_code);
-    try std.testing.expectEqualStrings("zentinel 0.0.0\nzig 0.16.0\n", out.stdout);
+    // Derived from the version/zig-policy constants, not a hard-coded literal, so a
+    // version bump cannot silently leave this assertion asserting a stale string.
+    try std.testing.expectEqualStrings(
+        "zentinel " ++ zentinel.version ++ "\nzig " ++ zentinel.supported_zig_version ++ "\n",
+        out.stdout,
+    );
 }
 
 test "version prints the pinned policy label without invoking zig" {

@@ -1,5 +1,0 @@
-{
-  "schema_version": "zentinel.report.v1",
-  "run": { "id": "run_aaaaaaaaaaaaaaaaaaaa", "started_at": "1970-01-01T00:00:00Z", "duration_ms": 5 },
-  "summary": { "total": 1, "killed": 1, "survived": 0 }
-}

@@ -2,8 +2,6 @@
 
 zentinel uses AI to make mutation results easier to understand. AI assistance is optional, advisory, and never part of the deterministic result engine.
 
-The same rule applies to the AI-agent engineering pipeline used to build zentinel. AI agents may plan, summarize, review, and suggest, but deterministic repository contracts, tests, doctests, mutation results, and verification artifacts remain the source of truth.
-
 ## UX Goals
 
 AI-assisted output should feel:
