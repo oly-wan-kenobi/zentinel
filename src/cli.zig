@@ -528,6 +528,101 @@ const ProgressSink = struct {
     }
 };
 
+/// Split a comma-separated `--scope-files` value into trimmed, non-empty
+/// project-relative paths.
+fn splitScopeCsv(gpa: std.mem.Allocator, csv: []const u8) ![]const []const u8 {
+    var list: std.ArrayList([]const u8) = .empty;
+    var it = std.mem.splitScalar(u8, csv, ',');
+    while (it.next()) |raw| {
+        const p = std.mem.trim(u8, raw, " \t\r\n");
+        if (p.len == 0) continue;
+        try list.append(gpa, p);
+    }
+    return list.toOwnedSlice(gpa);
+}
+
+/// Changed project-relative files per git, newline-split. `base` is the comparison
+/// point: "HEAD" for tracked working-tree+index changes (`--changed-only`) or an
+/// explicit ref (`--diff <ref>`). `--relative` makes git emit paths relative to the
+/// project root so they match discovered source paths. Untracked new files are not
+/// reported by `git diff`; `--scope-files` covers that case.
+fn gitChangedFiles(gpa: std.mem.Allocator, io: std.Io, root_dir: std.Io.Dir, base: []const u8) ![]const []const u8 {
+    const result = std.process.run(gpa, io, .{
+        .argv = &.{ "git", "diff", "--name-only", "--relative", base },
+        .cwd = .{ .dir = root_dir },
+        .stdout_limit = run_output_limit,
+        .stderr_limit = run_output_limit,
+        .timeout = .{ .duration = .{ .raw = std.Io.Duration.fromMilliseconds(10000), .clock = .awake } },
+    }) catch return error.GitUnavailable;
+    switch (result.term) {
+        .exited => |code| if (code != 0) return error.GitFailed,
+        else => return error.GitFailed,
+    }
+    var list: std.ArrayList([]const u8) = .empty;
+    var it = std.mem.splitScalar(u8, result.stdout, '\n');
+    while (it.next()) |raw| {
+        const p = std.mem.trim(u8, raw, " \t\r\n");
+        if (p.len == 0) continue;
+        try list.append(gpa, try gpa.dupe(u8, p));
+    }
+    return list.toOwnedSlice(gpa);
+}
+
+/// Keep the discovered source paths that appear in `changed`. A changed file
+/// outside the include globs (a doc, a build script) has no candidates anyway, so
+/// intersecting against discovered files is what bounds mutation to eligible code.
+fn intersectScope(gpa: std.mem.Allocator, changed: []const []const u8, files: []const zentinel.run_command.FileSource) ![]const []const u8 {
+    var set = std.StringHashMap(void).init(gpa);
+    defer set.deinit();
+    for (changed) |c| try set.put(c, {});
+    var list: std.ArrayList([]const u8) = .empty;
+    for (files) |f| {
+        if (set.contains(f.path)) try list.append(gpa, f.path);
+    }
+    return list.toOwnedSlice(gpa);
+}
+
+/// Resolve the diff-scope CLI inputs into `opts.scope_files` (the project-relative
+/// set the deterministic core filters candidates by). Git runs HERE in the adapter,
+/// never in the core (I-022). Returns a non-null exit code the caller should return
+/// on a git error; null means resolution succeeded -- the scope set was set, or left
+/// null when no scope flag was given so the run stays unscoped (today's behavior).
+fn resolveScopeFiles(
+    gpa: std.mem.Allocator,
+    io: std.Io,
+    root_dir: std.Io.Dir,
+    opts: *zentinel.run_command.Options,
+    files: []const zentinel.run_command.FileSource,
+    stderr: *std.Io.Writer,
+) !?u8 {
+    var scope: []const []const u8 = undefined;
+    if (opts.scope_files_csv) |csv| {
+        scope = try intersectScope(gpa, try splitScopeCsv(gpa, csv), files);
+    } else if (opts.changed_only or opts.diff_base != null) {
+        const base = opts.diff_base orelse "HEAD";
+        const changed = gitChangedFiles(gpa, io, root_dir, base) catch |err| {
+            try stderr.print("error[ZNTL_DIFF_SCOPE_FAILED]: could not derive changed files from git ({s}); is this a git repository? use --scope-files to pass an explicit list\n", .{@errorName(err)});
+            try stderr.flush();
+            return 2;
+        };
+        scope = try intersectScope(gpa, changed, files);
+    } else {
+        return null; // no diff-scope requested -> full run
+    }
+    opts.scope_files = scope;
+    // An empty scope is a legitimate outcome (nothing eligible changed), so report
+    // it clearly and run 0 mutants rather than silently exiting as if a full run
+    // found no survivors. Flush so the note is emitted intact before the per-mutant
+    // progress sink (which also flushes) starts writing to the same stderr.
+    if (scope.len == 0) {
+        try stderr.writeAll("note[ZNTL_DIFF_SCOPE_EMPTY]: diff scope matched no eligible source files; running 0 mutants\n");
+    } else {
+        try stderr.print("note: diff scope -> {d} eligible file(s)\n", .{scope.len});
+    }
+    try stderr.flush();
+    return null;
+}
+
 /// `zentinel run`: load config, validate Zig, discover eligible source files
 /// from config globs, run the deterministic Phase 1 flow over real executors,
 /// then write the JSON report and a concise survivor-focused summary.
@@ -545,7 +640,7 @@ fn runRun(
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown run option",
             error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
-            error.ConflictingOptions => "--verbose and --quiet are mutually exclusive",
+            error.ConflictingOptions => "--verbose/--quiet are mutually exclusive, and --changed-only/--diff/--scope-files are mutually exclusive diff-scope inputs",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
@@ -603,6 +698,12 @@ fn runRun(
         };
         try files.append(gpa, .{ .path = rel, .source = bytes });
     }
+
+    // Resolve opt-in diff-scoping (--changed-only/--diff/--scope-files) into the
+    // project-relative set the deterministic core filters candidates by. Git lives
+    // here in the adapter, never in the core (I-022); no scope flag leaves the run
+    // unscoped (today's behavior, byte-for-byte).
+    if (try resolveScopeFiles(gpa, io, root_dir, &options, files.items, stderr)) |code| return code;
 
     // Build the minimal command environment once; every test command this run
     // spawns is restricted to it (docs/SANDBOX_SECURITY.md).

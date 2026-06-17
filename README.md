@@ -136,15 +136,29 @@ This is a deliberate correctness-over-speed default, not an oversight: sharing
 a warm compiler cache across mutants would break the per-worker isolation
 invariant the result semantics are built on, and under today's non-incremental
 Zig compilation a warm cache saves less than you'd hope (a mutated source file
-forces full semantic analysis anyway). Mitigations that exist now:
+forces full semantic analysis anyway). That last point is now measured rather
+than asserted — see [docs/PERFORMANCE_STRATEGY.md](docs/PERFORMANCE_STRATEGY.md):
+profiling zentinel against its own tree found a warm *local* cache saves only
+**0–9%** on a real mutant, because the dominant cost is test execution (which no
+cache touches) and a mutated file re-invalidates most of the build graph. So the
+highest-payoff lever is cutting the mutant *count*, not warming the cache.
+
+Mitigations that exist now:
 
 - `run.jobs = N` runs mutants in parallel.
-- The result cache skips mutants whose inputs haven't changed since the last run.
+- **Diff-scoped runs** mutate only the files you changed (opt-in, default off):
+  - `zentinel run --changed-only` — files changed in your working tree (vs `HEAD`).
+  - `zentinel run --diff <ref>` — files changed vs a base ref (e.g. `main`), for CI.
+  - `zentinel run --scope-files a.zig,b.zig` — an explicit list (git-free).
+  These narrow which files are mutated; every retained mutant's verdict is
+  byte-for-byte identical to the full run (scoping omits, never changes, results).
 - Scoped `include` globs and operator selection keep the mutant count down.
+- The result cache computes a content key per mutant today, but **result reuse
+  across runs is not wired yet** — it does not yet skip unchanged mutants.
 
-On the roadmap, in order of payoff: shared warm-cache mode behind a flag (with
-measured evidence it's safe), diff-scoped runs (mutate only changed code), and
-coverage-guided test selection.
+On the roadmap, in order of payoff now that the warm-cache lever is measured
+marginal: wiring result-cache reuse (skip unchanged mutants on re-runs) and
+coverage-guided test selection (run only the tests that exercise a mutant).
 
 ## Security model
 

@@ -330,6 +330,9 @@ pub const run_help_text =
     \\  --mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>
     \\                         override configured zig.modes for this invocation
     \\  --jobs <n>             worker count for parallel mutant execution
+    \\  --changed-only         mutate only files changed in the working tree (vs HEAD)
+    \\  --diff <ref>           mutate only files changed vs <ref> (e.g. main)
+    \\  --scope-files <a,b>    mutate only this explicit comma-separated file list
     \\  --fail-on-survivors    exit 1 when survivors are present
     \\  --report <text|json|jsonl|junit>
     \\                         select the stdout report rendering
