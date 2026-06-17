@@ -55,6 +55,24 @@ zentinel should preserve and reuse Zig's own cache where safe:
 
 Mutant workspaces may share compiler cache inputs only when source content hashes make reuse safe. Result reuse is valid only when the cache key covers source content, config, Zig version, mode, selected test command, backend/operator metadata, and any Zig cache namespace inputs that affect command behavior. A warm Zig build cache may reduce compile time, but it must not change report statuses, ordering, or evidence. Report v1 still requires baseline execution unless a future schema or ADR defines fresh-cache proof.
 
+## Measured Evidence (2026-06, zentinel self-profile)
+
+Profiling zentinel against its own source tree (16-core Apple Silicon, Zig 0.16.0) replaced assumption with measurement and chose the first speed lever:
+
+| Per-mutant cost component (`zig build test`, fresh local cache) | Time | Share |
+| --- | --- | --- |
+| workspace tree copy (caches excluded) | 0.07 s | ~0.1% |
+| cold compile + test | 46.5 s | ~99.7% |
+| ↳ test *execution* alone (warm re-run, nothing recompiled) | 31.3 s | — |
+| ↳ compile portion (cold − warm) | ~15 s | — |
+| cleanup (`deleteTree` of a 518 MB cache) | 0.06 s | ~0.1% |
+
+Warm *local* cache savings after a one-file mutation: `cache.zig` ~0%, `report.zig` ~9%, `root.zig` ~0%. The global compiler cache is already shared (only `ZIG_LOCAL_CACHE_DIR` is per-workspace), so std is warm regardless. **Conclusion: a shared warm cache saves only 0–9% on a real mutant** — test execution dominates and a mutated file re-invalidates most of the many per-test-file build artifacts. Workspace copy and cleanup are negligible, so copy-on-write workspaces are not worth it either.
+
+Because per-mutant wall-clock is effectively fixed, the highest-payoff lever is reducing the mutant **count**. Diff-scoped runs do this, opt-in and default off (`run --changed-only` / `--diff <ref>` / `--scope-files`): they restrict mutation to a resolved set of project-relative files. Git derivation lives only in the CLI adapter; the deterministic core applies it as a candidate filter alongside operator/mutant filters, leaving the discovered file set (and thus `projectHash`, same-file selection, and the source index) complete. Scoping omits out-of-scope mutants and never changes a retained mutant's verdict, so a full-scope run is byte-for-byte identical to an unscoped run (proven in `test/diff_scope_test.zig`).
+
+Result-cache *reuse* (skipping unchanged mutants across runs) remains the highest-value follow-up for the iterative loop; today the cache computes keys but does not yet reuse them.
+
 ## Parallel Worker Architecture
 
 ```text

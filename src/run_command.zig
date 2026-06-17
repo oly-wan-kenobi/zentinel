@@ -71,6 +71,22 @@ pub const Options = struct {
     /// When set it replaces the configured `zig.modes` for this run and
     /// yields a single-mode report; `null` uses the configured modes.
     mode_override: ?report.Mode = null,
+    /// Diff-scoping (docs/PERFORMANCE_STRATEGY.md): the resolved set of
+    /// project-relative files mutation is restricted to. `null` = no scoping
+    /// (default; reproduces the full run). When non-null, `generateCandidates`
+    /// keeps only candidates whose file is in this set; `files` stays complete so
+    /// `projectHash`, same-file selection, and the source index are unchanged --
+    /// scoping only omits out-of-scope mutants, never alters a retained verdict.
+    /// Set by the adapter (resolving the raw inputs below, where git lives) or
+    /// directly by tests; the deterministic core never derives it (I-022).
+    scope_files: ?[]const []const u8 = null,
+    /// Raw diff-scope CLI inputs the adapter resolves into `scope_files`; the
+    /// deterministic core ignores them. `--changed-only` (tracked changes vs
+    /// HEAD), `--diff <ref>` (`diff_base`), and `--scope-files <csv>`
+    /// (`scope_files_csv`) are three mutually exclusive ways to derive ONE set.
+    changed_only: bool = false,
+    diff_base: ?[]const u8 = null,
+    scope_files_csv: ?[]const u8 = null,
     /// Adapter-injected per-mutant progress sink (stderr in the binary). Never
     /// set by `parseArgs`; the adapter leaves it null under `--quiet`.
     progress: ?Progress = null,
@@ -336,6 +352,16 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.mode_override = safety_modes.parse(args[i]) orelse return error.InvalidMode;
+        } else if (std.mem.eql(u8, arg, "--changed-only")) {
+            opts.changed_only = true;
+        } else if (std.mem.eql(u8, arg, "--diff")) {
+            i += 1;
+            if (i >= args.len) return error.MissingValue;
+            opts.diff_base = args[i];
+        } else if (std.mem.eql(u8, arg, "--scope-files")) {
+            i += 1;
+            if (i >= args.len) return error.MissingValue;
+            opts.scope_files_csv = args[i];
         } else if (std.mem.eql(u8, arg, "--backend")) {
             // The experimental ZIR/AIR backends re-tag the AST candidate set and
             // are reachable only from `list-mutants`; `run` always uses the stable
@@ -349,6 +375,14 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
     // --verbose and --quiet select opposite verbosities; accepting both would let
     // quiet silently win and discard the requested verbose output.
     if (opts.verbose and opts.quiet) return error.ConflictingOptions;
+    // --changed-only/--diff/--scope-files are three ways to derive ONE scope set;
+    // combining them is ambiguous (which base or list wins?), so reject rather than
+    // silently pick one.
+    var scope_inputs: u8 = 0;
+    if (opts.changed_only) scope_inputs += 1;
+    if (opts.diff_base != null) scope_inputs += 1;
+    if (opts.scope_files_csv != null) scope_inputs += 1;
+    if (scope_inputs > 1) return error.ConflictingOptions;
     return opts;
 }
 
@@ -913,6 +947,15 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
     // Build the enabled-operator set once per run; each candidate's enable check
     // is then an O(1) lookup instead of an O(E) linear scan per candidate.
     const enabled_ops = try enabledOperatorSet(arena, cfg);
+    // Optional diff-scope: restrict mutation to candidates whose file is in the
+    // resolved set. Built once like `enabled_ops`. `files` was fully parsed above,
+    // so `projectHash` and same-file selection are unaffected -- scoping only omits
+    // out-of-scope mutants, mirroring `operator_filter`/`mutant_filter` below.
+    const scope_set: ?std.StringHashMap(void) = if (options.scope_files) |paths| blk: {
+        var set = std.StringHashMap(void).init(arena);
+        for (paths) |p| try set.put(p, {});
+        break :blk set;
+    } else null;
     var kept: std.ArrayList(mutant.Mutant) = .empty;
     for (all) |c| {
         if (!enabled_ops.contains(c.operator)) continue;
@@ -921,6 +964,9 @@ fn generateCandidates(arena: std.mem.Allocator, cfg: config.Config, files: []con
         }
         if (options.mutant_filter) |id| {
             if (!std.mem.eql(u8, c.id, id)) continue;
+        }
+        if (scope_set) |set| {
+            if (!set.contains(c.file)) continue;
         }
         try kept.append(arena, c);
     }
