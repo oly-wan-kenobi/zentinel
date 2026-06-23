@@ -155,11 +155,12 @@ test "metadata snapshot distinguishes result keys from build-cache metadata" {
     const json = try cache.toJson(a, md);
 
     const path = "test/snapshots/cache_metadata.json";
+    // Fail on a missing snapshot rather than silently writing one and passing: a
+    // self-regenerating fixture would let an encoding change (e.g. the v2
+    // length-prefixed key) sail through green by rewriting its own expectation.
+    // This matches the fail-on-missing convention of the sibling snapshot tests.
     const existing = std.Io.Dir.cwd().readFileAlloc(std.testing.io, path, a, std.Io.Limit.limited(1 << 20)) catch |err| switch (err) {
-        error.FileNotFound => {
-            try std.Io.Dir.cwd().writeFile(std.testing.io, .{ .sub_path = path, .data = json });
-            return;
-        },
+        error.FileNotFound => return err,
         else => return err,
     };
     try expectEqualStrings(existing, json);

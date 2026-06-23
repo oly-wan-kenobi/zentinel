@@ -28,6 +28,7 @@ const ast_backend = @import("ast_backend.zig");
 const source_map = @import("source_map.zig");
 const run_command = @import("run_command.zig");
 const zig_version = @import("zig_version.zig");
+const optional = @import("mutators/optional.zig");
 
 /// Internal deterministic backend contract string for the experimental ZIR
 /// prototype under Zig 0.16.0. It participates in durable identity (so a ZIR
@@ -371,11 +372,6 @@ fn mutationFor(tag: std.zig.Ast.Node.Tag) ?Mutation {
     };
 }
 
-fn isNullToken(tree: std.zig.Ast, tok: u32) bool {
-    if (tok >= tree.tokens.len) return false;
-    return std.mem.eql(u8, tree.tokenSlice(tok), "null");
-}
-
 /// Lower `source` to ZIR and emit the experimental ZIR candidate set for the
 /// binary-operator mutations ZIR represents as a single instruction: comparison
 /// (`equality_swap`, `comparison_boundary`), short-circuit logical (`logical_and_or`),
@@ -408,6 +404,11 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
 
     var collector = ast_backend.Collector.init(arena);
     var diagnostics: std.ArrayList(Diagnostic) = .empty;
+    // AstGen-injected comparisons (for-bounds, switch ranges) have no source
+    // operator and are dropped, but one span-less note per instruction floods
+    // stderr on real files. Count them and emit exactly ONE aggregate diagnostic
+    // after the loop instead.
+    var injected_count: usize = 0;
 
     // Resolve recognized instructions to DISTINCT source nodes via maximum bipartite
     // matching, then emit a candidate per matched node. Maximizing the matching
@@ -433,16 +434,8 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             // candidate node is AstGen-injected (for-bounds / switch range) and is the only
             // case worth an out-of-report diagnostic. (Completeness is guarded at the
             // suite level by the differential oracle and its full-tree sweep, which
-            // assert ZIR == AST.)
-            if (!matching.had_candidates[ri]) {
-                try diagnostics.append(arena, .{
-                    .file = file,
-                    .operator = "injected",
-                    .span_start = 0,
-                    .span_end = 0,
-                    .reason = "ZIR instruction with no source operator (compiler-injected bounds/range check)",
-                });
-            }
+            // assert ZIR == AST.) Count it here; one aggregate note is emitted below.
+            if (!matching.had_candidates[ri]) injected_count += 1;
             continue;
         };
         const node: std.zig.Ast.Node.Index = @enumFromInt(n);
@@ -450,12 +443,14 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
         const op_tok = tree.nodeMainToken(node);
         const op_start = tree.tokenStart(op_tok);
         // Parity with the AST recognizers: skip operators inside test bodies, and
-        // leave `x == null` / `null == x` to optional_null_check.
+        // leave `x == null` / `null == x` (incl. `(null)`) to optional_null_check.
+        // Uses the SHARED node-based recognizer so the ZIR skip side cannot disagree
+        // with optional's emit side on parenthesized null operands.
         if (ast_backend.inTestBody(test_ranges, op_start)) continue;
         if (std.mem.eql(u8, mut.operator, "equality_swap")) {
-            const right_null = isNullToken(tree, op_tok + 1);
-            const left_null = op_tok > 0 and isNullToken(tree, op_tok - 1);
-            if (right_null or left_null) continue;
+            const operands = tree.nodeData(node).node_and_node;
+            if (optional.isNullOperand(tree, operands[0]) or
+                optional.isNullOperand(tree, operands[1])) continue;
         }
         const op_text = tree.tokenSlice(op_tok);
         const op_end = op_start + @as(u32, @intCast(op_text.len));
@@ -488,6 +483,22 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
             .replacement = mut.replacement,
             .expected_compile = expected_compile,
             .equivalent_risks = mut.risks,
+        });
+    }
+
+    // One aggregate note for the dropped compiler-injected comparisons, with the
+    // count embedded in the reason, instead of a span-less duplicate per instruction.
+    if (injected_count > 0) {
+        try diagnostics.append(arena, .{
+            .file = file,
+            .operator = "injected",
+            .span_start = 0,
+            .span_end = 0,
+            .reason = try std.fmt.allocPrint(
+                arena,
+                "{d} ZIR instruction(s) with no source operator dropped (compiler-injected bounds/range checks)",
+                .{injected_count},
+            ),
         });
     }
 

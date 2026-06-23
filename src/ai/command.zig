@@ -312,8 +312,6 @@ fn commandResultFromReport(
     value: std.json.Value,
     patterns: []const []const u8,
     log: *context.RedactionLog,
-    _: []const u8,
-    _: []const u8,
 ) (redaction.Error || Failure)!context.CommandResult {
     const cmd = get(value, "command") orelse return error.AiReportNotFound;
     const original = try context.redactField(arena, try requiredString(get(cmd, "original")), patterns, log);
@@ -349,17 +347,14 @@ fn commandResultFromReport(
 fn commandsFromResult(
     arena: std.mem.Allocator,
     result: std.json.Value,
-    _: context.Evidence,
     patterns: []const []const u8,
     log: *context.RedactionLog,
-    default_status: []const u8,
-    default_failure_kind: []const u8,
 ) (redaction.Error || Failure)![]const context.CommandResult {
     if (arrOf(get(result, "commands"))) |items| {
         if (items.len > 0) {
             const out = try arena.alloc(context.CommandResult, items.len);
             for (items, 0..) |item, i| {
-                out[i] = try commandResultFromReport(arena, item, patterns, log, default_status, default_failure_kind);
+                out[i] = try commandResultFromReport(arena, item, patterns, log);
             }
             return out;
         }
@@ -375,26 +370,6 @@ fn commandsFromResult(
     return error.AiReportNotFound;
 }
 
-fn commandStatusFor(status: []const u8) []const u8 {
-    if (eqStr(status, "survived")) return "passed";
-    if (eqStr(status, "skipped")) return "skipped";
-    if (eqStr(status, "compiler_crash")) return "compiler_crash";
-    if (eqStr(status, "timeout")) return "timeout";
-    return "failed";
-}
-fn failureKindFor(status: []const u8) []const u8 {
-    if (eqStr(status, "survived")) return "none";
-    if (eqStr(status, "compile_error")) return "compile_error";
-    if (eqStr(status, "compiler_crash")) return "compiler_crash";
-    if (eqStr(status, "timeout")) return "timeout";
-    if (eqStr(status, "skipped")) return "skipped";
-    return "test_failure";
-}
-fn exitCodeFor(status: []const u8) ?i64 {
-    if (eqStr(status, "survived")) return 0;
-    if (eqStr(status, "skipped")) return null;
-    return 1;
-}
 fn baselineStatusFor(report: std.json.Value) []const u8 {
     const st = s(getO(get(report, "baseline"), "status"));
     if (eqStr(st, "passed")) return "passed";
@@ -447,16 +422,10 @@ fn buildContext(
     const m_diff = try context.redactStrArray(arena, try readStrArray(arena, get(mutant, "diff")), patterns, &log);
     const project_name = try context.redactField(arena, settings.project_name, patterns, &log);
 
-    const cmd_status = commandStatusFor(rstatus);
-    const cmd_failure_kind = blk: {
-        const cmds = arrOf(get(result, "commands"));
-        if (cmds) |list| if (list.len > 0) {
-            const fk = s(get(list[0], "failure_kind"));
-            if (fk.len > 0) break :blk fk;
-        };
-        break :blk failureKindFor(rstatus);
-    };
-    const commands = try commandsFromResult(arena, result, result_evidence, patterns, &log, cmd_status, cmd_failure_kind);
+    // Per-command status/failure_kind come straight from each command object in
+    // the report (commandResultFromReport reads them), so no synthesized default
+    // is needed here; a non-running mutant legitimately has an empty command set.
+    const commands = try commandsFromResult(arena, result, patterns, &log);
 
     const run_info = get(report, "run");
     const selection = get(mutant, "test_selection");
@@ -798,14 +767,19 @@ const mutation_classifications = [_][]const u8{
 };
 const confidences = [_][]const u8{ "low", "medium", "high", "unclear" };
 
-const unsafe_markers = [_][]const u8{
+/// Prompt-injection / role-confusion markers rejected in model-controlled
+/// response text. Shared with the doctest response validators
+/// (src/ai/doctest_command.zig) so the two surfaces cannot drift -- every doctest
+/// validation site calls `unsafeText` below rather than keeping a local copy.
+pub const unsafe_markers = [_][]const u8{
     "ignore previous", "ignore all previous", "disregard previous",
     "<tool",           "</tool",              "```tool",
     "system:",         "assistant:",          "<|",
     "begin_of_text",
 };
 
-fn unsafeText(text: []const u8) bool {
+/// True when `text` contains any `unsafe_markers` entry (case-insensitive).
+pub fn unsafeText(text: []const u8) bool {
     for (unsafe_markers) |marker| {
         if (std.ascii.indexOfIgnoreCase(text, marker) != null) return true;
     }
@@ -851,7 +825,8 @@ pub fn validateResponse(flow: Flow, value: std.json.Value) ResponseViolation {
                 const ro = objOf(r) orelse return .not_object;
                 if (!requireKeys(ro, &.{ "kind", "ref" })) return .missing_field;
                 if (!onlyKeys(ro, &.{ "kind", "ref" })) return .unknown_field;
-                if (unsafeText(s(ro.get("ref")))) return .unsafe_text;
+                // `kind` is model-controlled free text like `ref`, so gate it too.
+                if (unsafeText(s(ro.get("kind"))) or unsafeText(s(ro.get("ref")))) return .unsafe_text;
             }
             return .ok;
         },

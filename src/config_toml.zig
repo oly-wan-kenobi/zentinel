@@ -239,6 +239,14 @@ pub fn parse(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Pa
         p.skipInline();
         if (p.atEnd()) return p.fail("missing value");
         const value = try p.readValue();
+        // Nothing but trailing inline whitespace, a comment, a newline, or EOF may
+        // follow a value. A second token on the line (e.g. `timeout_ms = 30 000`)
+        // is a malformed value, reported as such here rather than surfacing later
+        // as a confusing "expected '=' after key" when the next bare run is read.
+        p.skipInline();
+        if (!p.atEnd() and p.peek() != '\n' and p.peek() != '#') {
+            return p.fail("unexpected token after value");
+        }
         try entries.append(arena, .{ .section = section, .key = key, .value = value, .line = key_line });
     }
 

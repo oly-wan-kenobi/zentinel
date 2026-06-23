@@ -113,8 +113,8 @@ pub const SelectedTest = struct {
     line: u32,
 };
 
-/// One mode's outcome for a mutant in the safety/optimization mode matrix
-///. An additive `zentinel.report.v1` extension carried only inside the
+/// One mode's outcome for a mutant in the safety/optimization mode matrix.
+/// An additive `zentinel.report.v1` extension carried only inside the
 /// optional `Result.mode_matrix`; it never replaces `result.mode`.
 pub const ModeResult = struct {
     mode: Mode,
@@ -273,13 +273,17 @@ pub const Violation = enum {
     baseline_failed_requires_empty_mutants,
     baseline_failed_requires_zero_counts,
     internal_error_requires_run_error,
+    run_error_code_blank,
+    run_error_message_blank,
     run_error_must_be_null,
     baseline_not_run_with_mutants,
     baseline_empty_commands,
     baseline_command_skipped,
+    baseline_command_phase,
     baseline_timeout_requires_baseline_failed,
     empty_argv0,
     mutant_command_phase,
+    preflight_command_phase,
     skip_reason_required,
     skip_reason_must_be_null,
     invalid_failure_summary_prefix,
@@ -336,7 +340,13 @@ pub fn validate(report: Report) Violation {
             if (report.run.@"error" != null) return .run_error_must_be_null;
         },
         .internal_error => {
-            if (report.run.@"error" == null) return .internal_error_requires_run_error;
+            // run.error must be present and its stable code/message non-blank. The
+            // ZNTL_ code shape (^ZNTL_[A-Z0-9_]+$) is proven by the JSON Schema; the
+            // second oracle only guarantees the fields are not empty, mirroring the
+            // mutant_command_phase invariant the schema cannot fully express.
+            const e = report.run.@"error" orelse return .internal_error_requires_run_error;
+            if (e.code.len == 0) return .run_error_code_blank;
+            if (e.message.len == 0) return .run_error_message_blank;
         },
     }
 
@@ -347,6 +357,7 @@ pub fn validate(report: Report) Violation {
         return .baseline_empty_commands;
     }
     for (report.baseline.commands) |c| {
+        if (c.phase != .baseline) return .baseline_command_phase;
         if (c.status == .skipped) return .baseline_command_skipped;
         if (c.status == .timeout and report.run.status != .baseline_failed) return .baseline_timeout_requires_baseline_failed;
     }
@@ -359,6 +370,9 @@ pub fn validate(report: Report) Violation {
         if (!evidenceArgvOk(m.test_selection.preflight_commands)) return .empty_argv0;
         for (m.result.commands) |c| {
             if (c.phase != .mutant) return .mutant_command_phase;
+        }
+        for (m.test_selection.preflight_commands) |c| {
+            if (c.phase != .selection_preflight) return .preflight_command_phase;
         }
         if (commandSkipReasonViolation(m.result.commands)) |v| return v;
         if (commandSkipReasonViolation(m.test_selection.preflight_commands)) |v| return v;

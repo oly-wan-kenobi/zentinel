@@ -49,6 +49,29 @@ pub const Progress = struct {
     notifyFn: *const fn (ctx: *anyopaque, completed: usize, total: usize, event: ProgressEvent) void,
 };
 
+/// Adapter-injected content-addressed result store for cross-run reuse
+/// (docs/PERFORMANCE_STRATEGY.md "Caching Strategy"). `get` returns the
+/// previously persisted entry bytes for a key (or null on a miss / unreadable
+/// entry); `put` persists an entry's bytes under its key. The deterministic core
+/// only ever stores POST-REVERIFY terminal verdicts and serves them back, so the
+/// store never changes a verdict -- it only skips recomputing one. Filesystem
+/// I/O lives entirely in the adapter's implementation (the binary keys entries
+/// under `.zig-cache/zentinel/results/<key>.json`); tests inject an in-memory
+/// store. `null` (the default) disables reuse without disabling key computation,
+/// reproducing the prior metadata-only behavior byte-for-byte.
+pub const ResultStore = struct {
+    ctx: *anyopaque,
+    getFn: *const fn (ctx: *anyopaque, key: []const u8) ?[]const u8,
+    putFn: *const fn (ctx: *anyopaque, key: []const u8, bytes: []const u8) void,
+
+    pub fn get(self: ResultStore, key: []const u8) ?[]const u8 {
+        return self.getFn(self.ctx, key);
+    }
+    pub fn put(self: ResultStore, key: []const u8, bytes: []const u8) void {
+        self.putFn(self.ctx, key, bytes);
+    }
+};
+
 pub const Options = struct {
     operator_filter: ?[]const u8 = null,
     mutant_filter: ?[]const u8 = null,
@@ -63,6 +86,13 @@ pub const Options = struct {
     /// cache metadata/policy, never in mutant correctness; Zig build-cache
     /// isolation metadata is unaffected.
     no_cache: bool = false,
+    /// Adapter-injected content-addressed result store enabling cross-run result
+    /// reuse. `null` (the default) leaves reuse disabled -- keys are still
+    /// computed for metadata, but no entry is read or written, so existing
+    /// callers behave exactly as before. When set (and the cache is enabled and
+    /// the run is single-mode), a terminal post-reverify verdict is served from
+    /// the store on a hit (skipping compile+test) and persisted on a miss.
+    result_cache: ?ResultStore = null,
     /// Worker count for parallel mutant execution (`--jobs <n>`). When set, it
     /// overrides normalized `run.jobs`. Chooses only concurrency, never report
     /// ordering or mutation semantics; `null` falls back to `run.jobs`.
@@ -181,6 +211,11 @@ const ParallelCtx = struct {
     results: []mutant_runner.MutationResult,
     mutant_executor: MutantRunner,
     mode: report.Mode,
+    /// Per-job result-cache hit flags. A hit index already has its `results` slot
+    /// filled from the store (a POST-REVERIFY terminal verdict), so its mutant is
+    /// neither run here nor reverified in Phase B.5 -- the whole point of reuse is
+    /// to skip compile+test. `&.{}` means "no reuse" (every index a miss).
+    hits: []const bool = &.{},
     /// Optional progress sink plus the shared completion counter feeding it.
     /// The counter is the only cross-worker progress state; each notify call
     /// gets a unique completed value in [1, jobs.len].
@@ -188,16 +223,25 @@ const ParallelCtx = struct {
     completed: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
 };
 
+/// Whether index `i` is a result-cache hit (its result is already in `results`).
+fn isHit(hits: []const bool, i: usize) bool {
+    return i < hits.len and hits[i];
+}
+
 /// Worker-pool task: run one mutant and store its result at the matching index.
 /// The injected runner isolates each mutant in its own content-addressed
 /// workspace, so concurrent workers never share a workspace, cache, or output.
-/// Progress (when injected) is emitted in completion order; the report's
-/// determinism is untouched because results stay index-addressed.
+/// A result-cache hit is skipped entirely (its `results` slot is already the
+/// served verdict). Progress (when injected) is emitted in completion order for
+/// both run and reused mutants, so the completion count still reaches `jobs.len`;
+/// the report's determinism is untouched because results stay index-addressed.
 fn runOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
     _ = slot;
     const pc: *ParallelCtx = @ptrCast(@alignCast(ctx));
     const job = pc.jobs[index];
-    pc.results[index] = pc.mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, pc.mode);
+    if (!isHit(pc.hits, index)) {
+        pc.results[index] = pc.mutant_executor.runSpecs(job.candidate, job.source, job.command_specs, job.commands, pc.mode);
+    }
     if (pc.progress) |p| {
         const done = pc.completed.fetchAdd(1, .monotonic) + 1;
         p.notifyFn(p.ctx, done, pc.jobs.len, .{
@@ -220,13 +264,20 @@ const ReverifyCtx = struct {
     cfg_test_commands: []const []const u8,
     mutant_executor: MutantRunner,
     mode: report.Mode,
+    /// Per-job result-cache hit flags. A served verdict is ALREADY post-reverify
+    /// (only post-reverify terminal verdicts are ever stored), so a hit must not
+    /// be reverified again -- doing so would re-run the suite the cache exists to
+    /// skip and could overwrite the authoritative cached verdict.
+    hits: []const bool = &.{},
 };
 
 /// Worker-pool task: reverify one narrowed survivor against the configured suite.
-/// Non-survivors, and survivors whose selection did not narrow, are no-ops.
+/// Result-cache hits (already post-reverify), non-survivors, and survivors whose
+/// selection did not narrow are no-ops.
 fn reverifyOneMutant(ctx: *anyopaque, index: usize, slot: usize) void {
     _ = slot;
     const rc: *ReverifyCtx = @ptrCast(@alignCast(ctx));
+    if (isHit(rc.hits, index)) return;
     if (rc.results[index].status != .survived) return;
     if (!test_selection.needsConfiguredReverification(rc.jobs[index].commands, rc.cfg_test_commands)) return;
     rc.out[index] = rc.mutant_executor.runSpecs(rc.jobs[index].candidate, rc.jobs[index].source, rc.reverify_specs, rc.cfg_test_commands, rc.mode);
@@ -281,8 +332,10 @@ fn jobsFromConfig(run_jobs: i64) usize {
 pub const RunOutcome = struct {
     exit_code: u8,
     report: report.Report,
-    /// Deterministic cache metadata for the run. Separate from the report's
-    /// disabled-cache diagnostics: Phase 1 computes keys but never reuses results.
+    /// Deterministic cache metadata for the run (the `cache.json` artifact). The
+    /// report's `diagnostics.cache` is derived from this same metadata via
+    /// `cacheDiagnostics`, so the two stay consistent (enabled/mode/hits match;
+    /// the report adds `misses`).
     cache: cache.Metadata,
 };
 
@@ -419,6 +472,7 @@ pub fn run(
     };
 
     if (baseline.status != .passed) {
+        const meta = buildCacheMetadata(&.{}, no_cache, obs.zig_cache_namespace, false, 0);
         return .{
             .exit_code = 3,
             .report = .{
@@ -426,8 +480,9 @@ pub fn run(
                 .baseline = .{ .status = .failed, .commands = baseline.commands },
                 .summary = .{},
                 .mutants = &.{},
+                .diagnostics = .{ .cache = cache.toReportDiagnostics(meta) },
             },
-            .cache = buildCacheMetadata(&.{}, no_cache, obs.zig_cache_namespace),
+            .cache = meta,
         };
     }
 
@@ -468,16 +523,67 @@ pub fn run(
     }
     const jobs = try job_list.toOwnedSlice(arena);
 
-    // Phase B (parallel): run each mutant through the injected runner across at
-    // most `--jobs` (overriding `run.jobs`) workers. Results are collected by
-    // index, so the worker count changes only concurrency -- never which result
-    // belongs to which mutant. jobs == 1 runs inline (conservative default). The
-    // injected runner's allocator must be thread-safe under --jobs > 1: the
-    // adapter wraps the process arena in worker_pool.LockedAllocator (the arena
-    // is not thread-safe). Each worker writes a disjoint results slot.
+    // Result-cache inputs. The key is a pure function of the mutant + sources +
+    // commands + mode, so the per-file project/source hashes and the per-job keys
+    // are computed ONCE here and reused for reuse-lookup (below), persistence
+    // (after Phase B.5), and the Phase C metadata emit -- the looked-up and stored
+    // keys are therefore guaranteed identical.
+    const project_hash = try projectHash(arena, files);
+    const source_hashes = try buildSourceHashIndex(arena, files);
+    // Keys are computed whenever the cache is enabled (single- AND multi-mode) so
+    // the metadata artifact is unchanged. `job_keys[i]` is null only when caching
+    // is disabled (`--no-cache`/`cache.enabled=false`).
+    const job_keys = try arena.alloc(?[]const u8, jobs.len);
+    for (jobs, 0..) |job, ji| {
+        job_keys[ji] = if (no_cache) null else try cacheKeyForJob(
+            arena,
+            job,
+            obs,
+            cfg.test_commands,
+            source_hashes.get(job.candidate.file) orelse return error.SourceFileMissing,
+            project_hash,
+            mode,
+        );
+    }
+
     const results = try arena.alloc(mutant_runner.MutationResult, jobs.len);
+
+    // Read-side result reuse (docs/PERFORMANCE_STRATEGY.md). Only attempted with a
+    // wired store, an enabled cache, and a SINGLE-mode run: the key encodes only
+    // the primary mode, so a stored single-mode `MutationResult` fully determines
+    // that mutant's report contribution (its `mode_matrix` is null). A multi-mode
+    // run's per-mutant report also depends on the non-primary modes the key does
+    // not capture, so reuse is conservatively disabled there (every mutant a miss,
+    // exactly as before). Each served entry is a POST-REVERIFY terminal verdict, so
+    // a hit fills `results[i]` directly and skips both Phase B and Phase B.5 for
+    // that mutant. SOUNDNESS: the configured-suite reverify remains the survivor
+    // authority -- it is what was stored -- and an unreadable/stale/non-terminal
+    // entry deserializes to null and is treated as a miss, never served.
+    const hits = try arena.alloc(bool, jobs.len);
+    @memset(hits, false);
+    var hit_count: u64 = 0;
+    const reuse_enabled = options.result_cache != null and !no_cache and !multi_mode;
+    if (reuse_enabled) {
+        const store = options.result_cache.?;
+        for (job_keys, 0..) |maybe_key, ji| {
+            const key = maybe_key orelse continue;
+            const bytes = store.get(key) orelse continue;
+            const served = deserializeCachedResult(arena, bytes, mode) orelse continue;
+            results[ji] = served;
+            hits[ji] = true;
+            hit_count += 1;
+        }
+    }
+
+    // Phase B (parallel): run each NON-hit mutant through the injected runner
+    // across at most `--jobs` (overriding `run.jobs`) workers. Results are
+    // collected by index, so the worker count changes only concurrency -- never
+    // which result belongs to which mutant. jobs == 1 runs inline (conservative
+    // default). The injected runner's allocator must be thread-safe under
+    // --jobs > 1: the adapter wraps the process arena in worker_pool.LockedAllocator
+    // (the arena is not thread-safe). Each worker writes a disjoint results slot.
     const requested_jobs: usize = if (options.jobs) |j| j else jobsFromConfig(cfg.run_jobs);
-    var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode, .progress = options.progress };
+    var pctx = ParallelCtx{ .jobs = jobs, .results = results, .mutant_executor = mutant_executor, .mode = mode, .hits = hits, .progress = options.progress };
     worker_pool.run(requested_jobs, jobs.len, &pctx, runOneMutant);
 
     // Phase B.5 (serial): re-verify narrowed-selection survivors against the full
@@ -508,10 +614,27 @@ pub fn run(
         .cfg_test_commands = cfg.test_commands,
         .mutant_executor = mutant_executor,
         .mode = mode,
+        .hits = hits,
     };
     worker_pool.run(requested_jobs, jobs.len, &rvctx, reverifyOneMutant);
     for (reverify_out, 0..) |maybe, ji| {
         if (maybe) |reverify| results[ji] = try mergeReverification(arena, results[ji], reverify);
+    }
+
+    // Persist the POST-REVERIFY verdicts (write side of reuse). Only when reuse is
+    // enabled (wired store, enabled cache, single-mode); only freshly computed
+    // misses (a hit is already the stored value); and only terminal verdicts
+    // (`cacheableOutcome` excludes timeout/crash/invalid/skip, which can differ
+    // between runs and must never be served). `results[ji]` here is authoritative:
+    // it already reflects any configured-suite reverification merged above.
+    if (reuse_enabled) {
+        const store = options.result_cache.?;
+        for (job_keys, 0..) |maybe_key, ji| {
+            if (hits[ji]) continue;
+            const key = maybe_key orelse continue;
+            if (!cacheableOutcome(results[ji].status)) continue;
+            store.put(key, try serializeCachedResult(arena, results[ji]));
+        }
     }
 
     // Mode matrix: when more than one mode is run, record each mode's per-mutant
@@ -563,11 +686,7 @@ pub fn run(
     // here, serial and parallel runs produce equivalent reports.
     var entries: std.ArrayList(report.Mutant) = .empty;
     var result_keys: std.ArrayList(cache.ResultKey) = .empty;
-    const project_hash = try projectHash(arena, files);
-    // Hash each unique file's source ONCE; the result-cache key below reuses it per
-    // mutant instead of re-hashing the same bytes O(M) times.
-    const source_hashes = try buildSourceHashIndex(arena, files);
-    for (jobs, results, 0..) |job, result, ji| {
+    for (jobs, results, job_keys, 0..) |job, result, maybe_key, ji| {
         const mode_matrix: ?[]const report.ModeResult = if (multi_mode) blk: {
             const rows = try arena.alloc(report.ModeResult, matrix_modes.len);
             for (matrix_modes, 0..) |m, mi| rows[mi] = .{ .mode = m, .status = mode_grid[mi][ji] };
@@ -576,32 +695,18 @@ pub fn run(
         } else null;
         try entries.append(arena, try buildEntry(arena, job.candidate, job.source, result, mode, mode_matrix, job.selection));
 
-        // Compute the deterministic result-cache key (metadata only; reuse stays
-        // disabled in Phase 1). A disabled cache skips result keys entirely. Only
-        // deterministic outcomes get a key: a timeout / compiler_crash / invalid
-        // result is transient (host load, an FS race, a flaky compiler) and shares
-        // a byte-identical key with a clean run of the same mutant, so emitting one
-        // would let a future reuse pass serve that transient verdict as a real hit,
-        // hiding a kill or survivor.
-        if (!no_cache and cacheableOutcome(result.status)) {
-            const key = try cache.computeKey(arena, .{
-                .mutant_id = job.candidate.id,
-                .zentinel_version = obs.zentinel_version,
-                .zig_version = obs.zig_version,
-                .zig_cache_namespace = obs.zig_cache_namespace,
-                .backend = @tagName(job.candidate.backend),
-                .backend_version = job.candidate.backend_version,
-                .operator = job.candidate.operator,
-                .source_hash = source_hashes.get(job.candidate.file) orelse return error.SourceFileMissing,
-                .project_hash = project_hash,
-                .config_hash = obs.config_hash,
-                .test_command = try joinCommands(arena, job.commands),
-                .configured_command = try joinCommands(arena, cfg.test_commands),
-                .mode = @tagName(mode),
-                .environment = "minimal",
-                .environment_hash = obs.environment_hash,
-            });
-            try result_keys.append(arena, .{ .mutant_id = job.candidate.id, .key = key });
+        // Emit the precomputed result-cache key into the metadata. A disabled cache
+        // has no key (`job_keys[ji] == null`). Only deterministic outcomes get a
+        // key: a timeout / compiler_crash / invalid result is transient (host load,
+        // an FS race, a flaky compiler) and shares a byte-identical key with a clean
+        // run of the same mutant, so emitting one would let a future reuse pass
+        // serve that transient verdict as a real hit, hiding a kill or survivor.
+        // (A hit's verdict was itself terminal when stored, so served hits are
+        // always cacheable and appear here too -- `hits <= result_keys.len`.)
+        if (maybe_key) |key| {
+            if (cacheableOutcome(result.status)) {
+                try result_keys.append(arena, .{ .mutant_id = job.candidate.id, .key = key });
+            }
         }
     }
     const mutants = try entries.toOwnedSlice(arena);
@@ -611,6 +716,7 @@ pub fn run(
     var exit_code: u8 = 0;
     if (options.fail_on_survivors and summary.survived > 0) exit_code = 1;
 
+    const cache_meta = buildCacheMetadata(try result_keys.toOwnedSlice(arena), no_cache, obs.zig_cache_namespace, reuse_enabled, hit_count);
     return .{
         .exit_code = exit_code,
         .report = .{
@@ -618,8 +724,9 @@ pub fn run(
             .baseline = .{ .status = .passed, .commands = baseline.commands },
             .summary = summary,
             .mutants = mutants,
+            .diagnostics = .{ .cache = cache.toReportDiagnostics(cache_meta) },
         },
-        .cache = buildCacheMetadata(try result_keys.toOwnedSlice(arena), no_cache, obs.zig_cache_namespace),
+        .cache = cache_meta,
     };
 }
 
@@ -631,6 +738,64 @@ fn cacheableOutcome(status: report.ResultStatus) bool {
     return switch (status) {
         .killed, .survived, .compile_error => true,
         .compiler_crash, .timeout, .skipped, .invalid => false,
+    };
+}
+
+/// On-disk schema tag for a persisted result entry. Bumped independently of the
+/// key namespace so an incompatible entry layout is rejected (treated as a miss)
+/// even if a key were to collide across versions.
+const cached_result_schema = "zentinel.result.v2";
+
+/// A persisted, content-addressed result entry. It carries the FULL post-reverify
+/// `MutationResult` (status, every command result with its evidence, the result
+/// evidence, and the skip reason) so a served entry reconstructs a byte-identical
+/// report through `buildEntry` -- report-equivalence, not just the verdict tag.
+/// `mutant_id` is recorded for cross-checking but the report's identity always
+/// comes from the freshly generated candidate, never from the cache.
+const CachedResult = struct {
+    schema_version: []const u8 = cached_result_schema,
+    status: report.ResultStatus,
+    mode: report.Mode,
+    classifier_source: mutant_runner.ClassifierSource,
+    mutant_id: []const u8,
+    commands: []const report.CommandResult,
+    evidence: report.Evidence,
+    skip_reason: ?[]const u8,
+};
+
+/// Serialize a post-reverify `MutationResult` into a persistable result entry.
+fn serializeCachedResult(arena: std.mem.Allocator, result: mutant_runner.MutationResult) std.mem.Allocator.Error![]u8 {
+    const entry = CachedResult{
+        .status = result.status,
+        .mode = result.mode,
+        .classifier_source = result.classifier_source,
+        .mutant_id = result.mutant_id,
+        .commands = result.commands,
+        .evidence = result.evidence,
+        .skip_reason = result.skip_reason,
+    };
+    return std.json.Stringify.valueAlloc(arena, entry, .{});
+}
+
+/// Reconstruct a `MutationResult` from a persisted entry, or null when the bytes
+/// are unreadable, carry an unexpected schema, or hold a non-terminal verdict.
+/// Any of those is treated as a miss: a corrupt or stale entry can never be served
+/// as a verdict. `mode` is the run's primary mode; an entry whose recorded mode
+/// disagrees is rejected (the key encodes the primary mode, so this is a
+/// belt-and-braces guard against a hand-edited or stale store).
+fn deserializeCachedResult(arena: std.mem.Allocator, bytes: []const u8, mode: report.Mode) ?mutant_runner.MutationResult {
+    const entry = std.json.parseFromSliceLeaky(CachedResult, arena, bytes, .{}) catch return null;
+    if (!std.mem.eql(u8, entry.schema_version, cached_result_schema)) return null;
+    if (entry.mode != mode) return null;
+    if (!cacheableOutcome(entry.status)) return null;
+    return .{
+        .mutant_id = entry.mutant_id,
+        .status = entry.status,
+        .mode = entry.mode,
+        .classifier_source = entry.classifier_source,
+        .commands = entry.commands,
+        .evidence = entry.evidence,
+        .skip_reason = entry.skip_reason,
     };
 }
 
@@ -652,14 +817,16 @@ fn baseRun(obs: Observation, status: report.RunStatus) report.Run {
 /// Test-only counter: how many times the per-run source index (path -> bytes) is
 /// built. Every file is indexed ONCE so the Phase A per-mutant source lookup is
 /// O(1) (`index.get`), not a linear scan of `files` per candidate (O(M*F)); a
-/// regression that rebuilt or scanned per mutant would push this above 1.
-pub var source_index_builds: usize = 0;
+/// regression that rebuilt or scanned per mutant would push this above 1. Stored
+/// as an atomic so a regression that incremented it from a worker thread could
+/// not data-race this shared global (load/store via `.monotonic`).
+pub var source_index_builds: std.atomic.Value(usize) = std.atomic.Value(usize).init(0);
 
 /// Index source bytes by project-relative path. First occurrence wins, matching
 /// the prior `sourceFor` linear scan's first-match semantics (`files` is already
 /// de-duplicated by `discover`, so this only matters defensively).
 fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem.Allocator.Error!std.StringHashMap([]const u8) {
-    source_index_builds += 1;
+    _ = source_index_builds.fetchAdd(1, .monotonic);
     var index = std.StringHashMap([]const u8).init(arena);
     for (files) |f| {
         const gop = try index.getOrPut(f.path);
@@ -671,8 +838,10 @@ fn buildSourceIndex(arena: std.mem.Allocator, files: []const FileSource) std.mem
 /// Test-only counter: how many times a source file's SHA-256 result-cache hash is
 /// computed. The hash is a pure function of the file bytes, identical for every
 /// mutant from that file, so it is computed ONCE per unique file and reused in the
-/// Phase C per-mutant loop; recomputing per mutant would push this to O(M).
-pub var source_hash_count: usize = 0;
+/// Phase C per-mutant loop; recomputing per mutant would push this to O(M). Stored
+/// as an atomic so a regression that incremented it from a worker thread could not
+/// data-race this shared global (load/store via `.monotonic`).
+pub var source_hash_count: std.atomic.Value(usize) = std.atomic.Value(usize).init(0);
 
 /// Index each unique file's source-cache hash (path -> hex SHA-256) ONCE, so the
 /// Phase C result-cache key lookup is O(1) per mutant instead of an O(M) re-hash of
@@ -682,7 +851,7 @@ fn buildSourceHashIndex(arena: std.mem.Allocator, files: []const FileSource) std
     for (files) |f| {
         const gop = try index.getOrPut(f.path);
         if (!gop.found_existing) {
-            source_hash_count += 1;
+            _ = source_hash_count.fetchAdd(1, .monotonic);
             gop.value_ptr.* = try cache.sourceHash(arena, f.source);
         }
     }
@@ -701,16 +870,55 @@ pub fn firstBackendParseError(arena: std.mem.Allocator, files: []const FileSourc
     return null;
 }
 
-/// Assemble run cache metadata. `--no-cache` disables the result cache (no
-/// result keys, mode disabled) but leaves the Zig build-cache isolation metadata
-/// intact (docs/PERFORMANCE_STRATEGY.md). Result reuse is never enabled here.
-fn buildCacheMetadata(result_keys: []const cache.ResultKey, no_cache: bool, namespace: []const u8) cache.Metadata {
+/// Assemble run cache metadata. `--no-cache` disables the result cache (no result
+/// keys, mode disabled) but leaves the Zig build-cache isolation metadata intact
+/// (docs/PERFORMANCE_STRATEGY.md). `reuse` is true only when a result store was
+/// wired and consulted (single-mode, enabled cache): then the mode is `read_write`
+/// and `hits` counts the served verdicts. With the cache enabled but no store
+/// wired, `reuse` is false, so the mode stays `metadata_only` and `hits` is 0 --
+/// byte-identical to the prior metadata-only behavior.
+fn buildCacheMetadata(result_keys: []const cache.ResultKey, no_cache: bool, namespace: []const u8, reuse: bool, hits: u64) cache.Metadata {
     return .{
         .enabled = !no_cache,
-        .mode = if (no_cache) .disabled else .metadata_only,
+        .mode = if (no_cache) .disabled else if (reuse) .read_write else .metadata_only,
         .result_keys = if (no_cache) &.{} else result_keys,
         .build_cache = .{ .namespace = namespace, .isolated = true },
+        .hits = if (no_cache) 0 else hits,
     };
+}
+
+/// Compute the deterministic result-cache key for one job. Pure: a function of the
+/// mutant identity, the source/project/config hashes, the executed and configured
+/// commands, the primary mode, and the environment -- never the run's outcome. The
+/// same key drives both pre-run reuse lookup and post-run persistence, so it is
+/// computed ONCE per job (in Phase A) and shared with the Phase C metadata emit,
+/// guaranteeing the looked-up and stored keys are identical.
+fn cacheKeyForJob(
+    arena: std.mem.Allocator,
+    job: Job,
+    obs: Observation,
+    cfg_test_commands: []const []const u8,
+    source_hash: []const u8,
+    project_hash: []const u8,
+    mode: report.Mode,
+) std.mem.Allocator.Error![]const u8 {
+    return cache.computeKey(arena, .{
+        .mutant_id = job.candidate.id,
+        .zentinel_version = obs.zentinel_version,
+        .zig_version = obs.zig_version,
+        .zig_cache_namespace = obs.zig_cache_namespace,
+        .backend = @tagName(job.candidate.backend),
+        .backend_version = job.candidate.backend_version,
+        .operator = job.candidate.operator,
+        .source_hash = source_hash,
+        .project_hash = project_hash,
+        .config_hash = obs.config_hash,
+        .test_command = try joinCommands(arena, job.commands),
+        .configured_command = try joinCommands(arena, cfg_test_commands),
+        .mode = @tagName(mode),
+        .environment = "minimal",
+        .environment_hash = obs.environment_hash,
+    });
 }
 
 /// Encode a command vector into one canonical, INJECTIVE cache-key field. Each

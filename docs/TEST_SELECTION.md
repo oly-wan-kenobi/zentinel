@@ -17,7 +17,7 @@ Test selection controls which tests zentinel runs for each mutant. It is a perfo
 | `all` | Run all configured test commands for every mutant. |
 | `same_file` | Run tests associated with the mutated file. |
 | `same_file_then_package` | Prefer same-file tests, fall back to package/build tests. |
-| `impact_graph` | Use dependency/test impact analysis when available. |
+| `impact_graph` | Reserved / not yet implemented. **Rejected by config validation** — see [Impact Graph](#impact-graph). |
 
 Default:
 
@@ -63,7 +63,9 @@ This guarantee covers the recorded mutant verdict and the derived survivor count
 
 ## Impact Graph
 
-`impact_graph` is not an alias for `same_file_then_package` and must not silently fall back to all tests; its impact set is deterministic and recorded.
+`impact_graph` is **reserved and not yet implemented**. Its current resolver is an exact alias of `same_file_then_package`, so accepting `selection = "impact_graph"` would record a misleading `impact_graph` strategy in the report for behavior that is really same-file-then-package. To avoid that false strategy label, **config validation rejects `selection = "impact_graph"`** (`invalid_value`); the `Strategy` enum variant and its resolver branch are retained only for forward-compatibility until a real impact-graph resolver lands.
+
+When implemented, `impact_graph` must not be an alias for `same_file_then_package` and must not silently fall back to all tests; its impact set must be deterministic and recorded. Only then will config accept it.
 
 The future impact graph may use:
 

@@ -10,6 +10,7 @@ const std = @import("std");
 const normalizer = @import("normalizer.zig");
 const matcher = @import("matcher.zig");
 const runner = @import("runner.zig");
+const proc = @import("../runner.zig");
 const error_codes = @import("../error_codes.zig");
 
 pub const excerpt_limit = 4096;
@@ -114,6 +115,10 @@ pub fn renderDiagnostic(arena: std.mem.Allocator, r: Result) std.mem.Allocator.E
 }
 
 fn bounded(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
-    const len = @min(text.len, excerpt_limit);
+    // Cut on a UTF-8 codepoint boundary, not a raw byte index: a multibyte
+    // character straddling `excerpt_limit` would otherwise be sliced mid-sequence
+    // and yield an invalid-UTF-8 excerpt in the report. utf8BoundaryLen walks back
+    // off any continuation byte so the kept prefix is always well-formed.
+    const len = proc.utf8BoundaryLen(text, excerpt_limit);
     return arena.dupe(u8, text[0..len]);
 }

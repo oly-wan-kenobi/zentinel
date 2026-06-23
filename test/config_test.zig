@@ -354,11 +354,14 @@ test "default init output equals the static template" {
     try expectEqualStrings(zentinel.default_config, text);
 }
 
-test "impact_graph selection is accepted" {
+test "impact_graph selection is rejected (reserved / not-yet-implemented)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
+    // impact_graph's resolver is currently an exact alias of
+    // same_file_then_package, so accepting it would record a misleading strategy.
+    // Config rejects it (the enum variant is kept only for forward-compat).
     var diag: config.Diagnostic = .{};
-    const cfg = try load(arena.allocator(),
+    try expectError(error.Invalid, load(arena.allocator(),
         \\[project]
         \\name = "demo"
         \\
@@ -366,8 +369,10 @@ test "impact_graph selection is accepted" {
         \\commands = ["zig build test"]
         \\selection = "impact_graph"
         \\
-    , &diag);
-    try expectEqualStrings("impact_graph", cfg.test_selection);
+    , &diag));
+    try expectEqual(config.Code.invalid_value, diag.code);
+    try expectEqualStrings("test", diag.section);
+    try expectEqualStrings("selection", diag.key);
 }
 
 test "an unknown selection strategy is still rejected" {

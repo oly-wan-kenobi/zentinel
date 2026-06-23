@@ -42,12 +42,12 @@ the exact boundaries:
 survived 2 comparison_boundary src/main.zig:8
   -     if (x < lo) return lo;
   +     if (x <= lo) return lo;
-  selected tests passed: zig test src/main.zig
+  selected tests: zig test src/main.zig
   likely focus: missing exact-boundary inputs
 survived 3 comparison_boundary src/main.zig:9
   -     if (x > hi) return hi;
   +     if (x >= hi) return hi;
-  selected tests passed: zig test src/main.zig
+  selected tests: zig test src/main.zig
   likely focus: missing exact-boundary inputs
 3 mutants: 1 killed, 2 survived
 ```

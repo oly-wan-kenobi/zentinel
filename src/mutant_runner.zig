@@ -86,24 +86,6 @@ fn invalidResult(mutant_id: []const u8, mode: report.Mode, summary: []const u8) 
     };
 }
 
-fn skippedCommand(arena: std.mem.Allocator, original: []const u8, cwd: []const u8) std.mem.Allocator.Error!report.CommandResult {
-    const argv = switch (try command.parse(arena, original)) {
-        .ok => |a| a,
-        .invalid => try arena.dupe([]const u8, &.{original}),
-    };
-    return .{
-        .command = .{ .original = original, .argv = argv, .cwd = cwd, .environment_policy = .minimal, .shell = false },
-        .phase = .mutant,
-        .status = .skipped,
-        .exit_code = null,
-        .timed_out = false,
-        .failure_kind = .skipped,
-        .duration_ms = 0,
-        .evidence = .{},
-        .skip_reason = "fail-fast: an earlier command determined the mutant result",
-    };
-}
-
 fn skippedCommandSpec(spec: command.Spec, cwd: []const u8) report.CommandResult {
     return .{
         .command = .{ .original = spec.original, .argv = spec.argv, .cwd = cwd, .environment_policy = .minimal, .shell = false },
@@ -160,8 +142,11 @@ pub fn runSpecs(
     if (workspace == .create_failed) {
         return invalidResult(m.id, mode, "sandbox: mutation workspace could not be created");
     }
-    _ = sandbox.apply(arena, source, m) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
+    // Validate the patch is appliable (span in range, original bytes match) but do
+    // NOT build the patched buffer here: the per-mutant workspace copy already
+    // carries the patched file, so allocating the full patched source only to
+    // discard it is pure waste. `validate` is allocation-free (PatchError only).
+    sandbox.validate(source, m) catch |err| switch (err) {
         error.SpanOutOfRange => return invalidResult(m.id, mode, sandbox.failureSummary(error.SpanOutOfRange)),
         error.PatchMismatch => return invalidResult(m.id, mode, sandbox.failureSummary(error.PatchMismatch)),
     };

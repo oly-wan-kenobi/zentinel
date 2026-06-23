@@ -126,19 +126,22 @@ fn rangeEnd(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const text = tree.tokenSlice(tok);
     if (!isPlainDecimal(text)) return;
-    const value = std.fmt.parseInt(i128, text, 10) catch return;
+    // number_literal tokens are always non-negative; parse as u128 so an out-of-width
+    // decimal that still fits u128 keeps its -1 boundary instead of being discarded.
+    const value = std.fmt.parseInt(u128, text, 10) catch return;
     const end = start + @as(u32, @intCast(text.len));
     const sp = li.locate(start) orelse return;
     const ep = li.locate(end) orelse return;
     const span: mutant.Span = .{ .byte_start = start, .byte_end = end, .line_start = sp.line, .column_start = sp.column, .line_end = ep.line, .column_end = ep.column };
-    // Guard the range-end arithmetic against i128 overflow exactly as
-    // integer_boundary does: a +/-1 boundary unrepresentable in i128 is skipped
-    // rather than computed, since the unchecked add/sub would panic in-process and
-    // abort the whole candidate-generation pass on a legal source literal.
-    if (std.math.add(i128, value, 1)) |plus| {
+    // Guard the range-end arithmetic against u128 overflow exactly as
+    // integer_boundary does: a +/-1 boundary unrepresentable in u128 (u128 max's +1,
+    // or a `0` range-end's -1 underflow) is skipped rather than computed, since the
+    // unchecked add/sub would panic in-process and abort the whole candidate-generation
+    // pass on a legal source literal.
+    if (std.math.add(u128, value, 1)) |plus| {
         try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
     } else |_| {}
-    if (std.math.sub(i128, value, 1)) |minus| {
+    if (std.math.sub(u128, value, 1)) |minus| {
         try emitRange(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{minus}));
     } else |_| {}
 }

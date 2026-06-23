@@ -185,10 +185,15 @@ test "a fail-fast-shortened mutant records skipped commands with a documented re
     try expectEqual(report.Violation.ok, report.validate(outcome.report));
 }
 
-test "impact_graph selection produces a valid completed report end to end" {
+test "impact_graph selection is rejected by config (reserved / not-yet-implemented)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
+    // The `impact_graph` resolver is currently an exact alias of
+    // same_file_then_package, so accepting `selection = "impact_graph"` would
+    // record a misleading strategy. Config rejects it (the `Strategy` enum variant
+    // and its resolver branch -- exercised by the resolver-level tests above --
+    // are retained only for forward-compat). Mirrors config_test.zig.
     const toml =
         \\[project]
         \\name = "sample"
@@ -202,14 +207,8 @@ test "impact_graph selection produces a valid completed report end to end" {
         \\
     ;
     var diag: config.Diagnostic = .{};
-    const cfg = try config.load(a, toml, &diag);
-    try expectEqualStrings("impact_graph", cfg.test_selection);
-
-    var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = fail() };
-    const files = [_]rc.FileSource{.{ .path = "src/sample.zig", .source = sample }};
-    const outcome = try rc.run(a, cfg, &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
-    try expectEqual(report.RunStatus.completed, outcome.report.run.status);
-    try expect(outcome.report.mutants.len >= 1);
-    for (outcome.report.mutants) |m| try expectEqual(report.Strategy.impact_graph, m.test_selection.strategy);
-    try expectEqual(report.Violation.ok, report.validate(outcome.report));
+    try std.testing.expectError(error.Invalid, config.load(a, toml, &diag));
+    try expectEqual(config.Code.invalid_value, diag.code);
+    try expectEqualStrings("test", diag.section);
+    try expectEqualStrings("selection", diag.key);
 }

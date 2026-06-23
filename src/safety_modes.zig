@@ -33,7 +33,28 @@ pub fn buildFlag(mode: Mode) []const u8 {
     };
 }
 
-/// Return `argv` with the optimize flag for `mode` appended, so a mutant is
+/// Index of the first bare `--` argument-separator token in `argv`, or null when
+/// there is none. Everything at and after `--` is opaque passthrough to the
+/// wrapped program (for `zig build`, forwarded to the built artifact / test
+/// binary), so a build option placed there is silently ignored by `zig build`.
+fn firstSeparator(argv: []const []const u8) ?usize {
+    for (argv, 0..) |a, i| {
+        if (std.mem.eql(u8, a, "--")) return i;
+    }
+    return null;
+}
+
+/// Insert `flag` into `argv` at `at`, shifting the tail right by one. `at` in
+/// `[0, argv.len]`; `at == argv.len` is an append.
+fn insertFlagAt(arena: std.mem.Allocator, argv: []const []const u8, at: usize, flag: []const u8) std.mem.Allocator.Error![]const []const u8 {
+    const out = try arena.alloc([]const u8, argv.len + 1);
+    @memcpy(out[0..at], argv[0..at]);
+    out[at] = flag;
+    @memcpy(out[at + 1 ..], argv[at..]);
+    return out;
+}
+
+/// Return `argv` with the optimize flag for `mode` inserted, so a mutant is
 /// actually evaluated under that mode -- the mode must reach the spawned process
 /// as a real argv element, not merely a `result.mode` label. The flag form
 /// is command-specific and verified against pinned Zig 0.16:
@@ -42,19 +63,27 @@ pub fn buildFlag(mode: Mode) []const u8 {
 /// `Debug` is the compiler default and any non-`zig` command has no known optimize
 /// flag, so both are returned unchanged -- the default/no-`--mode` path is then
 /// byte-for-byte identical to before, and custom test commands are never broken.
+///
+/// The build flag is inserted BEFORE the first `--` separator, not appended:
+/// `zig build` treats everything after `--` as opaque passthrough to the built
+/// program (e.g. `zig build test -- --filter x`), so an appended `-Doptimize=...`
+/// would land in the passthrough region and be ignored -- silently running every
+/// `--mode`/matrix verdict in Debug. Inserting before `--` (or appending when
+/// there is none) keeps the flag a real `zig build` argument. The `zig test`
+/// form has no such separator-sensitivity and is appended.
 pub fn argvForMode(arena: std.mem.Allocator, argv: []const []const u8, mode: Mode) std.mem.Allocator.Error![]const []const u8 {
     if (mode == .Debug) return argv;
     if (argv.len < 2 or !std.mem.eql(u8, argv[0], "zig")) return argv;
-    const flag: []const u8 = if (std.mem.eql(u8, argv[1], "test"))
-        buildFlag(mode)
-    else if (std.mem.eql(u8, argv[1], "build"))
-        try std.fmt.allocPrint(arena, "-Doptimize={s}", .{@tagName(mode)})
-    else
-        return argv;
-    const out = try arena.alloc([]const u8, argv.len + 1);
-    @memcpy(out[0..argv.len], argv);
-    out[argv.len] = flag;
-    return out;
+    if (std.mem.eql(u8, argv[1], "test")) {
+        return insertFlagAt(arena, argv, argv.len, buildFlag(mode));
+    }
+    if (std.mem.eql(u8, argv[1], "build")) {
+        const flag = try std.fmt.allocPrint(arena, "-Doptimize={s}", .{@tagName(mode)});
+        // Insert before the first `--`; absent any separator this appends.
+        const at = firstSeparator(argv) orelse argv.len;
+        return insertFlagAt(arena, argv, at, flag);
+    }
+    return argv;
 }
 
 /// Rank of a mode in canonical order (used for deterministic sorting).

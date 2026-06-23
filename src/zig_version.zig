@@ -69,14 +69,30 @@ pub fn parseVersion(s: []const u8) ?Version {
     return .{ .major = major, .minor = minor, .patch = patch, .pre = pre };
 }
 
+/// The single source of truth for "is this exactly the pinned supported release":
+/// `0.16.0` with no pre-release/build suffix. Operates on an already-parsed
+/// `Version` so `classify` (which parses to detect `malformed` first) does not
+/// parse twice.
+fn versionIsSupported(parsed: Version) bool {
+    return parsed.major == 0 and parsed.minor == 16 and parsed.patch == 0 and !parsed.pre;
+}
+
+/// Whether a discovered version string is exactly the pinned supported release.
+/// Returns false for a malformed or non-matching string. Lets `supportedLabel`
+/// decide directly inside its already-matched `.version` arm without re-running
+/// the full `classify` over the `Discovery`.
+fn isSupported(v: []const u8) bool {
+    const parsed = parseVersion(v) orelse return false;
+    return versionIsSupported(parsed);
+}
+
 /// Classify a discovery result against the pinned supported version.
 pub fn classify(discovery: Discovery) Status {
     switch (discovery) {
         .not_found => return .not_found,
         .version => |v| {
             const parsed = parseVersion(v) orelse return .malformed;
-            if (parsed.major == 0 and parsed.minor == 16 and parsed.patch == 0 and !parsed.pre) return .supported;
-            return .unsupported;
+            return if (versionIsSupported(parsed)) .supported else .unsupported;
         },
     }
 }
@@ -118,7 +134,9 @@ pub fn statusLine(arena: std.mem.Allocator, discovery: Discovery) std.mem.Alloca
 /// prevents execution reports from synthesizing `0.16.0` when Zig is missing.
 pub fn supportedLabel(discovery: Discovery) ?[]const u8 {
     return switch (discovery) {
-        .version => |v| if (classify(discovery) == .supported) v else null,
+        // Already inside the matched `.version` arm: check `v` directly via the
+        // shared predicate rather than re-running `classify` over `discovery`.
+        .version => |v| if (isSupported(v)) v else null,
         .not_found => null,
     };
 }

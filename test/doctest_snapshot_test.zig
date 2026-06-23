@@ -99,6 +99,46 @@ test "regex text matching" {
     try expect(!try matcher.match(a, .regex, "^[0-9]+$", "12a"));
 }
 
+test "regex match-mode branches: escapes, dot, opt, negated class" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    // \d / \w / \s atoms.
+    try expect(try matcher.match(a, .regex, "^\\d\\d\\d$", "123"));
+    try expect(!try matcher.match(a, .regex, "^\\d$", "a"));
+    try expect(try matcher.match(a, .regex, "^\\w+$", "abc_123"));
+    try expect(!try matcher.match(a, .regex, "^\\w$", " "));
+    try expect(try matcher.match(a, .regex, "a\\sb", "a b"));
+    try expect(try matcher.match(a, .regex, "a\\sb", "a\tb"));
+    // `.` matches any non-newline; an unanchored search still finds it.
+    try expect(try matcher.match(a, .regex, "a.c", "abc"));
+    try expect(!try matcher.match(a, .regex, "^a.c$", "a\nc"));
+    // `?` optional quantifier: zero or one occurrence both match.
+    try expect(try matcher.match(a, .regex, "^ab?c$", "ac"));
+    try expect(try matcher.match(a, .regex, "^ab?c$", "abc"));
+    try expect(!try matcher.match(a, .regex, "^ab?c$", "abbc"));
+    // Negated character class.
+    try expect(try matcher.match(a, .regex, "^[^0-9]+$", "abc"));
+    try expect(!try matcher.match(a, .regex, "^[^0-9]+$", "ab9"));
+    // An escaped metacharacter is a literal (`\.` matches a dot, not any char).
+    try expect(try matcher.match(a, .regex, "^a\\.b$", "a.b"));
+    try expect(!try matcher.match(a, .regex, "^a\\.b$", "axb"));
+}
+
+test "regex engine fails closed on pathological backtracking instead of hanging" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    // Many adjacent quantifiers over a long non-matching input drive super-linear
+    // backtracking in a naive engine. The step budget must make this terminate
+    // (fail closed = no match) rather than spin. A correct, cheap match on the
+    // same shape still succeeds.
+    const pattern = "a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*b";
+    const haystack = "a" ** 200; // no trailing 'b' -> never matches
+    try expect(!try matcher.match(a, .regex, pattern, haystack));
+    try expect(try matcher.match(a, .regex, "a*b", "aaab"));
+}
+
 test "json exact matching is key-order independent" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -233,4 +273,32 @@ test "property: snapshot mismatch output is deterministic across runs" {
     const d1 = try snapshot.renderDiagnostic(a, r1);
     const d2 = try snapshot.renderDiagnostic(a, r2);
     try expectEqualStrings(d1, d2);
+}
+
+test "[L6] snapshot excerpt is cut on a UTF-8 boundary, never mid-codepoint" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Build an (excerpt_limit + 2)-byte string whose final 3-byte codepoint (`€`,
+    // \xE2\x82\xAC) straddles the limit: a raw `@min(len, limit)` byte cut would
+    // slice it after its lead byte and produce invalid UTF-8. The boundary-aware
+    // cut must instead drop the whole codepoint, leaving a valid prefix.
+    const euro = "\xE2\x82\xAC";
+    var buf = try a.alloc(u8, snapshot.excerpt_limit + 2);
+    @memset(buf[0 .. snapshot.excerpt_limit - 1], 'a');
+    @memcpy(buf[snapshot.excerpt_limit - 1 ..], euro);
+    try std.testing.expectEqual(@as(usize, snapshot.excerpt_limit + 2), buf.len);
+    // Sanity: the would-be raw cut is genuinely invalid, so the test exercises a
+    // real hazard rather than a vacuous one.
+    try expect(!std.unicode.utf8ValidateSlice(buf[0..snapshot.excerpt_limit]));
+
+    // compare() runs both sides through `bounded`; the over-long string is `actual`.
+    const r = try snapshot.compare(a, "dt_utf8", "doc.md", 1, .exact, "expected\n", buf, .{});
+
+    // The recorded excerpt is well-formed UTF-8 and was truncated to the boundary
+    // (the straddling codepoint dropped), so it is shorter than the input.
+    try expect(std.unicode.utf8ValidateSlice(r.actual_excerpt));
+    try expect(r.actual_excerpt.len < buf.len);
+    try expect(r.actual_excerpt.len <= snapshot.excerpt_limit);
 }

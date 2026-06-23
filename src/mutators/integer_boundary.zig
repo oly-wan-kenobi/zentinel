@@ -7,9 +7,13 @@
 // (`==`, `!=`, `<`, `<=`, `>`, `>=`) are mutated, so protected literals in
 // declarations, enum tags, array lengths, and `align(...)` are naturally left
 // alone. Only plain decimal literals are mutated (syntax-local; hex/binary/octal
-// and underscore/suffix forms are skipped). Compile expectation is `may_fail`
-// because a +/-1 can overflow the operand's integer type. Pure: emits candidates
-// through the shared collector; no patching or execution.
+// and underscore/suffix forms are skipped). The literal is parsed as u128
+// (number_literal tokens are always non-negative); a decimal too large for u128 is
+// skipped, and an individual +/-1 boundary unrepresentable in u128 (u128 max's +1,
+// or `0`'s -1 underflow) is dropped while the other boundary is still emitted.
+// Compile expectation is `may_fail` because a +/-1 can overflow the operand's
+// integer type. Pure: emits candidates through the shared collector; no patching or
+// execution.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
@@ -70,7 +74,11 @@ fn emitForOperand(
     if (ast_backend.inTestBody(test_ranges, start)) return;
     const text = tree.tokenSlice(tok);
     if (!isPlainDecimal(text)) return;
-    const value = std.fmt.parseInt(i128, text, 10) catch return;
+    // number_literal tokens are always non-negative, so parse as u128: an
+    // out-of-width decimal that still fits u128 (e.g. a literal between i128 max
+    // and u128 max) keeps its -1 boundary instead of being discarded wholesale,
+    // and the overflow guards below skip just the unrepresentable boundary.
+    const value = std.fmt.parseInt(u128, text, 10) catch return;
     const end = start + @as(u32, @intCast(text.len));
     const start_pos = li.locate(start) orelse return;
     const end_pos = li.locate(end) orelse return;
@@ -82,15 +90,17 @@ fn emitForOperand(
         .line_end = end_pos.line,
         .column_end = end_pos.column,
     };
-    // Guard the boundary arithmetic against i128 overflow: a +/-1 boundary that is
-    // unrepresentable in i128 (the literal sitting at i128's own max/min) is not a
-    // meaningful mutant, so skip just that boundary. Computing it unchecked would
-    // be a checked illegal behavior -> `panic: integer overflow` that a `catch`
-    // cannot intercept, aborting the whole in-process candidate pass.
-    if (std.math.add(i128, value, 1)) |plus| {
+    // Guard the boundary arithmetic against u128 overflow: a +/-1 boundary that is
+    // unrepresentable in u128 (the literal at u128's max, or `0` whose -1 underflows)
+    // is not a meaningful mutant, so skip just that boundary. Computing it unchecked
+    // would be a checked illegal behavior -> `panic: integer overflow` that a `catch`
+    // cannot intercept, aborting the whole in-process candidate pass. (The `0` -> -1
+    // boundary is dropped here: a negative replacement is outside the non-negative
+    // decimal-literal model and the -1 site is only reachable for signed operands.)
+    if (std.math.add(u128, value, 1)) |plus| {
         try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{plus}));
     } else |_| {}
-    if (std.math.sub(i128, value, 1)) |minus| {
+    if (std.math.sub(u128, value, 1)) |minus| {
         try emit(collector, file, span, text, try std.fmt.allocPrint(collector.allocator, "{d}", .{minus}));
     } else |_| {}
 }

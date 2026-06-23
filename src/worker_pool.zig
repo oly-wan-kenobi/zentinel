@@ -31,6 +31,10 @@ pub const max_jobs: usize = 64;
 pub const LockedAllocator = struct {
     child: std.mem.Allocator,
     locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    /// Count of critical sections entered (one per guarded vtable call). Purely
+    /// observational: it lets a test assert the guard actually ran, so silently
+    /// deleting the lock (and reintroducing the data race) trips the assertion.
+    acquisitions: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
 
     pub fn allocator(self: *LockedAllocator) std.mem.Allocator {
         return .{ .ptr = self, .vtable = &vtable };
@@ -38,6 +42,7 @@ pub const LockedAllocator = struct {
 
     fn lock(self: *LockedAllocator) void {
         while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+        _ = self.acquisitions.fetchAdd(1, .monotonic);
     }
     fn unlock(self: *LockedAllocator) void {
         self.locked.store(false, .release);

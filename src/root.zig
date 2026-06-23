@@ -34,6 +34,9 @@ pub const safety_modes = @import("safety_modes.zig");
 /// Deterministic seeded property-test generator (deterministic core). A pure
 /// seeded stream: the same seed always reproduces the same cases. No AI.
 pub const property = struct {
+    /// Test-support / CI-only infrastructure: exported so the test suite (and
+    /// CI seed-determinism checks) can import the generator directly. No binary
+    /// command path imports it; do NOT remove -- tests depend on this export.
     pub const generator = @import("property/generator.zig");
 };
 
@@ -84,6 +87,10 @@ pub const report = @import("report.zig");
 /// `zentinel run` Phase 1 orchestration + report assembly (deterministic core).
 pub const run_command = @import("run_command.zig");
 
+/// CLI-layer disk-backed result store (cross-run result reuse). Injected into the
+/// core's `run_command.ResultStore` interface; the core itself never does file I/O.
+pub const result_store = @import("result_store.zig");
+
 /// Bounded parallel worker pool: deterministic index->result mapping and
 /// content-addressed per-worker workspace isolation (deterministic core).
 pub const worker_pool = @import("worker_pool.zig");
@@ -116,6 +123,8 @@ pub const doctest = struct {
     pub const matcher = @import("doctest/matcher.zig");
     pub const snapshot = @import("doctest/snapshot.zig");
     pub const report = @import("doctest/report.zig");
+    /// Test-support / CI-only infrastructure: exported for the test suite, not
+    /// referenced on any binary command path. Do NOT remove -- tests import it.
     pub const mutator_doctest = @import("doctest/mutator_doctest.zig");
     pub const cache = @import("doctest/cache.zig");
     pub const mutation_experiment = @import("doctest/mutation_experiment.zig");
@@ -678,6 +687,32 @@ pub fn redactCliDiagnosticPath(arena: std.mem.Allocator, path: []const u8) ![]co
     return ai.context.redactField(arena, path, &ai.command.default_redact_patterns, &log);
 }
 
+/// Format a run id as `{prefix}_{ms-timestamp:x}_{16 hex}` from a caller-supplied
+/// 8-byte nonce. Pure and deterministic: identical inputs always yield the same
+/// id, and distinct nonces always yield distinct ids. The adapter `allocRunId`
+/// supplies a random nonce; tests supply fixed nonces to assert the format.
+pub fn runIdWithNonce(arena: std.mem.Allocator, prefix: []const u8, ts_ms: i64, nonce: [8]u8) std.mem.Allocator.Error![]const u8 {
+    return std.fmt.allocPrint(arena, "{s}_{x}_{s}", .{
+        prefix,
+        @as(u64, @intCast(@max(0, ts_ms))),
+        std.fmt.bytesToHex(nonce, .lower),
+    });
+}
+
+/// A unique run id `{prefix}_{ms-timestamp:x}_{16 hex}`. The millisecond
+/// timestamp alone collides when two runs start in the same repo within 1 ms,
+/// and each run's end-of-run `deleteTree(run_base)` would then wipe the other's
+/// live per-mutant sandboxes. The 8-byte random nonce makes the workspace path
+/// (`{run_id}/{mutant_id}`) unique per process so concurrent runs never share a
+/// run-base directory. The nonce draw (`io.random`, the Io-model entropy source
+/// -- threadsafe, non-failing) is the only impurity; the id shape lives in the
+/// pure `runIdWithNonce`.
+pub fn allocRunId(arena: std.mem.Allocator, io: std.Io, prefix: []const u8, ts_ms: i64) std.mem.Allocator.Error![]const u8 {
+    var nonce: [8]u8 = undefined;
+    io.random(&nonce);
+    return runIdWithNonce(arena, prefix, ts_ms, nonce);
+}
+
 /// What the presentation adapter should do with an argv. The pure Phase 0
 /// `dispatch` above stays frozen for the commands it already owns; `route` adds
 /// the task-005 surface (global options, `check`, and Zig-aware `version`)
@@ -747,14 +782,18 @@ pub fn route(args: []const []const u8) Route {
             continue;
         }
         if (eq(opt, "--config")) {
-            if (i + 1 >= args.len) return .passthrough; // missing value: dispatch reports it
+            // A missing value, OR a following option (e.g. `--config --help`), falls
+            // through to the frozen dispatch so its clear cli_invalid_option usage
+            // error wins instead of capturing the option as the config path.
+            if (i + 1 >= args.len or isOption(args[i + 1])) return .passthrough;
             globals.config_path = args[i + 1];
             globals.config_explicit = true;
             i += 2;
             continue;
         }
         if (eq(opt, "--root")) {
-            if (i + 1 >= args.len) return .passthrough;
+            // Same guard as --config: never absorb a following option as the root value.
+            if (i + 1 >= args.len or isOption(args[i + 1])) return .passthrough;
             globals.root = args[i + 1];
             i += 2;
             continue;

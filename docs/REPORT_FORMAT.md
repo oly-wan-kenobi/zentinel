@@ -263,7 +263,7 @@ Default text output should prioritize actionable survivors:
 survived 42 comparison_boundary src/range.zig:12
   - if (idx >= items.len) return error.OutOfBounds;
   + if (idx > items.len) return error.OutOfBounds;
-  selected tests passed: zig test src/range.zig
+  selected tests: zig test src/range.zig
   likely focus: boundary where idx == items.len
 ```
 

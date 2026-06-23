@@ -130,7 +130,11 @@ fn runCli(ctx: Context, c: case.Case, content: []const u8) RunError!CaseResult {
         .invalid => return rejected(ctx, c, cmd_line, "doctest CLI command is not valid shell-free argv"),
     };
     if (argv.len == 0 or !std.mem.eql(u8, argv[0], "zentinel")) {
-        return rejected(ctx, c, content, "doctest CLI command must invoke zentinel");
+        // Record the trimmed `cmd_line`, matching the sibling rejection above; the
+        // raw `content` carries the fenced-block trailing newline, so using it here
+        // produced inconsistent recorded-command evidence between the two reject
+        // paths for what is the same user input.
+        return rejected(ctx, c, cmd_line, "doctest CLI command must invoke zentinel");
     }
     const raw = ctx.executor.run(argv);
     const status = classifyCommand(raw);

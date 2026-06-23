@@ -44,8 +44,8 @@
   },
   "diagnostics": {
     "cache": {
-      "enabled": false,
-      "mode": "disabled",
+      "enabled": true,
+      "mode": "metadata_only",
       "hits": 0,
       "misses": 0
     }

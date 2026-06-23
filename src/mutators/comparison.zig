@@ -10,6 +10,7 @@ const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
 const source_map = @import("../source_map.zig");
+const optional = @import("optional.zig");
 
 pub const operator_equality = "equality_swap";
 pub const operator_boundary = "comparison_boundary";
@@ -44,13 +45,6 @@ fn swapFor(tag: std.zig.Ast.Node.Tag) ?Swap {
     };
 }
 
-/// True if the token at `tok` is the `null` literal. Used to leave `x == null`
-/// and `x != null` to `optional_null_check` (MUTATOR_SPEC forbidden context).
-fn isNullToken(parsed: ast_backend.Parsed, tok: u32) bool {
-    if (tok >= parsed.tree.tokens.len) return false;
-    return std.mem.eql(u8, parsed.tree.tokenSlice(tok), "null");
-}
-
 pub fn collect(
     collector: *ast_backend.Collector,
     parsed: ast_backend.Parsed,
@@ -65,11 +59,13 @@ pub fn collect(
         const op_tok = parsed.tree.nodeMainToken(node);
         const op_start = parsed.tree.tokenStart(op_tok);
         if (ast_backend.inTestBody(test_ranges, op_start)) continue;
-        // Equality comparisons against `null` belong to optional_null_check.
+        // Equality comparisons against `null` belong to optional_null_check. Use
+        // the SHARED node-based recognizer so `x == (null)` is skipped here exactly
+        // as it is emitted there -- a positional token check disagreed on `(null)`.
         if (std.mem.eql(u8, swap.operator, operator_equality)) {
-            const right_is_null = isNullToken(parsed, op_tok + 1);
-            const left_is_null = op_tok > 0 and isNullToken(parsed, op_tok - 1);
-            if (right_is_null or left_is_null) continue;
+            const operands = parsed.tree.nodeData(node).node_and_node;
+            if (optional.isNullOperand(parsed.tree, operands[0]) or
+                optional.isNullOperand(parsed.tree, operands[1])) continue;
         }
         const op_text = parsed.tree.tokenSlice(op_tok);
         const op_end = op_start + @as(u32, @intCast(op_text.len));

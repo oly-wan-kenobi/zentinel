@@ -79,7 +79,7 @@ fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.
     var buf: std.ArrayList(u8) = .empty;
     if (c.block_refs.len > 1) {
         for (c.block_refs[1..]) |ref| {
-            if (index.get(lineOfRef(ref))) |b| {
+            if (index.get(case_mod.lineOfRef(ref))) |b| {
                 try buf.appendSlice(arena, b.content);
                 try buf.append(arena, 0);
             }
@@ -87,6 +87,10 @@ fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.
     }
     return cache.sourceHash(arena, buf.items);
 }
+
+// Block/source refs are parsed via the shared `case.lineOfRef`; the previous
+// hand-rolled `n = n*10 + d` accumulator (the last un-hardened of four copies)
+// could overflow on an overlong numeric ref. See src/doctest/case.zig.
 
 /// Test-only counter: how many times the per-document block index (line_start ->
 /// Block) is built. Every block is indexed ONCE so each case's block lookups are
@@ -104,12 +108,4 @@ fn buildBlockIndex(arena: std.mem.Allocator, blocks: []const block.Block) std.me
         if (!gop.found_existing) gop.value_ptr.* = b;
     }
     return index;
-}
-
-fn lineOfRef(ref: []const u8) u32 {
-    const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var i = first + 1;
-    var n: u32 = 0;
-    while (i < ref.len and ref[i] >= '0' and ref[i] <= '9') : (i += 1) n = n * 10 + (ref[i] - '0');
-    return n;
 }

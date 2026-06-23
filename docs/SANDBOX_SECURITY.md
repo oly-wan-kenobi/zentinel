@@ -105,6 +105,10 @@ Forbidden:
 - using symlink traversal to write outside the sandbox
 - using symlink traversal to read config, docs, reports, workspaces, scratch files, or report outputs outside the project root
 
+The containment guard refuses any symlinked path component (intermediate directory or final file) by no-follow-stat'ing each path prefix before a root-relative read or write (`config.outputPathHasSymlink` / `config.pathEscapesRoot`).
+
+TOCTOU residue (Phase-1 limitation): this is a check-then-write guard, not an atomic open. A component verified here as a non-symlink could in principle be replaced with a symlink between the check and the subsequent write, which would then follow it. Phase 1 does not close that window — it does not rewrite the write path to use `openat`/`O_NOFOLLOW`. The guard's purpose is to defeat a *statically* planted in-tree symlink in an untrusted checkout, which is the realistic threat for a local mutation run; a live concurrent attacker on the same filesystem is out of scope for Phase 1.
+
 ## Environment Policy
 
 Default runner environment must be minimal and deterministic:

@@ -152,6 +152,17 @@ fn configPathOrReject(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, globa
     return resolved;
 }
 
+/// Read the resolved config bytes, or null on any read failure.
+///
+/// Precondition: `path` MUST already have been validated by `configPathOrReject`
+/// (every caller resolves through it). That guard enforced root containment of
+/// the relative `--config` component against the selected root -- including the
+/// absolute-root case, where the relative config path was checked against the
+/// opened absolute root dir. An absolute `path` here is therefore an already-
+/// approved absolute-root read and is read directly: a `pathEscapesRoot` re-check
+/// is impossible (it rejects ALL absolute paths via `isOutsideRoot`, which would
+/// break legitimate absolute-root reads). A relative `path` keeps its defensive
+/// containment re-check against `dir`.
 fn readResolvedConfig(gpa: std.mem.Allocator, io: std.Io, dir: std.Io.Dir, path: []const u8) ?[]const u8 {
     if (std.fs.path.isAbsolute(path)) return dir.readFileAlloc(io, path, gpa, read_limit) catch null;
     if (zentinel.config.pathEscapesRoot(io, dir, path)) return null;
@@ -177,6 +188,11 @@ fn discoverZig(gpa: std.mem.Allocator, io: std.Io) zentinel.zig_version.Discover
 // --- `zentinel run` (Phase 1) ----------------------------------------------
 
 const run_output_limit = std.Io.Limit.limited(1 << 20);
+
+/// Above this mutant count, a serial (`--jobs 1`) run is slow enough that the
+/// one-line `--jobs` discoverability hint is worth emitting on stderr. Advisory
+/// only; the configured `run.jobs` default stays 1.
+const jobs_hint_threshold: u64 = 50;
 
 /// Side-effect context shared by the real baseline and mutant executors. The
 /// deterministic orchestration (zentinel.run_command) stays pure; this adapter
@@ -305,6 +321,60 @@ fn setupWorkspaceRetrying(rt: *RunCtx, m: zentinel.mutant.Mutant, patched: []con
     }
 }
 
+/// The per-run workspace container parent: every run's `workspaceRunBase`
+/// (`.zig-cache/zentinel/workspaces/{run_id}`) is a direct child. Mirrors the
+/// `zig_cache_namespace` label in `buildObservation`.
+const workspaces_parent = ".zig-cache/zentinel/workspaces";
+
+/// Best-effort sweep of stale `run_*` workspace containers left by interrupted
+/// runs (a SIGINT/crash before the end-of-run `deleteTree(run_base)`), which
+/// otherwise accumulate one full-tree copy each under the controlled cache
+/// namespace. The current run's `run_id` is skipped so an in-flight sibling run
+/// is never disturbed. Every step is catch-ignored: a missing parent (first run),
+/// an unreadable entry, or a failed delete must never affect the run -- a stale
+/// dir that survives is reclaimed on a later run. Only `run_*`-prefixed children
+/// are removed, so unrelated entries under the namespace are left intact.
+fn sweepStaleRunWorkspaces(io: std.Io, root_dir: std.Io.Dir, current_run_id: []const u8) void {
+    var parent = root_dir.openDir(io, workspaces_parent, .{ .iterate = true }) catch return;
+    defer parent.close(io);
+    var it = parent.iterate();
+    while (it.next(io) catch null) |entry| {
+        if (entry.kind != .directory) continue;
+        if (!std.mem.startsWith(u8, entry.name, "run_")) continue;
+        if (std.mem.eql(u8, entry.name, current_run_id)) continue;
+        // `entry.name` slices the iterator buffer (invalidated by the next
+        // `it.next`), so delete it immediately within this iteration.
+        parent.deleteTree(io, entry.name) catch continue;
+    }
+}
+
+/// Terminal `.invalid` result for a single mutant when this worker hits OOM
+/// (C3). A worker task that `@panic`s aborts the whole process and skips every
+/// deferred workspace cleanup; classifying the one mutant `.invalid` instead
+/// lets the run finish and its cleanup defers fire. The `sandbox:` prefix
+/// satisfies the report validator's `.invalid` failure-summary contract
+/// (report.zig invalidSummaryOk); the static summary needs no allocation, which
+/// is exactly what an OOM path must avoid. `runModesFn` mirrors this with
+/// `out[k] = .invalid`.
+fn oomInvalidResult(m: zentinel.mutant.Mutant, mode: zentinel.report.Mode) zentinel.mutant_runner.MutationResult {
+    return .{
+        .mutant_id = m.id,
+        .status = .invalid,
+        .mode = mode,
+        .classifier_source = .sandbox_validation,
+        .commands = &.{},
+        .evidence = .{ .failure_summary = "sandbox: out of memory while running mutant" },
+        .skip_reason = null,
+    };
+}
+
+/// The `runFn` entry the `MutantRunner` contract requires as a mandatory field.
+/// UNREACHABLE in the binary: the adapter always supplies `runSpecsFn` and
+/// `runModesFn` too (see the `MutantRunner` built in `runRun`), and
+/// `run_command.MutantRunner.runSpecs`/`runModes` only fall back to `runFn` when
+/// those are null. It exists to satisfy the mandatory field and to back
+/// runFn-only test executors that drive the parse-then-runSpecs path. It parses
+/// each command string to argv, then delegates to `mutantRunSpecsFn`.
 fn mutantRunFn(
     ctx: *anyopaque,
     m: zentinel.mutant.Mutant,
@@ -315,11 +385,11 @@ fn mutantRunFn(
     const rt: *RunCtx = @ptrCast(@alignCast(ctx));
     var specs: std.ArrayList(zentinel.command.Spec) = .empty;
     for (commands) |original| {
-        const argv = switch (zentinel.command.parse(rt.gpa, original) catch @panic("out of memory")) {
+        const argv = switch (zentinel.command.parse(rt.gpa, original) catch return oomInvalidResult(m, mode)) {
             .ok => |a| a,
-            .invalid => return zentinel.mutant_runner.run(rt.gpa, m, source, .created, commands, rt.root_label, zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn }, mode) catch @panic("out of memory"),
+            .invalid => return zentinel.mutant_runner.run(rt.gpa, m, source, .created, commands, rt.root_label, zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn }, mode) catch return oomInvalidResult(m, mode),
         };
-        specs.append(rt.gpa, .{ .original = original, .argv = argv }) catch @panic("out of memory");
+        specs.append(rt.gpa, .{ .original = original, .argv = argv }) catch return oomInvalidResult(m, mode);
     }
     return mutantRunSpecsFn(ctx, m, source, specs.items, mode);
 }
@@ -336,11 +406,13 @@ fn mutantRunSpecsFn(
 
     // Compute patched bytes up front; an invalid patch is classified by the
     // deterministic runner (which re-validates and returns without executing).
+    // An OOM in any classification step is downgraded to a single `.invalid`
+    // mutant (oomInvalidResult) instead of a process-aborting panic (C3).
     const patched = zentinel.sandbox.apply(rt.gpa, source, m) catch {
-        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
+        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, disabled, mode) catch return oomInvalidResult(m, mode);
     };
     const ws = setupWorkspaceRetrying(rt, m, patched) catch {
-        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, commands, rt.root_label, disabled, mode) catch @panic("out of memory");
+        return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, commands, rt.root_label, disabled, mode) catch return oomInvalidResult(m, mode);
     };
     defer {
         ws.dir.close(rt.io);
@@ -350,7 +422,7 @@ fn mutantRunSpecsFn(
     }
     var wctx = WorkspaceCtx{ .rt = rt, .dir = ws.dir };
     const executor = zentinel.runner.Executor{ .ctx = &wctx, .runFn = workspaceRunFn };
-    return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch @panic("out of memory");
+    return zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, commands, rt.root_label, executor, mode) catch return oomInvalidResult(m, mode);
 }
 
 /// Run one mutant across `modes` in a SINGLE materialized workspace: the
@@ -371,13 +443,16 @@ fn mutantRunModesFn(
 ) void {
     const rt: *RunCtx = @ptrCast(@alignCast(ctx));
     const disabled = zentinel.runner.Executor{ .ctx = rt, .runFn = unusedRunFn };
+    // An OOM in any per-mode classification writes `.invalid` for that mode and
+    // returns normally (C3), so a worker never aborts the process and the
+    // workspace-cleanup defer still fires. Mirrors oomInvalidResult's status.
     const patched = zentinel.sandbox.apply(rt.gpa, source, m) catch {
         // Invalid patch: the runner re-validates and classifies each mode invalid.
-        for (modes, 0..) |mode, k| out[k] = (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, disabled, mode) catch @panic("out of memory")).status;
+        for (modes, 0..) |mode, k| out[k] = if (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, disabled, mode)) |r| r.status else |_| .invalid;
         return;
     };
     const ws = setupWorkspaceRetrying(rt, m, patched) catch {
-        for (modes, 0..) |mode, k| out[k] = (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, specs, rt.root_label, disabled, mode) catch @panic("out of memory")).status;
+        for (modes, 0..) |mode, k| out[k] = if (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .create_failed, specs, rt.root_label, disabled, mode)) |r| r.status else |_| .invalid;
         return;
     };
     defer {
@@ -389,9 +464,12 @@ fn mutantRunModesFn(
     var wctx = WorkspaceCtx{ .rt = rt, .dir = ws.dir };
     const executor = zentinel.runner.Executor{ .ctx = &wctx, .runFn = workspaceRunFn };
     for (modes, 0..) |mode, k| {
-        const narrowed = zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, executor, mode) catch @panic("out of memory");
+        const narrowed = zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, specs, rt.root_label, executor, mode) catch {
+            out[k] = .invalid;
+            continue;
+        };
         out[k] = if (narrowed.status == .survived and reverify_specs.len > 0)
-            (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, reverify_specs, rt.root_label, executor, mode) catch @panic("out of memory")).status
+            (if (zentinel.mutant_runner.runSpecs(rt.gpa, m, source, .created, reverify_specs, rt.root_label, executor, mode)) |r| r.status else |_| .invalid)
         else
             narrowed.status;
     }
@@ -400,7 +478,7 @@ fn mutantRunModesFn(
 /// Build the run observation metadata (run id, ISO timestamp, config hash).
 fn buildObservation(gpa: std.mem.Allocator, io: std.Io, cfg_bytes: []const u8, zig_label: []const u8, root_label: []const u8) !zentinel.run_command.Observation {
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
-    const run_id = try std.fmt.allocPrint(gpa, "run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
+    const run_id = try zentinel.allocRunId(gpa, io, "run", ts);
 
     const started_at = try zentinel.report.isoTimestamp(gpa, ts);
 
@@ -548,7 +626,11 @@ fn splitScopeCsv(gpa: std.mem.Allocator, csv: []const u8) ![]const []const u8 {
 /// reported by `git diff`; `--scope-files` covers that case.
 fn gitChangedFiles(gpa: std.mem.Allocator, io: std.Io, root_dir: std.Io.Dir, base: []const u8) ![]const []const u8 {
     const result = std.process.run(gpa, io, .{
-        .argv = &.{ "git", "diff", "--name-only", "--relative", base },
+        // `--end-of-options` immediately before `base` stops git from
+        // interpreting a ref that begins with `-` as an option. A trailing `--`
+        // would NOT help: it only separates pathspecs that follow it, not the
+        // revision argument before it.
+        .argv = &.{ "git", "diff", "--name-only", "--relative", "--end-of-options", base },
         .cwd = .{ .dir = root_dir },
         .stdout_limit = run_output_limit,
         .stderr_limit = run_output_limit,
@@ -729,6 +811,11 @@ fn runRun(
         .env = &minimal_env,
         .cleanup_failures = std.atomic.Value(u32).init(0),
     };
+    // Best-effort sweep of stale `run_*` workspace containers left by interrupted
+    // runs before this run materializes its own (skips the current run_id). Done
+    // here, before the deterministic run creates any workspace, so an aborted
+    // run's full-tree copies cannot accumulate under the cache namespace.
+    sweepStaleRunWorkspaces(io, root_dir, rt.run_id);
     const baseline_executor = zentinel.runner.Executor{ .ctx = &rt, .runFn = baselineRunFn };
     const mutant_executor = zentinel.run_command.MutantRunner{ .ctx = &rt, .runFn = mutantRunFn, .runSpecsFn = mutantRunSpecsFn, .runModesFn = mutantRunModesFn };
 
@@ -737,6 +824,22 @@ fn runRun(
     var progress_sink = ProgressSink{ .stderr = stderr };
     if (!options.quiet) {
         options.progress = .{ .ctx = &progress_sink, .notifyFn = ProgressSink.notify };
+    }
+
+    // Cross-run result reuse (M1): wire a disk-backed, content-addressed result
+    // store so a mutant whose every soundness input is unchanged is served from a
+    // prior run's terminal verdict instead of recompiling+retesting. Active only
+    // when the cache is enabled and --no-cache was not passed; the deterministic
+    // core additionally restricts reuse to single-mode runs and terminal
+    // post-reverify verdicts (src/run_command.zig). `result_store` must outlive the
+    // run call, so it lives in this scope.
+    const cache_active = cfg.cache_enabled and !options.no_cache;
+    var result_store: zentinel.result_store.DiskResultStore = undefined;
+    var results_dir_path: []const u8 = "";
+    if (cache_active) {
+        results_dir_path = try std.fmt.allocPrint(gpa, "{s}/results", .{cfg.cache_directory});
+        result_store = .{ .io = io, .root_dir = root_dir, .dir_path = results_dir_path, .gpa = gpa };
+        options.result_cache = result_store.store();
     }
 
     const outcome = zentinel.run_command.run(gpa, cfg, files.items, options, baseline_executor, mutant_executor, obs) catch |err| switch (err) {
@@ -782,6 +885,20 @@ fn runRun(
 
     try zentinel.emitCleanupWarningIfNeeded(rt.cleanup_failures.load(.monotonic), stderr);
 
+    // Discoverability hint (advisory, stderr-only): a large mutant set ran
+    // serially because the effective worker count resolved to 1. `run.jobs`
+    // stays 1 by default; this only nudges toward --jobs. Suppressed under
+    // --quiet, and never affects stdout, the report, or the exit code.
+    if (!options.quiet) {
+        const total = outcome.report.summary.total;
+        const requested: usize = options.jobs orelse @intCast(@max(@as(i64, 1), cfg.run_jobs));
+        const count: usize = std.math.cast(usize, total) orelse std.math.maxInt(usize);
+        if (total > jobs_hint_threshold and zentinel.worker_pool.effectiveJobs(requested, count) == 1) {
+            stderr.print("note: ran {d} mutants on a single worker; pass --jobs <n> to run them in parallel\n", .{total}) catch {};
+            stderr.flush() catch {};
+        }
+    }
+
     // Write the JSON report to the resolved output path (under the project root).
     const json = try zentinel.report.toJson(gpa, outcome.report);
     const out_path = options.output orelse try std.fmt.allocPrint(gpa, "{s}/report.json", .{cfg.report_output_dir});
@@ -815,6 +932,11 @@ fn runRun(
         if (std.fs.path.dirname(cache_path)) |parent| root_dir.createDirPath(io, parent) catch {};
         root_dir.writeFile(io, .{ .sub_path = cache_path, .data = cache_json }) catch {};
     }
+
+    // Bound the disk result store (best-effort LRU): keep the newest entries,
+    // delete the oldest beyond the cap. Runs once, after this run persisted its
+    // own entries, so a hot entry written this run is retained.
+    if (cache_active) zentinel.result_store.prune(io, root_dir, results_dir_path, gpa, zentinel.result_store.max_entries);
 
     // The canonical JSON report is always written to the output path; --report
     // selects only the stdout rendering, so the canonical report data is the same
@@ -1044,8 +1166,8 @@ fn doctestWsFn(ctx: *anyopaque, plan: zentinel.doctest.workspace.Plan) zentinel.
 /// `zentinel doctest`: read the target doc, execute its normal doctests through
 /// real process/workspace adapters, and emit a deterministic text or JSON
 /// zentinel.doctest.report.v1 report.
-/// Adapter for the advisory AI commands `explain`, `suggest`, and `review-tests`
-///. Parses command-local options, reads normalized config and the
+/// Adapter for the advisory AI commands `explain`, `suggest`, and `review-tests`.
+/// Parses command-local options, reads normalized config and the
 /// selected mutation report read-only, then delegates to the deterministic
 /// `ai.command` engine. AI-only failures print their documented `ZNTL_AI_*` code
 /// and never touch a report.
@@ -1119,14 +1241,22 @@ fn runAiCommand(
         },
     };
 
-    try stdout.writeAll(out.body);
-    if (out.format == .json) try stdout.writeAll("\n");
-    return out.exit_code;
+    return emitAiOutput(stdout, out);
 }
 
 fn aiOptionError(stderr: *std.Io.Writer, detail: []const u8) !u8 {
     try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
     return 2;
+}
+
+/// Emit an advisory-AI command result and return its exit code. The doctest-AI
+/// `Outcome` is an alias of `ai.command.Outcome`, so this single helper serves
+/// `runAiCommand`, `runDoctestAi`, and `runDoctestSurvivorAi` identically: write
+/// the body, then the JSON renderings' single trailing newline.
+fn emitAiOutput(stdout: *std.Io.Writer, out: zentinel.ai.command.Outcome) !u8 {
+    try stdout.writeAll(out.body);
+    if (out.format == .json) try stdout.writeAll("\n");
+    return out.exit_code;
 }
 
 const AiCliSettings = struct {
@@ -1257,8 +1387,8 @@ fn runDoctestAi(
     // A required positional missing (doc-path for suggest, case-ref for explain /
     // review-snapshot) is a CLI usage error, surfaced like the top-level AI commands'
     // `missing <mutant-ref>`/`missing <survivor-ref>` guards instead of being
-    // forwarded as a null ref the engine reports as an opaque DOC/CASE_NOT_FOUND
-    //. Checked after config/--config validation so a bad --config still wins.
+    // forwarded as a null ref the engine reports as an opaque DOC/CASE_NOT_FOUND.
+    // Checked after config/--config validation so a bad --config still wins.
     if (zentinel.ai.doctest_command.missingPositional(flow, positional)) |detail| {
         return aiOptionError(stderr, detail);
     }
@@ -1304,9 +1434,7 @@ fn runDoctestAi(
         },
     };
 
-    try stdout.writeAll(out.body);
-    if (out.format == .json) try stdout.writeAll("\n");
-    return out.exit_code;
+    return emitAiOutput(stdout, out);
 }
 
 /// Adapter for `zentinel doctest explain-survivor <survivor-ref>`.
@@ -1377,9 +1505,7 @@ fn runDoctestSurvivorAi(
         },
     };
 
-    try stdout.writeAll(out.body);
-    if (out.format == .json) try stdout.writeAll("\n");
-    return out.exit_code;
+    return emitAiOutput(stdout, out);
 }
 
 fn runDoctest(
@@ -1441,7 +1567,9 @@ fn runDoctest(
     };
 
     const ts = std.Io.Timestamp.now(io, .real).toMilliseconds();
-    const run_id = try std.fmt.allocPrint(gpa, "doctest_run_{x}", .{@as(u64, @intCast(@max(0, ts)))});
+    // Same collision guard as the mutation run id: append a random nonce so two
+    // doctest runs within 1 ms get distinct ids (and distinct workspace paths).
+    const run_id = try zentinel.allocRunId(gpa, io, "doctest_run", ts);
     const started_at = try zentinel.report.isoTimestamp(gpa, ts);
     const fmt_label: []const u8 = switch (options.format) {
         .text => "text",
@@ -1479,8 +1607,8 @@ fn runDoctest(
             return 2;
         },
         // A per-case workspace-creation failure no longer reaches here: the runner
-        // isolates it as an `.invalid` case so the run still produces a report
-        //. Only OOM remains as a run-wide internal error.
+        // isolates it as an `.invalid` case so the run still produces a report.
+        // Only OOM remains as a run-wide internal error.
         error.OutOfMemory => return err,
     };
 

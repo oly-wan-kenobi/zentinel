@@ -90,14 +90,31 @@ fn collectOrelse(
     });
 }
 
-fn isNullToken(parsed: ast_backend.Parsed, tok: u32) bool {
-    if (tok >= parsed.tree.tokens.len) return false;
-    return std.mem.eql(u8, parsed.tree.tokenSlice(tok), "null");
+/// True when the operand `node` of an equality comparison is the `null` literal,
+/// recursively unwrapping `.grouped_expression` first so `(null)` / `((null))`
+/// count too. `null` is an `.identifier` node whose main token is `null`. This is
+/// the SHARED recognizer for "compares against null": the emit side here and the
+/// skip side in comparison/zir_backend call it so the two recognizers cannot
+/// disagree (e.g. the positional token check missed `x == (null)` -- it was
+/// neither emitted by optional_null_check nor skipped by equality_swap).
+///
+/// `grouped_expression` data is a `.node_and_token` whose `[0]` is the inner
+/// sub-expression node (`[1]` is the `)` token); verified against std.zig.Ast for
+/// Zig 0.16.0.
+pub fn isNullOperand(tree: std.zig.Ast, node: std.zig.Ast.Node.Index) bool {
+    const node_tags = tree.nodes.items(.tag);
+    var n = node;
+    while (node_tags[@intFromEnum(n)] == .grouped_expression) {
+        n = tree.nodeData(n).node_and_token[0];
+    }
+    if (node_tags[@intFromEnum(n)] != .identifier) return false;
+    return std.mem.eql(u8, tree.tokenSlice(tree.nodeMainToken(n)), "null");
 }
 
 /// Swap an equality comparison against the `null` literal (`x == null`,
-/// `x != null`, `null == x`, `null != x`). Operand-order aware. Compile
-/// expectation is `compiles`: swapping `==`<->`!=` type-checks identically.
+/// `x != null`, `null == x`, `null != x`, including parenthesized `(null)`).
+/// Operand-order aware. Compile expectation is `compiles`: swapping `==`<->`!=`
+/// type-checks identically.
 fn collectNullCheck(
     collector: *ast_backend.Collector,
     parsed: ast_backend.Parsed,
@@ -111,8 +128,9 @@ fn collectNullCheck(
     const op_tok = tree.nodeMainToken(node);
     const op_start = tree.tokenStart(op_tok);
     if (ast_backend.inTestBody(test_ranges, op_start)) return;
-    const right_is_null = isNullToken(parsed, op_tok + 1);
-    const left_is_null = op_tok > 0 and isNullToken(parsed, op_tok - 1);
+    const operands = tree.nodeData(node).node_and_node;
+    const left_is_null = isNullOperand(tree, operands[0]);
+    const right_is_null = isNullOperand(tree, operands[1]);
     if (!right_is_null and !left_is_null) return;
     const op_text = tree.tokenSlice(op_tok);
     const op_end = op_start + @as(u32, @intCast(op_text.len));

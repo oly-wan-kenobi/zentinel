@@ -1,11 +1,11 @@
 {
-  "schema_version": "zentinel.cache.v1",
+  "schema_version": "zentinel.cache.v2",
   "enabled": true,
   "mode": "metadata_only",
   "result_keys": [
     {
       "mutant_id": "m_8kjyy9kdjw9zngpb31q659cqmt",
-      "key": "78140f93ece972a1eabaf50fc333238cb4250f927b01dc13773b8638d9c5683c"
+      "key": "a301bc3b98e19d6c8a48a2c24b7929b79221b622077c71715624aa2d14dee66e"
     }
   ],
   "build_cache": {

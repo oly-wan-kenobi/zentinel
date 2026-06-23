@@ -7,6 +7,13 @@
 // candidate generation (no test execution, no
 // mutation against assertions) and reports documentation drift when the docs no
 // longer match mutator output. Pure and deterministic.
+//
+// SCOPE: this module is CI/test-only MUTATOR_SPEC drift-validation infrastructure.
+// It is NOT part of any shipped `zentinel` command path -- nothing in the CLI
+// dispatch (src/root.zig, src/doctest_command.zig) routes here. Its only callers
+// are the doctest test suite (test/doctest_mutator_spec_test.zig) and the
+// docs-drift CI gate. DO NOT remove it as "dead code": the test imports it, and
+// deleting it would silently retire the MUTATOR_SPEC.md executable-contract check.
 const std = @import("std");
 const ast_backend = @import("../ast_backend.zig");
 const mutant = @import("../mutant.zig");
@@ -21,6 +28,7 @@ const loop_boundary = @import("../mutators/loop_boundary.zig");
 const block = @import("block.zig");
 const parser = @import("parser.zig");
 const extractor = @import("extractor.zig");
+const case_mod = @import("case.zig");
 const error_codes = @import("../error_codes.zig");
 
 const doctest_file = "doctest_snippet.zig";
@@ -138,7 +146,7 @@ pub fn validateDoc(arena: std.mem.Allocator, file: []const u8, source: []const u
         if (c.kind != .mutation) continue;
         const before_blk = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
         if (c.block_refs.len < 2) continue;
-        const after_blk = findBlockByLine(parsed.blocks, lineOfRef(c.block_refs[1])) orelse continue;
+        const after_blk = findBlockByLine(parsed.blocks, case_mod.lineOfRef(c.block_refs[1])) orelse continue;
         const res = try validatePair(arena, before_blk.content, after_blk.content);
         try pairs.append(arena, .{
             .case_id = c.id,
@@ -193,15 +201,10 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
     return null;
 }
 
+/// Thin re-export of the shared `case.lineOfRef` (src/doctest/case.zig), kept
+/// public because doctest_mutator_spec_test.zig exercises it directly. There is
+/// no longer a hand-rolled accumulator here: all callers share the one checked
+/// implementation so the four formerly-duplicated copies cannot drift again.
 pub fn lineOfRef(ref: []const u8) u32 {
-    // ref is "file:line[:label]"; take the digit run after the first ':'.
-    const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var end = first + 1;
-    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
-    // Parse with a checked routine, not a hand-rolled `n = n*10 + d` accumulator:
-    // an out-of-range or overlong numeric ref resolves to line 0 (which matches no
-    // real 1-based anchor) rather than a `panic: integer overflow` (Debug/ReleaseSafe)
-    // or a wrapped, wrong line (ReleaseFast). This third copy is brought to parity with
-    // the already-hardened lineOfRef in src/doctest_command.zig.
-    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
+    return case_mod.lineOfRef(ref);
 }

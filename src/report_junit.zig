@@ -20,7 +20,7 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, strict: bool) std.me
     var failures: u32 = 0;
     var errors: u32 = 0;
     var skipped: u32 = 0;
-    if (rep.run.status == .baseline_failed) {
+    if (rep.run.status == .baseline_failed or rep.run.status == .internal_error) {
         tests = 1;
         errors = 1;
     } else {
@@ -44,6 +44,14 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, strict: bool) std.me
         try out.appendSlice(arena, "  <testcase classname=\"zentinel.run\" name=\"baseline\">\n");
         try out.appendSlice(arena, "    <error type=\"zentinel.baseline_failed\" message=\"baseline failed; no mutants run\"></error>\n");
         try emitBaselineEvidence(arena, &out, rep);
+        try out.appendSlice(arena, "  </testcase>\n");
+    } else if (rep.run.status == .internal_error) {
+        // Mirror the baseline_failed run-level testcase: a single error testcase,
+        // no mutant testcases. `validate` guarantees `run.error` is non-null; its
+        // arbitrary message is escaped as an XML attribute value.
+        try out.appendSlice(arena, "  <testcase classname=\"zentinel.run\" name=\"internal_error\">\n");
+        const message = if (rep.run.@"error") |e| e.message else "internal error";
+        try out.print(arena, "    <error type=\"zentinel.internal_error\" message=\"{s}\"></error>\n", .{try escapeAttr(arena, message)});
         try out.appendSlice(arena, "  </testcase>\n");
     } else {
         for (rep.mutants) |m| try emitMutant(arena, &out, m, strict);
@@ -164,8 +172,7 @@ fn escapeImpl(arena: std.mem.Allocator, s: []const u8, attr: bool) std.mem.Alloc
         // Every other C0 control byte (ANSI ESC \x1b, BEL \x07, ...) and DEL are
         // illegal in XML 1.0; captured Zig output is routinely ANSI-colored, so
         // emitting them verbatim would make a strict CI parser reject the whole
-        // testsuite. Replace each with `?` so the JUnit XML is always well-formed
-        //.
+        // testsuite. Replace each with `?` so the JUnit XML is always well-formed.
         0x00...0x08, 0x0b, 0x0c, 0x0e...0x1f, 0x7f => try buf.append(arena, '?'),
         else => try buf.append(arena, c),
     };

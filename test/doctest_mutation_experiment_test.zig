@@ -59,15 +59,18 @@ test "a weak doctest lets the boundary mutant survive" {
     defer arena.deinit();
     const a = arena.allocator();
     const r = try runFile(a, base ++ "survived.md");
-    // `return a >= 0;` yields a comparison_boundary mutant plus two
-    // integer_literal_boundary mutants (0 -> 1, 0 -> -1) now that the Phase-2
-    // collectors run in the doctest --mutate path; the weak test kills none.
-    try expectEqual(@as(usize, 3), r.cases[0].mutants.len);
+    // `return a >= 0;` yields a comparison_boundary mutant plus one
+    // integer_literal_boundary mutant (0 -> 1) now that the Phase-2 collectors run
+    // in the doctest --mutate path. The literal `0`'s -1 boundary underflows the
+    // u128 the integer-boundary collector parses into and is dropped (a negative
+    // replacement is outside the non-negative decimal-literal model), so two
+    // survivors -- not three. The weak test kills neither.
+    try expectEqual(@as(usize, 2), r.cases[0].mutants.len);
     for (r.cases[0].mutants) |m| {
         try expectEqual(report.ResultStatus.survived, m.status);
         try expect(m.survivor_ref != null);
     }
-    try expectEqual(@as(u64, 3), r.summary.survived);
+    try expectEqual(@as(u64, 2), r.summary.survived);
 }
 
 test "doctest --mutate generates Phase-2 mutants for an orelse-only snippet" {

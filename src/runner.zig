@@ -34,8 +34,8 @@ pub const env_allowlist = [_][]const u8{ "PATH", "HOME", "TMPDIR", "ZIG_GLOBAL_C
 /// `.zig-cache`. `ZIG_LOCAL_CACHE_DIR` is in the allowlist, so without this override
 /// a host-set absolute value would be forwarded and collapse every parallel worker's
 /// local cache into one shared directory -- violating docs/PERFORMANCE_STRATEGY.md
-/// and docs/SANDBOX_SECURITY.md ("No two workers may write the same local cache")
-///. Pure: it transforms one map into a new owned map and never spawns a process.
+/// and docs/SANDBOX_SECURITY.md ("No two workers may write the same local cache").
+/// Pure: it transforms one map into a new owned map and never spawns a process.
 pub fn minimalEnviron(gpa: std.mem.Allocator, parent: *const std.process.Environ.Map) std.mem.Allocator.Error!std.process.Environ.Map {
     var out = std.process.Environ.Map.init(gpa);
     errdefer out.deinit();
@@ -106,10 +106,16 @@ pub fn utf8BoundaryLen(text: []const u8, max_bytes: usize) usize {
     return end;
 }
 
-fn boundedExcerpt(arena: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
-    const normalized = try report.normalizeExcerpt(arena, text);
+/// Normalize-then-bound a captured stream into a long-lived excerpt without
+/// retaining the full (up to ~1 MiB) normalized buffer in `arena`. Normalization
+/// is done in a caller-provided `scratch` allocator (reset per command, see
+/// `classifyCommand`); only the bounded `<= excerpt_limit` slice is duped into the
+/// long-lived `arena`. Keeping normalize-before-truncate preserves the
+/// deterministic cut point (see the `utf8BoundaryLen` doc comment above).
+fn boundedExcerpt(arena: std.mem.Allocator, scratch: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]const u8 {
+    const normalized = try report.normalizeExcerpt(scratch, text);
     const len = utf8BoundaryLen(normalized, excerpt_limit);
-    return normalized[0..len];
+    return arena.dupe(u8, normalized[0..len]);
 }
 
 /// Markers that distinguish a Zig compile failure from a post-compile test
@@ -201,6 +207,15 @@ pub fn classifyCommand(
 
     const failure_summary: []const u8 = if (status == .passed) "" else statusCode(status);
 
+    // Normalize each captured stream (up to ~1 MiB) in a per-command scratch arena
+    // that is released here, so only the bounded `<= excerpt_limit` excerpts duped
+    // into the long-lived `arena` survive. Without this the full normalized buffers
+    // would be retained in the never-reset run arena (one per command), growing run
+    // memory unboundedly. Backed by the page allocator so deinit returns the pages.
+    var scratch = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer scratch.deinit();
+    const scratch_alloc = scratch.allocator();
+
     return .{
         .command = .{
             .original = original,
@@ -216,8 +231,8 @@ pub fn classifyCommand(
         .failure_kind = failure_kind,
         .duration_ms = raw.duration_ms,
         .evidence = .{
-            .stdout_excerpt = try boundedExcerpt(arena, raw.stdout),
-            .stderr_excerpt = try boundedExcerpt(arena, raw.stderr),
+            .stdout_excerpt = try boundedExcerpt(arena, scratch_alloc, raw.stdout),
+            .stderr_excerpt = try boundedExcerpt(arena, scratch_alloc, raw.stderr),
             .failure_summary = failure_summary,
         },
         .skip_reason = null,

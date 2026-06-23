@@ -4,9 +4,9 @@
   "summary": {
     "cases": 3,
     "skipped_cases": 1,
-    "mutants": 4,
+    "mutants": 3,
     "killed": 1,
-    "survived": 3,
+    "survived": 2,
     "other": 0
   },
   "cases": [
@@ -45,20 +45,6 @@
           "operator": "comparison_boundary",
           "status": "survived",
           "survivor_ref": "m_8gjkdzyacjhze4s5smk9mbbgmr",
-          "runner_evidence": {
-            "status": "survived",
-            "failure_kind": "none",
-            "exit_code": 0,
-            "timed_out": false,
-            "stdout_excerpt": "",
-            "stderr_excerpt": ""
-          }
-        },
-        {
-          "mutant_id": "m_877cp6wdhan1rx8z92py004zz8",
-          "operator": "integer_literal_boundary",
-          "status": "survived",
-          "survivor_ref": "m_877cp6wdhan1rx8z92py004zz8",
           "runner_evidence": {
             "status": "survived",
             "failure_kind": "none",

@@ -21,9 +21,9 @@
     "skipped": 0,
     "invalid": 0,
     "mutation": {
-      "total": 3,
+      "total": 2,
       "killed": 0,
-      "survived": 3,
+      "survived": 2,
       "compile_error": 0,
       "compiler_crash": 0,
       "timeout": 0,
@@ -121,62 +121,6 @@
           "+ 1"
         ],
         "survivor_ref": "ds_ezmck61kg0r9zdzexr2eqnvv6z",
-        "runner_evidence": {
-          "status": "survived",
-          "command": {
-            "original": "zig test src/doctest.zig",
-            "argv": [
-              "zig",
-              "test",
-              "src/doctest.zig"
-            ],
-            "cwd": ".",
-            "environment_policy": "minimal",
-            "shell": false
-          },
-          "exit_code": 0,
-          "timed_out": false,
-          "failure_kind": "none",
-          "stdout_excerpt": "",
-          "stderr_excerpt": "",
-          "failure_summary": "",
-          "skip_reason": null
-        }
-      }
-    },
-    {
-      "id": "dm_v2cxwy6rjmxsg87q37r9at4peq",
-      "file": "docs/survived.md",
-      "line_start": 5,
-      "line_end": 15,
-      "source_ref": "docs/survived.md:5",
-      "block_refs": [
-        "docs/survived.md:5"
-      ],
-      "kind": "mutation",
-      "status": "survived",
-      "expectation": null,
-      "command": null,
-      "result": null,
-      "diagnostics": [],
-      "advisory": {
-        "ai": null
-      },
-      "mutation": {
-        "doctest_case_id": "dt_3h51e3pehabwywr7hv6fsryqdy",
-        "mutant_id": "m_877cp6wdhan1rx8z92py004zz8",
-        "operator": "integer_literal_boundary",
-        "operator_stability": "stable",
-        "backend": "ast",
-        "backend_stability": "stable",
-        "doc_file": "docs/survived.md",
-        "doc_line": 5,
-        "source_ref": "docs/survived.md:5",
-        "mutated_diff": [
-          "- 0",
-          "+ -1"
-        ],
-        "survivor_ref": "ds_sg291nyzkcaf6g49y3ng84wgvr",
         "runner_evidence": {
           "status": "survived",
           "command": {

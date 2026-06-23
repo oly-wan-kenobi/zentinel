@@ -5,15 +5,19 @@
 // match of each configured redaction pattern with a fixed marker and reports
 // which patterns matched. Configured patterns mask known secret LABELS
 // (api_key, token); on top of them a fixed set of built-in matchers redacts the
-// secret VALUES themselves (GitHub, AWS, Anthropic, JWT, and PEM private-key
-// shapes) so an unlabeled credential, or the value after a label, cannot reach a
-// provider. Redaction FAILS CLOSED -- an unsupported or malformed configured
-// pattern returns `error.RedactionFailed` so the caller can abort the AI flow
-// rather than risk leaking a secret it could not redact. The supported
-// configured-pattern subset is intentionally tiny (an optional `(?i)`
-// case-insensitive flag, literal runs, and the single `[_-]?` optional-separator
-// construct) so redaction stays auditable; anything richer is rejected, never
-// silently ignored.
+// secret VALUES themselves by shape so an unlabeled credential, or the value
+// after a label, cannot reach a provider. The built-in matchers (see
+// `matchSecretValue`) cover GitHub tokens, the AWS access-key id (`AKIA`/`ASIA`;
+// the secret access key is intentionally NOT shape-matched -- it is generic
+// base64 and would over-redact), Anthropic (`sk-ant-`) and broader OpenAI
+// (`sk-`) keys, Slack (`xox?-`/`xapp-`) tokens, Google API keys (`AIza`), JWTs,
+// and PEM blocks (the only private-key shape). Redaction FAILS CLOSED -- an
+// unsupported or malformed configured pattern returns `error.RedactionFailed` so
+// the caller can abort the AI flow rather than risk leaking a secret it could not
+// redact. The supported configured-pattern subset is intentionally tiny (an
+// optional `(?i)` case-insensitive flag, literal runs, and the single `[_-]?`
+// optional-separator construct) so redaction stays auditable; anything richer is
+// rejected, never silently ignored.
 const std = @import("std");
 
 pub const Error = error{RedactionFailed} || std.mem.Allocator.Error;
@@ -25,10 +29,11 @@ pub const Redacted = struct {
     /// The configured patterns (verbatim) that matched at least once, in
     /// configuration order. Recorded in the AI context `privacy.redactions_applied`.
     applied: []const []const u8,
-    /// True if at least one built-in secret-VALUE shape (GitHub/AWS/Anthropic/JWT/
-    /// PEM) matched. Built-in matches are not configured patterns, so they are not
-    /// in `applied`; the caller records them under a synthetic label so
-    /// `redactions_applied` stays truthful about value scrubbing.
+    /// True if at least one built-in secret-VALUE shape matched (the full set is
+    /// listed at `matchSecretValue`: GitHub, AWS access-key id, Anthropic/OpenAI,
+    /// Slack, Google, JWT, PEM). Built-in matches are not configured patterns, so
+    /// they are not in `applied`; the caller records them under a synthetic label
+    /// so `redactions_applied` stays truthful about value scrubbing.
     builtin_matched: bool = false,
 };
 

@@ -195,7 +195,7 @@ fn runCase(
     if (c.block_refs.len > 1 and status != .invalid and status != .skipped) {
         var all_matched = true;
         for (c.block_refs[1..]) |ref| {
-            const exp = findBlockByLine(blocks, lineOfRef(ref)) orelse continue;
+            const exp = findBlockByLine(blocks, case_mod.lineOfRef(ref)) orelse continue;
             const mode = matchModeFor(exp);
             const actual = actualOutputFor(c.kind, mode, cr);
             const sr = try snap.compare(arena, c.id, c.file, c.anchor_line, mode, exp.content, actual.text, norm_opts);
@@ -338,23 +338,18 @@ fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
     return null;
 }
 
-fn lineOfRef(ref: []const u8) u32 {
-    // ref is "file:line[:label]"; take the digit run after the first ':'.
-    const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
-    var end = first + 1;
-    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
-    // Parse with a checked routine, not a hand-rolled `n = n*10 + d` accumulator:
-    // an out-of-range or overlong numeric ref must resolve to line 0 (which matches
-    // no real 1-based anchor -> CaseNotFound) rather than overflow into a
-    // `panic: integer overflow` (Debug/ReleaseSafe) or a wrapped, wrong line
-    // (ReleaseFast). Mirrors the already-hardened src/ai/doctest_command.zig.
-    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
-}
+// `file:line[:label]` refs are parsed via the shared, checked helpers in
+// src/doctest/case.zig (case.lineOfRef / case.labelOfRef) -- previously each copy
+// hand-rolled an `n = n*10 + d` accumulator that could overflow on an overlong
+// numeric ref.
 
 /// Resolve a `--case` selector: a durable `dt_...` id or an anchor-line
-/// `file:line[:label]` source ref. Source refs resolve only against a case
-/// anchor line, so a line pointing only at a secondary expectation block does
-/// not match any case and yields CaseNotFound.
+/// `file:line[:label]` source ref. Source refs resolve against a case anchor
+/// line, so a line pointing only at a secondary expectation block does not match
+/// any case and yields CaseNotFound. When the selector carries a `:label`
+/// suffix, the label must also equal the case's label; a mismatched label is
+/// rejected (CaseNotFound) rather than silently ignored, so `file:line:other`
+/// cannot resolve to the case labeled differently at that line.
 fn selectByRef(arena: std.mem.Allocator, cases: []const case_mod.Case, doc_file: []const u8, ref: []const u8) RunError![]const case_mod.Case {
     var match: ?case_mod.Case = null;
     if (std.mem.startsWith(u8, ref, "dt_")) {
@@ -364,9 +359,17 @@ fn selectByRef(arena: std.mem.Allocator, cases: []const case_mod.Case, doc_file:
     } else {
         const file_end = std.mem.indexOfScalar(u8, ref, ':') orelse return error.CaseNotFound;
         const ref_file = ref[0..file_end];
-        const line = lineOfRef(ref);
+        const line = case_mod.lineOfRef(ref);
+        const want_label = case_mod.labelOfRef(ref);
         for (cases) |c| {
-            if (std.mem.eql(u8, c.file, ref_file) and c.anchor_line == line) match = c;
+            if (!std.mem.eql(u8, c.file, ref_file) or c.anchor_line != line) continue;
+            // A `:label` suffix must match the case's label exactly. The selector
+            // labeling a case that has none (or a different one) does not resolve.
+            if (want_label) |wl| {
+                const cl = c.label orelse continue;
+                if (!std.mem.eql(u8, cl, wl)) continue;
+            }
+            match = c;
         }
         _ = doc_file;
     }

@@ -47,6 +47,33 @@ pub const Case = struct {
     anchor_line: u32,
 };
 
+/// Parse the 1-based anchor line out of a `file:line[:label]` source/block ref.
+/// The line is the digit run after the FIRST `:`. A ref with no `:`, no digits,
+/// or an out-of-range / overlong number resolves to line 0 -- which matches no
+/// real 1-based anchor (so selectors yield CaseNotFound) -- rather than panicking
+/// on integer overflow (Debug/ReleaseSafe) or wrapping to a wrong line
+/// (ReleaseFast). This is the single shared implementation; cache.zig,
+/// doctest_command.zig, and mutator_doctest.zig all call it so the four formerly
+/// hand-rolled `n = n*10 + d` copies cannot drift again.
+pub fn lineOfRef(ref: []const u8) u32 {
+    const first = std.mem.indexOfScalar(u8, ref, ':') orelse return 0;
+    var end = first + 1;
+    while (end < ref.len and ref[end] >= '0' and ref[end] <= '9') : (end += 1) {}
+    return std.fmt.parseInt(u32, ref[first + 1 .. end], 10) catch 0;
+}
+
+/// Parse the optional `:label` suffix out of a `file:line[:label]` ref, or null
+/// when the ref carries only `file:line`. The label is everything after the
+/// SECOND `:` (so a label may itself contain `:`). An empty trailing segment
+/// (`file:line:`) is treated as no label.
+pub fn labelOfRef(ref: []const u8) ?[]const u8 {
+    const first = std.mem.indexOfScalar(u8, ref, ':') orelse return null;
+    const rest = ref[first + 1 ..];
+    const second = std.mem.indexOfScalar(u8, rest, ':') orelse return null;
+    const label = rest[second + 1 ..];
+    return if (label.len == 0) null else label;
+}
+
 /// Lowercase Crockford base32 alphabet (excludes i, l, o, u). Matches src/mutant.zig.
 const crockford_lower = "0123456789abcdefghjkmnpqrstvwxyz";
 

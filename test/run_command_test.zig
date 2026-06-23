@@ -368,11 +368,11 @@ test "the source index is built once per run, not scanned once per mutant" {
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
-    rc.source_index_builds = 0;
+    rc.source_index_builds.store(0, .monotonic);
     const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
 
     try expectEqual(@as(u32, 2), outcome.report.summary.total);
-    try expectEqual(@as(usize, 1), rc.source_index_builds);
+    try expectEqual(@as(usize, 1), rc.source_index_builds.load(.monotonic));
 }
 
 test "each file's result-cache source hash is computed once per file, not once per mutant" {
@@ -386,11 +386,11 @@ test "each file's result-cache source hash is computed once per file, not once p
     var env = Env{ .arena = a, .baseline_outcome = pass(), .mutant_outcome = pass() };
     const files = [_]rc.FileSource{.{ .path = "src/calc.zig", .source = reverify_src }};
 
-    rc.source_hash_count = 0;
+    rc.source_hash_count.store(0, .monotonic);
     const outcome = try rc.run(a, loadCfg(a, cfg_toml), &files, .{}, baselineExecutor(&env), mutantRunner(&env), observation());
 
     try expectEqual(@as(u32, 2), outcome.report.summary.total);
-    try expectEqual(@as(usize, 1), rc.source_hash_count);
+    try expectEqual(@as(usize, 1), rc.source_hash_count.load(.monotonic));
 }
 
 test "each source file's AST is parsed once per run, not re-parsed for same-file selection" {
@@ -785,8 +785,10 @@ test "--no-cache disables the result cache but keeps build-cache isolation and r
     try expectEqual(@as(usize, 0), uncached.cache.result_keys.len);
     try expect(uncached.cache.build_cache.isolated);
 
-    // Cache policy never changes mutant correctness: identical canonical reports.
-    try expectEqualStrings(try report.toJson(a, cached.report), try report.toJson(a, uncached.report));
+    // Cache policy never changes mutant correctness: the reports are equivalent
+    // up to the determinism-volatile fields (`duration_ms` and `diagnostics.cache`,
+    // which legitimately differs -- metadata_only vs disabled -- by cache policy).
+    try expect(report.equivalentIgnoringTiming(cached.report, uncached.report));
 }
 
 const cfg_cache_off =

@@ -26,13 +26,25 @@ pub const PatchError = error{
 
 pub const Error = PatchError || std.mem.Allocator.Error;
 
-/// Apply one mutant to a copy of `source`, returning the patched bytes. Validates
-/// the span is in range and that the source at the span matches `mutant.original`
-/// before replacing. `source` is never modified.
-pub fn apply(arena: std.mem.Allocator, source: []const u8, m: mutant.Mutant) Error![]u8 {
+/// Validate a mutant's span and original text against `source` WITHOUT building
+/// the patched copy: `error.SpanOutOfRange` when the span is reversed or runs past
+/// the source, `error.PatchMismatch` when the source bytes at the span do not equal
+/// `mutant.original` (I-008). Allocation-free, so it returns the narrower
+/// `PatchError` (no `OutOfMemory` arm). Callers that only need to know whether a
+/// patch is appliable -- e.g. the mutant runner, which discards the patched buffer
+/// and relies on the per-mutant workspace copy for the actual bytes -- use this
+/// instead of `apply` to avoid allocating and immediately dropping the full copy.
+pub fn validate(source: []const u8, m: mutant.Mutant) PatchError!void {
     if (m.span.byte_start > m.span.byte_end or m.span.byte_end > source.len) return error.SpanOutOfRange;
     const at_span = source[m.span.byte_start..m.span.byte_end];
     if (!std.mem.eql(u8, at_span, m.original)) return error.PatchMismatch;
+}
+
+/// Apply one mutant to a copy of `source`, returning the patched bytes. Validates
+/// the span is in range and that the source at the span matches `mutant.original`
+/// before replacing (via `validate`). `source` is never modified.
+pub fn apply(arena: std.mem.Allocator, source: []const u8, m: mutant.Mutant) Error![]u8 {
+    try validate(source, m);
 
     var out: std.ArrayList(u8) = .empty;
     try out.appendSlice(arena, source[0..m.span.byte_start]);

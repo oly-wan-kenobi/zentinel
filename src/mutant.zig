@@ -275,8 +275,11 @@ pub fn sortAndDedupe(arena: std.mem.Allocator, mutants: []const Mutant) std.mem.
     defer seen_edit.deinit();
     var out: std.ArrayList(Mutant) = .empty;
     for (copy) |m| {
+        // Cheap exact-identity check first: an `m_...` id repeat is a duplicate
+        // regardless of content, so skip building the (allocated) edit_key for it.
+        if (seen_id.contains(m.id)) continue;
         const edit_key = try std.fmt.allocPrint(arena, "{s}\x00{d}\x00{d}\x00{s}\x00{s}", .{ m.file, m.span.byte_start, m.span.byte_end, m.original, m.replacement });
-        if (seen_id.contains(m.id) or seen_edit.contains(edit_key)) continue;
+        if (seen_edit.contains(edit_key)) continue;
         try seen_id.put(m.id, {});
         try seen_edit.put(edit_key, {});
         try out.append(arena, m);

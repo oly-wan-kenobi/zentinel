@@ -399,22 +399,21 @@ test "persisted ai.provider = remote without remote_allowed fails config validat
     try expectEqualStrings("provider", diag.key);
 }
 
-// --- Deterministic stub provider -------------------------------------------
+// --- Provider mode parsing -------------------------------------------------
+// The deterministic-advisory quartet (provider.run/Request/Advisory/
+// deterministicAdvisory) was removed as production-dead -- the command engines
+// emit richer typed JSON. Only the provider Mode enum and its name conversions
+// remain, so this covers that surviving surface.
 
-test "the stub provider is deterministic and disabled mode yields no advisory" {
-    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    const req = provider.Request{ .flow = "explain", .mutant_id = "m_abc123", .operator = "arithmetic_add_sub" };
-
-    const first = try provider.run(a, .stub, false, req);
-    const second = try provider.run(a, .stub, false, req);
-    try expectEqualStrings(first.advice, second.advice); // same context -> same advisory
-    try expectEqualStrings("stub", first.provider_mode);
-    try expectEqualStrings("explain", first.flow);
-
-    try expectError(error.ProviderDisabled, provider.run(a, .disabled, false, req));
-    try expectError(error.RemoteNotAllowed, provider.run(a, .remote, false, req));
+test "provider mode name round-trips and rejects unknown names" {
+    inline for ([_]provider.Mode{ .disabled, .stub, .local, .remote }) |mode| {
+        const name = provider.modeName(mode);
+        try expectEqual(mode, provider.modeFromName(name).?);
+    }
+    try expectEqualStrings("stub", provider.modeName(.stub));
+    try expectEqualStrings("remote", provider.modeName(.remote));
+    try std.testing.expect(provider.modeFromName("nope") == null);
+    try std.testing.expect(provider.modeFromName("") == null);
 }
 
 // --- Path normalization + field redaction primitives (audit F-4) --

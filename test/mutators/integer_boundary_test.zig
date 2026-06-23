@@ -63,11 +63,15 @@ test "protected literals (declarations, enum tags, lengths, alignments) are not 
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "zero and one boundary literals are mutated (including negative -1)" {
+test "the zero boundary literal emits only +1 (the -1 underflows u128 and is skipped)" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
+    // Literals are parsed as u128 (number_literal tokens are non-negative), so `0`'s
+    // -1 boundary underflows and is skipped by the overflow guard -- only the +1
+    // boundary (`1`) is emitted. (A negative replacement is outside the non-negative
+    // decimal-literal model; the -1 site is only meaningful for signed operands.)
     var parsed = try ast_backend.parse(std.testing.allocator, "z.zig",
         \\pub fn f(x: i32) bool {
         \\    return x > 0;
@@ -75,12 +79,9 @@ test "zero and one boundary literals are mutated (including negative -1)" {
     );
     defer parsed.deinit();
     const c = try collect(a, parsed);
-    try expectEqual(@as(usize, 2), c.len);
-    // 0 -> +1 = "1", -1 = "-1"; canonical order sorts "-1" before "1".
+    try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("0", c[0].original);
-    try expectEqualStrings("-1", c[0].replacement);
-    try expectEqualStrings("0", c[1].original);
-    try expectEqualStrings("1", c[1].replacement);
+    try expectEqualStrings("1", c[0].replacement);
 }
 
 test "non-decimal literals (hex) are left alone for now" {
@@ -136,27 +137,28 @@ test "integer literals inside test bodies are excluded" {
     try expectEqualStrings("5", c[0].original);
 }
 
-test "an i128-max comparison literal skips the overflowing +1 boundary instead of panicking" {
+test "a u128-max comparison literal skips the overflowing +1 boundary instead of panicking" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
-    // i128 max = 2^127 - 1 = 170141183460469231731687303715884105727. Pre-fix the
-    // mutator computed `value + 1` in i128 with no bounds check, so this legal
-    // source literal aborted the WHOLE candidate-generation pass with an
-    // unrecoverable `panic: integer overflow`. The mutator must instead drop just
-    // the unrepresentable +1 boundary and still emit the -1 boundary.
+    // u128 max = 2^128 - 1 = 340282366920938463463374607431768211455. Literals are
+    // parsed as u128 (number_literal tokens are non-negative), so the overflow
+    // boundary is now u128 max, not i128 max. Computing `value + 1` unchecked would
+    // abort the WHOLE candidate-generation pass with an unrecoverable
+    // `panic: integer overflow`; the mutator must instead drop just the
+    // unrepresentable +1 boundary and still emit the -1 boundary.
     var parsed = try ast_backend.parse(std.testing.allocator, "max.zig",
-        \\pub fn f(x: i128) bool {
-        \\    return x == 170141183460469231731687303715884105727;
+        \\pub fn f(x: u128) bool {
+        \\    return x == 340282366920938463463374607431768211455;
         \\}
     );
     defer parsed.deinit();
     const c = try collect(a, parsed);
     // Exactly one candidate survives: the -1 boundary (max - 1). The +1 boundary
-    // is unrepresentable in i128 and is skipped, not crashed on.
+    // is unrepresentable in u128 and is skipped, not crashed on.
     try expectEqual(@as(usize, 1), c.len);
-    try expectEqualStrings("170141183460469231731687303715884105727", c[0].original);
-    try expectEqualStrings("170141183460469231731687303715884105726", c[0].replacement);
+    try expectEqualStrings("340282366920938463463374607431768211455", c[0].original);
+    try expectEqualStrings("340282366920938463463374607431768211454", c[0].replacement);
     try expectEqual(mutant.ExpectedCompile.may_fail, c[0].expected_compile);
 }

@@ -236,17 +236,45 @@ fn atomMatches(atom: Atom, c: u8) bool {
     };
 }
 
-fn matchHere(re: Regex, ti: usize, text: []const u8, si: usize) bool {
+/// Bounded backtracking budget. This subset engine has no grouped quantifiers,
+/// but multiple adjacent `*`/`+`/`?` tokens against a long non-matching input
+/// (e.g. `a*a*a*a*a*x` over thousands of `a`s) still drive super-linear
+/// backtracking. `step` is charged once per `matchHere` entry; when it is
+/// exhausted the engine fails CLOSED -- it reports NO MATCH rather than spinning.
+/// A snapshot expectation is never an adversary, so a sane bound never trips on a
+/// real pattern; it only caps the cost of a pathological or malformed one.
+const Budget = struct {
+    /// Remaining `matchHere` invocations before the search aborts as no-match.
+    step: usize,
+
+    /// Charge one step. Returns false (no budget left) when the cap is reached, so
+    /// callers can short-circuit to a fail-closed no-match.
+    fn spend(self: *Budget) bool {
+        if (self.step == 0) return false;
+        self.step -= 1;
+        return true;
+    }
+};
+
+/// Step ceiling for one `regexSearch`. Generous relative to any real snapshot
+/// pattern/output yet small enough that exponential backtracking on adversarial
+/// input terminates promptly instead of hanging the run.
+const regex_step_budget: usize = 1_000_000;
+
+fn matchHere(re: Regex, ti: usize, text: []const u8, si: usize, budget: *Budget) bool {
+    // Fail closed when the backtracking budget is exhausted: a pathological
+    // pattern/input pair reports no-match instead of running unbounded.
+    if (!budget.spend()) return false;
     if (ti == re.tokens.len) return (!re.anchored_end) or si == text.len;
     const t = re.tokens[ti];
     switch (t.quant) {
         .one => {
-            if (si < text.len and atomMatches(t.atom, text[si])) return matchHere(re, ti + 1, text, si + 1);
+            if (si < text.len and atomMatches(t.atom, text[si])) return matchHere(re, ti + 1, text, si + 1, budget);
             return false;
         },
         .opt => {
-            if (matchHere(re, ti + 1, text, si)) return true;
-            if (si < text.len and atomMatches(t.atom, text[si])) return matchHere(re, ti + 1, text, si + 1);
+            if (matchHere(re, ti + 1, text, si, budget)) return true;
+            if (si < text.len and atomMatches(t.atom, text[si])) return matchHere(re, ti + 1, text, si + 1, budget);
             return false;
         },
         .star, .plus => {
@@ -256,7 +284,7 @@ fn matchHere(re: Regex, ti: usize, text: []const u8, si: usize) bool {
             if (count < min) return false;
             var k: usize = count;
             while (true) {
-                if (matchHere(re, ti + 1, text, si + k)) return true;
+                if (matchHere(re, ti + 1, text, si + k, budget)) return true;
                 if (k == min) break;
                 k -= 1;
             }
@@ -266,10 +294,17 @@ fn matchHere(re: Regex, ti: usize, text: []const u8, si: usize) bool {
 }
 
 fn regexSearch(re: Regex, text: []const u8) bool {
-    if (re.anchored_start) return matchHere(re, 0, text, 0);
+    // One shared budget across the whole search: the outer start-position loop
+    // below multiplies `matchHere` work, so charging per call against a single
+    // counter bounds the total, not just any one anchored attempt.
+    var budget: Budget = .{ .step = regex_step_budget };
+    if (re.anchored_start) return matchHere(re, 0, text, 0, &budget);
     var start: usize = 0;
     while (start <= text.len) : (start += 1) {
-        if (matchHere(re, 0, text, start)) return true;
+        if (matchHere(re, 0, text, start, &budget)) return true;
+        // The budget is consumed across all start positions; once gone, no later
+        // start can match either, so stop scanning.
+        if (budget.step == 0) return false;
     }
     return false;
 }

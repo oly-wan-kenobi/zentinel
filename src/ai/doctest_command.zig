@@ -358,8 +358,9 @@ fn privacyOf(settings: Settings, log: *context.RedactionLog) Privacy {
     return .{ .remote_allowed = settings.remote_allowed, .source_context_policy = "minimal", .redactions_applied = log.applied() };
 }
 
-/// Redact a doctest meta's path-bearing fields (file, source_ref) through the
-/// path-normalize + secret-scrub pass, recording redactions into `log` (F-4).
+/// Redact a doctest meta's path-bearing fields (file, source_ref, block_refs)
+/// through the path-normalize + secret-scrub pass, recording redactions into
+/// `log` (F-4).
 fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []const []const u8, log: *context.RedactionLog) redaction.Error!DoctestMeta {
     var meta = meta_in;
     meta.file = try context.redactField(arena, meta.file, patterns, log);
@@ -371,6 +372,10 @@ fn redactedMeta(arena: std.mem.Allocator, meta_in: DoctestMeta, patterns: []cons
     // `status` is a free-string schema field sourced from the report; scrub it too
     // (kind is enum-gated by validateContext, so it needs no redaction).
     meta.status = try context.redactField(arena, meta.status, patterns, log);
+    // block_refs are source_ref-shaped report strings (validateContext only checks
+    // the key is present, not its contents), so scrub each like source_ref before
+    // it reaches the provider via doctest.block_refs.
+    meta.block_refs = try context.redactStrArray(arena, meta.block_refs, patterns, log);
     return meta;
 }
 
@@ -433,14 +438,19 @@ fn redactOpt(arena: std.mem.Allocator, v: ?std.json.Value, patterns: []const []c
     return try context.redactAndCapLogged(arena, t, patterns, context.excerpt_limit, log);
 }
 
-fn metaFromCase(case: std.json.Value) command.Failure!DoctestMeta {
+fn metaFromCase(arena: std.mem.Allocator, case: std.json.Value) (command.Failure || error{OutOfMemory})!DoctestMeta {
     return .{
         .id = optStr(get(case, "id")),
         .file = s(get(case, "file")),
         .line_start = try optU32(get(case, "line_start")),
         .line_end = try optU32(get(case, "line_end")),
         .source_ref = optStr(get(case, "source_ref")),
-        .block_refs = &.{},
+        // Carry the report case's block_refs through (absent/non-array -> empty),
+        // so the doctest context reflects the case's expectation blocks instead of
+        // always claiming none. docsTargetMeta/survivorMeta keep &.{} on purpose:
+        // a docs-target has no resolved case, and the survivor flow models its
+        // blocks under evidence, not doctest.block_refs.
+        .block_refs = try readStrArray(arena, get(case, "block_refs")),
         .kind = sOr(get(case, "kind"), "cli"),
         .status = sOr(get(case, "status"), "failed"),
     };
@@ -493,7 +503,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                 .diagnostics = try readDiagnostics(arena, case, patterns, &log),
                 .failure_summary = try context.redactAndCapLogged(arena, s(getO(result, "failure_summary")), patterns, context.excerpt_limit, &log),
             };
-            const meta = try redactedMeta(arena, try metaFromCase(case), patterns, &log);
+            const meta = try redactedMeta(arena, try metaFromCase(arena, case), patterns, &log);
             const ctx = DoctestContext(CaseFailureEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
@@ -523,7 +533,7 @@ pub fn buildContextValue(arena: std.mem.Allocator, flow: Flow, mode: Mode, input
                     },
                 },
             };
-            const meta = try redactedMeta(arena, try metaFromCase(case), patterns, &log);
+            const meta = try redactedMeta(arena, try metaFromCase(arena, case), patterns, &log);
             const ctx = DoctestContext(SnapshotDiffEvidence){
                 .flow = flowName(flow),
                 .provider_mode = provider_mode,
@@ -746,10 +756,13 @@ fn explainClassification(status: []const u8) []const u8 {
 fn stubExplain(arena: std.mem.Allocator, case: std.json.Value, patterns: []const []const u8) redaction.Error!Response {
     const status = s(get(case, "status"));
     const classification = explainClassification(status);
-    const id = s(get(case, "id"));
-    // Redact the file the stub echoes into its advisory text (F-4).
+    // Redact the file and case id the stub echoes into its advisory text and
+    // evidence ref (F-4): the report is untrusted and the validator only
+    // prefix-checks the id, so route both through the same sink as
+    // stubSurvivorExplain rather than echo an unredacted path/secret to stdout/JSON.
     var sink = context.RedactionLog.init(arena);
     const file = try context.redactField(arena, s(get(case, "file")), patterns, &sink);
+    const id = try context.redactField(arena, s(get(case, "id")), patterns, &sink);
     const refs = try arena.alloc(EvidenceRef, 1);
     refs[0] = .{ .kind = "doctest_case", .ref = id };
     return .{ .explain = .{
@@ -830,15 +843,9 @@ pub const ResponseViolation = enum {
     unsafe_text,
 };
 
-const unsafe_markers = [_][]const u8{
-    "ignore previous", "ignore all previous", "disregard previous",
-    "<tool",           "</tool",              "```tool",
-    "system:",         "<|",                  "begin_of_text",
-};
-fn unsafeText(text: []const u8) bool {
-    for (unsafe_markers) |m| if (std.ascii.indexOfIgnoreCase(text, m) != null) return true;
-    return false;
-}
+// Prompt-injection / role-confusion marker checking is shared with the mutation
+// response validators (command.unsafeText / command.unsafe_markers) so the two
+// surfaces cannot drift -- the prior local copy here omitted "assistant:".
 fn projectRelative(path: []const u8) bool {
     if (path.len == 0) return false;
     if (path[0] == '/' or path[0] == '~' or path[0] == '\\') return false;
@@ -867,7 +874,7 @@ pub fn validateSuggestResponse(value: std.json.Value) ResponseViolation {
         if (!projectRelative(s(o.get("target_file")))) return .bad_path;
         if (s(o.get("reason")).len == 0) return .empty_summary;
         if (s(o.get("block")).len == 0) return .missing_field;
-        if (unsafeText(s(o.get("reason"))) or unsafeText(s(o.get("block")))) return .unsafe_text;
+        if (command.unsafeText(s(o.get("reason"))) or command.unsafeText(s(o.get("block")))) return .unsafe_text;
     }
     return .ok;
 }
@@ -882,13 +889,14 @@ pub fn validateSnapshotReviewResponse(value: std.json.Value) ResponseViolation {
     if (!inSet(s(obj.get("risk")), &risks)) return .bad_enum;
     if (s(obj.get("summary")).len == 0) return .empty_summary;
     if (s(obj.get("next_action")).len == 0) return .missing_field;
-    if (unsafeText(s(obj.get("summary"))) or unsafeText(s(obj.get("next_action")))) return .unsafe_text;
+    if (command.unsafeText(s(obj.get("summary"))) or command.unsafeText(s(obj.get("next_action")))) return .unsafe_text;
     const refs = arr(obj.get("evidence_refs")) orelse return .not_array;
     for (refs) |r| {
         const o = objOf(r) orelse return .not_object;
         if (!requireKeys(o, &.{ "kind", "ref" })) return .missing_field;
         if (!onlyKeys(o, &.{ "kind", "ref" })) return .unknown_field;
-        if (unsafeText(s(o.get("ref")))) return .unsafe_text;
+        // `kind` is model-controlled free text like `ref`, so gate it too.
+        if (command.unsafeText(s(o.get("kind"))) or command.unsafeText(s(o.get("ref")))) return .unsafe_text;
     }
     return .ok;
 }

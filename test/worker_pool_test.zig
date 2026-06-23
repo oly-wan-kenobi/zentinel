@@ -344,4 +344,11 @@ test "LockedAllocator serializes concurrent allocation from a non-thread-safe ar
         try expectEqual((i % 64) + 16, buf.len);
         for (buf) |byte| try expectEqual(@as(u8, @truncate(i)), byte);
     }
+
+    // The guard must actually have run: each of the `count` allocations enters one
+    // critical section, so at least `count` acquisitions were recorded. If the lock
+    // were removed (reintroducing the data race the test exists to catch), `lock`
+    // would never run and this counter would be 0 -- so this assertion is what makes
+    // the race test able to FAIL on lock removal rather than merely (usually) pass.
+    try expect(locked.acquisitions.load(.monotonic) >= count);
 }

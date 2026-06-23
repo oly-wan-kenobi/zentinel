@@ -74,7 +74,11 @@ Global options parse before command dispatch. Unknown options fail with exit cod
 | `2` | CLI usage or config error. |
 | `3` | Baseline tests failed. |
 | `4` | Internal zentinel error or invalid mutant generation. |
-| `5` | AI provider error for AI-only command. |
+
+AI-only commands never have their own exit code. An AI failure is a
+usage/advisory failure — it never alters a deterministic report — so it exits `2`
+(the CLI usage code) and is distinguished only by its `ZNTL_AI_*` stderr token
+(for example `ZNTL_AI_PROVIDER_NOT_ALLOWED` or `ZNTL_AI_RESPONSE_INVALID`).
 
 ## `--help`
 
@@ -215,6 +219,9 @@ Useful options:
 --report <text|json|jsonl|junit>
 --output <path>
 --no-cache
+--changed-only
+--diff <ref>
+--scope-files <list>
 --verbose
 --quiet
 ```
@@ -254,6 +261,11 @@ A documented option must not be silently ignored; command dispatch must reject u
 | `--no-cache` | Disables zentinel result-cache reads and writes for the invocation; Zig build-cache isolation is handled by the runner and worker pool. |
 | `--jobs <n>` | Overrides normalized `run.jobs` for the invocation. |
 | `--mode <Debug|ReleaseSafe|ReleaseFast|ReleaseSmall>` | Overrides configured `zig.modes` for a single-mode run. |
+| `--changed-only` | Restricts the run to source files changed in the working tree, derived from git. |
+| `--diff <ref>` | Restricts the run to source files changed relative to the given git ref (e.g. a branch or commit). |
+| `--scope-files <list>` | Restricts the run to an explicit comma-separated list of source files. |
+
+`--changed-only`, `--diff <ref>`, and `--scope-files <list>` are three mutually exclusive ways to derive a single diff scope. Combining any two of them is ambiguous (which base or list wins?) and is rejected deterministically with exit code `2`. When a derived scope matches no eligible source files, the run proceeds with 0 mutants and emits the advisory `ZNTL_DIFF_SCOPE_EMPTY` note on stderr; when changed files cannot be derived from git, it fails with `ZNTL_DIFF_SCOPE_FAILED`.
 
 Default text output emphasizes survivors and diagnostics, not percentages.
 

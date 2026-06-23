@@ -23,14 +23,19 @@ fn fnBody(src: []const u8, sig: []const u8) []const u8 {
 
 // --- Repeated report comparison (F-025) ------------------------------------
 
-test "initial production dogfood report is deterministic across repeated runs" {
+// This compares two COMMITTED fixture files, not the output of running the tool:
+// it proves the normalizer collapses the only-allowed-to-differ fields (run id,
+// timestamps, durations) for two captured dogfood reports, not that a live run is
+// deterministic. The name says `static_fixture_parity` so it is not mistaken for
+// an end-to-end determinism test of running code.
+test "production dogfood report static_fixture_parity: normalization collapses id/timestamps/durations" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
-    // Two advisory dogfood runs over the same selected production modules differ
+    // Two advisory dogfood reports over the same selected production modules differ
     // only in run id, timestamps, and durations; normalized they are identical,
-    // so repeated dogfood output is deterministic.
+    // so the committed fixtures agree once the volatile fields are collapsed.
     const run1 = try readFile(a, "test/fixtures/dogfood/production/run1.report.json");
     const run2 = try readFile(a, "test/fixtures/dogfood/production/run2.report.json");
     try expect(!std.mem.eql(u8, run1, run2)); // raw bytes differ (id/timestamps/durations)

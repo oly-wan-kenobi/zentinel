@@ -92,7 +92,12 @@ const operators = [_]OperatorInfo{
 
 const known_modes = [_][]const u8{ "Debug", "ReleaseSafe", "ReleaseFast", "ReleaseSmall" };
 const known_backends = [_][]const u8{ "ast", "zir" };
-const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all", "impact_graph" };
+// `impact_graph` is deliberately omitted: its resolver is currently an exact
+// alias of `same_file_then_package` (src/test_selection.zig), so accepting it
+// would record a false `impact_graph` strategy in the report for behavior that is
+// really same-file-then-package. The enum variant is kept for forward-compat
+// until a real impact-graph resolver lands (docs/TEST_SELECTION.md).
+const known_selections = [_][]const u8{ "same_file_then_package", "same_file", "package", "all" };
 const known_providers = [_][]const u8{ "disabled", "stub", "local", "remote" };
 const known_report_formats = [_][]const u8{ "text", "json", "jsonl", "junit" };
 const default_exclude = [_][]const u8{ ".zig-cache/**", "zig-out/**", "test/**" };
@@ -237,10 +242,22 @@ pub fn isOutsideRoot(path: []const u8) bool {
 /// filesystem deterministically (reads only; like `project_model.discover`), so
 /// it stays in the deterministic core next to `isOutsideRoot`; the caller must
 /// still apply `isOutsideRoot` first to reject absolute/`..` paths.
+///
+/// TOCTOU residue (documented Phase-1 limitation): this is a check-then-write
+/// guard, not an atomic open. A component stat'd here as a non-symlink could be
+/// swapped for a symlink between this check and the subsequent write, which then
+/// follows it. Phase 1 does not close that window (no `openat`/`O_NOFOLLOW`
+/// rewrite); it raises the bar against a statically planted in-tree symlink in an
+/// untrusted checkout, the realistic threat for a local mutation run
+/// (docs/SANDBOX_SECURITY.md, Symlink Policy).
 pub fn outputPathHasSymlink(io: std.Io, root_dir: std.Io.Dir, path: []const u8) bool {
     var start: usize = 0;
     while (start < path.len) {
-        const slash = std.mem.indexOfScalarPos(u8, path, start, '/') orelse path.len;
+        // Split on both separators ("/" and "\\") so a backslash-separated prefix
+        // is checked component-by-component too, matching how `outsideRoot`
+        // tokenizes paths; otherwise a `dir\link` component would be stat'd as one
+        // opaque name and its symlinked head missed.
+        const slash = std.mem.indexOfAnyPos(u8, path, start, "/\\") orelse path.len;
         if (slash > start) {
             // No-follow stat of the prefix ending at this component: only the
             // final component is checked for being a symlink, and we check every
@@ -303,11 +320,11 @@ fn expandMutators(arena: std.mem.Allocator, enabled: []const []const u8, diag: *
             // enabling it would silently emit zero mutants. Reject it instead so
             // every operator that loads can actually emit.
             if (op.stability != .stable) {
-                return fail(diag, .invalid_value, "mutators", "enabled", "operator is preview-only and not yet emitted; only stable operators can be enabled");
+                return fail(diag, .invalid_value, "mutators", "enabled", try std.fmt.allocPrint(arena, "operator '{s}' is preview-only and not yet emitted; only stable operators can be enabled", .{item}));
             }
             try appendUnique(arena, &out, item);
         } else {
-            return fail(diag, .invalid_value, "mutators", "enabled", "unknown mutator name");
+            return fail(diag, .invalid_value, "mutators", "enabled", try std.fmt.allocPrint(arena, "unknown mutator name '{s}'", .{item}));
         }
     }
     return out.toOwnedSlice(arena);
@@ -369,6 +386,10 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
     // [mutators]
     const enabled_raw = try look.getArray("mutators", "enabled", &.{"phase1"}, diag);
     const mutators_enabled = try expandMutators(arena, enabled_raw, diag);
+    // An explicit `enabled = []` validates clean but disables all mutation; reject
+    // it as meaningless intent (omitting `enabled` keeps the phase1 default),
+    // mirroring the zig.modes empty-guard above.
+    if (mutators_enabled.len == 0) return fail(diag, .invalid_value, "mutators", "enabled", "enabled must not be empty");
 
     // [test]
     const test_commands = try look.getArray("test", "commands", &.{"zig build test"}, diag);
@@ -377,9 +398,11 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         if (c.len == 0) return fail(diag, .invalid_value, "test", "commands", "test command must not be empty");
     }
     const test_selection = try look.getString("test", "selection", "same_file_then_package", diag);
-    // `impact_graph` is an accepted strategy (docs/TEST_SELECTION.md);
-    // any other unrecognized strategy is still rejected outright, never silently
-    // downgraded to same_file_then_package or all.
+    // `impact_graph` is rejected here (reserved / not-yet-implemented): its
+    // resolver is currently an exact alias of same_file_then_package, so accepting
+    // it would record a misleading strategy. Any unrecognized strategy is likewise
+    // rejected outright, never silently downgraded to same_file_then_package or all
+    // (docs/TEST_SELECTION.md).
     if (!inList(&known_selections, test_selection)) {
         return fail(diag, .invalid_value, "test", "selection", "unknown or not-yet-supported selection strategy");
     }
@@ -421,10 +444,16 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         return fail(diag, .invalid_value, "project", "root", "project root must stay within the selected root");
     }
 
+    // An explicit `include = []` validates clean but selects no files to mutate;
+    // reject it as meaningless intent (omitting `include` keeps the default glob),
+    // mirroring the empty-list guards for zig.modes and mutators.enabled.
+    const include = try look.getArray("project", "include", &.{"src/**/*.zig"}, diag);
+    if (include.len == 0) return fail(diag, .invalid_value, "project", "include", "include must not be empty");
+
     return Config{
         .project_name = try look.getString("project", "name", "example", diag),
         .project_root = project_root,
-        .include = try normalizePaths(arena, try look.getArray("project", "include", &.{"src/**/*.zig"}, diag)),
+        .include = try normalizePaths(arena, include),
         .exclude = try normalizePaths(arena, try look.getArray("project", "exclude", &default_exclude, diag)),
         .zig_version = zig_version,
         .zig_modes = zig_modes,

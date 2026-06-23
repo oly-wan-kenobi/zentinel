@@ -25,6 +25,18 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, verbosity: Verbosity
         return out.toOwnedSlice(arena);
     }
 
+    if (rep.run.status == .internal_error) {
+        // Mirror the baseline_failed early return: a run-level failure with no
+        // mutant listing. `validate` guarantees `run.error` is non-null here, so
+        // surface its stable code and message.
+        if (rep.run.@"error") |e| {
+            try out.print(arena, "internal error[{s}]: {s}\n", .{ e.code, e.message });
+        } else {
+            try out.appendSlice(arena, "internal error\n");
+        }
+        return out.toOwnedSlice(arena);
+    }
+
     if (verbosity != .quiet) {
         for (rep.mutants) |m| {
             const show = verbosity == .verbose or m.result.status == .survived;
@@ -34,7 +46,10 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, verbosity: Verbosity
             });
             for (m.diff) |line| try out.print(arena, "  {s}\n", .{line});
             if (m.test_selection.commands.len > 0) {
-                try out.appendSlice(arena, "  selected tests passed:");
+                // Status-neutral label: in verbose mode this line is printed for
+                // every mutant (killed/timeout/compile_error included), so it must
+                // not claim the selected tests "passed".
+                try out.appendSlice(arena, "  selected tests:");
                 for (m.test_selection.commands) |cmd| try out.print(arena, " {s}", .{cmd});
                 try out.append(arena, '\n');
             }

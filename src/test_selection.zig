@@ -93,9 +93,14 @@ pub fn resolve(
     preflight: ?report.CommandResult,
     generated_in_baseline: bool,
 ) std.mem.Allocator.Error!Resolution {
-    // impact_graph uses the same-file tests as the deterministic impact set and,
-    // when that set is not already covered, falls back conservatively to the
-    // configured suite -- the same machinery as same_file_then_package.
+    // `impact_graph` is reserved / not-yet-implemented: it currently resolves as an
+    // EXACT alias of same_file_then_package (same-file tests as the impact set,
+    // conservative fallback to the configured suite). Because that would record a
+    // misleading `impact_graph` strategy for same-file-then-package behavior,
+    // config validation rejects `selection = "impact_graph"`, so it cannot reach
+    // here from user config; the variant and this branch are kept only for
+    // forward-compat until a real impact-graph resolver lands
+    // (docs/TEST_SELECTION.md).
     const same_file_enabled = strategy == .same_file or strategy == .same_file_then_package or strategy == .impact_graph;
 
     if (same_file_enabled and same_file_tests.len > 0) {

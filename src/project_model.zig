@@ -100,8 +100,31 @@ fn lessThanPath(_: void, a: []const u8, b: []const u8) bool {
     return std.mem.lessThan(u8, a, b);
 }
 
+/// Directory basenames whose entire subtree discovery never descends into: the
+/// build cache, the build-output dir, and the VCS dir. Pruned by exact basename
+/// BEFORE entering, so a parallel run's transient per-mutant workspaces under
+/// `.zig-cache` are never walked and the VCS/output trees are never scanned. A
+/// sibling like `zig-outputs/` (basename `zig-outputs`, not `zig-out`) is NOT
+/// pruned, matching `worker_pool.excluded_descent_dirs`.
+const excluded_descent_dirs = [_][]const u8{ ".zig-cache", "zig-out", ".git" };
+
+fn isExcludedDescentDir(basename: []const u8) bool {
+    for (excluded_descent_dirs) |name| {
+        if (std.mem.eql(u8, basename, name)) return true;
+    }
+    return false;
+}
+
 /// Discover eligible `.zig` source files under `dir`, returned as forward-slashed
 /// project-relative paths sorted lexicographically (deterministic).
+///
+/// Uses `walkSelectively` so excluded directories (`.zig-cache`/`zig-out`/`.git`)
+/// are pruned by basename BEFORE descent rather than walked-then-filtered: the
+/// cache tree holds a parallel run's transient per-mutant workspaces, so
+/// descending it both wastes work and races sibling teardown. The configured
+/// `exclude` patterns (which include `cfg.cache.directory`) are still applied as
+/// a file-level backstop via `isEligible`, so a cache dir reachable only through
+/// the patterns is still dropped.
 pub fn discover(
     arena: std.mem.Allocator,
     io: std.Io,
@@ -110,9 +133,16 @@ pub fn discover(
     exclude: []const []const u8,
 ) ![][]const u8 {
     var list: std.ArrayList([]const u8) = .empty;
-    var walker = try dir.walk(arena);
+    var walker = try dir.walkSelectively(arena);
     defer walker.deinit();
     while (try walker.next(io)) |entry| {
+        if (entry.kind == .directory) {
+            // Descend only into non-excluded dirs: never enter the cache / build
+            // output / VCS trees (a sibling that merely prefix-collides, like
+            // `zig-outputs`, still descends because the basename differs).
+            if (!isExcludedDescentDir(entry.basename)) try walker.enter(io, entry);
+            continue;
+        }
         if (entry.kind != .file) continue;
         if (!std.mem.endsWith(u8, entry.path, ".zig")) continue;
         const path = try normalizeSlashes(arena, entry.path);

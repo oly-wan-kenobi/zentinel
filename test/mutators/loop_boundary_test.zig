@@ -124,17 +124,19 @@ test "loop boundaries inside test bodies are excluded" {
     try expectEqual(@as(usize, 0), c.len);
 }
 
-test "an i128-max for-range end skips the overflowing +1 boundary instead of panicking" {
+test "a u128-max for-range end skips the overflowing +1 boundary instead of panicking" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
     const a = arena.allocator();
 
-    // Same i128-overflow defect as integer_boundary, on the `for (a..b)` range-end
-    // path: `value + 1` on the i128-max end literal aborted the whole pass with
-    // `panic: integer overflow`. The +1 boundary must be dropped, the -1 kept.
+    // Same overflow defect as integer_boundary, on the `for (a..b)` range-end path.
+    // Literals parse as u128, so the overflow boundary is u128 max
+    // (340282366920938463463374607431768211455): `value + 1` there would abort the
+    // whole pass with `panic: integer overflow`. The +1 boundary must be dropped,
+    // the -1 kept.
     var parsed = try ast_backend.parse(std.testing.allocator, "r.zig",
         \\pub fn f() void {
-        \\    for (0..170141183460469231731687303715884105727) |i| {
+        \\    for (0..340282366920938463463374607431768211455) |i| {
         \\        _ = i;
         \\    }
         \\}
@@ -143,7 +145,7 @@ test "an i128-max for-range end skips the overflowing +1 boundary instead of pan
     const c = try collect(a, parsed);
     try expectEqual(@as(usize, 1), c.len);
     try expectEqualStrings("loop_boundary", c[0].operator);
-    try expectEqualStrings("170141183460469231731687303715884105727", c[0].original);
-    try expectEqualStrings("170141183460469231731687303715884105726", c[0].replacement);
+    try expectEqualStrings("340282366920938463463374607431768211455", c[0].original);
+    try expectEqualStrings("340282366920938463463374607431768211454", c[0].replacement);
     try expectEqual(mutant.ExpectedCompile.may_fail, c[0].expected_compile);
 }

@@ -7,7 +7,7 @@
 const std = @import("std");
 const report = @import("report.zig");
 
-const key_namespace = "zentinel.cache.v1";
+const key_namespace = "zentinel.cache.v2";
 
 /// Every deterministic input that can affect a mutant's observable result
 /// (docs/PERFORMANCE_STRATEGY.md "Caching Strategy"). `backend_version` is kept
@@ -59,8 +59,12 @@ pub fn sourceHash(arena: std.mem.Allocator, content: []const u8) std.mem.Allocat
     return toHex(arena, digest);
 }
 
-/// Deterministic hex result-cache key over the canonical, `\n`-separated input
-/// fields. Stable across repeated runs and machines.
+/// Deterministic hex result-cache key over the canonical input fields. Each
+/// field is LENGTH-PREFIXED (decimal byte-length + `\n` + bytes) rather than
+/// plain newline-joined, so the top-level encoding is injective regardless of a
+/// field's contents: a field that itself contains a newline can no longer shift
+/// a record boundary and collide two distinct input tuples. Stable across
+/// repeated runs and machines.
 pub fn computeKey(arena: std.mem.Allocator, inputs: KeyInputs) std.mem.Allocator.Error![]const u8 {
     var h = std.crypto.hash.sha2.Sha256.init(.{});
     const fields = [_][]const u8{
@@ -81,9 +85,11 @@ pub fn computeKey(arena: std.mem.Allocator, inputs: KeyInputs) std.mem.Allocator
         inputs.environment,
         inputs.environment_hash,
     };
+    var numbuf: [20]u8 = undefined;
     for (fields) |f| {
-        h.update(f);
+        h.update(std.fmt.bufPrint(&numbuf, "{d}", .{f.len}) catch unreachable);
         h.update("\n");
+        h.update(f);
     }
     var digest: [32]u8 = undefined;
     h.final(&digest);
@@ -128,14 +134,39 @@ pub const BuildCache = struct {
 };
 
 /// Serializable cache metadata for a run. `mode` distinguishes disabled result
-/// caching (`--no-cache`) from metadata-only key computation (Phase 1 default,
-/// no reuse) from full read/write reuse (a later task).
+/// caching (`--no-cache`) from metadata-only key computation (no reuse: keys are
+/// computed but never consulted) from full read/write reuse (`read_write`, when a
+/// result store is wired and a terminal verdict is served/persisted).
 pub const Metadata = struct {
     schema_version: []const u8 = key_namespace,
     enabled: bool,
     mode: report.CacheMode,
     result_keys: []const ResultKey,
     build_cache: BuildCache,
+    /// How many of the cacheable mutants this run served from a prior run's store
+    /// (the rest of `result_keys` were computed fresh). Carried so the report's
+    /// `diagnostics.cache.hits` reflects reality, but DELIBERATELY excluded from
+    /// the serialized cache artifact (see `jsonStringify`) so the on-disk
+    /// `cache.json` shape -- and every committed snapshot of it -- is unchanged.
+    hits: u64 = 0,
+
+    /// Custom serialization that emits exactly the original five artifact fields
+    /// and omits the run-local `hits` counter, so the cache metadata JSON is
+    /// byte-identical to the prior reflection-based encoding.
+    pub fn jsonStringify(self: Metadata, jws: *std.json.Stringify) std.json.Stringify.Error!void {
+        try jws.beginObject();
+        try jws.objectField("schema_version");
+        try jws.write(self.schema_version);
+        try jws.objectField("enabled");
+        try jws.write(self.enabled);
+        try jws.objectField("mode");
+        try jws.write(self.mode);
+        try jws.objectField("result_keys");
+        try jws.write(self.result_keys);
+        try jws.objectField("build_cache");
+        try jws.write(self.build_cache);
+        try jws.endObject();
+    }
 };
 
 /// Deterministic pretty-printed JSON for cache metadata.
@@ -143,24 +174,27 @@ pub fn toJson(arena: std.mem.Allocator, metadata: Metadata) std.mem.Allocator.Er
     return std.json.Stringify.valueAlloc(arena, metadata, .{ .whitespace = .indent_2 });
 }
 
-/// Wire run cache metadata into the report v1 `diagnostics.cache` field.
-/// The reserved report field is the canonical observable location
-/// for cache behavior. In Phase 1 result reuse is disabled, so every computed
-/// result key is a deterministic miss and there are no hits; with `--no-cache`
-/// the cache is disabled and no keys are computed. Cached and uncached runs
-/// therefore differ only in this field (and durations).
+/// Wire run cache metadata into the report v1 `diagnostics.cache` field. The
+/// reserved report field is the canonical observable location for cache behavior.
+/// `result_keys` covers every cacheable mutant (terminal verdicts only); `hits`
+/// is how many were served from a prior run's store, so `misses` -- the mutants
+/// computed fresh -- is the remainder. With `--no-cache` the cache is disabled, no
+/// keys are computed, and both counts are zero. When no result store is wired,
+/// reuse stays off, so `hits` is zero and every cacheable mutant is a miss
+/// (metadata-only): cached and uncached runs then differ only in this field (and
+/// durations).
 pub fn toReportDiagnostics(metadata: Metadata) report.CacheDiagnostics {
     return .{
         .enabled = metadata.enabled,
         .mode = metadata.mode,
-        .hits = 0,
-        .misses = metadata.result_keys.len,
+        .hits = metadata.hits,
+        .misses = metadata.result_keys.len - metadata.hits,
     };
 }
 
 // --- Doctest cache ---------------------------------------------------------
 
-const doctest_key_namespace = "zentinel.doctest.cache.v1";
+const doctest_key_namespace = "zentinel.doctest.cache.v2";
 
 /// Every deterministic input that can affect a doctest case's observable result
 /// (docs/DOCTEST_ARCHITECTURE.md "Caching Opportunities"). Line numbers are
@@ -183,31 +217,38 @@ pub const DoctestKeyInputs = struct {
     config_hash: []const u8,
 };
 
-/// Deterministic hex SHA-256 doctest cache key over the canonical,
-/// `\n`-separated documented input tuple. Stable across runs and machines; any
-/// change to a documented input changes the key (conservative invalidation).
+/// Deterministic hex SHA-256 doctest cache key over the canonical documented
+/// input tuple. Each field is LENGTH-PREFIXED (decimal byte-length + `\n` +
+/// bytes) rather than plain newline-joined, so the top-level encoding is
+/// injective regardless of a field's contents (a doc path or block hash that
+/// itself contains a newline can no longer shift a record boundary). The two
+/// numeric line fields are decimal-formatted, then length-prefixed like the rest.
+/// Stable across runs and machines; any change to a documented input changes the
+/// key (conservative invalidation).
 pub fn computeDoctestKey(arena: std.mem.Allocator, inputs: DoctestKeyInputs) std.mem.Allocator.Error![]const u8 {
     var h = std.crypto.hash.sha2.Sha256.init(.{});
+    var linebuf: [20]u8 = undefined;
+    const line_start = std.fmt.bufPrint(&linebuf, "{d}", .{inputs.line_start}) catch unreachable;
+    var linebuf2: [20]u8 = undefined;
+    const line_end = std.fmt.bufPrint(&linebuf2, "{d}", .{inputs.line_end}) catch unreachable;
+    const fields = [_][]const u8{
+        doctest_key_namespace,
+        inputs.engine_version,
+        inputs.doc_file,
+        line_start,
+        line_end,
+        inputs.block_content_hash,
+        inputs.expectation_hash,
+        inputs.zig_version,
+        inputs.command_kind,
+        inputs.config_hash,
+    };
     var numbuf: [20]u8 = undefined;
-    h.update(doctest_key_namespace);
-    h.update("\n");
-    h.update(inputs.engine_version);
-    h.update("\n");
-    h.update(inputs.doc_file);
-    h.update("\n");
-    h.update(std.fmt.bufPrint(&numbuf, "{d}", .{inputs.line_start}) catch unreachable);
-    h.update("\n");
-    h.update(std.fmt.bufPrint(&numbuf, "{d}", .{inputs.line_end}) catch unreachable);
-    h.update("\n");
-    h.update(inputs.block_content_hash);
-    h.update("\n");
-    h.update(inputs.expectation_hash);
-    h.update("\n");
-    h.update(inputs.zig_version);
-    h.update("\n");
-    h.update(inputs.command_kind);
-    h.update("\n");
-    h.update(inputs.config_hash);
+    for (fields) |f| {
+        h.update(std.fmt.bufPrint(&numbuf, "{d}", .{f.len}) catch unreachable);
+        h.update("\n");
+        h.update(f);
+    }
     var digest: [32]u8 = undefined;
     h.final(&digest);
     return toHex(arena, digest);
