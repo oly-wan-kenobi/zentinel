@@ -241,7 +241,10 @@ test "validator rejects an unexpected additional property (closed object)" {
     const a = arena.allocator();
     const schema = try readJson(a, "schemas/report.v1.schema.json");
 
-    const instance = try renderAndParse(a, completedReport(&no_mutants));
+    // `var` so the top-level object can be mutated in place: `put` needs a
+    // mutable `*ObjectMap` receiver (the other negative tests reach a mutable
+    // pointer via `getPtr`, but here the root object itself is mutated).
+    var instance = try renderAndParse(a, completedReport(&no_mutants));
     try expect(json_schema.validate(schema, instance, schema));
 
     // additionalProperties:false at the top level forbids unknown keys.
