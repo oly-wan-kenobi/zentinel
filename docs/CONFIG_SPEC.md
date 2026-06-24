@@ -178,14 +178,14 @@ all_stable
 
 Expansion must be deterministic and tested.
 
-`phase2` expands only to stable Phase 2 operators. Preview Phase 2 operators remain opt-in by exact operator name after their owning task adds fixture coverage, and `all_stable` means every stable operator whose owning implementation task is complete.
+`phase2` expands only to stable Phase 2 operators. Preview Phase 2 operators are **not yet enableable**: they have no pipeline collector, so config validation rejects any non-stable operator — whether named directly or pulled in by a group. `all_stable` means every stable operator whose owning implementation is complete.
 
 ## Test Section
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `commands` | list(string) | `["zig build test"]` | Baseline and mutation test commands. |
-| `selection` | enum | `same_file_then_package` | Test selection strategy. |
+| `selection` | enum | `same_file_then_package` | Test selection strategy: one of `same_file_then_package`, `same_file`, `package`, `all`. |
 | `timeout_ms` | integer | `30000` | Per-command timeout. |
 | `baseline_required` | bool | `true` | Reserved baseline policy flag; report v1 requires baselines to run. |
 
@@ -193,7 +193,7 @@ Command strings are parsed by zentinel into argv without invoking a shell. The s
 
 Config parsing validates that `test.commands` is a non-empty list of non-empty strings; full command grammar validation lives in `src/command.zig`. Command strings are preserved after shape validation rather than re-parsed by a second parser.
 
-`impact_graph` is an accepted `test.selection` strategy; see `docs/TEST_SELECTION.md` for its deterministic impact-set semantics.
+`impact_graph` is **reserved but not yet accepted** as a `test.selection` value: config validation currently rejects it. Its planned deterministic impact-set semantics are described in `docs/TEST_SELECTION.md`; until the resolver lands, use one of the accepted strategies above.
 
 The shared command parser accepts this grammar:
 

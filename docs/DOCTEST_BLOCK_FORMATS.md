@@ -207,7 +207,7 @@ Normalization:
 - trim trailing whitespace on lines only when tagged `trim`
 - replace absolute project root with `<project>`
 - replace temp directories with `<tmp>`
-- remove ANSI color when command uses `--no-color`
+- always strip ANSI color escape sequences
 
 ## `diagnostic expected`
 
@@ -249,13 +249,18 @@ Matching:
 
 - following `text output`, `json expected`, or exit-code metadata
 
-Allowed metadata:
+Reserved metadata (parsed but **not yet enforced** — these tokens are accepted
+without error but currently have no effect on matching or execution):
 
 ```text
 exit:0
 exit:2
 cwd:fixture
 ```
+
+A `cli` block today asserts only on stdout/stderr matching; the command runs from
+the project root and its exit code is interpreted by the runner rather than
+pinned by an `exit:` token.
 
 ## `toml config`
 
@@ -332,4 +337,4 @@ All doctest matching applies:
 - duration values replaced with `<duration>`
 - run IDs replaced with `<run-id>`
 - mutant IDs replaced with `<mutant-id>` when examples do not test identity
-- ANSI color stripped unless color is the explicit subject
+- ANSI color escape sequences are always stripped
