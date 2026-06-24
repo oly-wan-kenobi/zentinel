@@ -285,7 +285,8 @@ The default JUnit mode is diagnostic:
 - emit one `<testcase>` per mutant in canonical report order
 - set each testcase `classname` to `zentinel.mutant`
 - set each testcase `name` to `<display_id> <operator> <file>:<line_start>`
-- add testcase `<properties>` for `mutant_id`, `backend`, `backend_stability`, `operator`, `operator_stability`, `status`, `expected_compile`, `phase`, command count, and each command's original text, argv, cwd, environment policy, shell flag, command status, and skip reason
+- set the `classname` of run-level testcases (`baseline`, `internal_error`) to `zentinel.run`
+- add testcase `<properties>` for `mutant_id`, `backend`, `backend_stability`, `operator`, `operator_stability`, `status`, `expected_compile`, `phase`, command count, and each command's original text, argv, cwd, environment policy, shell flag, command status, command phase, and skip reason
 - write bounded deterministic evidence to `<system-out>` or `<system-err>` with normalized durations in snapshots
 
 Status mapping in diagnostic mode:
@@ -299,15 +300,16 @@ Status mapping in diagnostic mode:
 | Mutant `skipped` | Testcase with `<skipped message="deterministically skipped"/>`. |
 | Mutant `timeout` | Testcase with `<error type="zentinel.timeout">`. |
 | Mutant `invalid` | Testcase with `<error type="zentinel.invalid">`. |
-| Run `baseline_failed` | A single testcase named `baseline` with `<error type="zentinel.baseline_failed">`; mutant testcases are omitted when no mutants ran. |
+| Run `baseline_failed` | A single testcase named `baseline` (classname `zentinel.run`) with `<error type="zentinel.baseline_failed">`; mutant testcases are omitted when no mutants ran. |
+| Run `internal_error` | A single testcase named `internal_error` (classname `zentinel.run`) with `<error type="zentinel.internal_error">` carrying the run error message; mutant testcases are omitted. |
 
-When a future strict CI option such as `--fail-on-survivors` is enabled, survived mutants additionally emit `<failure type="zentinel.survived">`. This is the only mode where survivors are represented as JUnit failures. The diagnostic default must not claim that the project unit tests failed when the mutation report only shows surviving mutants.
+When the strict CI option `--fail-on-survivors` is enabled, survived mutants additionally emit `<failure type="zentinel.survived">`. This is the only mode where survivors are represented as JUnit failures. The diagnostic default must not claim that the project unit tests failed when the mutation report only shows surviving mutants.
 
 Suite counts are derived from emitted testcases:
 
 - `tests`: testcase count
 - `failures`: survived testcase count only in strict survivor-failing mode
-- `errors`: timeout, compiler_crash, invalid, and baseline_failed testcase count
+- `errors`: timeout, compiler_crash, invalid, baseline_failed, and internal_error testcase count
 - `skipped`: skipped testcase count
 - `time`: normalized in snapshots and never used for deterministic comparisons
 

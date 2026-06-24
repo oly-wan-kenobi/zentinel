@@ -16,6 +16,11 @@ jobs:
         with:
           version: 0.16.0
 
+      # docs/ZIG_VERSION_POLICY.md: CI prints the resolved Zig version so an
+      # unsupported toolchain is visible up front, before the build/test stages.
+      - name: Print Zig version
+        run: zig version
+
       # Canonical in-repository CI entrypoint: format_check, build, unit_tests,
       # advisory_dogfood (see docs/CI_STRATEGY.md). Network-independent.
       - name: Run CI

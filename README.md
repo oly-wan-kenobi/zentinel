@@ -30,7 +30,7 @@ zig build -Doptimize=ReleaseSafe
 In your Zig project:
 
 ```sh
-zentinel init    # writes a commented zentinel.toml with safe defaults
+zentinel init    # writes a zentinel.toml with safe defaults
 zentinel check   # validates config and environment
 zentinel run
 ```
@@ -91,7 +91,8 @@ zentinel run --fail-on-survivors --report junit
 
 ## Configuration
 
-`zentinel init` generates a fully commented config. The shape:
+`zentinel init` generates a ready-to-edit config with safe defaults. The shape
+(the inline comments below are illustrative, not part of the generated file):
 
 ```toml
 [project]
@@ -194,7 +195,17 @@ Contributor docs:
 [Invariants](docs/INVARIANTS.md) ·
 [ADRs](docs/adr/)
 
+Full documentation index: [docs/README.md](docs/README.md).
+
 zentinel runs on itself: `scripts/dogfood.sh`.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to
+build, test, and submit changes, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+for community expectations. Found a security issue? Please follow
+[SECURITY.md](SECURITY.md) — don't open a public issue. Release history is in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

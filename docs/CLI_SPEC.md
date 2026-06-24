@@ -326,7 +326,7 @@ Useful options:
 --case <case-ref>
 --format <text|json>
 --mutate
---no-cache
+--no-color
 ```
 
 Default behavior:
