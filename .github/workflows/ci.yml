@@ -7,7 +7,23 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    # Run the canonical CI entrypoint across the three GitHub-hosted OSes.
+    # fail-fast: false so one OS failing still surfaces results for the others.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Windows is exercised but advisory: scripts/ci.sh / dogfood.sh invoke
+        # the built binary as ./zig-out/bin/zentinel, while on Windows the
+        # artifact is zentinel.exe. Git Bash usually resolves the .exe suffix,
+        # but that is not guaranteed and cannot be validated here without a
+        # build, so the Windows leg is non-blocking. ubuntu + macOS stay hard
+        # required.
+        include:
+          - os: windows-latest
+            continue-on-error: true
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.continue-on-error || false }}
     steps:
       - uses: actions/checkout@v6
 
@@ -23,5 +39,8 @@ jobs:
 
       # Canonical in-repository CI entrypoint: format_check, build, unit_tests,
       # advisory_dogfood (see docs/CI_STRATEGY.md). Network-independent.
+      # scripts/ci.sh is bash; force shell: bash so it runs on the Windows
+      # runner (whose default shell is PowerShell) alongside ubuntu and macOS.
       - name: Run CI
+        shell: bash
         run: scripts/ci.sh
