@@ -461,21 +461,36 @@ pub const version_text = "zentinel " ++ version ++ "\nzig " ++ supported_zig_ver
 /// Deterministic default `zentinel.toml` template written by `init`.
 /// Mirrors test/snapshots/init_config.toml and the full example in docs/CONFIG_SPEC.md.
 pub const default_config =
+    \\# zentinel.toml - mutation testing config. See docs/CONFIG_SPEC.md.
+    \\
+    \\# Project source set and identity.
     \\[project]
+    \\# Human-readable project name.
     \\name = "example"
+    \\# Project root, relative to this config file.
     \\root = "."
+    \\# Glob patterns for source files eligible for mutation.
     \\include = ["src/**/*.zig"]
+    \\# Paths excluded from mutation.
     \\exclude = [".zig-cache/**", "zig-out/**", "test/**"]
     \\
+    \\# Zig toolchain policy.
     \\[zig]
+    \\# Only accepted Zig policy version for this zentinel release.
     \\version = "0.16.0"
+    \\# Optimization/safety modes to run: Debug, ReleaseSafe, ReleaseFast, ReleaseSmall.
     \\modes = ["Debug"]
     \\
+    \\# Mutation backend selection.
     \\[backend]
+    \\# Primary backend (ast is the stable default).
     \\default = "ast"
+    \\# Additional experimental backends to opt into (e.g. zir).
     \\experimental = []
     \\
+    \\# Enabled mutation operators (see docs/MUTATOR_SPEC.md).
     \\[mutators]
+    \\# Operator names, or a group: phase1, phase2, all_stable.
     \\enabled = [
     \\  "arithmetic_add_sub",
     \\  "arithmetic_mul_div",
@@ -485,28 +500,47 @@ pub const default_config =
     \\  "boolean_literal"
     \\]
     \\
+    \\# Baseline and mutation test execution.
     \\[test]
+    \\# Baseline and mutation test commands (parsed to argv, no shell).
     \\commands = ["zig build test"]
+    \\# Test selection: same_file_then_package, same_file, package, or all.
     \\selection = "same_file_then_package"
+    \\# Per-command timeout in milliseconds.
     \\timeout_ms = 30000
+    \\# Reserved baseline policy flag; report v1 requires baselines to run.
     \\baseline_required = true
     \\
+    \\# Mutation run execution.
     \\[run]
+    \\# Maximum worker count (1 is the deterministic serial default).
     \\jobs = 1
     \\
+    \\# Deterministic result cache.
     \\[cache]
+    \\# Enable cache reads and writes.
     \\enabled = true
+    \\# Cache storage path.
     \\directory = ".zig-cache/zentinel"
     \\
+    \\# Report output.
     \\[report]
+    \\# Report formats to emit: text, json, jsonl, junit.
     \\formats = ["text", "json"]
+    \\# Report artifact directory.
     \\output_dir = "zig-out/zentinel"
     \\
+    \\# Advisory AI (opt-in; disabled by default).
     \\[ai]
+    \\# Enable AI commands or advisory report enrichment.
     \\enabled = false
+    \\# Provider: disabled, stub, local, or remote.
     \\provider = "disabled"
+    \\# Must be true before persisted config may select provider = "remote".
     \\remote_allowed = false
+    \\# Lines of source context before/after a mutant for prompts.
     \\source_context_lines = 4
+    \\# Regex patterns redacted from prompt payloads.
     \\redact_patterns = ["(?i)api[_-]?key", "(?i)token"]
     \\
 ;

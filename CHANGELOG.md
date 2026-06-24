@@ -9,6 +9,21 @@ change between minor versions; breaking changes are called out here.
 
 ## [Unreleased]
 
+### Added
+
+- `zentinel init` now writes a **commented** config — each section and key has a
+  short inline `#` comment explaining its purpose.
+- A real JSON-Schema validation test wires `schemas/report.v1.schema.json` and
+  `schemas/doctest.report.v1.schema.json` into the suite: rendered reports are
+  validated against the published schemas, with negative cases proving the
+  validator rejects malformed reports.
+
+### Changed
+
+- CI now runs on a Linux/macOS/Windows matrix (Windows is advisory and
+  non-blocking) instead of Linux only.
+
+
 ## [0.1.0] - 2026-06-24
 
 Initial public release. zentinel performs mutation testing for Zig projects:
