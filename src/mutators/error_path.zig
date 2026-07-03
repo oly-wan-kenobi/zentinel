@@ -113,10 +113,12 @@ fn collectErrdefer(
     // the whole statement with `errdefer {}` does not orphan it into `errdefer {};`
     // -- a syntactically invalid statement ("expected statement, found ';'") and
     // thus a guaranteed compile_error mutant that can never be killed. A
-    // block body (`errdefer { ... }`) ends at `}` with no trailing `;`, so it is
-    // left untouched.
+    // block body (`errdefer { ... }`) ends at `}` with no trailing `;`; guard the
+    // swallow on the body NOT being a block so a stray `errdefer {};` does not
+    // extend the span to the `;` and emit a pure-formatting equivalent survivor.
     const token_tags = tree.tokens.items(.tag);
-    if (last + 1 < token_tags.len and token_tags[last + 1] == .semicolon) last += 1;
+    const is_block_body = token_tags[last] == .r_brace;
+    if (!is_block_body and last + 1 < token_tags.len and token_tags[last + 1] == .semicolon) last += 1;
     const start = tree.tokenStart(kw);
     const end = tree.tokenStart(last) + @as(u32, @intCast(tree.tokenSlice(last).len));
     if (ast_backend.inTestBody(test_ranges, start)) return;

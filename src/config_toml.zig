@@ -202,7 +202,17 @@ const Parser = struct {
 };
 
 pub fn parse(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) ParseError!Document {
-    var p = Parser{ .src = source, .arena = arena, .diag = diag };
+    // TOML 1.0 permits a single leading U+FEFF BOM (UTF-8 bytes EF BB BF). Strip
+    // it before parsing; otherwise the first `skipTrivia` byte 0xEF fails
+    // isBareChar and the whole file reports "expected section header or key" at
+    // line 1 with no hint about the BOM -- a confusing failure for a
+    // Windows-edited config saved with a BOM.
+    const src = if (source.len >= 3 and
+        source[0] == 0xEF and source[1] == 0xBB and source[2] == 0xBF)
+        source[3..]
+    else
+        source;
+    var p = Parser{ .src = src, .arena = arena, .diag = diag };
     var entries: std.ArrayList(Entry) = .empty;
     var section: []const u8 = "";
 

@@ -48,9 +48,10 @@ Each mapping is snapshotted with the stub provider; the survivor mapping is grou
   "schema_version": "zentinel.ai.prompt.v1",
   "flow": "explain",
   "instructions": [
-    "Use only the provided context.",
-    "Do not change mutation result status.",
-    "Return valid JSON matching the response schema."
+    "Use only provided context.",
+    "Do not infer unavailable source.",
+    "Do not decide whether the mutant is equivalent.",
+    "Return JSON only."
   ],
   "context": {
     "schema_version": "zentinel.ai.context.v1",

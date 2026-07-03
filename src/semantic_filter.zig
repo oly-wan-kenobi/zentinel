@@ -1,7 +1,7 @@
 // Layer: deterministic_core
 //
-// Compiler-oracle semantic filter (ZIR_IMPROVEMENTS.md "Beyond ZIR", SEM-1c).
-// This is the *compile-as-classifier* half of SEM-1: it replaces the per-operator
+// Compiler-oracle semantic filter (the "compile-as-classifier" half of SEM-1,
+// documented in docs/PERFORMANCE_STRATEGY.md). This replaces the per-operator
 // heuristic `expected_compile` *prediction* (a guess made at generation time —
 // e.g. arithmetic mutators guess `.may_fail`, comparison/logical/boolean guess
 // `.compiles`) with the compiler's *actual* verdict for a mutant that was run.

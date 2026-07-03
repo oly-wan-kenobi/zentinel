@@ -165,6 +165,20 @@ test "timeout outcome yields timeout status with a null exit code" {
     try expectEqual(@as(?i64, null), r.exit_code);
 }
 
+test "a crash during a zig test case is a test failure, not a compile error" {
+    // Regression: a crashed zig-test outcome used to classify as compile_error,
+    // conflating an abnormal termination with a normal compile failure. A crash
+    // (compiler crash during compilation OR test-binary crash at runtime) means
+    // the snippet's tests did not pass, so the verdict is `.failed`.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var exec = MockExec{ .out = outcome(null, false, true) }; // crashed
+    var prov = MockProvider{};
+    const r = try runner.runCase(ctxWith(arena.allocator(), &exec, &prov), mkCase(.zig_test, "dt_crash"), "test {}\n");
+    try expectEqual(runner.Status.failed, r.status);
+    try expectEqual(@as(?i64, null), r.exit_code);
+}
+
 test "doctest output excerpts are bounded on UTF-8 codepoint boundaries" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

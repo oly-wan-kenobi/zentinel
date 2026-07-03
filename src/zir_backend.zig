@@ -393,7 +393,13 @@ pub fn fromTree(arena: std.mem.Allocator, file: []const u8, source: []const u8) 
     for (node_tags, 0..) |t, i| is_base[i] = isDeclBase(t);
     if (is_base.len > 0) is_base[0] = true; // root is always a base
 
-    var code = try std.zig.AstGen.generate(arena, tree);
+    // AstGen records semantic errors (e.g. undeclared identifiers, type
+    // mismatches) without throwing; a syntactically valid source can still lower
+    // to a partial/empty ZIR instruction stream. Any compile errors make the
+    // instruction set unreliable for candidate extraction, so treat them as a
+    // parse failure instead of producing a wrong/different candidate set.
+    const code = std.zig.AstGen.generate(arena, tree) catch return error.BackendParseError;
+    if (code.loweringFailed() or code.hasCompileErrors()) return error.BackendParseError;
     const inst_tags = code.instructions.items(.tag);
     const inst_datas = code.instructions.items(.data);
     const node_count: i64 = @intCast(tree.nodes.len);

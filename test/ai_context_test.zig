@@ -129,6 +129,46 @@ test "a context missing a required nested object is rejected" {
     try expectEqual(context.Violation.missing_field, context.validate(parsed.value));
 }
 
+test "schema minimum/minLength/pattern constraints are enforced" {
+    // Regression: the in-process validator used to ignore the schema's minimum
+    // (display_id/span >= 1), minLength (file/operator/name >= 1), and id-prefix
+    // constraints, so an untrusted --input-report with display_id: 0 or a
+    // malformed mutant id passed locally while violating the published schema.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const base = try context.toJson(a, validContext());
+
+    // display_id < 1 -> rejected.
+    {
+        var parsed = parse(a, base);
+        defer parsed.deinit();
+        parsed.value.object.getPtr("mutant").?.object.getPtr("display_id").?.* = .{ .integer = 0 };
+        try expectEqual(context.Violation.bad_constraint, context.validate(parsed.value));
+    }
+    // span.line_start < 1 -> rejected.
+    {
+        var parsed = parse(a, base);
+        defer parsed.deinit();
+        parsed.value.object.getPtr("mutant").?.object.getPtr("span").?.object.getPtr("line_start").?.* = .{ .integer = 0 };
+        try expectEqual(context.Violation.bad_constraint, context.validate(parsed.value));
+    }
+    // mutant.id without the m_ prefix (and not a privacy placeholder) -> rejected.
+    {
+        var parsed = parse(a, base);
+        defer parsed.deinit();
+        parsed.value.object.getPtr("mutant").?.object.getPtr("id").?.* = .{ .string = "not-a-real-id" };
+        try expectEqual(context.Violation.bad_constraint, context.validate(parsed.value));
+    }
+    // A privacy placeholder id ([REDACTED] / <path>) is accepted (privacy wins).
+    {
+        var parsed = parse(a, base);
+        defer parsed.deinit();
+        parsed.value.object.getPtr("mutant").?.object.getPtr("id").?.* = .{ .string = "[REDACTED]" };
+        try expectEqual(context.Violation.ok, context.validate(parsed.value));
+    }
+}
+
 // --- Result command shape rules --------------------------------------------
 
 test "result uses the structured commands array and rejects legacy single-command payloads" {
@@ -505,6 +545,35 @@ test "normalizeAbsolutePaths redacts colon/scheme-prefixed absolute paths" {
     const glued = try redaction.normalizeAbsolutePaths(a, "@import:/Users/dev/secret/leak.zig");
     try expect(glued.changed);
     try expectEqualStrings("@import:<path>", glued.text);
+}
+
+test "normalizeAbsolutePaths redacts single-segment absolute paths inside quotes and home-directory paths" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    // Regression: a short single-segment absolute path (`/root`, `/tmp`, `/etc`)
+    // inside a quoted string value (the realistic leak vector for fields like
+    // command.cwd / mutant.file) used to pass redaction verbatim because the
+    // matcher required a second slash.
+    const cwd = try redaction.normalizeAbsolutePaths(a, "\"cwd\": \"/root\"");
+    try expect(cwd.changed);
+    try expectEqualStrings("\"cwd\": \"<path>\"", cwd.text);
+    const tmp = try redaction.normalizeAbsolutePaths(a, "\"file\": \"/tmp\"");
+    try expect(tmp.changed);
+    try expectEqualStrings("\"file\": \"<path>\"", tmp.text);
+
+    // A `~`-prefixed home path is redacted from the `~` (previously leaked as
+    // `~<path>`).
+    const home = try redaction.normalizeAbsolutePaths(a, "see ~/.aws/credentials here");
+    try expect(home.changed);
+    try expectEqualStrings("see <path> here", home.text);
+
+    // The unquoted division operator is still preserved (no second slash, not
+    // quoted), so the AI still sees the mutated code.
+    const div = try redaction.normalizeAbsolutePaths(a, "const q = a / b;");
+    try expect(!div.changed);
+    try expectEqualStrings("const q = a / b;", div.text);
 }
 
 test "redactField normalizes paths, scrubs secret values, and logs both kinds" {

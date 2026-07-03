@@ -560,7 +560,7 @@ fn doctestConfigOrDefault(
     const resolved = (try configPathOrReject(arena, io, dir, globals, stderr)) orelse return null;
     const bytes = readResolvedConfig(arena, io, dir, resolved) orelse {
         if (globals.config_explicit) {
-            try stderr.print("error: config not found at {s}\n", .{resolved});
+            try stderr.print("error[ZNTL_CONFIG_NOT_FOUND]: config not found at {s}\n", .{resolved});
             return null;
         }
         return try defaultLoadedConfig(arena);
@@ -723,6 +723,7 @@ fn runRun(
             error.UnknownOption => "unknown run option",
             error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
             error.ConflictingOptions => "--verbose/--quiet are mutually exclusive, and --changed-only/--diff/--scope-files are mutually exclusive diff-scope inputs",
+            error.DuplicateOption => "a value-taking option was given more than once; specify each of --operator/--mutant/--report/--output/--jobs/--mode/--diff/--scope-files at most once",
             error.InvalidReportFormat => "--report must be text, json, jsonl, or junit",
             error.InvalidJobs => "--jobs must be a positive integer",
             error.InvalidMode => "--mode must be Debug, ReleaseSafe, ReleaseFast, or ReleaseSmall",
@@ -734,7 +735,7 @@ fn runRun(
 
     const cfg_path = (try configPathOrReject(gpa, io, dir, inv.globals, stderr)) orelse return 2;
     const cfg_bytes = readResolvedConfig(gpa, io, dir, cfg_path) orelse {
-        try stderr.print("error: config not found at {s}\n", .{cfg_path});
+        try stderr.print("error[ZNTL_CONFIG_NOT_FOUND]: config not found at {s}\n", .{cfg_path});
         return 2;
     };
     var diag: zentinel.config.Diagnostic = .{};
@@ -1001,6 +1002,7 @@ fn runListMutants(
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown list-mutants option",
             error.UnknownOperator => "--operator is not a known operator name; see docs/MUTATOR_SPEC.md for the operator list",
+            error.DuplicateOption => "a value-taking option was given more than once; specify each of --operator/--format at most once",
             error.InvalidFormat => "--format must be 'text' or 'json'",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});
@@ -1009,7 +1011,7 @@ fn runListMutants(
 
     const cfg_path = (try configPathOrReject(gpa, io, dir, inv.globals, stderr)) orelse return 2;
     const cfg_bytes = readResolvedConfig(gpa, io, dir, cfg_path) orelse {
-        try stderr.print("error: config not found at {s}\n", .{cfg_path});
+        try stderr.print("error[ZNTL_CONFIG_NOT_FOUND]: config not found at {s}\n", .{cfg_path});
         return 2;
     };
     var diag: zentinel.config.Diagnostic = .{};
@@ -1288,7 +1290,7 @@ fn aiSettings(
     const resolved = (try configPathOrReject(arena, io, dir, globals, stderr)) orelse return null;
     const bytes = readResolvedConfig(arena, io, dir, resolved) orelse {
         if (globals.config_explicit) {
-            try stderr.print("error: config not found at {s}\n", .{resolved});
+            try stderr.print("error[ZNTL_CONFIG_NOT_FOUND]: config not found at {s}\n", .{resolved});
             return null;
         }
         return .{ .settings = settings, .project_root = "." };
@@ -1535,6 +1537,7 @@ fn runDoctest(
             error.MissingValue => "missing option value",
             error.UnknownOption => "unknown doctest option",
             error.InvalidFormat => "--format must be 'text' or 'json'",
+            error.DuplicateOption => "a value-taking option was given more than once; specify each of --file/--format/--case at most once",
             error.UnsupportedSubcommand => "doctest subcommand not implemented yet",
         };
         try stderr.print("error[ZNTL_CLI_INVALID_OPTION]: {s}\n", .{detail});

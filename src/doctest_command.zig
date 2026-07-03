@@ -27,21 +27,28 @@ pub const Options = struct {
     case_ref: ?[]const u8 = null,
 };
 
-pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat, UnsupportedSubcommand };
+pub const ParseError = error{ MissingValue, UnknownOption, InvalidFormat, UnsupportedSubcommand, DuplicateOption };
 
 /// Parse `zentinel doctest` arguments. AI/mutation subcommands (explain, suggest,
 /// review-snapshot, suggest-missing, explain-survivor, --mutate) are not owned by
 /// this task and are rejected as unsupported.
 pub fn parseArgs(args: []const []const u8) ParseError!Options {
     var opts: Options = .{};
+    var seen_file = false;
+    var seen_format = false;
+    var seen_case = false;
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const a = args[i];
         if (std.mem.eql(u8, a, "--file")) {
+            if (seen_file) return error.DuplicateOption;
+            seen_file = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.file = args[i];
         } else if (std.mem.eql(u8, a, "--format")) {
+            if (seen_format) return error.DuplicateOption;
+            seen_format = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             if (std.mem.eql(u8, args[i], "text")) {
@@ -50,6 +57,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
                 opts.format = .json;
             } else return error.InvalidFormat;
         } else if (std.mem.eql(u8, a, "--case")) {
+            if (seen_case) return error.DuplicateOption;
+            seen_case = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.case_ref = args[i];
@@ -142,7 +151,7 @@ pub fn run(
 
     var cases: std.ArrayList(doc_report.Case) = .empty;
     for (selected) |c| {
-        try cases.append(arena, try runCase(arena, c, parsed.blocks, deps, norm_opts));
+        try cases.append(arena, try runCase(arena, c, parsed.blocks, deps, norm_opts, obs.zig_version));
     }
     const case_slice = try cases.toOwnedSlice(arena);
     doc_report.sortCases(case_slice);
@@ -171,12 +180,18 @@ fn runCase(
     blocks: []const block.Block,
     deps: Deps,
     norm_opts: normalizer.Options,
+    zig_version: []const u8,
 ) RunError!doc_report.Case {
-    const producer = findBlockByLine(blocks, c.anchor_line) orelse blocks[0];
+    const producer = block.findByLine(blocks, c.anchor_line) orelse blocks[0];
     const ctx = runner.Context{
         .arena = arena,
         .root = ".",
-        .zig_version = "0.16.0",
+        // The workspace path identity incorporates the Zig version
+        // (workspace.workspaceName hashes it), so it MUST agree with the version
+        // recorded in the report (run.zig_version). Previously this was hardcoded
+        // to "0.16.0", which keyed workspaces to the wrong version after a Zig
+        // bump even though the report recorded a different version.
+        .zig_version = zig_version,
         .executor = deps.executor,
         .provider = deps.provider,
     };
@@ -195,7 +210,7 @@ fn runCase(
     if (c.block_refs.len > 1 and status != .invalid and status != .skipped) {
         var all_matched = true;
         for (c.block_refs[1..]) |ref| {
-            const exp = findBlockByLine(blocks, case_mod.lineOfRef(ref)) orelse continue;
+            const exp = block.findByLine(blocks, case_mod.lineOfRef(ref)) orelse continue;
             const mode = matchModeFor(exp);
             const actual = actualOutputFor(c.kind, mode, cr);
             const sr = try snap.compare(arena, c.id, c.file, c.anchor_line, mode, exp.content, actual.text, norm_opts);
@@ -329,13 +344,6 @@ fn actualOutputFor(kind: case_mod.CaseKind, mode: matcher.Mode, cr: runner.CaseR
         .config, .config_fail => .{ .text = cr.stdout_excerpt, .ref = .stdout },
         else => .{ .text = cr.stdout_excerpt, .ref = .stdout },
     };
-}
-
-fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
-    for (blocks) |b| {
-        if (b.line_start == line) return b;
-    }
-    return null;
 }
 
 // `file:line[:label]` refs are parsed via the shared, checked helpers in

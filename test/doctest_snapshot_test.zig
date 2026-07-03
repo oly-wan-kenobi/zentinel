@@ -49,6 +49,18 @@ test "normalizer rewrites temp directories to <tmp>" {
     try expectEqualStrings("at <tmp> ok", try norm(a, "at /tmp/zentinel/work ok", .{}));
 }
 
+test "normalizer stops a temp-directory match before a trailing :line:column reference" {
+    // Regression: `:` used to count as a path char, so a temp-path output like
+    // `/var/folders/.../foo.zig:5:9: error` was matched through the `:5:9:`,
+    // collapsing the whole span to `<tmp>` and destroying the line/column info
+    // diagnostic matching relies on.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    const got = try norm(a, "/var/folders/ab/cd/T/z/out.zig:5:9: error: bad", .{});
+    try expectEqualStrings("<tmp>:5:9: error: bad", got);
+}
+
 test "property: normalization is idempotent" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

@@ -91,6 +91,36 @@ test "deterministic case id snapshot" {
     try expectEqualStrings("dt_hszypy3emq5e1qngetceqbvgj4", c.id);
 }
 
+test "durable case id is stable across CRLF and LF line endings" {
+    // Regression: content hashing used to include raw `\r`, so a doctest checked
+    // out with CRLF (e.g. git core.autocrlf on Windows) derived a different
+    // dt_... id than the LF-only version -- the same doc, different identity
+    // across machines. Line endings are now normalized before id derivation.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const lf_src =
+        \\```zig test
+        \\test "ok" {
+        \\    try std.testing.expect(true);
+        \\}
+        \\```
+        \\
+    ;
+    const crlf_src =
+        "```zig test\r\n" ++
+        "test \"ok\" {\r\n" ++
+        "    try std.testing.expect(true);\r\n" ++
+        "}\r\n" ++
+        "```\r\n";
+
+    const lf = try extractor.extractSource(a, "doc.md", lf_src);
+    const crlf = try extractor.extractSource(a, "doc.md", crlf_src);
+    try expectEqual(lf.cases.len, crlf.cases.len);
+    try expectEqualStrings(lf.cases[0].id, crlf.cases[0].id);
+}
+
 test "case inventory snapshot records id, source_ref, block_refs, and location fields separately" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

@@ -206,3 +206,39 @@ test "report.isoTimestamp formats epoch-ms as second-precision UTC ISO-8601" {
     // A negative (pre-epoch / unset clock) input clamps to the epoch, never panics.
     try expectEqualStrings("1970-01-01T00:00:00Z", try report.isoTimestamp(a, -1_000));
 }
+
+test "normalizeForComparison only replaces the exact run id, not unrelated run_-prefixed strings" {
+    // Regression: the normalizer used to scan for the literal `"run_` prefix and
+    // replace the whole quoted token, so an unrelated quoted string starting
+    // with `run_` (an argv entry, a file path, a test name) was collapsed to
+    // "<run-id>", corrupting the deterministic comparison. The fix extracts the
+    // exact run id from the `id` field and substitutes only that string.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const json =
+        \\{
+        \\  "run": {
+        \\    "id": "run_aaaaaaaaaaaaaaaaaaaa",
+        \\    "started_at": "2026-07-03T00:00:00Z"
+        \\  },
+        \\  "argv": ["run_specs", "--flag"],
+        \\  "file": "src/run_utils/helpers.zig",
+        \\  "duration_ms": 42
+        \\}
+    ;
+    const norm = try report.normalizeForComparison(a, json);
+
+    // The real run id is normalized everywhere (here only in run.id).
+    try expect(std.mem.indexOf(u8, norm, "run_aaaaaaaaaaaaaaaaaaaa") == null);
+    try expect(std.mem.indexOf(u8, norm, "\"id\": \"<run-id>\"") != null);
+
+    // Unrelated `run_`-prefixed strings are preserved verbatim.
+    try expect(std.mem.indexOf(u8, norm, "\"run_specs\"") != null);
+    try expect(std.mem.indexOf(u8, norm, "src/run_utils/helpers.zig") != null);
+
+    // duration_ms and started_at are still normalized.
+    try expect(std.mem.indexOf(u8, norm, "<duration>") != null);
+    try expect(std.mem.indexOf(u8, norm, "\"started_at\": \"<started-at>\"") != null);
+}

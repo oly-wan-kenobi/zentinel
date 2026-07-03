@@ -144,9 +144,9 @@ pub fn validateDoc(arena: std.mem.Allocator, file: []const u8, source: []const u
     var pairs: std.ArrayList(PairResult) = .empty;
     for (extracted.cases) |c| {
         if (c.kind != .mutation) continue;
-        const before_blk = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
+        const before_blk = block.findByLine(parsed.blocks, c.anchor_line) orelse continue;
         if (c.block_refs.len < 2) continue;
-        const after_blk = findBlockByLine(parsed.blocks, case_mod.lineOfRef(c.block_refs[1])) orelse continue;
+        const after_blk = block.findByLine(parsed.blocks, case_mod.lineOfRef(c.block_refs[1])) orelse continue;
         const res = try validatePair(arena, before_blk.content, after_blk.content);
         try pairs.append(arena, .{
             .case_id = c.id,
@@ -192,13 +192,6 @@ pub fn renderMismatch(arena: std.mem.Allocator, pair: PairResult) std.mem.Alloca
     try out.appendSlice(arena, std.mem.trimEnd(u8, pair.after, "\n"));
     try out.appendSlice(arena, "\n");
     return out.toOwnedSlice(arena);
-}
-
-fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
-    for (blocks) |b| {
-        if (b.line_start == line) return b;
-    }
-    return null;
 }
 
 /// Thin re-export of the shared `case.lineOfRef` (src/doctest/case.zig), kept

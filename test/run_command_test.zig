@@ -701,6 +701,22 @@ test "parseArgs rejects unknown options and missing values instead of ignoring t
     try expectError(error.MissingValue, rc.parseArgs(&.{"--operator"}));
     try expectError(error.MissingValue, rc.parseArgs(&.{"--output"}));
     try expectError(error.InvalidReportFormat, rc.parseArgs(&.{ "--report", "yaml" }));
+    // --no-color is accepted as a no-op for CLI uniformity (CLI_SPEC: applies to
+    // "all terminal output"); it must not be an unknown option.
+    _ = try rc.parseArgs(&.{"--no-color"});
+}
+
+test "parseArgs rejects a duplicated value-taking option instead of letting the last value win" {
+    // Regression: ZNTL_CLI_INVALID_OPTION covers duplicated options
+    // (docs/ERROR_CODES.md), but value-taking flags previously silently kept
+    // the last value (--jobs 2 --jobs 4 -> 4). Boolean/idempotent flags
+    // (--quiet) are excluded: repeating them is harmless.
+    try expectError(error.DuplicateOption, rc.parseArgs(&.{ "--jobs", "2", "--jobs", "4" }));
+    try expectError(error.DuplicateOption, rc.parseArgs(&.{ "--report", "json", "--report", "text" }));
+    try expectError(error.DuplicateOption, rc.parseArgs(&.{ "--operator", "arithmetic_add_sub", "--operator", "logical_and_or" }));
+    try expectError(error.DuplicateOption, rc.parseArgs(&.{ "--output", "a.json", "--output", "b.json" }));
+    // A single occurrence of each still parses.
+    _ = try rc.parseArgs(&.{ "--jobs", "2", "--report", "json" });
 }
 
 test "parseArgs rejects an unknown --operator name instead of silently matching nothing" {

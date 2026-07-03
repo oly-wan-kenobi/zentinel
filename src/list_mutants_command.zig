@@ -28,16 +28,20 @@ pub const Options = struct {
     format: Format = .text,
 };
 
-pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidFormat };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidFormat, DuplicateOption };
 pub const GenerateError = error{ BackendParseError, InvalidCandidate } || std.mem.Allocator.Error;
 
 /// Pure parser for the documented `list-mutants` options.
 pub fn parseArgs(args: []const []const u8) ParseError!Options {
     var opts: Options = .{};
+    var seen_operator = false;
+    var seen_format = false;
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
         if (std.mem.eql(u8, arg, "--operator")) {
+            if (seen_operator) return error.DuplicateOption;
+            seen_operator = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             // Reject an unknown operator up front so a mistyped name is a usage
@@ -45,6 +49,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--format")) {
+            if (seen_format) return error.DuplicateOption;
+            seen_format = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             if (std.mem.eql(u8, args[i], "text")) {
@@ -54,6 +60,11 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             } else {
                 return error.InvalidFormat;
             }
+        } else if (std.mem.eql(u8, arg, "--no-color")) {
+            // Accepted for CLI uniformity (root.zig, doctest, and run accept it
+            // too); a pure no-op here because list-mutants renderers never emit
+            // ANSI color. Rejecting it would make `--no-color` inconsistent
+            // across subcommands.
         } else {
             return error.UnknownOption;
         }

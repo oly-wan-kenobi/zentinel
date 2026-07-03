@@ -208,7 +208,15 @@ fn classifyZig(raw: proc.RawOutcome, mode: ZigMode) Status {
             return .compile_error;
         },
         .zig_test => {
-            if (raw.crashed) return .compile_error;
+            // A crash during a `zig test` invocation is a test failure, not a
+            // compile error. `zig test` compiles then runs the test binary; a
+            // crash (compiler crash during compilation OR test-binary crash at
+            // runtime) means the snippet's tests did not pass, so `.failed` is
+            // the accurate verdict. This matches `classifyCommand`, which also
+            // maps a crash to `.failed`, and avoids conflating an abnormal
+            // termination with a normal `.compile_error` (a snippet that did not
+            // compile). The Status enum has no `compiler_crash` variant.
+            if (raw.crashed) return .failed;
             if (raw.exit_code) |code| return if (code == 0) .passed else .failed;
             return .failed;
         },

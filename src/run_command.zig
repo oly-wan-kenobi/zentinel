@@ -347,13 +347,32 @@ pub const RunError = error{
     SourceFileMissing,
 } || std.mem.Allocator.Error;
 
-pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun, ConflictingOptions };
+pub const ParseError = error{ MissingValue, UnknownOption, UnknownOperator, InvalidReportFormat, InvalidJobs, InvalidMode, BackendNotInRun, ConflictingOptions, DuplicateOption };
+
+/// Tracks value-taking options seen during a single `parseArgs` pass so a
+/// repeated scalar flag (`--jobs 2 --jobs 4`, `--config a --config b`) is
+/// rejected as `DuplicateOption` instead of silently letting the last value win.
+/// Boolean/idempotent flags (`--quiet`, `--verbose`, `--no-color`) are excluded:
+/// repeating them is harmless and erroring would be user-hostile. This honours
+/// the `ZNTL_CLI_INVALID_OPTION` contract in docs/ERROR_CODES.md, which covers
+/// duplicated options.
+const SeenScalars = struct {
+    operator: bool = false,
+    mutant: bool = false,
+    report: bool = false,
+    output: bool = false,
+    jobs: bool = false,
+    mode: bool = false,
+    diff: bool = false,
+    scope_files: bool = false,
+};
 
 /// Pure parser for Phase 1 `run` options (the argv following the `run` command).
 /// Only documented options are accepted; anything else is a usage error so the
 /// adapter can reject it instead of silently ignoring it.
 pub fn parseArgs(args: []const []const u8) ParseError!Options {
     var opts: Options = .{};
+    var seen: SeenScalars = .{};
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
@@ -366,6 +385,8 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
         } else if (std.mem.eql(u8, arg, "--no-cache")) {
             opts.no_cache = true;
         } else if (std.mem.eql(u8, arg, "--operator")) {
+            if (seen.operator) return error.DuplicateOption;
+            seen.operator = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             // Reject an unknown operator up front; otherwise the filter matches no
@@ -374,10 +395,14 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             if (!config.isKnownOperator(args[i])) return error.UnknownOperator;
             opts.operator_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--mutant")) {
+            if (seen.mutant) return error.DuplicateOption;
+            seen.mutant = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.mutant_filter = args[i];
         } else if (std.mem.eql(u8, arg, "--report")) {
+            if (seen.report) return error.DuplicateOption;
+            seen.report = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             if (std.mem.eql(u8, args[i], "text")) {
@@ -392,26 +417,36 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
                 return error.InvalidReportFormat;
             }
         } else if (std.mem.eql(u8, arg, "--output")) {
+            if (seen.output) return error.DuplicateOption;
+            seen.output = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.output = args[i];
         } else if (std.mem.eql(u8, arg, "--jobs")) {
+            if (seen.jobs) return error.DuplicateOption;
+            seen.jobs = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             const n = std.fmt.parseInt(usize, args[i], 10) catch return error.InvalidJobs;
             if (n < 1) return error.InvalidJobs; // worker count must be a positive integer
             opts.jobs = n;
         } else if (std.mem.eql(u8, arg, "--mode")) {
+            if (seen.mode) return error.DuplicateOption;
+            seen.mode = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.mode_override = safety_modes.parse(args[i]) orelse return error.InvalidMode;
         } else if (std.mem.eql(u8, arg, "--changed-only")) {
             opts.changed_only = true;
         } else if (std.mem.eql(u8, arg, "--diff")) {
+            if (seen.diff) return error.DuplicateOption;
+            seen.diff = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.diff_base = args[i];
         } else if (std.mem.eql(u8, arg, "--scope-files")) {
+            if (seen.scope_files) return error.DuplicateOption;
+            seen.scope_files = true;
             i += 1;
             if (i >= args.len) return error.MissingValue;
             opts.scope_files_csv = args[i];
@@ -421,6 +456,11 @@ pub fn parseArgs(args: []const []const u8) ParseError!Options {
             // AST backend, so `run --backend` is an explicit usage error rather
             // than a silently ignored no-op.
             return error.BackendNotInRun;
+        } else if (std.mem.eql(u8, arg, "--no-color")) {
+            // Accepted for CLI uniformity (root.zig and doctest accept it too),
+            // but a pure no-op here: run report renderers never emit ANSI color,
+            // so there is nothing to suppress and nothing to store. Rejecting it
+            // would make `--no-color` inconsistent across subcommands.
         } else {
             return error.UnknownOption;
         }

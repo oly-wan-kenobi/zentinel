@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zentinel.dev/schemas/benchmark.v1.schema.json",
+  "title": "zentinel benchmark v1",
+  "description": "Machine-readable, normalized benchmark output (docs/PERFORMANCE_STRATEGY.md). Carries a workload identity, the deterministic summary counts, and equivalence verdicts -- never wall-clock durations -- so it is stable for trend comparison and snapshot testing.",
+  "type": "object",
+  "required": ["schema_version", "workload", "mutants", "summary", "equivalence"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "zentinel.benchmark.v1" },
+    "workload": { "type": "string", "minLength": 1 },
+    "mutants": { "type": "integer", "minimum": 0 },
+    "summary": {
+      "type": "object",
+      "required": ["total", "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "killed": { "type": "integer", "minimum": 0 },
+        "survived": { "type": "integer", "minimum": 0 },
+        "compile_error": { "type": "integer", "minimum": 0 },
+        "compiler_crash": { "type": "integer", "minimum": 0 },
+        "timeout": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "invalid": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "equivalence": {
+      "type": "object",
+      "required": ["cached_uncached", "serial_parallel", "cold_warm"],
+      "additionalProperties": false,
+      "properties": {
+        "cached_uncached": { "type": "boolean" },
+        "serial_parallel": { "type": "boolean" },
+        "cold_warm": { "type": "boolean" }
+      }
+    }
+  }
+}

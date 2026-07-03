@@ -100,3 +100,27 @@ test "result store: prune on a missing directory is a harmless no-op" {
     defer tmp.cleanup();
     rstore.prune(std.testing.io, tmp.dir, "does_not_exist", a, 4);
 }
+
+test "result store: a large entry above the legacy 1 MiB read cap round-trips" {
+    // Regression: the read side previously used a fixed 1 MiB limit, so an entry
+    // larger than 1 MiB (a mutant with many command invocations) silently missed
+    // on every subsequent run. The store now sizes the read from the file's stat
+    // (up to a 16 MiB cap), so a >1 MiB entry round-trips.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const io = std.testing.io;
+
+    var s = rstore.DiskResultStore{ .io = io, .root_dir = tmp.dir, .dir_path = "results", .gpa = a };
+
+    const big_size: usize = (1 << 20) + 4096; // just over the old 1 MiB cap
+    const payload = try a.alloc(u8, big_size);
+    @memset(payload, 'x');
+    s.put("bigkey", payload);
+    const got = s.get("bigkey") orelse return error.ExpectedHit;
+    try expectEqual(big_size, got.len);
+    try expectEqualStrings(payload, got);
+}

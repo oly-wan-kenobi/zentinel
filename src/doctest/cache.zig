@@ -71,8 +71,28 @@ pub fn buildMetadata(
 }
 
 fn hashBlock(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.Block), line: u32) std.mem.Allocator.Error![]const u8 {
-    if (index.get(line)) |b| return cache.sourceHash(arena, b.content);
+    if (index.get(line)) |b| return cache.sourceHash(arena, normalizeLineEndings(arena, b.content) catch b.content);
     return cache.sourceHash(arena, "");
+}
+
+/// Normalize `\r\n` and a bare `\r` to `\n` before hashing so a doctest checked
+/// out with different line-ending settings (e.g. git `core.autocrlf` on Windows)
+/// derives the same durable case id and content hash as on `\n`-only systems.
+/// Allocation failures fall back to the raw bytes (the caller treats a hash
+/// mismatch as a cache miss, never a correctness failure).
+fn normalizeLineEndings(arena: std.mem.Allocator, content: []const u8) std.mem.Allocator.Error![]const u8 {
+    if (std.mem.indexOfScalar(u8, content, '\r') == null) return content; // fast path: no CR
+    var out: std.ArrayList(u8) = .empty;
+    var i: usize = 0;
+    while (i < content.len) : (i += 1) {
+        if (content[i] == '\r') {
+            try out.append(arena, '\n');
+            if (i + 1 < content.len and content[i + 1] == '\n') i += 1; // swallow the paired LF
+        } else {
+            try out.append(arena, content[i]);
+        }
+    }
+    return out.toOwnedSlice(arena);
 }
 
 fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.Block), c: case_mod.Case) std.mem.Allocator.Error![]const u8 {
@@ -80,6 +100,19 @@ fn hashExpectations(arena: std.mem.Allocator, index: std.AutoHashMap(u32, block.
     if (c.block_refs.len > 1) {
         for (c.block_refs[1..]) |ref| {
             if (index.get(case_mod.lineOfRef(ref))) |b| {
+                // Include the block's kind, match mode, and language -- not just
+                // its content -- so two expectation blocks with identical text but
+                // different semantics (e.g. `text output contains` vs
+                // `text output regex`) derive distinct cache keys. Without these,
+                // enabling result reuse could serve a stale verdict. The durable
+                // CASE id already incorporates grouping metadata; this closes the
+                // gap for the cache key specifically.
+                try buf.appendSlice(arena, @tagName(b.kind));
+                try buf.append(arena, 0);
+                try buf.appendSlice(arena, @tagName(b.match_mode));
+                try buf.append(arena, 0);
+                try buf.appendSlice(arena, @tagName(b.language));
+                try buf.append(arena, 0);
                 try buf.appendSlice(arena, b.content);
                 try buf.append(arena, 0);
             }

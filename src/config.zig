@@ -407,7 +407,11 @@ pub fn load(arena: std.mem.Allocator, source: []const u8, diag: *Diagnostic) Err
         return fail(diag, .invalid_value, "test", "selection", "unknown or not-yet-supported selection strategy");
     }
     const test_timeout_ms = try look.getInt("test", "timeout_ms", 30000, diag);
-    if (test_timeout_ms < 0) return fail(diag, .invalid_value, "test", "timeout_ms", "timeout must not be negative");
+    // A timeout of 0 (or negative) disables the timeout entirely (see
+    // cli.timeoutFromMs), leaving hung tests unbounded and never classifying a
+    // mutant as `timeout`. Reject it so the "enforce timeouts" sandbox contract
+    // (docs/SANDBOX_SECURITY.md) and F-017 stay enforceable.
+    if (test_timeout_ms <= 0) return fail(diag, .invalid_value, "test", "timeout_ms", "timeout must be a positive integer");
     const baseline_required = try look.getBool("test", "baseline_required", true, diag);
     if (!baseline_required) return fail(diag, .invalid_value, "test", "baseline_required", "baseline skipping is reserved for a future policy");
 

@@ -17,6 +17,7 @@ zentinel uses machine-readable schemas to keep reports and AI contracts compatib
 | Doctest AI explain response v1 | Reuses `schemas/ai.explain.response.v1.schema.json`; doctest classifications are included in that shared enum | Doctest AI |
 | Doctest AI suggest response v1 | `schemas/ai.doctest.suggest.response.v1.schema.json` | Doctest AI |
 | Doctest AI snapshot-review response v1 | `schemas/ai.doctest.snapshot_review.response.v1.schema.json` | Doctest AI |
+| Benchmark v1 | `schemas/benchmark.v1.schema.json` | Performance |
 
 ## Rules
 
@@ -46,6 +47,7 @@ zentinel.doctest.report.v1
 zentinel.ai.doctest.context.v1
 zentinel.ai.doctest.suggest.response.v1
 zentinel.ai.doctest.snapshot_review.response.v1
+zentinel.benchmark.v1
 ```
 
 Schema file names mirror those versions after dropping the leading `zentinel.` namespace.

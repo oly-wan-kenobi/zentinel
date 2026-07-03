@@ -118,7 +118,12 @@ fn emitEvidence(arena: std.mem.Allocator, out: *std.ArrayList(u8), evidence: rep
 
 fn emitBaselineEvidence(arena: std.mem.Allocator, out: *std.ArrayList(u8), rep: report.Report) std.mem.Allocator.Error!void {
     var buf: std.ArrayList(u8) = .empty;
+    // Only non-passed baseline commands belong in <system-err>: a multi-command
+    // baseline where some passed and some failed would otherwise list the passed
+    // commands in the error stream, misleading CI consumers. Matches the text
+    // renderer's `if (c.status != .passed)` filter.
     for (rep.baseline.commands) |c| {
+        if (c.status == .passed) continue;
         try buf.print(arena, "{s} {s}\n", .{ @tagName(c.status), c.command.original });
     }
     if (buf.items.len > 0) {

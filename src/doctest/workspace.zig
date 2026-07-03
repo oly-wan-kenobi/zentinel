@@ -13,8 +13,9 @@
 const std = @import("std");
 
 /// Doctest engine version; participates in the workspace path so a future engine
-/// change cannot reuse a stale workspace.
-pub const engine_version = "0.1.0";
+/// change cannot reuse a stale workspace. Derives from the single version source
+/// of truth (src/version.zig) so it stays in lockstep with `zentinel version`.
+pub const engine_version = @import("../version.zig").version;
 
 const ws_namespace = "zentinel.doctest_workspace.v1";
 

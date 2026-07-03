@@ -772,10 +772,20 @@ const confidences = [_][]const u8{ "low", "medium", "high", "unclear" };
 /// (src/ai/doctest_command.zig) so the two surfaces cannot drift -- every doctest
 /// validation site calls `unsafeText` below rather than keeping a local copy.
 pub const unsafe_markers = [_][]const u8{
-    "ignore previous", "ignore all previous", "disregard previous",
-    "<tool",           "</tool",              "```tool",
-    "system:",         "assistant:",          "<|",
+    "ignore previous",   "ignore all previous", "disregard previous",
+    "override previous", "new instruction",     "jailbreak",
+    "<tool",             "</tool",              "```tool",
+    "system:",           "assistant:",          "<|",
     "begin_of_text",
+    // Additional role-confusion / hidden-instruction structural markers from
+    // common chat templates. Chosen for negligible false-positive risk on
+    // legitimate mutation-analysis text (exact tag/token shapes; bare prefixes
+    // like `<s` that collide with C includes `<stdio.h>` are intentionally
+    // excluded).
+        "<system",             "</system",
+    "<im_start",         "<im_end",             "[inst]",
+    "[/inst]",           "<<sys>>",             "<s>",
+    "</s>",
 };
 
 /// True when `text` contains any `unsafe_markers` entry (case-insensitive).
@@ -846,9 +856,13 @@ pub fn validateResponse(flow: Flow, value: std.json.Value) ResponseViolation {
                 if (!onlyKeys(so, &fields)) return .unknown_field;
                 if (unsafeText(s(so.get("title"))) or unsafeText(s(so.get("intent"))) or unsafeText(s(so.get("test_name")))) return .unsafe_text;
                 if (!projectRelative(s(so.get("target_file")))) return .bad_path;
+                // target_file is model-controlled text too; screen it for hidden
+                // instructions (projectRelative only checks the path shape).
+                if (unsafeText(s(so.get("target_file")))) return .unsafe_text;
                 const values = arrOf(so.get("example_values")) orelse return .not_array;
                 for (values) |v| switch (v) {
-                    .string => {},
+                    // Each example value is model-controlled free text; screen it.
+                    .string => |t| if (unsafeText(t)) return .unsafe_text,
                     else => return .bad_enum,
                 };
             }
@@ -931,6 +945,12 @@ pub const SharedOptions = struct {
     provider_override: ?Mode = null,
     input_report: ?[]const u8 = null,
     format: Format = .text,
+    // Duplicate-detection flags for the value-taking shared options, so a
+    // repeated `--ai-provider`/`--input-report`/`--format` is reported as an
+    // error instead of silently last-wins (docs/ERROR_CODES.md ZNTL_CLI_INVALID_OPTION).
+    seen_provider: bool = false,
+    seen_input_report: bool = false,
+    seen_format: bool = false,
 };
 
 /// Outcome of trying to consume a shared AI option at `args[i.*]`.
@@ -951,17 +971,23 @@ pub const SharedOptionResult = union(enum) {
 pub fn parseSharedOption(args: []const []const u8, i: *usize, out: *SharedOptions) SharedOptionResult {
     const a = args[i.*];
     if (std.mem.eql(u8, a, "--ai-provider")) {
+        if (out.seen_provider) return .{ .err = "--ai-provider given more than once" };
+        out.seen_provider = true;
         i.* += 1;
         if (i.* >= args.len) return .{ .err = "--ai-provider requires a value" };
         out.provider_override = provider.modeFromName(args[i.*]) orelse
             return .{ .err = "--ai-provider must be disabled|stub|local|remote" };
         return .consumed;
     } else if (std.mem.eql(u8, a, "--input-report")) {
+        if (out.seen_input_report) return .{ .err = "--input-report given more than once" };
+        out.seen_input_report = true;
         i.* += 1;
         if (i.* >= args.len) return .{ .err = "--input-report requires a value" };
         out.input_report = args[i.*];
         return .consumed;
     } else if (std.mem.eql(u8, a, "--format")) {
+        if (out.seen_format) return .{ .err = "--format given more than once" };
+        out.seen_format = true;
         i.* += 1;
         if (i.* >= args.len) return .{ .err = "--format requires a value" };
         if (std.mem.eql(u8, args[i.*], "text")) {
@@ -969,6 +995,12 @@ pub fn parseSharedOption(args: []const []const u8, i: *usize, out: *SharedOption
         } else if (std.mem.eql(u8, args[i.*], "json")) {
             out.format = .json;
         } else return .{ .err = "--format must be 'text' or 'json'" };
+        return .consumed;
+    } else if (std.mem.eql(u8, a, "--no-color")) {
+        // Accepted for CLI uniformity (root.zig, doctest, run, and list-mutants
+        // accept it too); a pure no-op because AI output renderers never emit
+        // ANSI color. Rejecting it would make `--no-color` inconsistent across
+        // subcommands.
         return .consumed;
     }
     return .not_shared;

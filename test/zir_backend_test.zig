@@ -11,6 +11,7 @@ const mutant = zentinel.mutant;
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
 const expectEqualStrings = std.testing.expectEqualStrings;
+const expectError = std.testing.expectError;
 
 const diagnostics_fixture = @embedFile("fixtures/zir_backend/unsupported_diagnostics.json");
 
@@ -379,4 +380,27 @@ test "differentialOracle sweep over src/: ZIR never recognizes a binary-operator
     // src/, so the ZIR set equals the AST set (ast_only == 0). Asserted exactly -- any
     // regression that drops a site (a resolver change, or Zig-version drift) fails here.
     try expectEqual(@as(usize, 0), ast_only);
+}
+
+// --- Semantic-error guard ----------------------------------------------------
+
+test "fromTree returns BackendParseError when AstGen records semantic compile errors" {
+    // Regression: AstGen.generate returns a Zir even when semantic lowering fails
+    // (undeclared identifier, type mismatch). Previously the matcher iterated a
+    // partial/empty instruction stream and silently produced a wrong candidate
+    // set instead of a parse failure.
+    var arena_state = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena_state.deinit();
+    const arena = arena_state.allocator();
+
+    // Syntactically valid (parses), but semantically broken: `undeclared_here`
+    // is unknown and the comparison operands have mismatched types.
+    const semantically_invalid =
+        \\pub fn f() bool {
+        \\    if (undeclared_here == 3) return true;
+        \\    return false;
+        \\}
+        \\
+    ;
+    try expectError(error.BackendParseError, zir.fromTree(arena, "p.zig", semantically_invalid));
 }

@@ -154,6 +154,19 @@ test "duplicate keys in the same section are rejected, not silently first-wins" 
     try expectEqual(@as(usize, 2), doc.entries.len);
 }
 
+test "a leading UTF-8 BOM (TOML 1.0) is tolerated" {
+    // Regression: a config saved with a leading U+FEFF BOM (common on Windows
+    // editors) used to fail at the first byte with "expected section header or
+    // key" and no hint about the BOM. TOML 1.0 permits exactly one leading BOM.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var diag: zentinel.config_toml.Diagnostic = .{};
+    const bom_src = "\xEF\xBB\xBF[a]\nx = 1\n";
+    const doc = try zentinel.config_toml.parse(a, bom_src, &diag);
+    try expectEqual(@as(usize, 1), doc.entries.len);
+}
+
 test "double-quoted strings decode TOML basic escape sequences" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
@@ -257,6 +270,14 @@ test "negative timeout is rejected" {
     defer arena.deinit();
     var diag: config.Diagnostic = .{};
     try expectError(error.Invalid, load(arena.allocator(), "[test]\ntimeout_ms = -1\n", &diag));
+    try expect(diag.code == .invalid_value);
+}
+
+test "zero timeout is rejected (it would disable the timeout and leave hung tests unbounded)" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var diag: config.Diagnostic = .{};
+    try expectError(error.Invalid, load(arena.allocator(), "[test]\ntimeout_ms = 0\n", &diag));
     try expect(diag.code == .invalid_value);
 }
 

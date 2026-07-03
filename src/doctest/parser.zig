@@ -175,6 +175,16 @@ fn classify(
         return b; // not a valid executable doctest
     }
 
+    // A recognized-language block is documentation-only unless it carries a
+    // doctest kind tag. The single exception is a plain `zig` block (no kind),
+    // which is the shorthand compile-pass producer (extractor.producerKind maps
+    // it to zig_compile_pass). A bare ```text```, ```json```, ```bash```,
+    // ```toml```, or ```diagnostic``` without a kind is documentation
+    // (docs/DOCTEST_BLOCK_FORMATS.md: "documentation-only unless explicitly
+    // tagged with a supported doctest kind"). Previously these fell through to
+    // is_doctest = true, which failed to end implicit grouping in the extractor.
+    if (b.kind == .none and b.language != .zig) return b;
+
     b.is_doctest = true;
     return b;
 }

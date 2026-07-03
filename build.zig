@@ -11,6 +11,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // build.zig.zon is the single source of truth for the version string (it is
+    // also the published package version). Embed it, extract `.version`, and
+    // inject it as a build option so the runtime `zentinel version`, the cache
+    // key, and the doctest engine-version (workspace path identity) all derive
+    // from one declaration and can never drift. test/version_parity_test.zig
+    // pins the three together.
+    const version_opts = b.addOptions();
+    version_opts.addOption([]const u8, "version", manifestVersion());
+    zentinel_mod.addImport("zentinel_build_options", version_opts.createModule());
+
     const exe = b.addExecutable(.{
         .name = "zentinel",
         .root_module = b.createModule(.{
@@ -155,4 +165,18 @@ fn addDiscoveredTests(
         const run_unit_test = b.addRunArtifact(unit_test);
         test_step.dependOn(&run_unit_test.step);
     }
+}
+
+// Extract the `.version` field from build.zig.zon at build time so the manifest
+// is the single source of truth for the version string. build.zig.zon lives next
+// to this file, so @embedFile resolves it directly.
+fn manifestVersion() []const u8 {
+    const zon = @embedFile("build.zig.zon");
+    const needle = ".version = \"";
+    const start = std.mem.indexOf(u8, zon, needle) orelse
+        @panic("build.zig.zon has no .version field");
+    const value_start = start + needle.len;
+    const value_end = std.mem.indexOfScalarPos(u8, zon, value_start, '"') orelse
+        @panic("build.zig.zon .version field has no closing quote");
+    return zon[value_start..value_end];
 }

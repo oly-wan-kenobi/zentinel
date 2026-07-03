@@ -220,7 +220,7 @@ Expansion must be deterministic and tested.
 | --- | --- | --- | --- |
 | `commands` | list(string) | `["zig build test"]` | Baseline and mutation test commands. |
 | `selection` | enum | `same_file_then_package` | Test selection strategy: one of `same_file_then_package`, `same_file`, `package`, `all`. |
-| `timeout_ms` | integer | `30000` | Per-command timeout. |
+| `timeout_ms` | integer | `30000` | Per-command timeout in milliseconds. Must be a positive integer (`<= 0` is rejected: a value of 0 disables the timeout and would leave hung tests unbounded). |
 | `baseline_required` | bool | `true` | Reserved baseline policy flag; report v1 requires baselines to run. |
 
 Command strings are parsed by zentinel into argv without invoking a shell. The shared parser belongs to the deterministic core module `src/command.zig`; `zentinel check` validates with it, and the runner executes exactly the argv shape it returns.

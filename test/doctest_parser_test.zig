@@ -82,6 +82,35 @@ test "ordinary non-doctest language blocks are documentation-only with no diagno
     try expectEqual(block.Language.other, p.blocks[0].language);
 }
 
+test "recognized language blocks without a kind tag are documentation-only" {
+    // Regression: a recognized language (text/json/bash/toml/diagnostic) with no
+    // doctest kind tag used to fall through to is_doctest = true, contradicting
+    // docs/DOCTEST_BLOCK_FORMATS.md ("documentation-only unless explicitly tagged
+    // with a supported doctest kind") and failing to end implicit grouping in the
+    // extractor. Only a plain `zig` block (compile-pass shorthand) is executable
+    // without a kind.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    for ([_][]const u8{ "text", "json", "bash", "toml", "diagnostic" }) |lang| {
+        const src = try std.fmt.allocPrint(a, "```{s}\nsome content\n```\n", .{lang});
+        const p = try parse(a, src);
+        try expectEqual(@as(usize, 0), p.diagnostics.len);
+        try expectEqual(@as(usize, 1), p.blocks.len);
+        try expect(!p.blocks[0].is_doctest); // documentation-only, no diagnostic
+    }
+
+    // A plain `zig` block (no kind) stays executable as the compile-pass shorthand.
+    const zig_src = "```zig\nconst x = 1;\n```\n";
+    const zp = try parse(a, zig_src);
+    try expectEqual(@as(usize, 0), zp.diagnostics.len);
+    try expectEqual(@as(usize, 1), doctestCount(zp));
+    try expect(zp.blocks[0].is_doctest);
+    try expectEqual(block.Language.zig, zp.blocks[0].language);
+    try expectEqual(block.Kind.none, zp.blocks[0].kind);
+}
+
 test "a quadruple-backtick block keeps a nested triple-backtick example as content" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();

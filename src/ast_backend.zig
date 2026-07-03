@@ -139,6 +139,11 @@ pub const Collector = struct {
         // static or already allocator-owned.
         var owned = candidate;
         owned.original = try self.allocator.dupe(u8, candidate.original);
+        // If the append fails after the dupe succeeded, free the orphaned copy
+        // so it cannot leak on a non-arena allocator (arena-backed callers are
+        // unaffected: arena free is a no-op, and a successful append transfers
+        // ownership of `original` to the collector for the candidates' lifetime).
+        errdefer self.allocator.free(owned.original);
         try self.items.append(self.allocator, owned);
     }
 
@@ -163,6 +168,13 @@ pub const Collector = struct {
     }
 
     pub fn deinit(self: *Collector) void {
+        // NOTE: the duped `original` slices are intentionally NOT freed here.
+        // `finish`/`finishRaw` return candidates (a `dupe` of `items`) whose
+        // `original` fields point into these collector-owned bytes, so freeing
+        // them at deinit would dangle every finished candidate. Ownership of the
+        // bytes therefore follows the allocator's lifetime: arena-backed callers
+        // (every production site) reclaim them when the arena deinits, and the
+        // `errdefer` in `add` is the only place a transient dupe is reclaimed.
         self.items.deinit(self.allocator);
     }
 };

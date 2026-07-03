@@ -204,7 +204,7 @@ Default is exact.
 Normalization:
 
 - line endings to `\n`
-- trim trailing whitespace on lines only when tagged `trim`
+- trim trailing whitespace on every line (trailing whitespace is volatile across editors; applied unconditionally)
 - replace absolute project root with `<project>`
 - replace temp directories with `<tmp>`
 - always strip ANSI color escape sequences
@@ -331,10 +331,9 @@ Rationale:
 
 All doctest matching applies:
 
-- path separators normalized to `/`
+- forward slash `/` is the canonical path separator in normalized output; backslash path separators are NOT converted (content such as regex escapes may legitimately contain backslashes, and the temp-directory matchers are Unix-only)
 - project root replaced with `<project>`
 - temporary directories replaced with `<tmp>`
 - duration values replaced with `<duration>`
 - run IDs replaced with `<run-id>`
-- mutant IDs replaced with `<mutant-id>` when examples do not test identity
 - ANSI color escape sequences are always stripped

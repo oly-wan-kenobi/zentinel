@@ -218,12 +218,35 @@ fn contentHashHex(arena: std.mem.Allocator, blocks: []const block.Block, indices
     for (indices) |bi| {
         h.update(@tagName(blocks[bi].kind));
         h.update("\x00");
-        h.update(blocks[bi].content);
+        // Hash line-ending-normalized content so a doctest checked out with CRLF
+        // (e.g. git core.autocrlf on Windows) derives the SAME durable case id as
+        // the LF-only version -- without this, the same doc yields different
+        // dt_... ids across machines. LF-only content (no CR) hashes identically.
+        hashNormalizedContent(&h, blocks[bi].content);
         h.update("\x00");
     }
     var digest: [32]u8 = undefined;
     h.final(&digest);
     return hexLower(arena, &digest);
+}
+
+/// Stream `content` into `h` with `\r\n` and a bare `\r` rewritten to a single
+/// `\n`, without allocating. Mirrors the line-ending normalization the doctest
+/// normalizer applies to snapshot matching, but here for durable id derivation.
+fn hashNormalizedContent(h: *std.crypto.hash.sha2.Sha256, content: []const u8) void {
+    var i: usize = 0;
+    var run_start: usize = 0;
+    while (i < content.len) {
+        if (content[i] == '\r') {
+            if (i > run_start) h.update(content[run_start..i]);
+            h.update("\n");
+            if (i + 1 < content.len and content[i + 1] == '\n') i += 2 else i += 1;
+            run_start = i;
+        } else {
+            i += 1;
+        }
+    }
+    if (i > run_start) h.update(content[run_start..i]);
 }
 
 fn hexLower(arena: std.mem.Allocator, bytes: []const u8) std.mem.Allocator.Error![]const u8 {

@@ -9,6 +9,7 @@ const cache = zentinel.cache;
 const mutant_runner = zentinel.mutant_runner;
 const mutant = zentinel.mutant;
 const wp = zentinel.worker_pool;
+const json_schema = @import("support/json_schema.zig");
 
 const expect = std.testing.expect;
 const expectEqual = std.testing.expectEqual;
@@ -161,6 +162,40 @@ test "benchmark output is machine-readable and matches the normalized snapshot" 
     const bench = report.benchmark("tiny-arithmetic", cached.report, eq);
     const json = try report.benchmarkToJson(a, bench);
     try expectEqualStrings(benchmark_snapshot, json);
+}
+
+test "benchmark output validates against schemas/benchmark.v1.schema.json" {
+    // Regression: zentinel.benchmark.v1 is produced and listed in the schema
+    // registry; the rendered output must stay valid against the committed schema.
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+
+    const schema_bytes = try std.Io.Dir.cwd().readFileAlloc(
+        std.testing.io,
+        "schemas/benchmark.v1.schema.json",
+        a,
+        std.Io.Limit.limited(1 << 20),
+    );
+    const schema = try std.json.parseFromSliceLeaky(std.json.Value, a, schema_bytes, .{});
+
+    const cached = runWorkload(a, false, null);
+    const eq = report.Equivalence{
+        .cached_uncached = true,
+        .serial_parallel = true,
+        .cold_warm = true,
+    };
+    const bench = report.benchmark("tiny-arithmetic", cached.report, eq);
+    const json = try report.benchmarkToJson(a, bench);
+    const instance = try std.json.parseFromSliceLeaky(std.json.Value, a, json, .{});
+
+    try expect(json_schema.validate(schema, instance, schema));
+
+    // Negative control: a benchmark missing the required `equivalence` object
+    // must be rejected by the schema (proves the validator is engaged).
+    const bad = "{\"schema_version\":\"zentinel.benchmark.v1\",\"workload\":\"x\",\"mutants\":1,\"summary\":{\"total\":1,\"killed\":1,\"survived\":0,\"compile_error\":0,\"compiler_crash\":0,\"timeout\":0,\"skipped\":0,\"invalid\":0}}";
+    const bad_instance = try std.json.parseFromSliceLeaky(std.json.Value, a, bad, .{});
+    try expect(!json_schema.validate(schema, bad_instance, schema));
 }
 
 // --- diagnostics.cache snapshot + report schema validity --------------------

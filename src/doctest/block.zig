@@ -34,6 +34,17 @@ pub const Block = struct {
     is_doctest: bool,
 };
 
+/// First block whose `line_start` equals `line`, or null. Shared by the doctest,
+/// mutation-experiment, and mutator-doctest modules so the linear scan lives in
+/// one place (the indexed `cache.buildBlockIndex` remains the O(1) path for
+/// hot loops).
+pub fn findByLine(blocks: []const Block, line: u32) ?Block {
+    for (blocks) |b| {
+        if (b.line_start == line) return b;
+    }
+    return null;
+}
+
 pub fn languageFromToken(tok: []const u8) Language {
     if (std.mem.eql(u8, tok, "zig")) return .zig;
     if (std.mem.eql(u8, tok, "bash")) return .bash;

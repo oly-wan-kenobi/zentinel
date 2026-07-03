@@ -246,6 +246,12 @@ pub const Violation = enum {
     skip_reason_rule,
     excerpt_too_long,
     legacy_command_shape,
+    /// A schema pattern/minimum constraint failed (e.g. `mutant.id` not matching
+    /// `^m_[A-Za-z0-9]+$`, `display_id < 1`, or a `minLength: 1` field empty).
+    /// The in-process gate enforces these so an untrusted `--input-report`
+    /// cannot produce a context that passes locally but is invalid against the
+    /// published schema.
+    bad_constraint,
 };
 
 fn asObject(v: std.json.Value) ?std.json.ObjectMap {
@@ -278,6 +284,30 @@ fn requireAll(obj: std.json.ObjectMap, keys: []const []const u8) bool {
         if (obj.get(k) == null) return false;
     }
     return true;
+}
+
+/// True if `obj[key]` is a string with length >= `min` (schema `minLength`).
+fn minLengthOk(obj: std.json.ObjectMap, key: []const u8, min: usize) bool {
+    const s = fieldStr(obj, key) orelse return false;
+    return s.len >= min;
+}
+
+/// True if `obj[key]` is an integer >= `min` (schema `minimum`).
+fn intAtLeast(obj: std.json.ObjectMap, key: []const u8, min: i64) bool {
+    const v = obj.get(key) orelse return false;
+    return switch (v) {
+        .integer => |n| n >= min,
+        else => false,
+    };
+}
+
+/// True if `s` is a privacy placeholder produced by redaction/normalization
+/// (`[REDACTED]`, `<path>`, `<project>`, `<tmp>`, ...). Such a value can stand
+/// in for any field whose real value was masked for privacy.
+fn isPrivacyPlaceholder(s: []const u8) bool {
+    if (s.len == 0) return false;
+    if (std.mem.eql(u8, s, redaction.marker)) return true; // [REDACTED]
+    return s[0] == '<'; // <path>, <project>, <tmp>, <duration>, ...
 }
 
 const result_statuses = [_][]const u8{ "killed", "survived", "compile_error", "compiler_crash", "timeout", "skipped", "invalid" };
@@ -362,6 +392,26 @@ pub fn validate(value: std.json.Value) Violation {
     if (!enumOk(m, "backend_stability", &.{ "stable", "experimental" })) return .bad_enum; // rejects `preview`
     if (!enumOk(m, "operator_stability", &.{ "stable", "preview", "experimental" })) return .bad_enum; // accepts `preview`
     if (!enumOk(m, "expected_compile", &.{ "compiles", "may_fail", "must_fail" })) return .bad_enum;
+    // Schema constraints the structural gate must enforce so an untrusted
+    // --input-report cannot pass locally while violating the published schema:
+    // mutant.id pattern, display_id >= 1, file/operator non-empty. The id check
+    // requires the durable `m_` prefix OR a privacy placeholder: real ids start
+    // with `m_`, and redaction can mask the suffix (e.g. `m_[REDACTED]` when a
+    // token-shaped id is scrubbed) or replace the whole value (`<path>`,
+    // `[REDACTED]`). Privacy takes precedence, so a placeholder is always
+    // accepted; a grossly malformed id (no `m_` prefix, not a placeholder) is
+    // rejected so an untrusted --input-report cannot pass locally.
+    const mutant_id = fieldStr(m, "id") orelse "";
+    if (!std.mem.startsWith(u8, mutant_id, "m_") and !isPrivacyPlaceholder(mutant_id)) return .bad_constraint;
+    if (!intAtLeast(m, "display_id", 1)) return .bad_constraint;
+    if (!minLengthOk(m, "file", 1)) return .bad_constraint;
+    // mutant.operator is a minLength:1 string (distinct from the top-level
+    // operator object, which is checked below).
+    if (!minLengthOk(m, "operator", 1)) return .bad_constraint;
+    // span coordinates are minimum: 1 in the schema.
+    const span = asObject(m.get("span").?) orelse return .not_object;
+    if (!(intAtLeast(span, "line_start", 1) and intAtLeast(span, "line_end", 1) and
+        intAtLeast(span, "column_start", 1) and intAtLeast(span, "column_end", 1))) return .bad_constraint;
 
     // result: structured commands array, no legacy single-command shapes
     const r = asObject(obj.get("result").?) orelse return .not_object;
@@ -391,8 +441,11 @@ pub fn validate(value: std.json.Value) Violation {
     const tc = asObject(obj.get("test_context").?) orelse return .not_object;
     if (!requireAll(tc, &.{ "selection_reason", "selected_tests", "baseline_status", "same_file_tests_excluded_from_mutation" })) return .missing_field;
     if (!enumOk(tc, "baseline_status", &.{ "passed", "failed", "unknown" })) return .bad_enum;
+    if (!minLengthOk(tc, "selection_reason", 1)) return .bad_constraint;
     const op = asObject(obj.get("operator").?) orelse return .not_object;
     if (!requireAll(op, &.{ "name", "category", "equivalent_risks", "suggested_test_focus" })) return .missing_field;
+    // operator.name and operator.category are minLength: 1 in the schema.
+    if (!minLengthOk(op, "name", 1) or !minLengthOk(op, "category", 1)) return .bad_constraint;
 
     return .ok;
 }

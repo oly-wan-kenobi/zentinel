@@ -54,7 +54,10 @@ pub fn render(arena: std.mem.Allocator, rep: report.Report, verbosity: Verbosity
                 try out.append(arena, '\n');
             }
             if (m.advisory.equivalent_risks.len > 0) {
-                try out.print(arena, "  likely focus: {s}\n", .{m.advisory.equivalent_risks[0]});
+                // The field semantically describes mutation-equivalence risks for
+                // this survivor, not a test-focus suggestion (the AI context keeps
+                // those as separate fields). Label it to match the field meaning.
+                try out.print(arena, "  equivalent risk: {s}\n", .{m.advisory.equivalent_risks[0]});
             }
         }
     }

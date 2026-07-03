@@ -92,6 +92,29 @@ pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.me
     var changed = false;
     var i: usize = 0;
     while (i < text.len) {
+        // A `~` immediately followed by `/` at a token boundary starts a
+        // home-directory path (e.g. `~/.aws/credentials`). Previously the `~`
+        // was left verbatim while the trailing `/.aws/credentials` collapsed to
+        // `<path>`, producing `~<path>` -- a partial leak signalling "home dir".
+        // Redact from the `~` through the whole run instead.
+        const tilde_home = i + 1 < text.len and text[i] == '~' and text[i + 1] == '/' and
+            (i == 0 or !isPathByte(text[i - 1]));
+        if (tilde_home) {
+            var end = i + 2;
+            const quote: ?u8 = if (i > 0 and isQuote(text[i - 1])) text[i - 1] else null;
+            while (end < text.len) : (end += 1) {
+                if (quote) |q| {
+                    if (text[end] == q) break;
+                } else if (isPathSpace(text[end])) {
+                    if (!pathSpaceContinues(text, end)) break;
+                }
+            }
+            end = trimTrailingPathPunctuation(text, i, end);
+            try out.appendSlice(arena, "<path>");
+            changed = true;
+            i = end;
+            continue;
+        }
         // A `/` begins an absolute path at a token boundary: start of text, after
         // a non-path byte, OR after a `:`. The `:` case catches `label:/abs` and
         // `scheme://abs` URIs (e.g. file://) whose path the old rule -- which
@@ -117,7 +140,17 @@ pub fn normalizeAbsolutePaths(arena: std.mem.Allocator, text: []const u8) std.me
                 if (text[end] == '/') inner_slashes += 1;
             }
             end = trimTrailingPathPunctuation(text, i, end);
-            if (inner_slashes >= 1) {
+            // Redact a multi-segment absolute path (the original rule), OR a
+            // single-segment absolute path when it appears INSIDE quotes (e.g.
+            // `"cwd": "/root"`, `"file": "/tmp"`). The multi-segment requirement
+            // alone left short single-segment absolute paths (`/root`, `/tmp`,
+            // `/etc`) verbatim when they were quoted string values -- a real leak
+            // vector for fields like command.cwd / mutant.file. Inside quotes a
+            // `/word` is unambiguously a string literal, so redacting it cannot
+            // collide with the unquoted division operator `a / b` (which is not
+            // quoted and stays preserved). Require `end > i + 1` so a bare `"/"`
+            // is not flipped.
+            if (inner_slashes >= 1 or (quote != null and end > i + 1)) {
                 try out.appendSlice(arena, "<path>");
                 changed = true;
                 i = end;

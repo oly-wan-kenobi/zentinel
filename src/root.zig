@@ -4,8 +4,10 @@ const std = @import("std");
 /// Stable project name. Deterministic compile-time constant.
 pub const project_name = "zentinel";
 
-/// Initial project version. Deterministic compile-time constant.
-pub const version = "0.1.0";
+/// Project version. Single source of truth lives in `version.zig`; this is the
+/// public re-export consumed by `zentinel version`, the cache key, and the AI
+/// context. Pinned against build.zig.zon by test/version_parity_test.zig.
+pub const version = @import("version.zig").version;
 
 /// Zig version policy and discovery classification (deterministic core).
 pub const zig_version = @import("zig_version.zig");

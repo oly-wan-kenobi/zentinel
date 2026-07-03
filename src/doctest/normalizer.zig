@@ -72,7 +72,13 @@ fn matchAnsi(s: []const u8, i: usize) ?Match {
 
 fn isPathChar(c: u8) bool {
     return switch (c) {
-        ' ', '\t', '\n', '\r', '"', '\'', '`', ')', ']', '}', ',', ';' => false,
+        // `:` is excluded so a temp-dir match stops before a trailing
+        // `:line:column` compiler-diagnostic reference (e.g.
+        // `/var/folders/.../foo.zig:5:9: error`). Previously `:` was treated as
+        // a path char, so the whole `...foo.zig:5:9:` was collapsed to `<tmp>`,
+        // destroying the line/column info diagnostic matching needs. The temp-dir
+        // prefixes are Unix-only (no drive-letter `:`), so excluding `:` is safe.
+        ' ', '\t', '\n', '\r', '"', '\'', '`', ')', ']', '}', ',', ';', ':' => false,
         else => true,
     };
 }

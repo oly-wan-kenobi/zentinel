@@ -422,7 +422,18 @@ pub fn isoTimestamp(gpa: std.mem.Allocator, ms: i64) std.mem.Allocator.Error![]c
 /// field may differ between deterministic runs.
 pub fn normalizeForComparison(arena: std.mem.Allocator, json: []const u8) std.mem.Allocator.Error![]const u8 {
     const durations = try normalizeDurations(arena, json);
-    const ids = try replaceQuotedTokenWithPrefix(arena, durations, "run_", "<run-id>");
+    // Replace the run id by its EXACT value, extracted from the `"id"` field,
+    // then substituted wherever it appears (run.id plus any workspace path that
+    // embeds it). Scanning for the literal `"run_` prefix -- as the previous
+    // implementation did -- over-matched unrelated quoted strings that happen to
+    // start with `run_` (an argv entry like `"run_specs"`, a file path like
+    // `"run_utils/x.zig"`, a test name), collapsing a real value to the
+    // placeholder and corrupting the comparison.
+    const run_id = extractStringKeyValue(json, "id") orelse "";
+    const ids = if (run_id.len > 0)
+        try replaceAll(arena, durations, run_id, "<run-id>")
+    else
+        durations;
     return replaceKeyStringValue(arena, ids, "started_at", "<started-at>");
 }
 
@@ -446,20 +457,36 @@ fn normalizeDurations(arena: std.mem.Allocator, text: []const u8) std.mem.Alloca
     return out.toOwnedSlice(arena);
 }
 
-/// Replace a JSON string token whose content starts with `prefix` (e.g. the
-/// `run_...` run id) with `"<replacement>"`. Targets the unique run-id value.
-fn replaceQuotedTokenWithPrefix(arena: std.mem.Allocator, text: []const u8, prefix: []const u8, replacement: []const u8) std.mem.Allocator.Error![]const u8 {
-    const needle = try std.fmt.allocPrint(arena, "\"{s}", .{prefix});
+/// Extract the string value of the first `"key":` field in `text`, tolerating
+/// optional whitespace after the colon. Returns null if the key is absent or its
+/// value is not a string.
+fn extractStringKeyValue(text: []const u8, key: []const u8) ?[]const u8 {
+    var stack: [16]u8 = undefined;
+    const needle = std.fmt.bufPrint(&stack, "\"{s}\":", .{key}) catch return null;
+    var i: usize = 0;
+    while (i + needle.len <= text.len) : (i += 1) {
+        if (!std.mem.startsWith(u8, text[i..], needle)) continue;
+        var j = i + needle.len;
+        while (j < text.len and text[j] == ' ') j += 1;
+        if (j >= text.len or text[j] != '"') continue;
+        const val_start = j + 1;
+        var k = val_start;
+        while (k < text.len and text[k] != '"') k += 1;
+        if (k >= text.len) continue;
+        return text[val_start..k];
+    }
+    return null;
+}
+
+/// Replace every occurrence of the literal `needle` with `replacement`.
+fn replaceAll(arena: std.mem.Allocator, text: []const u8, needle: []const u8, replacement: []const u8) std.mem.Allocator.Error![]const u8 {
+    if (needle.len == 0) return arena.dupe(u8, text);
     var out: std.ArrayList(u8) = .empty;
     var i: usize = 0;
     while (i < text.len) {
-        if (std.mem.startsWith(u8, text[i..], needle)) {
-            try out.append(arena, '"');
+        if (i + needle.len <= text.len and std.mem.eql(u8, text[i .. i + needle.len], needle)) {
             try out.appendSlice(arena, replacement);
-            try out.append(arena, '"');
-            i += 1; // skip opening quote
-            while (i < text.len and text[i] != '"') i += 1; // skip token body
-            if (i < text.len) i += 1; // skip closing quote
+            i += needle.len;
         } else {
             try out.append(arena, text[i]);
             i += 1;

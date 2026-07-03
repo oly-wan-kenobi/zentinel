@@ -133,6 +133,12 @@ test "parseArgs reads documented options and rejects the rest" {
     try expectError(error.UnknownOption, lm.parseArgs(&.{"--nope"}));
     try expectError(error.MissingValue, lm.parseArgs(&.{"--operator"}));
     try expectError(error.InvalidFormat, lm.parseArgs(&.{ "--format", "yaml" }));
+    // --no-color is accepted as a no-op for CLI uniformity (CLI_SPEC: applies to
+    // "all terminal output"); it must not be an unknown option.
+    _ = try lm.parseArgs(&.{"--no-color"});
+    // A duplicated value-taking option is rejected, not silently last-wins.
+    try expectError(error.DuplicateOption, lm.parseArgs(&.{ "--operator", "arithmetic_add_sub", "--operator", "logical_and_or" }));
+    try expectError(error.DuplicateOption, lm.parseArgs(&.{ "--format", "json", "--format", "text" }));
     // An unknown --operator name is a usage error, not a clean 0-mutant preview.
     try expectError(error.UnknownOperator, lm.parseArgs(&.{ "--operator", "not_a_real_operator_name" }));
 }

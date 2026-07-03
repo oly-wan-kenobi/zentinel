@@ -117,7 +117,7 @@ pub fn run(arena: std.mem.Allocator, file: []const u8, source: []const u8, snipp
 
     for (extracted.cases) |c| {
         if (c.kind != .zig_test) continue;
-        const producer = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
+        const producer = block.findByLine(parsed.blocks, c.anchor_line) orelse continue;
         const snippet = producer.content;
         summary.cases += 1;
 
@@ -230,13 +230,6 @@ fn applyCandidate(arena: std.mem.Allocator, source: []const u8, m: mutant.Mutant
     const end: usize = @intCast(m.span.byte_end);
     if (start > end or end > source.len) return arena.dupe(u8, source);
     return std.fmt.allocPrint(arena, "{s}{s}{s}", .{ source[0..start], m.replacement, source[end..] });
-}
-
-fn findBlockByLine(blocks: []const block.Block, line: u32) ?block.Block {
-    for (blocks) |b| {
-        if (b.line_start == line) return b;
-    }
-    return null;
 }
 
 // --- Stabilized mutation-aware doctest report -------------------
@@ -498,7 +491,7 @@ pub fn stableMutationRun(
 
     for (extracted.cases) |c| {
         if (c.kind != .zig_test) continue;
-        const producer = findBlockByLine(parsed.blocks, c.anchor_line) orelse continue;
+        const producer = block.findByLine(parsed.blocks, c.anchor_line) orelse continue;
         const snippet = producer.content;
 
         if (!try hasBehavioralAssertion(arena, snippet)) {
